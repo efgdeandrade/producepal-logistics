@@ -10,6 +10,9 @@ import NewOrder from "./pages/NewOrder";
 import History from "./pages/History";
 import Suppliers from "./pages/Suppliers";
 import Products from "./pages/Products";
+import Customers from "./pages/Customers";
+import RoutesPage from "./pages/Routes";
+import DriverPortal from "./pages/DriverPortal";
 import CIFCalculator from "./pages/CIFCalculator";
 import Auth from "./pages/Auth";
 import UserManagement from "./pages/UserManagement";
@@ -32,6 +35,9 @@ const App = () => (
             <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
             <Route path="/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
             <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
+            <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
+            <Route path="/routes" element={<ProtectedRoute><RoutesPage /></ProtectedRoute>} />
+            <Route path="/driver-portal" element={<ProtectedRoute requiredRole="driver"><DriverPortal /></ProtectedRoute>} />
             <Route path="/cif-calculator" element={<ProtectedRoute><CIFCalculator /></ProtectedRoute>} />
             <Route path="/user-management" element={<ProtectedRoute requiredRole="admin"><UserManagement /></ProtectedRoute>} />
             <Route path="/user-activity" element={<ProtectedRoute><UserActivity /></ProtectedRoute>} />

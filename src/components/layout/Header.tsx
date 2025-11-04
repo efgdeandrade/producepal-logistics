@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Package, History, PlusCircle, LayoutDashboard, Calculator, Users, Activity, LogOut } from 'lucide-react';
+import { Package, History, PlusCircle, LayoutDashboard, Calculator, Users, Activity, LogOut, MapPin, Truck } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   DropdownMenu,
@@ -92,6 +92,39 @@ export const Header = () => {
               CIF Calculator
             </Link>
           </Button>
+          <Button
+            variant={isActive('/customers') ? 'default' : 'ghost'}
+            size="sm"
+            asChild
+          >
+            <Link to="/customers">
+              <Users className="mr-2 h-4 w-4" />
+              Customers
+            </Link>
+          </Button>
+          <Button
+            variant={isActive('/routes') ? 'default' : 'ghost'}
+            size="sm"
+            asChild
+          >
+            <Link to="/routes">
+              <MapPin className="mr-2 h-4 w-4" />
+              Routes
+            </Link>
+          </Button>
+
+          {hasRole('driver') && (
+            <Button
+              variant={isActive('/driver-portal') ? 'default' : 'ghost'}
+              size="sm"
+              asChild
+            >
+              <Link to="/driver-portal">
+                <Truck className="mr-2 h-4 w-4" />
+                Driver Portal
+              </Link>
+            </Button>
+          )}
 
           {isAdmin() && (
             <Button

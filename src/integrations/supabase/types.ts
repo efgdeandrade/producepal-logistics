@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      customers: {
+        Row: {
+          address: string
+          city: string | null
+          created_at: string
+          email: string | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          name: string
+          notes: string | null
+          phone: string | null
+          postal_code: string | null
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           created_at: string
@@ -161,6 +206,127 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      route_stops: {
+        Row: {
+          arrival_time: string | null
+          completion_time: string | null
+          created_at: string
+          customer_id: string
+          delivery_notes: string | null
+          id: string
+          order_id: string | null
+          photo_urls: string[] | null
+          route_id: string
+          scheduled_time: string | null
+          sequence_number: number
+          signature_url: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          arrival_time?: string | null
+          completion_time?: string | null
+          created_at?: string
+          customer_id: string
+          delivery_notes?: string | null
+          id?: string
+          order_id?: string | null
+          photo_urls?: string[] | null
+          route_id: string
+          scheduled_time?: string | null
+          sequence_number: number
+          signature_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          arrival_time?: string | null
+          completion_time?: string | null
+          created_at?: string
+          customer_id?: string
+          delivery_notes?: string | null
+          id?: string
+          order_id?: string | null
+          photo_urls?: string[] | null
+          route_id?: string
+          scheduled_time?: string | null
+          sequence_number?: number
+          signature_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "route_stops_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "route_stops_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "route_stops_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      routes: {
+        Row: {
+          actual_duration: number | null
+          created_at: string
+          created_by: string | null
+          date: string
+          driver_id: string | null
+          driver_name: string
+          estimated_duration: number | null
+          id: string
+          notes: string | null
+          route_number: string
+          status: string
+          truck_identifier: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_duration?: number | null
+          created_at?: string
+          created_by?: string | null
+          date: string
+          driver_id?: string | null
+          driver_name: string
+          estimated_duration?: number | null
+          id?: string
+          notes?: string | null
+          route_number: string
+          status?: string
+          truck_identifier?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_duration?: number | null
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          driver_id?: string | null
+          driver_name?: string
+          estimated_duration?: number | null
+          id?: string
+          notes?: string | null
+          route_number?: string
+          status?: string
+          truck_identifier?: string | null
           updated_at?: string
         }
         Relationships: []
