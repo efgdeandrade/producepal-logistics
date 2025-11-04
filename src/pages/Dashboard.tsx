@@ -5,8 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Package, TrendingUp, Users, Calendar, PlusCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface ChartData {
@@ -425,7 +424,7 @@ const Dashboard = () => {
                         className="text-xs"
                         tick={{ fill: 'hsl(var(--muted-foreground))' }}
                       />
-                      <ChartTooltip content={<CustomTooltip />} />
+                      <Tooltip content={<CustomTooltip />} />
                       <Bar dataKey="usd" fill="hsl(var(--chart-1))" name="USD" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="xcg" fill="hsl(var(--chart-2))" name="XCG" radius={[4, 4, 0, 0]} />
                     </BarChart>
@@ -447,7 +446,7 @@ const Dashboard = () => {
                         className="text-xs"
                         tick={{ fill: 'hsl(var(--muted-foreground))' }}
                       />
-                      <ChartTooltip content={<CustomTooltip />} />
+                      <Tooltip content={<CustomTooltip />} />
                       <Line 
                         type="monotone" 
                         dataKey="usd" 
@@ -481,7 +480,7 @@ const Dashboard = () => {
                         className="text-xs"
                         tick={{ fill: 'hsl(var(--muted-foreground))' }}
                       />
-                      <ChartTooltip content={<CustomTooltip />} />
+                      <Tooltip content={<CustomTooltip />} />
                       <Bar dataKey="usd" fill="hsl(var(--chart-1))" name="USD" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="xcg" fill="hsl(var(--chart-2))" name="XCG" radius={[4, 4, 0, 0]} />
                     </BarChart>
