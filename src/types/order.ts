@@ -1,9 +1,21 @@
 export type ProductCode = 'STB_500' | 'STB_250' | 'BLB_125' | 'CTO_250' | 'CTO_500' | 'CTO_PKG';
 
+export interface Supplier {
+  id: string;
+  name: string;
+  contact?: string;
+  email?: string;
+  phone?: string;
+}
+
 export interface Product {
   code: ProductCode;
   name: string;
   packSize: number; // items per tray/case
+  supplierId?: string;
+  price?: number;
+  weight?: number;
+  unit?: string;
 }
 
 export interface OrderItem {

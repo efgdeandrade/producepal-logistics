@@ -12,7 +12,7 @@ export const Header = () => {
       <div className="container flex h-16 items-center justify-between">
         <Link to="/" className="flex items-center space-x-2">
           <Package className="h-6 w-6 text-primary" />
-          <span className="text-xl font-bold text-foreground">Fuil.io</span>
+          <span className="text-xl font-bold text-foreground">Fuik.io</span>
         </Link>
         
         <nav className="flex items-center space-x-2">
@@ -44,6 +44,26 @@ export const Header = () => {
             <Link to="/history">
               <History className="mr-2 h-4 w-4" />
               History
+            </Link>
+          </Button>
+          <Button
+            variant={isActive('/suppliers') ? 'default' : 'ghost'}
+            size="sm"
+            asChild
+          >
+            <Link to="/suppliers">
+              <Package className="mr-2 h-4 w-4" />
+              Suppliers
+            </Link>
+          </Button>
+          <Button
+            variant={isActive('/products') ? 'default' : 'ghost'}
+            size="sm"
+            asChild
+          >
+            <Link to="/products">
+              <Package className="mr-2 h-4 w-4" />
+              Products
             </Link>
           </Button>
         </nav>
