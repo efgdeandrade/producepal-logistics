@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Package, History, PlusCircle, LayoutDashboard } from 'lucide-react';
+import { Package, History, PlusCircle, LayoutDashboard, Calculator } from 'lucide-react';
 
 export const Header = () => {
   const location = useLocation();
@@ -64,6 +64,16 @@ export const Header = () => {
             <Link to="/products">
               <Package className="mr-2 h-4 w-4" />
               Products
+            </Link>
+          </Button>
+          <Button
+            variant={isActive('/cif-calculator') ? 'default' : 'ghost'}
+            size="sm"
+            asChild
+          >
+            <Link to="/cif-calculator">
+              <Calculator className="mr-2 h-4 w-4" />
+              CIF Calculator
             </Link>
           </Button>
         </nav>

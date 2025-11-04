@@ -8,6 +8,7 @@ import NewOrder from "./pages/NewOrder";
 import History from "./pages/History";
 import Suppliers from "./pages/Suppliers";
 import Products from "./pages/Products";
+import CIFCalculator from "./pages/CIFCalculator";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/history" element={<History />} />
           <Route path="/suppliers" element={<Suppliers />} />
           <Route path="/products" element={<Products />} />
+          <Route path="/cif-calculator" element={<CIFCalculator />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
