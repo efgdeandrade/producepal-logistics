@@ -20,6 +20,7 @@ import UserActivity from "./pages/UserActivity";
 import ProductionDashboard from "./pages/ProductionDashboard";
 import DeliveryManagement from "./pages/DeliveryManagement";
 import PredictionsAnalytics from "./pages/PredictionsAnalytics";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +48,7 @@ const App = () => (
             <Route path="/production" element={<ProtectedRoute><ProductionDashboard /></ProtectedRoute>} />
             <Route path="/deliveries" element={<ProtectedRoute><DeliveryManagement /></ProtectedRoute>} />
             <Route path="/analytics" element={<ProtectedRoute><PredictionsAnalytics /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute requiredRole="admin"><Settings /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
