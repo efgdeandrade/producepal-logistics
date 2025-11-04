@@ -527,6 +527,42 @@ export type Database = {
         }
         Relationships: []
       }
+      role_permissions: {
+        Row: {
+          can_create: boolean
+          can_delete: boolean
+          can_update: boolean
+          can_view: boolean
+          created_at: string
+          id: string
+          resource: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+        }
+        Insert: {
+          can_create?: boolean
+          can_delete?: boolean
+          can_update?: boolean
+          can_view?: boolean
+          created_at?: string
+          id?: string
+          resource: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Update: {
+          can_create?: boolean
+          can_delete?: boolean
+          can_update?: boolean
+          can_view?: boolean
+          created_at?: string
+          id?: string
+          resource?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       route_stops: {
         Row: {
           arrival_time: string | null
@@ -645,6 +681,33 @@ export type Database = {
           status?: string
           truck_identifier?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      settings: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key: string
+          updated_at?: string
+          value: Json
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key?: string
+          updated_at?: string
+          value?: Json
         }
         Relationships: []
       }
@@ -817,7 +880,14 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "management" | "driver" | "production" | "logistics"
+      app_role:
+        | "admin"
+        | "management"
+        | "driver"
+        | "production"
+        | "logistics"
+        | "accounting"
+        | "manager"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -945,7 +1015,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "management", "driver", "production", "logistics"],
+      app_role: [
+        "admin",
+        "management",
+        "driver",
+        "production",
+        "logistics",
+        "accounting",
+        "manager",
+      ],
     },
   },
 } as const
