@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { TrendingUp, TrendingDown, AlertTriangle, Target, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, Target, BarChart3, ArrowLeft } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { useNavigate } from 'react-router-dom';
 
 interface WasteStats {
   customer_name: string;
@@ -25,6 +27,7 @@ interface PredictionAccuracy {
 }
 
 const PredictionsAnalytics = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [wasteStats, setWasteStats] = useState<WasteStats[]>([]);
   const [predictionAccuracy, setPredictionAccuracy] = useState<PredictionAccuracy[]>([]);
@@ -195,9 +198,14 @@ const PredictionsAnalytics = () => {
       <Header />
       
       <main className="container py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">Predictions & Analytics</h1>
-          <p className="text-muted-foreground">AI predictions, waste analysis, and performance metrics</p>
+        <div className="mb-8 flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+            <ArrowLeft className="h-6 w-6" />
+          </Button>
+          <div>
+            <h1 className="text-4xl font-bold text-foreground mb-2">Predictions & Analytics</h1>
+            <p className="text-muted-foreground">AI predictions, waste analysis, and performance metrics</p>
+          </div>
         </div>
 
         <div className="grid gap-6 mb-6">

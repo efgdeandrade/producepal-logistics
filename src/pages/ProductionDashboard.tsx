@@ -2,10 +2,14 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Package, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { Package, CheckCircle2, Clock, AlertCircle, Plus, ArrowLeft } from 'lucide-react';
 import { format } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 
 interface ProductionItem {
   id: string;
@@ -26,10 +30,14 @@ interface ProductionOrder {
 }
 
 const ProductionDashboard = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [orders, setOrders] = useState<ProductionOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [newOrderDate, setNewOrderDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [newDeliveryDate, setNewDeliveryDate] = useState('');
 
   useEffect(() => {
     fetchProductionOrders();
@@ -135,6 +143,48 @@ const ProductionDashboard = () => {
     }
   };
 
+  const createProductionOrder = async () => {
+    if (!newDeliveryDate) {
+      toast({
+        title: 'Error',
+        description: 'Please select a delivery date',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const { error } = await supabase
+        .from('production_orders')
+        .insert({
+          order_date: newOrderDate,
+          delivery_date: newDeliveryDate,
+          status: 'planned',
+          created_by: user?.id,
+        });
+
+      if (error) throw error;
+
+      setIsCreateDialogOpen(false);
+      setNewOrderDate(format(new Date(), 'yyyy-MM-dd'));
+      setNewDeliveryDate('');
+      fetchProductionOrders();
+      
+      toast({
+        title: 'Success',
+        description: 'Production order created successfully',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
@@ -204,19 +254,58 @@ const ProductionDashboard = () => {
         <div className="container mx-auto px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
+              <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+                <ArrowLeft className="h-6 w-6" />
+              </Button>
               <Package className="h-12 w-12 text-primary" />
               <div>
                 <h1 className="text-4xl font-bold text-foreground">Production Dashboard</h1>
                 <p className="text-lg text-muted-foreground">Real-time production overview</p>
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-5xl font-bold text-foreground tabular-nums">
-                {format(currentTime, 'HH:mm:ss')}
+            <div className="flex items-center gap-6">
+              <div className="text-right">
+                <div className="text-5xl font-bold text-foreground tabular-nums">
+                  {format(currentTime, 'HH:mm:ss')}
+                </div>
+                <div className="text-xl text-muted-foreground">
+                  {format(currentTime, 'EEEE, MMMM d, yyyy')}
+                </div>
               </div>
-              <div className="text-xl text-muted-foreground">
-                {format(currentTime, 'EEEE, MMMM d, yyyy')}
-              </div>
+              <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="lg">
+                    <Plus className="mr-2 h-5 w-5" />
+                    New Production Order
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Create Production Order</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Order Date</Label>
+                      <Input
+                        type="date"
+                        value={newOrderDate}
+                        onChange={(e) => setNewOrderDate(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label>Delivery Date</Label>
+                      <Input
+                        type="date"
+                        value={newDeliveryDate}
+                        onChange={(e) => setNewDeliveryDate(e.target.value)}
+                      />
+                    </div>
+                    <Button onClick={createProductionOrder} className="w-full">
+                      Create Order
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
         </div>

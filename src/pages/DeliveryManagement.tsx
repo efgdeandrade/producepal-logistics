@@ -7,10 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Truck, Package, AlertTriangle, Printer, Save, Scan } from 'lucide-react';
+import { Truck, Package, AlertTriangle, Printer, Save, Scan, ArrowLeft } from 'lucide-react';
 import { format } from 'date-fns';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useNavigate } from 'react-router-dom';
 
 interface DeliveryItem {
   id: string;
@@ -46,6 +47,7 @@ const WASTE_REASONS = [
 ];
 
 const DeliveryManagement = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
@@ -259,9 +261,14 @@ const DeliveryManagement = () => {
       <Header />
       
       <main className="container py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">Delivery Management</h1>
-          <p className="text-muted-foreground">Scan waste and adjust invoices on delivery</p>
+        <div className="mb-8 flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+            <ArrowLeft className="h-6 w-6" />
+          </Button>
+          <div>
+            <h1 className="text-4xl font-bold text-foreground mb-2">Delivery Management</h1>
+            <p className="text-muted-foreground">Scan waste and adjust invoices on delivery</p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
