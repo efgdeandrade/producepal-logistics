@@ -1,13 +1,315 @@
+import { useEffect, useState } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Package, TrendingUp, Users, Calendar, PlusCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+interface ChartData {
+  period: string;
+  usd: number;
+  xcg: number;
+  suppliers: Record<string, { usd: number; xcg: number }>;
+}
 
 const Dashboard = () => {
-  const todayOrders = 3;
-  const weekOrders = 12;
-  const activeCustomers = 8;
+  const [todayOrders, setTodayOrders] = useState(0);
+  const [weekOrders, setWeekOrders] = useState(0);
+  const [activeCustomers, setActiveCustomers] = useState(0);
+  const [weeklyData, setWeeklyData] = useState<ChartData[]>([]);
+  const [monthlyData, setMonthlyData] = useState<ChartData[]>([]);
+  const [yearlyData, setYearlyData] = useState<ChartData[]>([]);
+  const [lastYearWeekComparison, setLastYearWeekComparison] = useState({ current: 0, lastYear: 0, change: 0 });
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      const now = new Date();
+      const currentWeek = getWeekNumber(now);
+      const currentYear = now.getFullYear();
+      
+      // Fetch orders with items and products
+      const { data: orders } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          order_items (
+            customer_name,
+            product_code,
+            quantity
+          )
+        `)
+        .eq('status', 'completed');
+
+      if (!orders) return;
+
+      // Fetch products for pricing
+      const { data: products } = await supabase
+        .from('products')
+        .select('code, price_usd, price_xcg, supplier_id, suppliers(name)');
+
+      const productMap = new Map(products?.map(p => [p.code, p]) || []);
+
+      // Calculate today's orders
+      const today = now.toISOString().split('T')[0];
+      const todayOrdersCount = orders.filter(o => o.delivery_date === today).length;
+      setTodayOrders(todayOrdersCount);
+
+      // Calculate week orders
+      const weekOrdersCount = orders.filter(o => {
+        const orderWeek = getWeekNumber(new Date(o.delivery_date));
+        return orderWeek === currentWeek && new Date(o.delivery_date).getFullYear() === currentYear;
+      }).length;
+      setWeekOrders(weekOrdersCount);
+
+      // Calculate active customers (unique this week)
+      const weekCustomers = new Set(
+        orders
+          .filter(o => {
+            const orderWeek = getWeekNumber(new Date(o.delivery_date));
+            return orderWeek === currentWeek && new Date(o.delivery_date).getFullYear() === currentYear;
+          })
+          .flatMap(o => o.order_items?.map(item => item.customer_name) || [])
+      );
+      setActiveCustomers(weekCustomers.size);
+
+      // Generate weekly data (last 12 weeks)
+      const weekly = generateWeeklyData(orders, productMap, currentWeek, currentYear);
+      setWeeklyData(weekly);
+
+      // Generate monthly data (last 12 months)
+      const monthly = generateMonthlyData(orders, productMap);
+      setMonthlyData(monthly);
+
+      // Generate yearly data (last 5 years)
+      const yearly = generateYearlyData(orders, productMap);
+      setYearlyData(yearly);
+
+      // Calculate year-over-year comparison for current week
+      const currentWeekTotal = calculateWeekTotal(orders, productMap, currentWeek, currentYear);
+      const lastYearWeekTotal = calculateWeekTotal(orders, productMap, currentWeek, currentYear - 1);
+      const change = lastYearWeekTotal > 0 
+        ? ((currentWeekTotal - lastYearWeekTotal) / lastYearWeekTotal) * 100 
+        : 0;
+      
+      setLastYearWeekComparison({
+        current: currentWeekTotal,
+        lastYear: lastYearWeekTotal,
+        change: Math.round(change)
+      });
+
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    }
+  };
+
+  const getWeekNumber = (date: Date): number => {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  };
+
+  const calculateWeekTotal = (orders: any[], productMap: Map<string, any>, week: number, year: number): number => {
+    return orders
+      .filter(o => {
+        const orderDate = new Date(o.delivery_date);
+        return getWeekNumber(orderDate) === week && orderDate.getFullYear() === year;
+      })
+      .reduce((sum, order) => {
+        const orderTotal = (order.order_items || []).reduce((itemSum: number, item: any) => {
+          const product = productMap.get(item.product_code);
+          return itemSum + (item.quantity * (product?.price_usd || 0));
+        }, 0);
+        return sum + orderTotal;
+      }, 0);
+  };
+
+  const generateWeeklyData = (orders: any[], productMap: Map<string, any>, currentWeek: number, currentYear: number): ChartData[] => {
+    const data: ChartData[] = [];
+    
+    for (let i = 11; i >= 0; i--) {
+      let week = currentWeek - i;
+      let year = currentYear;
+      
+      if (week <= 0) {
+        year--;
+        week = 52 + week;
+      }
+
+      const weekOrders = orders.filter(o => {
+        const orderDate = new Date(o.delivery_date);
+        return getWeekNumber(orderDate) === week && orderDate.getFullYear() === year;
+      });
+
+      const suppliers: Record<string, { usd: number; xcg: number }> = {};
+      let totalUsd = 0;
+      let totalXcg = 0;
+
+      weekOrders.forEach(order => {
+        (order.order_items || []).forEach((item: any) => {
+          const product = productMap.get(item.product_code);
+          if (product) {
+            const supplierName = product.suppliers?.name || 'Unknown';
+            const itemUsd = item.quantity * (product.price_usd || 0);
+            const itemXcg = item.quantity * (product.price_xcg || 0);
+
+            if (!suppliers[supplierName]) {
+              suppliers[supplierName] = { usd: 0, xcg: 0 };
+            }
+            suppliers[supplierName].usd += itemUsd;
+            suppliers[supplierName].xcg += itemXcg;
+            totalUsd += itemUsd;
+            totalXcg += itemXcg;
+          }
+        });
+      });
+
+      data.push({
+        period: `Week ${week}`,
+        usd: Math.round(totalUsd),
+        xcg: Math.round(totalXcg),
+        suppliers
+      });
+    }
+
+    return data;
+  };
+
+  const generateMonthlyData = (orders: any[], productMap: Map<string, any>): ChartData[] => {
+    const data: ChartData[] = [];
+    const now = new Date();
+
+    for (let i = 11; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const month = date.getMonth();
+      const year = date.getFullYear();
+
+      const monthOrders = orders.filter(o => {
+        const orderDate = new Date(o.delivery_date);
+        return orderDate.getMonth() === month && orderDate.getFullYear() === year;
+      });
+
+      const suppliers: Record<string, { usd: number; xcg: number }> = {};
+      let totalUsd = 0;
+      let totalXcg = 0;
+
+      monthOrders.forEach(order => {
+        (order.order_items || []).forEach((item: any) => {
+          const product = productMap.get(item.product_code);
+          if (product) {
+            const supplierName = product.suppliers?.name || 'Unknown';
+            const itemUsd = item.quantity * (product.price_usd || 0);
+            const itemXcg = item.quantity * (product.price_xcg || 0);
+
+            if (!suppliers[supplierName]) {
+              suppliers[supplierName] = { usd: 0, xcg: 0 };
+            }
+            suppliers[supplierName].usd += itemUsd;
+            suppliers[supplierName].xcg += itemXcg;
+            totalUsd += itemUsd;
+            totalXcg += itemXcg;
+          }
+        });
+      });
+
+      data.push({
+        period: date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+        usd: Math.round(totalUsd),
+        xcg: Math.round(totalXcg),
+        suppliers
+      });
+    }
+
+    return data;
+  };
+
+  const generateYearlyData = (orders: any[], productMap: Map<string, any>): ChartData[] => {
+    const data: ChartData[] = [];
+    const currentYear = new Date().getFullYear();
+
+    for (let i = 4; i >= 0; i--) {
+      const year = currentYear - i;
+
+      const yearOrders = orders.filter(o => new Date(o.delivery_date).getFullYear() === year);
+
+      const suppliers: Record<string, { usd: number; xcg: number }> = {};
+      let totalUsd = 0;
+      let totalXcg = 0;
+
+      yearOrders.forEach(order => {
+        (order.order_items || []).forEach((item: any) => {
+          const product = productMap.get(item.product_code);
+          if (product) {
+            const supplierName = product.suppliers?.name || 'Unknown';
+            const itemUsd = item.quantity * (product.price_usd || 0);
+            const itemXcg = item.quantity * (product.price_xcg || 0);
+
+            if (!suppliers[supplierName]) {
+              suppliers[supplierName] = { usd: 0, xcg: 0 };
+            }
+            suppliers[supplierName].usd += itemUsd;
+            suppliers[supplierName].xcg += itemXcg;
+            totalUsd += itemUsd;
+            totalXcg += itemXcg;
+          }
+        });
+      });
+
+      data.push({
+        period: year.toString(),
+        usd: Math.round(totalUsd),
+        xcg: Math.round(totalXcg),
+        suppliers
+      });
+    }
+
+    return data;
+  };
+
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (!active || !payload || !payload[0]) return null;
+
+    const data = payload[0].payload;
+    const suppliers = data.suppliers || {};
+
+    return (
+      <div className="bg-card border rounded-lg shadow-lg p-4">
+        <p className="font-semibold text-foreground mb-2">{data.period}</p>
+        <div className="space-y-1 mb-3">
+          <p className="text-sm">
+            <span className="text-chart-1 font-medium">USD:</span>{' '}
+            <span className="text-foreground">${data.usd.toLocaleString()}</span>
+          </p>
+          <p className="text-sm">
+            <span className="text-chart-2 font-medium">XCG:</span>{' '}
+            <span className="text-foreground">{data.xcg.toLocaleString()}</span>
+          </p>
+        </div>
+        {Object.keys(suppliers).length > 0 && (
+          <div className="border-t pt-2">
+            <p className="text-xs font-semibold text-muted-foreground mb-1">By Supplier:</p>
+            {Object.entries(suppliers).map(([name, values]: [string, any]) => (
+              <div key={name} className="text-xs space-y-0.5 mb-1">
+                <p className="font-medium text-foreground">{name}</p>
+                <p className="text-muted-foreground pl-2">
+                  USD: ${values.usd.toLocaleString()} | XCG: {values.xcg.toLocaleString()}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -69,66 +371,126 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Orders</CardTitle>
-              <CardDescription>Your latest order activity</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <p className="font-semibold text-foreground">Order #1045</p>
-                    <p className="text-sm text-muted-foreground">Week 45 - Nov 03, 2025</p>
-                  </div>
-                  <span className="text-xs font-medium px-3 py-1 rounded-full bg-success/10 text-success">
-                    Completed
-                  </span>
-                </div>
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <p className="font-semibold text-foreground">Order #1044</p>
-                    <p className="text-sm text-muted-foreground">Week 44 - Oct 27, 2025</p>
-                  </div>
-                  <span className="text-xs font-medium px-3 py-1 rounded-full bg-success/10 text-success">
-                    Completed
-                  </span>
-                </div>
-                <Button variant="outline" className="w-full" asChild>
-                  <Link to="/history">View All History</Link>
-                </Button>
+        {/* Year-over-Year Comparison */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Week-over-Week Comparison</CardTitle>
+            <CardDescription>Current week vs same week last year</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-6 md:grid-cols-3">
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">This Week</p>
+                <p className="text-3xl font-bold text-primary">${lastYearWeekComparison.current.toLocaleString()}</p>
               </div>
-            </CardContent>
-          </Card>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Same Week Last Year</p>
+                <p className="text-3xl font-bold text-muted-foreground">${lastYearWeekComparison.lastYear.toLocaleString()}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Change</p>
+                <p className={`text-3xl font-bold ${lastYearWeekComparison.change >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  {lastYearWeekComparison.change >= 0 ? '+' : ''}{lastYearWeekComparison.change}%
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Stats</CardTitle>
-              <CardDescription>Week 45 overview</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Strawberries 500g</span>
-                  <span className="font-semibold text-foreground">115 trays</span>
+        {/* Charts */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Sales Analytics</CardTitle>
+            <CardDescription>View amounts in USD and XCG across different time periods</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="weekly" className="space-y-4">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="weekly">Weekly</TabsTrigger>
+                <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                <TabsTrigger value="yearly">Yearly</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="weekly" className="space-y-4">
+                <div className="h-[400px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={weeklyData}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis 
+                        dataKey="period" 
+                        className="text-xs"
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      />
+                      <YAxis 
+                        className="text-xs"
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      />
+                      <ChartTooltip content={<CustomTooltip />} />
+                      <Bar dataKey="usd" fill="hsl(var(--chart-1))" name="USD" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="xcg" fill="hsl(var(--chart-2))" name="XCG" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Blueberries 125g</span>
-                  <span className="font-semibold text-foreground">104 trays</span>
+              </TabsContent>
+
+              <TabsContent value="monthly" className="space-y-4">
+                <div className="h-[400px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={monthlyData}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis 
+                        dataKey="period" 
+                        className="text-xs"
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      />
+                      <YAxis 
+                        className="text-xs"
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      />
+                      <ChartTooltip content={<CustomTooltip />} />
+                      <Line 
+                        type="monotone" 
+                        dataKey="usd" 
+                        stroke="hsl(var(--chart-1))" 
+                        strokeWidth={2}
+                        dot={{ fill: 'hsl(var(--chart-1))' }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="xcg" 
+                        stroke="hsl(var(--chart-2))" 
+                        strokeWidth={2}
+                        dot={{ fill: 'hsl(var(--chart-2))' }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Cherry Tomatoes 250g</span>
-                  <span className="font-semibold text-foreground">24 trays</span>
+              </TabsContent>
+
+              <TabsContent value="yearly" className="space-y-4">
+                <div className="h-[400px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={yearlyData}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis 
+                        dataKey="period" 
+                        className="text-xs"
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      />
+                      <YAxis 
+                        className="text-xs"
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      />
+                      <ChartTooltip content={<CustomTooltip />} />
+                      <Bar dataKey="usd" fill="hsl(var(--chart-1))" name="USD" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="xcg" fill="hsl(var(--chart-2))" name="XCG" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Strawberries 250g</span>
-                  <span className="font-semibold text-foreground">12 trays</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
       </main>
     </div>
   );

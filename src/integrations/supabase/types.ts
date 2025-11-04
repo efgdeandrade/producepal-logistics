@@ -14,6 +14,133 @@ export type Database = {
   }
   public: {
     Tables: {
+      order_items: {
+        Row: {
+          created_at: string
+          customer_name: string
+          id: string
+          order_id: string
+          po_number: string | null
+          product_code: string
+          quantity: number
+        }
+        Insert: {
+          created_at?: string
+          customer_name: string
+          id?: string
+          order_id: string
+          po_number?: string | null
+          product_code: string
+          quantity?: number
+        }
+        Update: {
+          created_at?: string
+          customer_name?: string
+          id?: string
+          order_id?: string
+          po_number?: string | null
+          product_code?: string
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          created_at: string
+          delivery_date: string
+          id: string
+          notes: string | null
+          order_number: string
+          placed_by: string
+          status: string
+          updated_at: string
+          user_id: string | null
+          week_number: number
+        }
+        Insert: {
+          created_at?: string
+          delivery_date: string
+          id?: string
+          notes?: string | null
+          order_number: string
+          placed_by: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+          week_number: number
+        }
+        Update: {
+          created_at?: string
+          delivery_date?: string
+          id?: string
+          notes?: string | null
+          order_number?: string
+          placed_by?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+          week_number?: number
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          name: string
+          pack_size: number
+          price_usd: number | null
+          price_xcg: number | null
+          supplier_id: string | null
+          unit: string | null
+          updated_at: string
+          weight: number | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          name: string
+          pack_size: number
+          price_usd?: number | null
+          price_xcg?: number | null
+          supplier_id?: string | null
+          unit?: string | null
+          updated_at?: string
+          weight?: number | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          name?: string
+          pack_size?: number
+          price_usd?: number | null
+          price_xcg?: number | null
+          supplier_id?: string | null
+          unit?: string | null
+          updated_at?: string
+          weight?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -34,6 +161,36 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      suppliers: {
+        Row: {
+          contact: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          contact?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          contact?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
           updated_at?: string
         }
         Relationships: []
