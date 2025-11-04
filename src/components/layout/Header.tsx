@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Package, History, PlusCircle, LayoutDashboard, Calculator, Users, Activity, LogOut, MapPin, Truck } from 'lucide-react';
+import { Package, History, PlusCircle, LayoutDashboard, Calculator, Users, Activity, LogOut, MapPin, Truck, Factory, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   DropdownMenu,
@@ -110,6 +110,37 @@ export const Header = () => {
             <Link to="/routes">
               <MapPin className="mr-2 h-4 w-4" />
               Routes
+            </Link>
+          </Button>
+
+          <Button
+            variant={isActive('/production') ? 'default' : 'ghost'}
+            size="sm"
+            asChild
+          >
+            <Link to="/production">
+              <Factory className="mr-2 h-4 w-4" />
+              Production
+            </Link>
+          </Button>
+          <Button
+            variant={isActive('/deliveries') ? 'default' : 'ghost'}
+            size="sm"
+            asChild
+          >
+            <Link to="/deliveries">
+              <Truck className="mr-2 h-4 w-4" />
+              Deliveries
+            </Link>
+          </Button>
+          <Button
+            variant={isActive('/analytics') ? 'default' : 'ghost'}
+            size="sm"
+            asChild
+          >
+            <Link to="/analytics">
+              <TrendingUp className="mr-2 h-4 w-4" />
+              Analytics
             </Link>
           </Button>
 

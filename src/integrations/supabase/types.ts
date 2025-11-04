@@ -59,6 +59,189 @@ export type Database = {
         }
         Relationships: []
       }
+      deliveries: {
+        Row: {
+          adjusted_amount: number | null
+          created_at: string
+          delivery_date: string
+          driver_id: string | null
+          id: string
+          notes: string | null
+          production_order_id: string | null
+          route_id: string | null
+          status: string
+          total_amount: number | null
+          updated_at: string
+        }
+        Insert: {
+          adjusted_amount?: number | null
+          created_at?: string
+          delivery_date: string
+          driver_id?: string | null
+          id?: string
+          notes?: string | null
+          production_order_id?: string | null
+          route_id?: string | null
+          status?: string
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Update: {
+          adjusted_amount?: number | null
+          created_at?: string
+          delivery_date?: string
+          driver_id?: string | null
+          id?: string
+          notes?: string | null
+          production_order_id?: string | null
+          route_id?: string | null
+          status?: string
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deliveries_production_order_id_fkey"
+            columns: ["production_order_id"]
+            isOneToOne: false
+            referencedRelation: "production_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deliveries_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_items: {
+        Row: {
+          adjusted_total: number | null
+          created_at: string
+          customer_id: string
+          delivered_quantity: number | null
+          delivery_id: string
+          id: string
+          line_total: number | null
+          planned_quantity: number
+          product_code: string
+          unit_price: number | null
+          updated_at: string
+          waste_quantity: number | null
+        }
+        Insert: {
+          adjusted_total?: number | null
+          created_at?: string
+          customer_id: string
+          delivered_quantity?: number | null
+          delivery_id: string
+          id?: string
+          line_total?: number | null
+          planned_quantity?: number
+          product_code: string
+          unit_price?: number | null
+          updated_at?: string
+          waste_quantity?: number | null
+        }
+        Update: {
+          adjusted_total?: number | null
+          created_at?: string
+          customer_id?: string
+          delivered_quantity?: number | null
+          delivery_id?: string
+          id?: string
+          line_total?: number | null
+          planned_quantity?: number
+          product_code?: string
+          unit_price?: number | null
+          updated_at?: string
+          waste_quantity?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_items_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_items_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: false
+            referencedRelation: "deliveries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          adjusted_total: number
+          created_at: string
+          customer_id: string
+          delivery_id: string
+          id: string
+          invoice_date: string
+          invoice_number: string
+          printed_at: string | null
+          status: string
+          subtotal: number
+          tax: number | null
+          total: number
+          updated_at: string
+          waste_adjustment: number | null
+        }
+        Insert: {
+          adjusted_total: number
+          created_at?: string
+          customer_id: string
+          delivery_id: string
+          id?: string
+          invoice_date: string
+          invoice_number: string
+          printed_at?: string | null
+          status?: string
+          subtotal: number
+          tax?: number | null
+          total: number
+          updated_at?: string
+          waste_adjustment?: number | null
+        }
+        Update: {
+          adjusted_total?: number
+          created_at?: string
+          customer_id?: string
+          delivery_id?: string
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          printed_at?: string | null
+          status?: string
+          subtotal?: number
+          tax?: number | null
+          total?: number
+          updated_at?: string
+          waste_adjustment?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: false
+            referencedRelation: "deliveries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           created_at: string
@@ -133,6 +316,140 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
           week_number?: number
+        }
+        Relationships: []
+      }
+      predictions: {
+        Row: {
+          accuracy_score: number | null
+          actual_quantity: number | null
+          actual_waste: number | null
+          based_on_days: number | null
+          confidence_score: number | null
+          created_at: string
+          customer_id: string
+          id: string
+          predicted_quantity: number
+          prediction_date: string
+          product_code: string
+        }
+        Insert: {
+          accuracy_score?: number | null
+          actual_quantity?: number | null
+          actual_waste?: number | null
+          based_on_days?: number | null
+          confidence_score?: number | null
+          created_at?: string
+          customer_id: string
+          id?: string
+          predicted_quantity: number
+          prediction_date: string
+          product_code: string
+        }
+        Update: {
+          accuracy_score?: number | null
+          actual_quantity?: number | null
+          actual_waste?: number | null
+          based_on_days?: number | null
+          confidence_score?: number | null
+          created_at?: string
+          customer_id?: string
+          id?: string
+          predicted_quantity?: number
+          prediction_date?: string
+          product_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "predictions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      production_items: {
+        Row: {
+          actual_quantity: number | null
+          created_at: string
+          customer_id: string
+          id: string
+          notes: string | null
+          predicted_quantity: number
+          product_code: string
+          production_order_id: string
+          updated_at: string
+        }
+        Insert: {
+          actual_quantity?: number | null
+          created_at?: string
+          customer_id: string
+          id?: string
+          notes?: string | null
+          predicted_quantity?: number
+          product_code: string
+          production_order_id: string
+          updated_at?: string
+        }
+        Update: {
+          actual_quantity?: number | null
+          created_at?: string
+          customer_id?: string
+          id?: string
+          notes?: string | null
+          predicted_quantity?: number
+          product_code?: string
+          production_order_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_items_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_items_production_order_id_fkey"
+            columns: ["production_order_id"]
+            isOneToOne: false
+            referencedRelation: "production_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      production_orders: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          delivery_date: string
+          id: string
+          notes: string | null
+          order_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          delivery_date: string
+          id?: string
+          notes?: string | null
+          order_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          delivery_date?: string
+          id?: string
+          notes?: string | null
+          order_date?: string
+          status?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -427,6 +744,57 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      waste_records: {
+        Row: {
+          created_at: string
+          customer_id: string
+          delivery_id: string
+          id: string
+          product_code: string
+          recorded_at: string
+          recorded_by: string | null
+          waste_quantity: number
+          waste_reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          delivery_id: string
+          id?: string
+          product_code: string
+          recorded_at?: string
+          recorded_by?: string | null
+          waste_quantity: number
+          waste_reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          delivery_id?: string
+          id?: string
+          product_code?: string
+          recorded_at?: string
+          recorded_by?: string | null
+          waste_quantity?: number
+          waste_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "waste_records_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waste_records_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: false
+            referencedRelation: "deliveries"
             referencedColumns: ["id"]
           },
         ]

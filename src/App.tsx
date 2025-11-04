@@ -17,6 +17,9 @@ import CIFCalculator from "./pages/CIFCalculator";
 import Auth from "./pages/Auth";
 import UserManagement from "./pages/UserManagement";
 import UserActivity from "./pages/UserActivity";
+import ProductionDashboard from "./pages/ProductionDashboard";
+import DeliveryManagement from "./pages/DeliveryManagement";
+import PredictionsAnalytics from "./pages/PredictionsAnalytics";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +44,9 @@ const App = () => (
             <Route path="/cif-calculator" element={<ProtectedRoute><CIFCalculator /></ProtectedRoute>} />
             <Route path="/user-management" element={<ProtectedRoute requiredRole="admin"><UserManagement /></ProtectedRoute>} />
             <Route path="/user-activity" element={<ProtectedRoute><UserActivity /></ProtectedRoute>} />
+            <Route path="/production" element={<ProtectedRoute><ProductionDashboard /></ProtectedRoute>} />
+            <Route path="/deliveries" element={<ProtectedRoute><DeliveryManagement /></ProtectedRoute>} />
+            <Route path="/analytics" element={<ProtectedRoute><PredictionsAnalytics /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
