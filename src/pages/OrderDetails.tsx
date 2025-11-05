@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Printer, Ban, Edit } from 'lucide-react';
+import { ArrowLeft, Printer, Ban, Edit, Eye, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import LoadingBox from '@/components/LoadingBox';
@@ -17,6 +17,7 @@ import {
 import { CustomerPackingSlip } from '@/components/CustomerPackingSlip';
 import { SupplierOrderList } from '@/components/SupplierOrderList';
 import { RoundupTable } from '@/components/RoundupTable';
+import html2pdf from 'html2pdf.js';
 
 interface OrderItem {
   id: string;
@@ -43,8 +44,11 @@ const OrderDetails = () => {
   const [order, setOrder] = useState<Order | null>(null);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [printDialog, setPrintDialog] = useState<'packing' | 'supplier' | 'roundup' | null>(null);
+  const [viewDialog, setViewDialog] = useState<'packing' | 'supplier' | 'roundup' | null>(null);
   const [printFormat, setPrintFormat] = useState<'a4' | 'receipt'>('a4');
+  const [showFormatDialog, setShowFormatDialog] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{type: 'packing' | 'supplier' | 'roundup', action: 'view' | 'print' | 'download'} | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (orderId) {
@@ -98,15 +102,57 @@ const OrderDetails = () => {
     }
   };
 
-  const handlePrint = (type: 'packing' | 'supplier' | 'roundup') => {
-    setPrintDialog(type);
+  const handleAction = (type: 'packing' | 'supplier' | 'roundup', action: 'view' | 'print' | 'download') => {
+    setPendingAction({ type, action });
+    setShowFormatDialog(true);
   };
 
-  const handleConfirmPrint = () => {
-    setPrintDialog(null);
-    setTimeout(() => {
-      window.print();
-    }, 100);
+  const handleConfirmFormat = async () => {
+    setShowFormatDialog(false);
+    
+    if (!pendingAction) return;
+
+    const { type, action } = pendingAction;
+
+    if (action === 'view') {
+      setViewDialog(type);
+    } else if (action === 'print') {
+      // Show the content briefly then print
+      setViewDialog(type);
+      setTimeout(() => {
+        window.print();
+        setTimeout(() => setViewDialog(null), 100);
+      }, 100);
+    } else if (action === 'download') {
+      // Generate PDF and download
+      setViewDialog(type);
+      setTimeout(async () => {
+        if (printRef.current) {
+          const opt = {
+            margin: printFormat === 'receipt' ? 0.2 : 0.5,
+            filename: `${type}-${order?.order_number}.pdf`,
+            image: { type: 'jpeg' as const, quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { 
+              unit: 'in', 
+              format: printFormat === 'receipt' ? [3.15, 11] as [number, number] : 'a4',
+              orientation: 'portrait' as const
+            }
+          };
+          
+          try {
+            await html2pdf().set(opt).from(printRef.current).save();
+            toast.success('PDF downloaded successfully');
+          } catch (error) {
+            console.error('Error generating PDF:', error);
+            toast.error('Failed to generate PDF');
+          }
+        }
+        setViewDialog(null);
+      }, 500);
+    }
+    
+    setPendingAction(null);
   };
 
   if (loading) {
@@ -174,14 +220,24 @@ const OrderDetails = () => {
                 </div>
                 <div className="flex gap-2">
                   {order.status !== 'void' && (
-                    <Button 
-                      variant="destructive" 
-                      size="sm"
-                      onClick={handleVoidOrder}
-                    >
-                      <Ban className="mr-2 h-4 w-4" />
-                      Void Order
-                    </Button>
+                    <>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => navigate(`/edit-order/${order.id}`)}
+                      >
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit Order
+                      </Button>
+                      <Button 
+                        variant="destructive" 
+                        size="sm"
+                        onClick={handleVoidOrder}
+                      >
+                        <Ban className="mr-2 h-4 w-4" />
+                        Void Order
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>
@@ -198,45 +254,114 @@ const OrderDetails = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Print Options</CardTitle>
+              <CardTitle>Document Options</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Button 
-                  variant="outline" 
-                  className="h-auto py-4 flex-col gap-2"
-                  onClick={() => handlePrint('packing')}
-                >
-                  <Printer className="h-6 w-6" />
-                  <div className="text-center">
-                    <div className="font-semibold">Customer Packing Slips</div>
-                    <div className="text-xs text-muted-foreground">Print separate slip per customer</div>
+              <div className="space-y-4">
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h3 className="font-semibold">Customer Packing Slips</h3>
+                      <p className="text-xs text-muted-foreground">Separate slip per customer</p>
+                    </div>
                   </div>
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  className="h-auto py-4 flex-col gap-2"
-                  onClick={() => handlePrint('supplier')}
-                >
-                  <Printer className="h-6 w-6" />
-                  <div className="text-center">
-                    <div className="font-semibold">Supplier Order Lists</div>
-                    <div className="text-xs text-muted-foreground">Print separate list per supplier</div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleAction('packing', 'view')}
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      View
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleAction('packing', 'print')}
+                    >
+                      <Printer className="mr-2 h-4 w-4" />
+                      Print
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleAction('packing', 'download')}
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Download
+                    </Button>
                   </div>
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  className="h-auto py-4 flex-col gap-2"
-                  onClick={() => handlePrint('roundup')}
-                >
-                  <Printer className="h-6 w-6" />
-                  <div className="text-center">
-                    <div className="font-semibold">Total Roundup Table</div>
-                    <div className="text-xs text-muted-foreground">Print complete summary</div>
+                </div>
+
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h3 className="font-semibold">Supplier Order Lists</h3>
+                      <p className="text-xs text-muted-foreground">Separate list per supplier</p>
+                    </div>
                   </div>
-                </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleAction('supplier', 'view')}
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      View
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleAction('supplier', 'print')}
+                    >
+                      <Printer className="mr-2 h-4 w-4" />
+                      Print
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleAction('supplier', 'download')}
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Download
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h3 className="font-semibold">Total Roundup Table</h3>
+                      <p className="text-xs text-muted-foreground">Complete summary for receiving</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleAction('roundup', 'view')}
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      View
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleAction('roundup', 'print')}
+                    >
+                      <Printer className="mr-2 h-4 w-4" />
+                      Print
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleAction('roundup', 'download')}
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Download
+                    </Button>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -274,12 +399,12 @@ const OrderDetails = () => {
         </div>
       </main>
 
-      <Dialog open={printDialog !== null} onOpenChange={() => setPrintDialog(null)}>
+      <Dialog open={showFormatDialog} onOpenChange={setShowFormatDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Select Print Format</DialogTitle>
+            <DialogTitle>Select Format</DialogTitle>
             <DialogDescription>
-              Choose the format for your printout
+              Choose the format for your document
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -297,37 +422,47 @@ const OrderDetails = () => {
                 80mm Receipt
               </Button>
             </div>
-            <Button onClick={handleConfirmPrint} className="w-full">
-              Print Now
+            <Button onClick={handleConfirmFormat} className="w-full">
+              Continue
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Hidden printable content */}
-      <div className="hidden print:block">
-        {printDialog === 'packing' && (
-          <CustomerPackingSlip 
-            order={order} 
-            orderItems={orderItems} 
-            format={printFormat}
-          />
-        )}
-        {printDialog === 'supplier' && (
-          <SupplierOrderList 
-            order={order} 
-            orderItems={orderItems} 
-            format={printFormat}
-          />
-        )}
-        {printDialog === 'roundup' && (
-          <RoundupTable 
-            order={order} 
-            orderItems={orderItems} 
-            format={printFormat}
-          />
-        )}
-      </div>
+      <Dialog open={viewDialog !== null} onOpenChange={() => setViewDialog(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {viewDialog === 'packing' && 'Customer Packing Slips'}
+              {viewDialog === 'supplier' && 'Supplier Order Lists'}
+              {viewDialog === 'roundup' && 'Total Roundup Table'}
+            </DialogTitle>
+          </DialogHeader>
+          <div ref={printRef} className="print:block">
+            {viewDialog === 'packing' && order && (
+              <CustomerPackingSlip 
+                order={order} 
+                orderItems={orderItems} 
+                format={printFormat}
+              />
+            )}
+            {viewDialog === 'supplier' && order && (
+              <SupplierOrderList 
+                order={order} 
+                orderItems={orderItems} 
+                format={printFormat}
+              />
+            )}
+            {viewDialog === 'roundup' && order && (
+              <RoundupTable 
+                order={order} 
+                orderItems={orderItems} 
+                format={printFormat}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
