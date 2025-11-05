@@ -10,7 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { UserPlus, Trash2, Mail } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { UserPlus, Trash2, Mail, Edit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 
@@ -34,12 +35,18 @@ export default function UserManagement() {
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [editRolesOpen, setEditRolesOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [inviteForm, setInviteForm] = useState({
     email: '',
     fullName: '',
     role: 'driver' as const,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const availableRoles = ['admin', 'management', 'driver', 'production', 'logistics', 'user'] as const;
+  type AppRole = typeof availableRoles[number];
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -179,6 +186,68 @@ export default function UserManagement() {
     });
 
     fetchUsers();
+  };
+
+  const handleEditRoles = (user: Profile) => {
+    setSelectedUser(user);
+    setSelectedRoles(user.roles);
+    setEditRolesOpen(true);
+  };
+
+  const handleSaveRoles = async () => {
+    if (!selectedUser) return;
+
+    // Delete all existing roles for this user
+    const { error: deleteError } = await supabase
+      .from('user_roles')
+      .delete()
+      .eq('user_id', selectedUser.id);
+
+    if (deleteError) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update roles',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Insert new roles
+    if (selectedRoles.length > 0) {
+      const { error: insertError } = await supabase
+        .from('user_roles')
+        .insert(selectedRoles.map(role => ({
+          user_id: selectedUser.id,
+          role: role as any,
+        })));
+
+      if (insertError) {
+        toast({
+          title: 'Error',
+          description: 'Failed to assign roles',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    toast({
+      title: 'Success',
+      description: 'User roles updated successfully',
+    });
+
+    setEditRolesOpen(false);
+    setSelectedUser(null);
+    setSelectedRoles([]);
+    fetchUsers();
+  };
+
+  const toggleRole = (role: string) => {
+    setSelectedRoles(prev =>
+      prev.includes(role)
+        ? prev.filter(r => r !== role)
+        : [...prev, role]
+    );
   };
 
   const getRoleBadgeVariant = (role: string) => {
@@ -337,13 +406,22 @@ export default function UserManagement() {
                         {new Date(user.created_at).toLocaleDateString()}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveUser(user.id, user.email)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditRoles(user)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveUser(user.id, user.email)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -352,6 +430,47 @@ export default function UserManagement() {
             </Table>
           </CardContent>
         </Card>
+
+        <Dialog open={editRolesOpen} onOpenChange={setEditRolesOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit User Roles</DialogTitle>
+              <DialogDescription>
+                Manage roles for {selectedUser?.full_name} ({selectedUser?.email})
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="space-y-3">
+                <Label>Assign Roles</Label>
+                {availableRoles.map((role) => (
+                  <div key={role} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={role}
+                      checked={selectedRoles.includes(role)}
+                      onCheckedChange={() => toggleRole(role)}
+                    />
+                    <label
+                      htmlFor={role}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 capitalize"
+                    >
+                      {role}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditRolesOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveRoles}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </>
   );
