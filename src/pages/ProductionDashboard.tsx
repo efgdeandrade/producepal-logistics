@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Package, CheckCircle2, Clock, AlertCircle, Plus, ArrowLeft, Printer } from 'lucide-react';
+import { Package, CheckCircle2, Clock, AlertCircle, Plus, ArrowLeft, Printer, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import ProductionReceiptDialog from '@/components/ProductionReceiptDialog';
@@ -210,16 +210,40 @@ const ProductionDashboard = () => {
     }
   };
 
-  // Group items by customer for better organization
-  const groupItemsByCustomer = (items: ProductionItem[]) => {
-    const grouped: { [key: string]: ProductionItem[] } = {};
+  // Group items by category, then by customer
+  const groupItemsByCategoryAndCustomer = (items: ProductionItem[]) => {
+    const categories: { 
+      [category: string]: { 
+        [customer: string]: ProductionItem[] 
+      } 
+    } = {
+      'HERBS PACKS': {},
+      'HERBS BOX': {},
+      'MICROGREENS': {},
+      'SPROUTS': {}
+    };
+
     items.forEach(item => {
-      if (!grouped[item.customer_name]) {
-        grouped[item.customer_name] = [];
+      let category = '';
+      if (item.product_code.startsWith('HERBS_PACKS_')) {
+        category = 'HERBS PACKS';
+      } else if (item.product_code.startsWith('HERBS_BOX_')) {
+        category = 'HERBS BOX';
+      } else if (item.product_code.startsWith('MICROGREENS_')) {
+        category = 'MICROGREENS';
+      } else if (item.product_code.startsWith('SPROUTS_')) {
+        category = 'SPROUTS';
       }
-      grouped[item.customer_name].push(item);
+
+      if (category) {
+        if (!categories[category][item.customer_name]) {
+          categories[category][item.customer_name] = [];
+        }
+        categories[category][item.customer_name].push(item);
+      }
     });
-    return grouped;
+
+    return categories;
   };
 
   // Calculate totals per product
@@ -357,7 +381,7 @@ const ProductionDashboard = () => {
         ) : (
           <div className="space-y-6">
             {orders.map((order) => {
-              const groupedItems = groupItemsByCustomer(order.items);
+              const categorizedItems = groupItemsByCategoryAndCustomer(order.items);
               
               return (
                 <Card key={order.id} className="overflow-hidden">
@@ -400,61 +424,82 @@ const ProductionDashboard = () => {
                   </CardHeader>
                   <CardContent className="p-6">
                     <div className="space-y-8">
-                      {Object.entries(groupedItems).map(([customerName, customerItems]) => (
-                        <div key={customerName} className="border rounded-lg overflow-hidden">
-                          <div className="bg-muted px-6 py-4">
-                            <h3 className="text-xl font-bold text-foreground">{customerName}</h3>
+                      {Object.entries(categorizedItems).map(([category, customerGroups]) => {
+                        // Skip empty categories
+                        if (Object.keys(customerGroups).length === 0) return null;
+                        
+                        return (
+                          <div key={category} className="border-2 border-primary/20 rounded-lg overflow-hidden">
+                            {/* Category Header */}
+                            <div className="bg-primary/10 px-6 py-3 border-b-2 border-primary/20">
+                              <h2 className="text-2xl font-bold text-primary">{category}</h2>
+                            </div>
+                            
+                            {/* Customers within Category */}
+                            <div className="p-4 space-y-6">
+                              {Object.entries(customerGroups).map(([customerName, customerItems]) => (
+                                <div key={customerName} className="border rounded-lg overflow-hidden">
+                                  <div className="bg-muted px-6 py-4">
+                                    <h3 className="text-xl font-bold text-foreground">{customerName}</h3>
+                                  </div>
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full">
+                                      <thead>
+                                        <tr className="border-b bg-muted/30">
+                                          <th className="text-left py-4 px-6 text-base font-semibold">Product</th>
+                                          <th className="text-center py-4 px-6 text-base font-semibold">Target Qty</th>
+                                          <th className="text-center py-4 px-6 text-base font-semibold">Actual Qty</th>
+                                          <th className="text-center py-4 px-6 text-base font-semibold">Status</th>
+                                          <th className="text-right py-4 px-6 text-base font-semibold">Action</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {customerItems.map((item) => {
+                                          const isComplete = item.actual_quantity !== null && item.actual_quantity >= item.predicted_quantity;
+                                          const isShort = item.actual_quantity !== null && item.actual_quantity < item.predicted_quantity;
+                                          
+                                          return (
+                                            <tr key={item.id} className="border-b hover:bg-muted/20">
+                                              <td className="py-4 px-6 text-base font-medium">{item.product_name}</td>
+                                              <td className="py-4 px-6 text-center text-2xl font-bold text-primary">
+                                                {item.predicted_quantity}
+                                              </td>
+                                              <td className="py-4 px-6 text-center">
+                                                <input
+                                                  type="number"
+                                                  min="0"
+                                                  value={item.actual_quantity || ''}
+                                                  onChange={(e) => updateActualQuantity(item.id, parseInt(e.target.value) || 0)}
+                                                  className="w-24 text-center text-xl font-bold border rounded px-3 py-2 bg-background"
+                                                  placeholder="0"
+                                                />
+                                              </td>
+                                              <td className="py-4 px-6 text-center">
+                                                {isComplete ? (
+                                                  <CheckCircle2 className="h-6 w-6 text-green-500 mx-auto" />
+                                                ) : isShort ? (
+                                                  <X className="h-6 w-6 text-red-500 mx-auto" />
+                                                ) : (
+                                                  <Clock className="h-6 w-6 text-yellow-500 mx-auto" />
+                                                )}
+                                              </td>
+                                              <td className="py-4 px-6 text-right">
+                                                {item.notes && (
+                                                  <Badge variant="outline">{item.notes}</Badge>
+                                                )}
+                                              </td>
+                                            </tr>
+                                          );
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                          <div className="overflow-x-auto">
-                            <table className="w-full">
-                              <thead>
-                                <tr className="border-b bg-muted/30">
-                                  <th className="text-left py-4 px-6 text-base font-semibold">Product</th>
-                                  <th className="text-center py-4 px-6 text-base font-semibold">Target Qty</th>
-                                  <th className="text-center py-4 px-6 text-base font-semibold">Actual Qty</th>
-                                  <th className="text-center py-4 px-6 text-base font-semibold">Status</th>
-                                  <th className="text-right py-4 px-6 text-base font-semibold">Action</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {customerItems.map((item) => {
-                                  const isComplete = item.actual_quantity !== null && item.actual_quantity >= item.predicted_quantity;
-                                  return (
-                                    <tr key={item.id} className="border-b hover:bg-muted/20">
-                                      <td className="py-4 px-6 text-base font-medium">{item.product_name}</td>
-                                      <td className="py-4 px-6 text-center text-2xl font-bold text-primary">
-                                        {item.predicted_quantity}
-                                      </td>
-                                      <td className="py-4 px-6 text-center">
-                                        <input
-                                          type="number"
-                                          min="0"
-                                          value={item.actual_quantity || ''}
-                                          onChange={(e) => updateActualQuantity(item.id, parseInt(e.target.value) || 0)}
-                                          className="w-24 text-center text-xl font-bold border rounded px-3 py-2 bg-background"
-                                          placeholder="0"
-                                        />
-                                      </td>
-                                      <td className="py-4 px-6 text-center">
-                                        {isComplete ? (
-                                          <CheckCircle2 className="h-6 w-6 text-green-500 mx-auto" />
-                                        ) : (
-                                          <Clock className="h-6 w-6 text-yellow-500 mx-auto" />
-                                        )}
-                                      </td>
-                                      <td className="py-4 px-6 text-right">
-                                        {item.notes && (
-                                          <Badge variant="outline">{item.notes}</Badge>
-                                        )}
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>
