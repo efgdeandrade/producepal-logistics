@@ -34,7 +34,7 @@ export const Header = () => {
     <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
       <div className="container flex h-16 items-center justify-between">
         <Link to="/" className="flex items-center space-x-2">
-          <img src={logo} alt="Fuik.io Logo" className="h-8 w-8" />
+          <img src={logo} alt="Fuik.io Logo" className="h-8 object-contain" />
           <span className="text-xl font-bold text-foreground">Fuik.io</span>
         </Link>
         
