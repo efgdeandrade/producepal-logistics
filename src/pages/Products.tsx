@@ -118,6 +118,10 @@ const Products = () => {
     onSuccess: (data) => {
       logActivity('create_product', 'product', data.id, { code: data.code, name: data.name });
       queryClient.invalidateQueries({ queryKey: ['products'] });
+      // Invalidate supplier-specific products if this product has a supplier
+      if (data.supplier_id) {
+        queryClient.invalidateQueries({ queryKey: ['supplier-products', data.supplier_id] });
+      }
       toast({ title: 'Product added successfully' });
       setIsDialogOpen(false);
       setFormData({ code: '', name: '', pack_size: '', supplier_id: '', price_usd: '', price_xcg: '', weight: '', unit: '' });
@@ -164,6 +168,8 @@ const Products = () => {
     onSuccess: (_, variables) => {
       logActivity('update_product', 'product', variables.id);
       queryClient.invalidateQueries({ queryKey: ['products'] });
+      // Invalidate all supplier-products queries since supplier might have changed
+      queryClient.invalidateQueries({ queryKey: ['supplier-products'] });
       toast({ title: 'Product updated successfully' });
       setIsDialogOpen(false);
       setEditingProduct(null);
@@ -183,6 +189,8 @@ const Products = () => {
     onSuccess: (id) => {
       logActivity('delete_product', 'product', id);
       queryClient.invalidateQueries({ queryKey: ['products'] });
+      // Invalidate all supplier-products queries since we don't know which supplier this belonged to
+      queryClient.invalidateQueries({ queryKey: ['supplier-products'] });
       toast({ title: 'Product deleted successfully' });
     },
     onError: (error: Error) => {
