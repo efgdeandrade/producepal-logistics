@@ -19,6 +19,7 @@ import { CustomerPackingSlip } from '@/components/CustomerPackingSlip';
 import { SupplierOrderList } from '@/components/SupplierOrderList';
 import { RoundupTable } from '@/components/RoundupTable';
 import { CustomerReceipt } from '@/components/CustomerReceipt';
+import { OrderCIFTable } from '@/components/OrderCIFTable';
 import html2pdf from 'html2pdf.js';
 
 interface OrderItem {
@@ -437,6 +438,8 @@ const OrderDetails = () => {
               </div>
             </CardContent>
           </Card>
+
+          <OrderCIFTable orderItems={orderItems} />
         </div>
       </main>
 
