@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { PlusCircle, Pencil, Trash2, ArrowLeft } from 'lucide-react';
+import { PlusCircle, Pencil, Trash2, ArrowLeft, Search } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
@@ -37,6 +37,7 @@ const Suppliers = () => {
   const { logActivity } = useActivityLogger();
   const canManage = hasRole('admin') || hasRole('management');
   
+  const [searchQuery, setSearchQuery] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [formData, setFormData] = useState<Omit<Supplier, 'id'>>({
@@ -260,8 +261,30 @@ const Suppliers = () => {
           )}
         </div>
 
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search suppliers by name, contact, email, or phone..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {suppliers?.map((supplier) => (
+          {suppliers
+            ?.filter((supplier) => {
+              const query = searchQuery.toLowerCase();
+              return (
+                supplier.name.toLowerCase().includes(query) ||
+                supplier.contact?.toLowerCase().includes(query) ||
+                supplier.email?.toLowerCase().includes(query) ||
+                supplier.phone?.toLowerCase().includes(query)
+              );
+            })
+            .map((supplier) => (
             <Card key={supplier.id}>
               <CardHeader>
                 <CardTitle>{supplier.name}</CardTitle>

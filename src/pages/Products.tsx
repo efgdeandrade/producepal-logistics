@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlusCircle, Pencil, Trash2, ArrowLeft } from 'lucide-react';
+import { PlusCircle, Pencil, Trash2, ArrowLeft, Search } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
@@ -46,6 +46,7 @@ const Products = () => {
   const { logActivity } = useActivityLogger();
   const canManage = hasRole('admin') || hasRole('management');
   
+  const [searchQuery, setSearchQuery] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({
@@ -377,8 +378,30 @@ const Products = () => {
           )}
         </div>
 
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search products by code, name, or supplier..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {products?.map((product) => (
+          {products
+            ?.filter((product) => {
+              const query = searchQuery.toLowerCase();
+              const supplierName = suppliers?.find(s => s.id === product.supplier_id)?.name?.toLowerCase() || '';
+              return (
+                product.code.toLowerCase().includes(query) ||
+                product.name.toLowerCase().includes(query) ||
+                supplierName.includes(query)
+              );
+            })
+            .map((product) => (
             <Card key={product.id}>
               <CardHeader>
                 <CardTitle>{product.name}</CardTitle>

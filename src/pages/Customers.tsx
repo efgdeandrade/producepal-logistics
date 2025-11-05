@@ -21,7 +21,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { MapPin, Plus, Edit, Trash2, ArrowLeft } from 'lucide-react';
+import { MapPin, Plus, Edit, Trash2, ArrowLeft, Search } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
 import { useActivityLogger } from '@/hooks/useActivityLogger';
@@ -45,6 +45,7 @@ export default function Customers() {
   const { hasRole } = useAuth();
   const queryClient = useQueryClient();
   const { logActivity } = useActivityLogger();
+  const [searchQuery, setSearchQuery] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
 
@@ -264,6 +265,18 @@ export default function Customers() {
         )}
       </div>
 
+      <div className="mb-6">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search customers by name, address, city, phone, or email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+      </div>
+
       {isLoading ? (
         <div>Loading...</div>
       ) : (
@@ -280,7 +293,18 @@ export default function Customers() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {customers?.map((customer) => (
+              {customers
+                ?.filter((customer) => {
+                  const query = searchQuery.toLowerCase();
+                  return (
+                    customer.name.toLowerCase().includes(query) ||
+                    customer.address.toLowerCase().includes(query) ||
+                    customer.city?.toLowerCase().includes(query) ||
+                    customer.phone?.toLowerCase().includes(query) ||
+                    customer.email?.toLowerCase().includes(query)
+                  );
+                })
+                .map((customer) => (
                 <TableRow key={customer.id}>
                   <TableCell className="font-medium">{customer.name}</TableCell>
                   <TableCell>
