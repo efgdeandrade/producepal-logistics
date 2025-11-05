@@ -1,52 +1,83 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Printer, Eye, Ban, ArrowLeft } from 'lucide-react';
+import { Search, Eye, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import LoadingBox from '@/components/LoadingBox';
 
-const mockOrders = [
-  {
-    id: '1',
-    orderNumber: 'ORD-1045',
-    weekNumber: 45,
-    deliveryDate: '2025-11-03',
-    placedBy: 'Dane',
-    status: 'completed' as const,
-    createdAt: '2025-11-01',
-    totalItems: 255,
-  },
-  {
-    id: '2',
-    orderNumber: 'ORD-1044',
-    weekNumber: 44,
-    deliveryDate: '2025-10-27',
-    placedBy: 'Sarah',
-    status: 'completed' as const,
-    createdAt: '2025-10-25',
-    totalItems: 189,
-  },
-  {
-    id: '3',
-    orderNumber: 'ORD-1043',
-    weekNumber: 43,
-    deliveryDate: '2025-10-20',
-    placedBy: 'Dane',
-    status: 'completed' as const,
-    createdAt: '2025-10-18',
-    totalItems: 312,
-  },
-];
+interface Order {
+  id: string;
+  order_number: string;
+  week_number: number;
+  delivery_date: string;
+  placed_by: string;
+  status: string;
+  created_at: string;
+  totalItems?: number;
+}
 
 const History = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredOrders = mockOrders.filter(order =>
-    order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    order.placedBy.toLowerCase().includes(searchQuery.toLowerCase())
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const fetchOrders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Fetch item counts for each order
+      const ordersWithCounts = await Promise.all(
+        (data || []).map(async (order) => {
+          const { count } = await supabase
+            .from('order_items')
+            .select('*', { count: 'exact', head: true })
+            .eq('order_id', order.id);
+
+          return {
+            ...order,
+            totalItems: count || 0,
+          };
+        })
+      );
+
+      setOrders(ordersWithCounts);
+    } catch (error: any) {
+      console.error('Error fetching orders:', error);
+      toast.error('Failed to load orders');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredOrders = orders.filter(order =>
+    order.order_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    order.placed_by.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container py-8">
+          <LoadingBox />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -88,31 +119,31 @@ const History = () => {
                 <div className="flex items-start justify-between">
                   <div className="space-y-1">
                     <div className="flex items-center gap-3">
-                      <h3 className="text-xl font-bold text-foreground">{order.orderNumber}</h3>
-                      <span className="text-xs font-medium px-3 py-1 rounded-full bg-success/10 text-success">
+                      <h3 className="text-xl font-bold text-foreground">{order.order_number}</h3>
+                      <span className={`text-xs font-medium px-3 py-1 rounded-full ${
+                        order.status === 'completed' ? 'bg-success/10 text-success' :
+                        order.status === 'void' ? 'bg-destructive/10 text-destructive' :
+                        'bg-primary/10 text-primary'
+                      }`}>
                         {order.status}
                       </span>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Week {order.weekNumber} • Delivery: {new Date(order.deliveryDate).toLocaleDateString()} • Placed by {order.placedBy}
+                      Week {order.week_number} • Delivery: {new Date(order.delivery_date).toLocaleDateString()} • Placed by {order.placed_by}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      Total Items: <span className="font-semibold text-foreground">{order.totalItems} units</span>
+                      Total Items: <span className="font-semibold text-foreground">{order.totalItems} items</span>
                     </p>
                   </div>
                   
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => navigate(`/order/${order.id}`)}
+                    >
                       <Eye className="mr-2 h-4 w-4" />
                       View
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Printer className="mr-2 h-4 w-4" />
-                      Print
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Ban className="mr-2 h-4 w-4" />
-                      Void
                     </Button>
                   </div>
                 </div>
