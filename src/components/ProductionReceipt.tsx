@@ -45,59 +45,68 @@ const ProductionReceipt = ({ customerName, deliveryDate, items }: ProductionRece
   const totalItems = items.reduce((sum, item) => sum + (item.actual_quantity || 0), 0);
 
   return (
-    <div className="receipt-page bg-white text-black p-8 min-h-screen">
+    <div className="receipt-page bg-white text-black p-4">
       <style>{`
         @media print {
           .receipt-page {
             page-break-after: always;
+            width: 80mm;
+            max-width: 80mm;
           }
           @page {
-            size: A4;
-            margin: 1cm;
+            size: 80mm auto;
+            margin: 0;
           }
+          body {
+            margin: 0;
+            padding: 0;
+          }
+        }
+        .receipt-page {
+          width: 80mm;
+          max-width: 80mm;
+          font-family: 'Courier New', monospace;
         }
       `}</style>
       
       {/* Header */}
-      <div className="border-b-2 border-black pb-6 mb-6">
-        <h1 className="text-3xl font-bold mb-2">PRODUCTION RECEIPT</h1>
-        <div className="text-lg">
-          <p><strong>Delivery Date:</strong> {format(new Date(deliveryDate), 'MMMM d, yyyy')}</p>
-          <p><strong>Printed:</strong> {format(new Date(), 'MMMM d, yyyy HH:mm')}</p>
+      <div className="border-b-2 border-black pb-2 mb-3 text-center">
+        <h1 className="text-lg font-bold mb-1">PRODUCTION RECEIPT</h1>
+        <div className="text-xs">
+          <p>{format(new Date(deliveryDate), 'MMM d, yyyy')}</p>
+          <p>{format(new Date(), 'MMM d, yyyy HH:mm')}</p>
         </div>
       </div>
 
       {/* Customer Info */}
-      <div className="mb-8 p-4 bg-gray-100 border border-gray-300">
-        <h2 className="text-2xl font-bold mb-2">Customer</h2>
-        <p className="text-xl">{customerName}</p>
+      <div className="mb-3 pb-2 border-b border-dashed border-gray-400">
+        <p className="text-xs font-semibold">CUSTOMER:</p>
+        <p className="font-bold text-sm">{customerName}</p>
       </div>
 
       {/* Items by Category */}
-      <div className="mb-8">
-        <h2 className="text-xl font-bold mb-4 border-b border-gray-400 pb-2">Products</h2>
-        
+      <div className="mb-3">
         {activeCategories.map(([category, categoryItems]) => (
-          <div key={category} className="mb-6">
-            <h3 className="text-lg font-bold mb-3 text-gray-700">{category}</h3>
-            <table className="w-full border-collapse mb-4">
+          <div key={category} className="mb-3">
+            <p className="text-xs font-bold border-b border-gray-400 pb-1 mb-2">{category}</p>
+            <table className="w-full text-xs mb-2">
               <thead>
-                <tr className="bg-gray-200">
-                  <th className="border border-gray-400 px-4 py-2 text-left">Product</th>
-                  <th className="border border-gray-400 px-4 py-2 text-center w-32">Target Qty</th>
-                  <th className="border border-gray-400 px-4 py-2 text-center w-32">Actual Qty</th>
+                <tr className="border-b border-gray-400">
+                  <th className="text-left py-1">Product</th>
+                  <th className="text-center py-1 w-12">Tgt</th>
+                  <th className="text-center py-1 w-12">Qty</th>
                 </tr>
               </thead>
               <tbody>
                 {categoryItems
                   .filter(item => (item.actual_quantity || 0) > 0)
                   .map((item) => (
-                    <tr key={item.id}>
-                      <td className="border border-gray-400 px-4 py-2">{item.product_name}</td>
-                      <td className="border border-gray-400 px-4 py-2 text-center font-semibold">
+                    <tr key={item.id} className="border-b border-dotted border-gray-300">
+                      <td className="py-1 text-xs">{item.product_name}</td>
+                      <td className="py-1 text-center text-xs">
                         {item.predicted_quantity}
                       </td>
-                      <td className="border border-gray-400 px-4 py-2 text-center font-bold text-lg">
+                      <td className="py-1 text-center font-bold">
                         {item.actual_quantity || 0}
                       </td>
                     </tr>
@@ -109,31 +118,31 @@ const ProductionReceipt = ({ customerName, deliveryDate, items }: ProductionRece
       </div>
 
       {/* Totals */}
-      <div className="border-t-2 border-black pt-4 mb-8">
-        <div className="flex justify-between text-xl font-bold">
-          <span>Total Items:</span>
+      <div className="border-t-2 border-black pt-2 mb-3">
+        <div className="flex justify-between font-bold text-sm">
+          <span>TOTAL ITEMS:</span>
           <span>{totalItems}</span>
         </div>
       </div>
 
       {/* Signature Section */}
-      <div className="border-t border-gray-400 pt-8 mt-16">
-        <div className="grid grid-cols-2 gap-12">
-          <div>
-            <p className="mb-2 font-semibold">Delivered By:</p>
-            <div className="border-b border-black pt-12"></div>
-            <p className="text-sm text-gray-600 mt-1">Signature</p>
-          </div>
-          <div>
-            <p className="mb-2 font-semibold">Received By:</p>
-            <div className="border-b border-black pt-12"></div>
-            <p className="text-sm text-gray-600 mt-1">Signature</p>
-          </div>
+      <div className="border-t border-dashed border-gray-400 pt-3 mt-4 text-xs">
+        <div className="mb-3">
+          <p className="mb-1 font-semibold">Delivered By:</p>
+          <div className="border-b border-black pt-6"></div>
         </div>
-        <div className="mt-6">
-          <p className="mb-2 font-semibold">Date & Time:</p>
-          <div className="border-b border-black pt-8 w-64"></div>
+        <div className="mb-3">
+          <p className="mb-1 font-semibold">Received By:</p>
+          <div className="border-b border-black pt-6"></div>
         </div>
+        <div className="mb-3">
+          <p className="mb-1 font-semibold">Date & Time:</p>
+          <div className="border-b border-black pt-6"></div>
+        </div>
+      </div>
+      
+      <div className="text-center text-xs mt-4 border-t border-gray-400 pt-2">
+        <p>Thank you!</p>
       </div>
     </div>
   );
