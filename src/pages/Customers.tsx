@@ -24,6 +24,7 @@ import {
 import { MapPin, Plus, Edit, Trash2, ArrowLeft } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
+import { useActivityLogger } from '@/hooks/useActivityLogger';
 
 interface Customer {
   id: string;
@@ -43,6 +44,7 @@ export default function Customers() {
   const { toast } = useToast();
   const { hasRole } = useAuth();
   const queryClient = useQueryClient();
+  const { logActivity } = useActivityLogger();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
 
@@ -62,36 +64,68 @@ export default function Customers() {
 
   const createMutation = useMutation({
     mutationFn: async (values: { name: string; address: string; city?: string; postal_code?: string; phone?: string; email?: string; notes?: string }) => {
-      const { error } = await supabase.from('customers').insert([values]);
-      if (error) throw error;
+      // Convert empty strings to null for optional fields
+      const cleanedValues = {
+        name: values.name,
+        address: values.address,
+        city: values.city || null,
+        postal_code: values.postal_code || null,
+        phone: values.phone || null,
+        email: values.email || null,
+        notes: values.notes || null,
+      };
+      
+      const { data, error } = await supabase.from('customers').insert([cleanedValues]).select().single();
+      if (error) {
+        console.error('Customer creation error:', error);
+        throw error;
+      }
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      logActivity('create_customer', 'customer', data.id, { name: data.name });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast({ title: 'Customer created successfully' });
       setDialogOpen(false);
       setEditingCustomer(null);
     },
     onError: (error: Error) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      console.error('Full error:', error);
+      toast({ title: 'Error creating customer', description: error.message, variant: 'destructive' });
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...values }: Partial<Customer> & { id: string }) => {
+      // Convert empty strings to null for optional fields
+      const cleanedValues = {
+        ...values,
+        city: values.city || null,
+        postal_code: values.postal_code || null,
+        phone: values.phone || null,
+        email: values.email || null,
+        notes: values.notes || null,
+      };
+      
       const { error } = await supabase
         .from('customers')
-        .update(values)
+        .update(cleanedValues)
         .eq('id', id);
-      if (error) throw error;
+      if (error) {
+        console.error('Customer update error:', error);
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
+      logActivity('update_customer', 'customer', variables.id);
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast({ title: 'Customer updated successfully' });
       setDialogOpen(false);
       setEditingCustomer(null);
     },
     onError: (error: Error) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      console.error('Full error:', error);
+      toast({ title: 'Error updating customer', description: error.message, variant: 'destructive' });
     },
   });
 
@@ -99,13 +133,15 @@ export default function Customers() {
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('customers').delete().eq('id', id);
       if (error) throw error;
+      return id;
     },
-    onSuccess: () => {
+    onSuccess: (id) => {
+      logActivity('delete_customer', 'customer', id);
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast({ title: 'Customer deleted successfully' });
     },
     onError: (error: Error) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Error deleting customer', description: error.message, variant: 'destructive' });
     },
   });
 
