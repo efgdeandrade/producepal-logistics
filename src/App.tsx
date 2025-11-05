@@ -19,6 +19,7 @@ import UserManagement from "./pages/UserManagement";
 import UserActivity from "./pages/UserActivity";
 import ProductionDashboard from "./pages/ProductionDashboard";
 import ProductionInput from "./pages/ProductionInput";
+import ProductionEdit from "./pages/ProductionEdit";
 import DeliveryManagement from "./pages/DeliveryManagement";
 import PredictionsAnalytics from "./pages/PredictionsAnalytics";
 import Settings from "./pages/Settings";
@@ -48,6 +49,7 @@ const App = () => (
             <Route path="/user-activity" element={<ProtectedRoute><UserActivity /></ProtectedRoute>} />
             <Route path="/production" element={<ProtectedRoute><ProductionDashboard /></ProtectedRoute>} />
             <Route path="/production-input" element={<ProtectedRoute><ProductionInput /></ProtectedRoute>} />
+            <Route path="/production-edit/:orderId" element={<ProtectedRoute><ProductionEdit /></ProtectedRoute>} />
             <Route path="/deliveries" element={<ProtectedRoute><DeliveryManagement /></ProtectedRoute>} />
             <Route path="/analytics" element={<ProtectedRoute><PredictionsAnalytics /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute requiredRole="admin"><Settings /></ProtectedRoute>} />

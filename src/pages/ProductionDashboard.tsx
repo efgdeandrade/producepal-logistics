@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Package, CheckCircle2, Clock, AlertCircle, Plus, ArrowLeft, Printer, X } from 'lucide-react';
+import { Package, CheckCircle2, Clock, AlertCircle, Plus, ArrowLeft, Printer, X, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import ProductionReceiptDialog from '@/components/ProductionReceiptDialog';
@@ -402,6 +402,16 @@ const ProductionDashboard = () => {
                         <Badge className={getStatusColor(order.status)}>
                           {order.status.replace('_', ' ').toUpperCase()}
                         </Badge>
+                        {(order.status === 'planned' || order.status === 'in_production') && (
+                          <Button 
+                            onClick={() => navigate(`/production-edit/${order.id}`)}
+                            variant="outline"
+                            size="lg"
+                          >
+                            <Edit className="mr-2 h-5 w-5" />
+                            Edit Requirements
+                          </Button>
+                        )}
                         <Button 
                           onClick={() => {
                             setSelectedOrderForReceipt(order);
