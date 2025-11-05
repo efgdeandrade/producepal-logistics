@@ -54,6 +54,7 @@ const OrderDetails = () => {
   const [pendingAction, setPendingAction] = useState<{type: 'packing' | 'supplier' | 'roundup' | 'receipt', action: 'view' | 'print' | 'download'} | null>(null);
   const [showReceiptCustomerDialog, setShowReceiptCustomerDialog] = useState(false);
   const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
+  const [recommendedCIFMethod, setRecommendedCIFMethod] = useState<string>('');
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -445,8 +446,14 @@ const OrderDetails = () => {
             </CardContent>
           </Card>
 
-          <OrderCIFTable orderItems={orderItems} />
-          <CIFAnalytics orderItems={orderItems} />
+        <CIFAnalytics 
+          orderItems={orderItems} 
+          onRecommendation={setRecommendedCIFMethod}
+        />
+        <OrderCIFTable 
+          orderItems={orderItems} 
+          recommendedMethod={recommendedCIFMethod}
+        />
         </div>
       </main>
 

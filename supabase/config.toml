@@ -1,1 +1,4 @@
 project_id = "dnxzpkbobzwjcuyfgdnh"
+
+[functions.cif-advisor]
+verify_jwt = false

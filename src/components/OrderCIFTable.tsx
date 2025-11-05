@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { Calculator } from 'lucide-react';
+import { Calculator, Award } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -34,12 +35,13 @@ interface CIFResult {
 
 interface OrderCIFTableProps {
   orderItems: OrderItem[];
+  recommendedMethod?: string;
 }
 
 const EXCHANGE_RATE_KEY = 'cif_exchange_rate';
 const DEFAULT_EXCHANGE_RATE = 1.82;
 
-export const OrderCIFTable = ({ orderItems }: OrderCIFTableProps) => {
+export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTableProps) => {
   const [cifResults, setCifResults] = useState<{
     byWeight: CIFResult[];
     byCost: CIFResult[];
@@ -261,11 +263,61 @@ export const OrderCIFTable = ({ orderItems }: OrderCIFTableProps) => {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {recommendedMethod && cifResults && (
+          <div className="mb-4 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <Award className="h-4 w-4 text-primary" />
+              <span className="text-sm font-semibold">Profit Comparison</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <div>
+                <p className="text-muted-foreground">By Weight</p>
+                <p className="font-semibold">
+                  Cg {cifResults.byWeight.reduce((sum, r) => sum + (r.wholesaleMargin * r.quantity), 0).toFixed(2)}
+                </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">By Cost</p>
+                <p className="font-semibold">
+                  Cg {cifResults.byCost.reduce((sum, r) => sum + (r.wholesaleMargin * r.quantity), 0).toFixed(2)}
+                </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Equal</p>
+                <p className="font-semibold">
+                  Cg {cifResults.equally.reduce((sum, r) => sum + (r.wholesaleMargin * r.quantity), 0).toFixed(2)}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <Tabs defaultValue="weight" className="w-full">
           <TabsList className="grid w-full max-w-md grid-cols-3 mb-6">
-            <TabsTrigger value="weight">By Weight</TabsTrigger>
-            <TabsTrigger value="cost">By Cost</TabsTrigger>
-            <TabsTrigger value="equal">Equal</TabsTrigger>
+            <TabsTrigger value="weight" className="relative">
+              By Weight
+              {recommendedMethod === 'By Weight' && (
+                <Badge variant="default" className="ml-2 text-[10px] px-1 py-0">
+                  Recommended
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="cost" className="relative">
+              By Cost
+              {recommendedMethod === 'By Cost' && (
+                <Badge variant="default" className="ml-2 text-[10px] px-1 py-0">
+                  Recommended
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="equal" className="relative">
+              Equal
+              {recommendedMethod === 'Equal' && (
+                <Badge variant="default" className="ml-2 text-[10px] px-1 py-0">
+                  Recommended
+                </Badge>
+              )}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="weight">
