@@ -86,7 +86,7 @@ export default function Settings() {
         },
         {
           key: 'freight_local_tariff',
-          value: { rate: parseFloat(localRate), currency: 'XCD' },
+          value: { rate: parseFloat(localRate), currency: 'USD' },
           description: 'Local freight agent tariff'
         },
         {
@@ -211,7 +211,7 @@ export default function Settings() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="local">Local Agent Tariff (XCD)</Label>
+                    <Label htmlFor="local">Local Agent Tariff (USD $)</Label>
                     <Input
                       id="local"
                       type="number"

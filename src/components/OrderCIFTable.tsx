@@ -55,9 +55,18 @@ export const OrderCIFTable = ({ orderItems }: OrderCIFTableProps) => {
     try {
       setLoading(true);
 
-      // Get exchange rate from localStorage
-      const savedRate = localStorage.getItem(EXCHANGE_RATE_KEY);
-      const exchangeRate = savedRate ? parseFloat(savedRate) : DEFAULT_EXCHANGE_RATE;
+      // Fetch tariff settings from database
+      const { data: settings, error: settingsError } = await supabase
+        .from('settings')
+        .select('*')
+        .in('key', ['freight_exterior_tariff', 'freight_local_tariff', 'usd_to_xcg_rate']);
+
+      if (settingsError) throw settingsError;
+
+      const settingsMap = new Map(settings?.map(s => [s.key, s.value]) || []);
+      const exchangeRate = (settingsMap.get('usd_to_xcg_rate') as any)?.rate || DEFAULT_EXCHANGE_RATE;
+      const freightExteriorPerKg = (settingsMap.get('freight_exterior_tariff') as any)?.rate || 2.46;
+      const freightLocalPerKg = (settingsMap.get('freight_local_tariff') as any)?.rate || 0.41;
 
       // Fetch product data for all order items
       const productCodes = [...new Set(orderItems.map(item => item.product_code))];
@@ -83,8 +92,6 @@ export const OrderCIFTable = ({ orderItems }: OrderCIFTableProps) => {
       const LOCAL_LOGISTICS_XCG = 50;
       const LOCAL_LOGISTICS_USD = 91;
       const LABOR_XCG = 50;
-      const FREIGHT_CHAMPION_PER_KG = 2.46;
-      const SWISSPORT_PER_KG = 0.41;
       const WHOLESALE_MULTIPLIER = 1.25;
       const RETAIL_MULTIPLIER = 1.786;
 
@@ -109,8 +116,8 @@ export const OrderCIFTable = ({ orderItems }: OrderCIFTableProps) => {
         0
       );
 
-      const freightChampion = totalWeight * FREIGHT_CHAMPION_PER_KG;
-      const swissport = totalWeight * SWISSPORT_PER_KG;
+      const freightChampion = totalWeight * freightExteriorPerKg;
+      const swissport = totalWeight * freightLocalPerKg;
       const totalFreight = LOCAL_LOGISTICS_USD + freightChampion + swissport;
 
       const calculateResults = (

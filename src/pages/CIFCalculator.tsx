@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calculator, ArrowLeft } from 'lucide-react';
 import { PRODUCTS, ProductCode } from '@/types/order';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ProductInput {
   code: ProductCode;
@@ -36,10 +37,10 @@ const DEFAULT_EXCHANGE_RATE = 1.82;
 
 export default function CIFCalculator() {
   const navigate = useNavigate();
-  const [exchangeRate, setExchangeRate] = useState(() => {
-    const saved = localStorage.getItem(EXCHANGE_RATE_KEY);
-    return saved ? parseFloat(saved) : DEFAULT_EXCHANGE_RATE;
-  });
+  const [exchangeRate, setExchangeRate] = useState(DEFAULT_EXCHANGE_RATE);
+  const [freightExteriorPerKg, setFreightExteriorPerKg] = useState(2.46);
+  const [freightLocalPerKg, setFreightLocalPerKg] = useState(0.41);
+  const [loading, setLoading] = useState(true);
 
   // Estimate version inputs
   const [estimateProducts, setEstimateProducts] = useState<ProductInput[]>([
@@ -53,10 +54,30 @@ export default function CIFCalculator() {
   const [actualFreightChampion, setActualFreightChampion] = useState(0);
   const [actualSwissport, setActualSwissport] = useState(0);
 
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const { data: settings } = await supabase
+          .from('settings')
+          .select('*')
+          .in('key', ['freight_exterior_tariff', 'freight_local_tariff', 'usd_to_xcg_rate']);
+
+        const settingsMap = new Map(settings?.map(s => [s.key, s.value]) || []);
+        setExchangeRate((settingsMap.get('usd_to_xcg_rate') as any)?.rate || DEFAULT_EXCHANGE_RATE);
+        setFreightExteriorPerKg((settingsMap.get('freight_exterior_tariff') as any)?.rate || 2.46);
+        setFreightLocalPerKg((settingsMap.get('freight_local_tariff') as any)?.rate || 0.41);
+      } catch (error) {
+        console.error('Error loading settings:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadSettings();
+  }, []);
+
   const handleExchangeRateChange = (value: string) => {
     const rate = parseFloat(value) || DEFAULT_EXCHANGE_RATE;
     setExchangeRate(rate);
-    localStorage.setItem(EXCHANGE_RATE_KEY, rate.toString());
   };
 
   const addProduct = (isActual: boolean) => {
@@ -108,16 +129,14 @@ export default function CIFCalculator() {
     const LOCAL_LOGISTICS_XCG = 50;
     const LOCAL_LOGISTICS_USD = 91;
     const LABOR_XCG = 50;
-    const FREIGHT_CHAMPION_PER_KG = 2.46;
-    const SWISSPORT_PER_KG = 0.41;
     const WHOLESALE_MULTIPLIER = 1.25;
     const RETAIL_MULTIPLIER = 1.786;
 
     const totalWeight = products.reduce((sum, p) => sum + (p.quantity * p.weightPerUnit), 0);
     const totalCost = products.reduce((sum, p) => sum + (p.quantity * p.costPerUnit), 0);
 
-    const freightChampion = freightChampionCost ?? (totalWeight * FREIGHT_CHAMPION_PER_KG);
-    const swissport = swissportCost ?? (totalWeight * SWISSPORT_PER_KG);
+    const freightChampion = freightChampionCost ?? (totalWeight * freightExteriorPerKg);
+    const swissport = swissportCost ?? (totalWeight * freightLocalPerKg);
     const totalFreight = LOCAL_LOGISTICS_USD + freightChampion + swissport;
 
     const calculateResults = (distributionMethod: 'weight' | 'cost' | 'equal'): CIFResult[] => {
@@ -278,6 +297,14 @@ export default function CIFCalculator() {
 
   const estimateResults = calculateCIF(estimateProducts);
   const actualResults = calculateCIF(actualProducts, actualFreightChampion, actualSwissport);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
