@@ -18,11 +18,14 @@ import { z } from 'zod';
 const productSchema = z.object({
   code: z.string().trim().min(1, 'Product code is required').max(50, 'Code too long'),
   name: z.string().trim().min(1, 'Product name is required').max(200, 'Name too long'),
-  pack_size: z.number().int().min(1, 'Pack size must be at least 1'),
+  pack_size: z.number().int().min(1, 'Units per case must be at least 1'),
   supplier_id: z.string().uuid().optional().nullable(),
-  price_usd: z.number().min(0, 'Price cannot be negative').optional().nullable(),
-  price_xcg: z.number().min(0, 'Price cannot be negative').optional().nullable(),
-  weight: z.number().min(0, 'Weight cannot be negative').optional().nullable(),
+  case_size: z.string().trim().max(50, 'Case size too long').optional().nullable(),
+  netto_weight_per_unit: z.number().min(0, 'Netto weight cannot be negative').optional().nullable(),
+  gross_weight_per_unit: z.number().min(0, 'Gross weight cannot be negative').optional().nullable(),
+  empty_case_weight: z.number().min(0, 'Empty case weight cannot be negative').optional().nullable(),
+  price_usd_per_unit: z.number().min(0, 'Price cannot be negative').optional().nullable(),
+  price_xcg_per_unit: z.number().min(0, 'Price cannot be negative').optional().nullable(),
   unit: z.string().trim().max(20, 'Unit too long').optional().nullable(),
 });
 
@@ -32,9 +35,12 @@ interface Product {
   name: string;
   pack_size: number;
   supplier_id?: string | null;
-  price_usd?: number | null;
-  price_xcg?: number | null;
-  weight?: number | null;
+  case_size?: string | null;
+  netto_weight_per_unit?: number | null;
+  gross_weight_per_unit?: number | null;
+  empty_case_weight?: number | null;
+  price_usd_per_unit?: number | null;
+  price_xcg_per_unit?: number | null;
   unit?: string | null;
 }
 
@@ -54,9 +60,14 @@ const Products = () => {
     name: '',
     pack_size: '',
     supplier_id: '',
-    price_usd: '',
-    price_xcg: '',
-    weight: '',
+    case_size: '',
+    netto_weight_per_unit: '',
+    gross_weight_per_unit: '',
+    empty_case_weight: '',
+    price_usd_per_unit: '',
+    price_usd_per_case: '',
+    price_xcg_per_unit: '',
+    price_xcg_per_case: '',
     unit: '',
   });
 
@@ -91,9 +102,12 @@ const Products = () => {
         name: values.name,
         pack_size: parseInt(values.pack_size),
         supplier_id: values.supplier_id || null,
-        price_usd: values.price_usd ? parseFloat(values.price_usd) : null,
-        price_xcg: values.price_xcg ? parseFloat(values.price_xcg) : null,
-        weight: values.weight ? parseFloat(values.weight) : null,
+        case_size: values.case_size || null,
+        netto_weight_per_unit: values.netto_weight_per_unit ? parseFloat(values.netto_weight_per_unit) : null,
+        gross_weight_per_unit: values.gross_weight_per_unit ? parseFloat(values.gross_weight_per_unit) : null,
+        empty_case_weight: values.empty_case_weight ? parseFloat(values.empty_case_weight) : null,
+        price_usd_per_unit: values.price_usd_per_unit ? parseFloat(values.price_usd_per_unit) : null,
+        price_xcg_per_unit: values.price_xcg_per_unit ? parseFloat(values.price_xcg_per_unit) : null,
         unit: values.unit || null,
       };
       
@@ -103,11 +117,14 @@ const Products = () => {
         code: validated.code,
         name: validated.name,
         pack_size: validated.pack_size,
-        supplier_id: validated.supplier_id || null,
-        price_usd: validated.price_usd || null,
-        price_xcg: validated.price_xcg || null,
-        weight: validated.weight || null,
-        unit: validated.unit || null,
+        supplier_id: validated.supplier_id,
+        case_size: validated.case_size,
+        netto_weight_per_unit: validated.netto_weight_per_unit,
+        gross_weight_per_unit: validated.gross_weight_per_unit,
+        empty_case_weight: validated.empty_case_weight,
+        price_usd_per_unit: validated.price_usd_per_unit,
+        price_xcg_per_unit: validated.price_xcg_per_unit,
+        unit: validated.unit,
       }]).select().single();
       if (error) {
         console.error('Product creation error:', error);
@@ -124,7 +141,11 @@ const Products = () => {
       }
       toast({ title: 'Product added successfully' });
       setIsDialogOpen(false);
-      setFormData({ code: '', name: '', pack_size: '', supplier_id: '', price_usd: '', price_xcg: '', weight: '', unit: '' });
+      setFormData({ 
+        code: '', name: '', pack_size: '', supplier_id: '', case_size: '',
+        netto_weight_per_unit: '', gross_weight_per_unit: '', empty_case_weight: '',
+        price_usd_per_unit: '', price_usd_per_case: '', price_xcg_per_unit: '', price_xcg_per_case: '', unit: '' 
+      });
     },
     onError: (error: Error) => {
       console.error('Full error:', error);
@@ -139,9 +160,12 @@ const Products = () => {
         name: values.name,
         pack_size: parseInt(values.pack_size),
         supplier_id: values.supplier_id || null,
-        price_usd: values.price_usd ? parseFloat(values.price_usd) : null,
-        price_xcg: values.price_xcg ? parseFloat(values.price_xcg) : null,
-        weight: values.weight ? parseFloat(values.weight) : null,
+        case_size: values.case_size || null,
+        netto_weight_per_unit: values.netto_weight_per_unit ? parseFloat(values.netto_weight_per_unit) : null,
+        gross_weight_per_unit: values.gross_weight_per_unit ? parseFloat(values.gross_weight_per_unit) : null,
+        empty_case_weight: values.empty_case_weight ? parseFloat(values.empty_case_weight) : null,
+        price_usd_per_unit: values.price_usd_per_unit ? parseFloat(values.price_usd_per_unit) : null,
+        price_xcg_per_unit: values.price_xcg_per_unit ? parseFloat(values.price_xcg_per_unit) : null,
         unit: values.unit || null,
       };
       
@@ -153,11 +177,14 @@ const Products = () => {
           code: validated.code,
           name: validated.name,
           pack_size: validated.pack_size,
-          supplier_id: validated.supplier_id || null,
-          price_usd: validated.price_usd || null,
-          price_xcg: validated.price_xcg || null,
-          weight: validated.weight || null,
-          unit: validated.unit || null,
+          supplier_id: validated.supplier_id,
+          case_size: validated.case_size,
+          netto_weight_per_unit: validated.netto_weight_per_unit,
+          gross_weight_per_unit: validated.gross_weight_per_unit,
+          empty_case_weight: validated.empty_case_weight,
+          price_usd_per_unit: validated.price_usd_per_unit,
+          price_xcg_per_unit: validated.price_xcg_per_unit,
+          unit: validated.unit,
         })
         .eq('id', id);
       if (error) {
@@ -202,19 +229,29 @@ const Products = () => {
   const handleOpenDialog = (product?: Product) => {
     if (product) {
       setEditingProduct(product);
+      const packSize = product.pack_size || 1;
       setFormData({
         code: product.code,
         name: product.name,
         pack_size: product.pack_size.toString(),
         supplier_id: product.supplier_id || '',
-        price_usd: product.price_usd?.toString() || '',
-        price_xcg: product.price_xcg?.toString() || '',
-        weight: product.weight?.toString() || '',
+        case_size: product.case_size || '',
+        netto_weight_per_unit: product.netto_weight_per_unit?.toString() || '',
+        gross_weight_per_unit: product.gross_weight_per_unit?.toString() || '',
+        empty_case_weight: product.empty_case_weight?.toString() || '',
+        price_usd_per_unit: product.price_usd_per_unit?.toString() || '',
+        price_usd_per_case: product.price_usd_per_unit ? (product.price_usd_per_unit * packSize).toFixed(2) : '',
+        price_xcg_per_unit: product.price_xcg_per_unit?.toString() || '',
+        price_xcg_per_case: product.price_xcg_per_unit ? (product.price_xcg_per_unit * packSize).toFixed(2) : '',
         unit: product.unit || '',
       });
     } else {
       setEditingProduct(null);
-      setFormData({ code: '', name: '', pack_size: '', supplier_id: '', price_usd: '', price_xcg: '', weight: '', unit: '' });
+      setFormData({ 
+        code: '', name: '', pack_size: '', supplier_id: '', case_size: '',
+        netto_weight_per_unit: '', gross_weight_per_unit: '', empty_case_weight: '',
+        price_usd_per_unit: '', price_usd_per_case: '', price_xcg_per_unit: '', price_xcg_per_case: '', unit: '' 
+      });
     }
     setIsDialogOpen(true);
   };
@@ -281,7 +318,7 @@ const Products = () => {
                         id="code"
                         value={formData.code}
                         onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                        placeholder="e.g., STB_500"
+                        placeholder="e.g., BLB_125"
                         disabled={!!editingProduct}
                       />
                     </div>
@@ -291,19 +328,40 @@ const Products = () => {
                         id="name"
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        placeholder="e.g., Strawberries 500g"
+                        placeholder="e.g., Blueberries 125g"
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  
+                  <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="pack_size">Pack Size (units per tray) *</Label>
+                      <Label htmlFor="pack_size">Units/Case *</Label>
                       <Input
                         id="pack_size"
                         type="number"
                         value={formData.pack_size}
-                        onChange={(e) => setFormData({ ...formData, pack_size: e.target.value })}
-                        placeholder="e.g., 10"
+                        onChange={(e) => {
+                          const newPackSize = e.target.value;
+                          const packSizeNum = parseFloat(newPackSize) || 1;
+                          const pricePerUnit = parseFloat(formData.price_usd_per_unit) || 0;
+                          const pricePerUnitXcg = parseFloat(formData.price_xcg_per_unit) || 0;
+                          setFormData({ 
+                            ...formData, 
+                            pack_size: newPackSize,
+                            price_usd_per_case: pricePerUnit ? (pricePerUnit * packSizeNum).toFixed(2) : '',
+                            price_xcg_per_case: pricePerUnitXcg ? (pricePerUnitXcg * packSizeNum).toFixed(2) : ''
+                          });
+                        }}
+                        placeholder="12"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="case_size">Case Size</Label>
+                      <Input
+                        id="case_size"
+                        value={formData.case_size}
+                        onChange={(e) => setFormData({ ...formData, case_size: e.target.value })}
+                        placeholder="e.g., 40x30x20cm"
                       />
                     </div>
                     <div className="space-y-2">
@@ -325,40 +383,39 @@ const Products = () => {
                       </Select>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+
+                  <div className="grid grid-cols-4 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="price_usd">Price USD</Label>
+                      <Label htmlFor="netto_weight_per_unit">Netto Weight/Unit</Label>
                       <Input
-                        id="price_usd"
+                        id="netto_weight_per_unit"
                         type="number"
                         step="0.01"
-                        value={formData.price_usd}
-                        onChange={(e) => setFormData({ ...formData, price_usd: e.target.value })}
-                        placeholder="0.00"
+                        value={formData.netto_weight_per_unit}
+                        onChange={(e) => setFormData({ ...formData, netto_weight_per_unit: e.target.value })}
+                        placeholder="125"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="price_xcg">Price XCG</Label>
+                      <Label htmlFor="gross_weight_per_unit">Gross Weight/Unit</Label>
                       <Input
-                        id="price_xcg"
+                        id="gross_weight_per_unit"
                         type="number"
                         step="0.01"
-                        value={formData.price_xcg}
-                        onChange={(e) => setFormData({ ...formData, price_xcg: e.target.value })}
-                        placeholder="0.00"
+                        value={formData.gross_weight_per_unit}
+                        onChange={(e) => setFormData({ ...formData, gross_weight_per_unit: e.target.value })}
+                        placeholder="130"
                       />
                     </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="weight">Weight</Label>
+                      <Label htmlFor="empty_case_weight">Empty Case Weight</Label>
                       <Input
-                        id="weight"
+                        id="empty_case_weight"
                         type="number"
                         step="0.01"
-                        value={formData.weight}
-                        onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
-                        placeholder="0.00"
+                        value={formData.empty_case_weight}
+                        onChange={(e) => setFormData({ ...formData, empty_case_weight: e.target.value })}
+                        placeholder="500"
                       />
                     </div>
                     <div className="space-y-2">
@@ -367,8 +424,84 @@ const Products = () => {
                         id="unit"
                         value={formData.unit}
                         onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                        placeholder="e.g., kg, g"
+                        placeholder="g, kg, lb"
                       />
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium">Price USD</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="price_usd_per_unit">Per Unit</Label>
+                        <Input
+                          id="price_usd_per_unit"
+                          type="number"
+                          step="0.01"
+                          value={formData.price_usd_per_unit}
+                          onChange={(e) => {
+                            const perUnit = e.target.value;
+                            const packSize = parseFloat(formData.pack_size) || 1;
+                            const perCase = perUnit ? (parseFloat(perUnit) * packSize).toFixed(2) : '';
+                            setFormData({ ...formData, price_usd_per_unit: perUnit, price_usd_per_case: perCase });
+                          }}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="price_usd_per_case">Per Case</Label>
+                        <Input
+                          id="price_usd_per_case"
+                          type="number"
+                          step="0.01"
+                          value={formData.price_usd_per_case}
+                          onChange={(e) => {
+                            const perCase = e.target.value;
+                            const packSize = parseFloat(formData.pack_size) || 1;
+                            const perUnit = perCase ? (parseFloat(perCase) / packSize).toFixed(4) : '';
+                            setFormData({ ...formData, price_usd_per_case: perCase, price_usd_per_unit: perUnit });
+                          }}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium">Price XCG</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="price_xcg_per_unit">Per Unit</Label>
+                        <Input
+                          id="price_xcg_per_unit"
+                          type="number"
+                          step="0.01"
+                          value={formData.price_xcg_per_unit}
+                          onChange={(e) => {
+                            const perUnit = e.target.value;
+                            const packSize = parseFloat(formData.pack_size) || 1;
+                            const perCase = perUnit ? (parseFloat(perUnit) * packSize).toFixed(2) : '';
+                            setFormData({ ...formData, price_xcg_per_unit: perUnit, price_xcg_per_case: perCase });
+                          }}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="price_xcg_per_case">Per Case</Label>
+                        <Input
+                          id="price_xcg_per_case"
+                          type="number"
+                          step="0.01"
+                          value={formData.price_xcg_per_case}
+                          onChange={(e) => {
+                            const perCase = e.target.value;
+                            const packSize = parseFloat(formData.pack_size) || 1;
+                            const perUnit = perCase ? (parseFloat(perCase) / packSize).toFixed(4) : '';
+                            setFormData({ ...formData, price_xcg_per_case: perCase, price_xcg_per_unit: perUnit });
+                          }}
+                          placeholder="0.00"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -422,9 +555,9 @@ const Products = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 text-sm mb-4">
-                  {product.weight && product.unit ? (
+                  {product.netto_weight_per_unit && product.unit ? (
                     <p className="text-muted-foreground">
-                      <span className="font-medium">Unit Size:</span> {product.weight} {product.unit}
+                      <span className="font-medium">Unit Size:</span> {product.netto_weight_per_unit} {product.unit}
                     </p>
                   ) : (
                     <p className="text-muted-foreground">
@@ -434,23 +567,38 @@ const Products = () => {
                   <p className="text-muted-foreground">
                     <span className="font-medium">Units per Case:</span> {product.pack_size}
                   </p>
-                  {product.price_usd && (
+                  {product.case_size && (
+                    <p className="text-muted-foreground">
+                      <span className="font-medium">Case Size:</span> {product.case_size}
+                    </p>
+                  )}
+                  {product.gross_weight_per_unit && product.unit && (
+                    <p className="text-muted-foreground">
+                      <span className="font-medium">Gross Weight/Unit:</span> {product.gross_weight_per_unit} {product.unit}
+                    </p>
+                  )}
+                  {product.empty_case_weight && product.unit && (
+                    <p className="text-muted-foreground">
+                      <span className="font-medium">Empty Case Weight:</span> {product.empty_case_weight} {product.unit}
+                    </p>
+                  )}
+                  {product.price_usd_per_unit && (
                     <>
                       <p className="text-muted-foreground">
-                        <span className="font-medium">Price USD:</span> ${product.price_usd.toFixed(2)}/case
+                        <span className="font-medium">Price USD:</span> ${product.price_usd_per_unit.toFixed(2)}/unit
                       </p>
                       <p className="text-muted-foreground text-sm">
-                        <span className="font-medium">Price per unit:</span> ${(product.price_usd / product.pack_size).toFixed(2)}
+                        <span className="font-medium">Price per case:</span> ${(product.price_usd_per_unit * product.pack_size).toFixed(2)}
                       </p>
                     </>
                   )}
-                  {product.price_xcg && (
+                  {product.price_xcg_per_unit && (
                     <>
                       <p className="text-muted-foreground">
-                        <span className="font-medium">Price XCG:</span> cg {product.price_xcg.toFixed(2)}/case
+                        <span className="font-medium">Price XCG:</span> {product.price_xcg_per_unit.toFixed(2)}/unit
                       </p>
                       <p className="text-muted-foreground text-sm">
-                        <span className="font-medium">Price per unit:</span> cg {(product.price_xcg / product.pack_size).toFixed(2)}
+                        <span className="font-medium">Price per case:</span> {(product.price_xcg_per_unit * product.pack_size).toFixed(2)}
                       </p>
                     </>
                   )}

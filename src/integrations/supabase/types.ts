@@ -455,39 +455,57 @@ export type Database = {
       }
       products: {
         Row: {
+          case_size: string | null
           code: string
           created_at: string
+          empty_case_weight: number | null
+          gross_weight_per_unit: number | null
           id: string
           name: string
+          netto_weight_per_unit: number | null
           pack_size: number
           price_usd: number | null
+          price_usd_per_unit: number | null
           price_xcg: number | null
+          price_xcg_per_unit: number | null
           supplier_id: string | null
           unit: string | null
           updated_at: string
           weight: number | null
         }
         Insert: {
+          case_size?: string | null
           code: string
           created_at?: string
+          empty_case_weight?: number | null
+          gross_weight_per_unit?: number | null
           id?: string
           name: string
+          netto_weight_per_unit?: number | null
           pack_size: number
           price_usd?: number | null
+          price_usd_per_unit?: number | null
           price_xcg?: number | null
+          price_xcg_per_unit?: number | null
           supplier_id?: string | null
           unit?: string | null
           updated_at?: string
           weight?: number | null
         }
         Update: {
+          case_size?: string | null
           code?: string
           created_at?: string
+          empty_case_weight?: number | null
+          gross_weight_per_unit?: number | null
           id?: string
           name?: string
+          netto_weight_per_unit?: number | null
           pack_size?: number
           price_usd?: number | null
+          price_usd_per_unit?: number | null
           price_xcg?: number | null
+          price_xcg_per_unit?: number | null
           supplier_id?: string | null
           unit?: string | null
           updated_at?: string
