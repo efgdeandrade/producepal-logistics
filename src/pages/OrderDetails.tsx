@@ -446,13 +446,13 @@ const OrderDetails = () => {
             </CardContent>
           </Card>
 
-        <CIFAnalytics 
-          orderItems={orderItems} 
-          onRecommendation={setRecommendedCIFMethod}
-        />
         <OrderCIFTable 
           orderItems={orderItems} 
           recommendedMethod={recommendedCIFMethod}
+        />
+        <CIFAnalytics 
+          orderItems={orderItems} 
+          onRecommendation={setRecommendedCIFMethod}
         />
         </div>
       </main>

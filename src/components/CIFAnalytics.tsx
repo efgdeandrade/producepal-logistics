@@ -300,18 +300,18 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
-            AI Method Advisor
+            Dito Advisor
           </CardTitle>
         </CardHeader>
         <CardContent>
           {!aiRecommendation && !aiLoading && (
             <div className="text-center py-6">
               <p className="text-sm text-muted-foreground mb-4">
-                Get AI-powered recommendations on which CIF calculation method will maximize your profit
+                Get Dito's expert recommendations on which CIF calculation method will maximize your profit
               </p>
               <Button onClick={getAIRecommendation} className="gap-2">
                 <Sparkles className="h-4 w-4" />
-                Get AI Recommendation
+                Get Dito's Recommendation
               </Button>
             </div>
           )}
@@ -376,7 +376,7 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
                 className="w-full gap-2"
               >
                 <Sparkles className="h-3 w-3" />
-                Recalculate Recommendation
+                Ask Dito Again
               </Button>
             </div>
           )}

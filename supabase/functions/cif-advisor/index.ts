@@ -82,7 +82,7 @@ serve(async (req) => {
     };
 
     // Build prompt for AI
-    const prompt = `You are a financial analyst specializing in CIF (Cost, Insurance, and Freight) calculations for international trade.
+    const prompt = `You are Dito, a financial advisor specializing in CIF (Cost, Insurance, and Freight) calculations for international trade.
 
 Analyze this order and recommend the optimal CIF freight distribution method.
 
@@ -146,7 +146,7 @@ Provide your recommendation in this EXACT JSON format (no markdown, just raw JSO
         messages: [
           { 
             role: "system", 
-            content: "You are a CIF calculation expert and financial analyst. Always respond with valid JSON only, no markdown formatting." 
+            content: "You are Dito, a CIF calculation expert and financial advisor. Always respond with valid JSON only, no markdown formatting." 
           },
           { role: "user", content: prompt }
         ],
