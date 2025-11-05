@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Save, Plus } from 'lucide-react';
+import { ArrowLeft, Save } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 
@@ -14,9 +14,15 @@ interface Customer {
   name: string;
 }
 
+interface Supplier {
+  id: string;
+  name: string;
+}
+
 interface Product {
   code: string;
   name: string;
+  supplier_id: string | null;
 }
 
 interface ProductionData {
@@ -32,6 +38,7 @@ const ProductionInput = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [productionData, setProductionData] = useState<ProductionData>({});
   const [selectedOrderId, setSelectedOrderId] = useState<string>('');
@@ -59,10 +66,18 @@ const ProductionInput = () => {
 
       if (customersError) throw customersError;
 
-      // Load products
+      // Load suppliers
+      const { data: suppliersData, error: suppliersError } = await supabase
+        .from('suppliers')
+        .select('id, name')
+        .order('name');
+
+      if (suppliersError) throw suppliersError;
+
+      // Load products with supplier info
       const { data: productsData, error: productsError } = await supabase
         .from('products')
-        .select('code, name')
+        .select('code, name, supplier_id')
         .order('name');
 
       if (productsError) throw productsError;
@@ -77,6 +92,7 @@ const ProductionInput = () => {
       if (ordersError) throw ordersError;
 
       setCustomers(customersData || []);
+      setSuppliers(suppliersData || []);
       setProducts(productsData || []);
       setProductionOrders(ordersData || []);
 
@@ -246,6 +262,16 @@ const ProductionInput = () => {
     return total;
   };
 
+  const getProductsBySupplier = (supplierId: string | null) => {
+    return products.filter(p => p.supplier_id === supplierId);
+  };
+
+  const getGrandTotal = () => {
+    return Object.values(productionData).reduce((total, customerData) => 
+      total + Object.values(customerData).reduce((sum, data) => sum + data.quantity, 0), 0
+    );
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -259,35 +285,37 @@ const ProductionInput = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="bg-card border-b shadow-sm">
+      {/* Header */}
+      <div className="bg-card border-b shadow-sm sticky top-0 z-20">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="icon" onClick={() => navigate('/production')}>
-                <ArrowLeft className="h-6 w-6" />
+                <ArrowLeft className="h-5 w-5" />
               </Button>
               <div>
-                <h1 className="text-3xl font-bold">Production Input</h1>
-                <p className="text-muted-foreground">Grid-based quantity entry</p>
+                <h1 className="text-2xl font-bold">Production Input Sheet</h1>
+                <p className="text-sm text-muted-foreground">
+                  {selectedOrderId && productionOrders.find(o => o.id === selectedOrderId) && (
+                    <>Delivery: {format(new Date(productionOrders.find(o => o.id === selectedOrderId)!.delivery_date), 'MMM d, yyyy')}</>
+                  )}
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Label>Production Order:</Label>
-                <select
-                  value={selectedOrderId}
-                  onChange={(e) => setSelectedOrderId(e.target.value)}
-                  className="px-3 py-2 border rounded-md bg-background"
-                >
-                  {productionOrders.map(order => (
-                    <option key={order.id} value={order.id}>
-                      Delivery: {format(new Date(order.delivery_date), 'MMM d, yyyy')} - {order.status}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <Button onClick={saveAll} disabled={saving} size="lg">
-                <Save className="mr-2 h-5 w-5" />
+            <div className="flex items-center gap-3">
+              <select
+                value={selectedOrderId}
+                onChange={(e) => setSelectedOrderId(e.target.value)}
+                className="px-3 py-2 border rounded-md bg-background text-sm"
+              >
+                {productionOrders.map(order => (
+                  <option key={order.id} value={order.id}>
+                    {format(new Date(order.delivery_date), 'MMM d, yyyy')} ({order.status})
+                  </option>
+                ))}
+              </select>
+              <Button onClick={saveAll} disabled={saving}>
+                <Save className="mr-2 h-4 w-4" />
                 {saving ? 'Saving...' : 'Save All'}
               </Button>
             </div>
@@ -295,69 +323,119 @@ const ProductionInput = () => {
         </div>
       </div>
 
+      {/* Spreadsheet */}
       <div className="container mx-auto px-6 py-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr>
-                    <th className="border bg-muted p-3 text-left font-semibold sticky left-0 z-10 bg-muted">
-                      Product
+        <div className="bg-card rounded-lg shadow-sm border overflow-hidden">
+          <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+            <table className="w-full border-collapse text-sm">
+              {/* Sticky Header */}
+              <thead className="sticky top-0 z-10">
+                <tr>
+                  <th className="border border-border bg-muted/80 backdrop-blur-sm p-2 text-left font-semibold sticky left-0 z-10 min-w-[200px]">
+                    Product
+                  </th>
+                  {customers.map(customer => (
+                    <th key={customer.id} className="border border-border bg-muted/80 backdrop-blur-sm p-2 text-center font-semibold min-w-[100px]">
+                      {customer.name}
                     </th>
-                    {customers.map(customer => (
-                      <th key={customer.id} className="border bg-muted p-3 text-center font-semibold min-w-[120px]">
-                        {customer.name}
-                      </th>
-                    ))}
-                    <th className="border bg-primary/10 p-3 text-center font-bold">
-                      TOTAL
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.map(product => (
-                    <tr key={product.code} className="hover:bg-muted/50">
-                      <td className="border p-3 font-medium sticky left-0 z-10 bg-background">
-                        {product.name}
-                      </td>
-                      {customers.map(customer => (
-                        <td key={customer.id} className="border p-2">
-                          <Input
-                            type="number"
-                            min="0"
-                            value={productionData[product.code]?.[customer.id]?.quantity || ''}
-                            onChange={(e) => updateQuantity(product.code, customer.id, parseInt(e.target.value) || 0)}
-                            className="text-center w-full"
-                            placeholder="0"
-                          />
+                  ))}
+                  <th className="border border-border bg-primary/20 backdrop-blur-sm p-2 text-center font-bold min-w-[80px]">
+                    TOTAL
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* Group by suppliers */}
+                {suppliers.map(supplier => {
+                  const supplierProducts = getProductsBySupplier(supplier.id);
+                  if (supplierProducts.length === 0) return null;
+                  
+                  return (
+                    <>
+                      {/* Supplier Header Row */}
+                      <tr key={`supplier-${supplier.id}`} className="bg-muted/50">
+                        <td colSpan={customers.length + 2} className="border border-border p-2 font-bold text-primary">
+                          {supplier.name}
                         </td>
+                      </tr>
+                      {/* Products for this supplier */}
+                      {supplierProducts.map(product => (
+                        <tr key={product.code} className="hover:bg-muted/30 transition-colors">
+                          <td className="border border-border p-2 font-medium sticky left-0 bg-background">
+                            {product.name}
+                          </td>
+                          {customers.map(customer => (
+                            <td key={customer.id} className="border border-border p-1">
+                              <Input
+                                type="number"
+                                min="0"
+                                value={productionData[product.code]?.[customer.id]?.quantity || ''}
+                                onChange={(e) => updateQuantity(product.code, customer.id, parseInt(e.target.value) || 0)}
+                                className="text-center w-full h-8 text-sm"
+                                placeholder="0"
+                              />
+                            </td>
+                          ))}
+                          <td className="border border-border p-2 text-center font-semibold bg-muted/30">
+                            {calculateRowTotal(product.code)}
+                          </td>
+                        </tr>
                       ))}
-                      <td className="border p-3 text-center font-bold bg-primary/5">
-                        {calculateRowTotal(product.code)}
+                    </>
+                  );
+                })}
+                
+                {/* Products without supplier */}
+                {getProductsBySupplier(null).length > 0 && (
+                  <>
+                    <tr className="bg-muted/50">
+                      <td colSpan={customers.length + 2} className="border border-border p-2 font-bold text-muted-foreground">
+                        Other Products
                       </td>
                     </tr>
-                  ))}
-                  <tr className="bg-primary/10">
-                    <td className="border p-3 font-bold sticky left-0 z-10 bg-primary/10">
-                      TOTAL
-                    </td>
-                    {customers.map(customer => (
-                      <td key={customer.id} className="border p-3 text-center font-bold">
-                        {calculateColumnTotal(customer.id)}
-                      </td>
+                    {getProductsBySupplier(null).map(product => (
+                      <tr key={product.code} className="hover:bg-muted/30 transition-colors">
+                        <td className="border border-border p-2 font-medium sticky left-0 bg-background">
+                          {product.name}
+                        </td>
+                        {customers.map(customer => (
+                          <td key={customer.id} className="border border-border p-1">
+                            <Input
+                              type="number"
+                              min="0"
+                              value={productionData[product.code]?.[customer.id]?.quantity || ''}
+                              onChange={(e) => updateQuantity(product.code, customer.id, parseInt(e.target.value) || 0)}
+                              className="text-center w-full h-8 text-sm"
+                              placeholder="0"
+                            />
+                          </td>
+                        ))}
+                        <td className="border border-border p-2 text-center font-semibold bg-muted/30">
+                          {calculateRowTotal(product.code)}
+                        </td>
+                      </tr>
                     ))}
-                    <td className="border p-3 text-center font-bold text-primary">
-                      {Object.values(productionData).reduce((total, customerData) => 
-                        total + Object.values(customerData).reduce((sum, data) => sum + data.quantity, 0), 0
-                      )}
+                  </>
+                )}
+
+                {/* Totals Row */}
+                <tr className="bg-primary/10 sticky bottom-0">
+                  <td className="border border-border p-2 font-bold sticky left-0 bg-primary/10">
+                    TOTAL
+                  </td>
+                  {customers.map(customer => (
+                    <td key={customer.id} className="border border-border p-2 text-center font-bold">
+                      {calculateColumnTotal(customer.id)}
                     </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+                  ))}
+                  <td className="border border-border p-2 text-center font-bold text-primary text-base">
+                    {getGrandTotal()}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );
