@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Package, History, PlusCircle, LayoutDashboard, Users, Activity, LogOut, MapPin, Truck, Factory, TrendingUp, Settings, ChevronDown } from 'lucide-react';
+import { Package, History, PlusCircle, LayoutDashboard, Users, Activity, LogOut, MapPin, Truck, Factory, TrendingUp, Settings, ChevronDown, Calculator } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import logo from '@/assets/logo.png';
 import {
@@ -102,6 +102,12 @@ export const Header = () => {
                   <Link to="/customers">
                     <Users className="mr-2 h-4 w-4" />
                     Customers
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/cif-calculator">
+                    <Calculator className="mr-2 h-4 w-4" />
+                    CIF Calculator
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
