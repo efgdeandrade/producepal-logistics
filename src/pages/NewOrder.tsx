@@ -70,12 +70,16 @@ const NewOrder = () => {
   };
 
   const updateQuantityByTrays = (customerId: string, productCode: string, trays: number) => {
+    const product = PRODUCTS.find(p => p.code === productCode);
+    if (!product) return;
+    
+    const units = trays * product.packSize;
     setCustomerOrders(customerOrders.map(co => 
       co.customerId === customerId 
         ? {
             ...co,
             items: co.items.map(item =>
-              item.productCode === productCode ? { ...item, quantity: trays } : item
+              item.productCode === productCode ? { ...item, quantity: units } : item
             )
           }
         : co
@@ -83,20 +87,25 @@ const NewOrder = () => {
   };
 
   const updateQuantityByUnits = (customerId: string, productCode: string, units: number) => {
-    const product = PRODUCTS.find(p => p.code === productCode);
-    if (!product) return;
-    
-    const trays = Math.ceil(units / product.packSize);
-    updateQuantityByTrays(customerId, productCode, trays);
+    setCustomerOrders(customerOrders.map(co => 
+      co.customerId === customerId 
+        ? {
+            ...co,
+            items: co.items.map(item =>
+              item.productCode === productCode ? { ...item, quantity: units } : item
+            )
+          }
+        : co
+    ));
   };
 
   const calculateRoundup = () => {
     const roundup = PRODUCTS.map(product => {
-      const totalTrays = customerOrders.reduce((sum, co) => {
+      const totalUnits = customerOrders.reduce((sum, co) => {
         const item = co.items.find(i => i.productCode === product.code);
         return sum + (item?.quantity || 0);
       }, 0);
-      const totalUnits = totalTrays * product.packSize;
+      const totalTrays = Math.ceil(totalUnits / product.packSize);
       return { product, totalTrays, totalUnits };
     });
     return roundup;
@@ -218,7 +227,7 @@ const NewOrder = () => {
                     <tbody>
                       {customerOrder.items.map((item) => {
                         const product = PRODUCTS.find(p => p.code === item.productCode)!;
-                        const totalUnits = item.quantity * product.packSize;
+                        const trays = Math.ceil(item.quantity / product.packSize);
                         return (
                           <tr key={item.productCode} className="border-b">
                             <td className="py-3 px-4 text-sm text-foreground">{product.name}</td>
@@ -226,7 +235,7 @@ const NewOrder = () => {
                               <Input
                                 type="number"
                                 min="0"
-                                value={item.quantity || ''}
+                                value={trays || ''}
                                 onChange={(e) => updateQuantityByTrays(customerOrder.customerId, item.productCode, parseInt(e.target.value) || 0)}
                                 className="w-24 ml-auto"
                               />
@@ -235,7 +244,7 @@ const NewOrder = () => {
                               <Input
                                 type="number"
                                 min="0"
-                                value={totalUnits || ''}
+                                value={item.quantity || ''}
                                 onChange={(e) => updateQuantityByUnits(customerOrder.customerId, item.productCode, parseInt(e.target.value) || 0)}
                                 className="w-24 ml-auto"
                               />
