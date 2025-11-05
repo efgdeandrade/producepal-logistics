@@ -80,9 +80,6 @@ const productSchema = z.object({
   unit: z.string().trim().max(20, 'Unit too long').optional().nullable(),
 });
 
-// Conversion rate: 1 USD = 1.82 XCG
-const USD_TO_XCG_RATE = 1.82;
-
 const Suppliers = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -90,6 +87,7 @@ const Suppliers = () => {
   const { logActivity } = useActivityLogger();
   const canManage = hasRole('admin') || hasRole('management');
   
+  const [currencyRate, setCurrencyRate] = useState(1.82);
   const [searchQuery, setSearchQuery] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [viewingSupplier, setViewingSupplier] = useState<Supplier | null>(null);
@@ -116,6 +114,27 @@ const Suppliers = () => {
     price_xcg_per_unit: '',
     price_xcg_per_case: '',
     unit: '',
+  });
+
+  // Fetch currency conversion rate from settings
+  useQuery({
+    queryKey: ['currency-rate'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'usd_to_xcg_rate')
+        .single();
+      
+      if (error) {
+        console.error('Failed to fetch currency rate:', error);
+        return 1.82; // fallback
+      }
+      
+      const rate = (data?.value as any)?.rate || 1.82;
+      setCurrencyRate(rate);
+      return rate;
+    },
   });
 
   const { data: suppliers, isLoading } = useQuery({
@@ -674,17 +693,17 @@ const Suppliers = () => {
                       min="0"
                       value={productFormData.price_usd_per_unit}
                       onChange={(e) => {
-                        const perUnit = e.target.value;
+                        const pricePerUnit = parseFloat(e.target.value) || 0;
                         const packSize = parseFloat(productFormData.pack_size) || 1;
-                        const perCase = perUnit ? (parseFloat(perUnit) * packSize).toFixed(2) : '';
-                        const xcgPerUnit = perUnit ? (parseFloat(perUnit) * USD_TO_XCG_RATE).toFixed(2) : '';
-                        const xcgPerCase = xcgPerUnit ? (parseFloat(xcgPerUnit) * packSize).toFixed(2) : '';
-                        setProductFormData({ 
-                          ...productFormData, 
-                          price_usd_per_unit: perUnit, 
-                          price_usd_per_case: perCase,
-                          price_xcg_per_unit: xcgPerUnit,
-                          price_xcg_per_case: xcgPerCase
+                        const pricePerCase = pricePerUnit * packSize;
+                        const xcgPerUnit = pricePerUnit * currencyRate;
+                        const xcgPerCase = pricePerCase * currencyRate;
+                        setProductFormData({
+                          ...productFormData,
+                          price_usd_per_unit: e.target.value,
+                          price_usd_per_case: pricePerCase.toFixed(2),
+                          price_xcg_per_unit: xcgPerUnit.toFixed(2),
+                          price_xcg_per_case: xcgPerCase.toFixed(2),
                         });
                       }}
                       placeholder="0.00"
@@ -699,17 +718,17 @@ const Suppliers = () => {
                       min="0"
                       value={productFormData.price_usd_per_case}
                       onChange={(e) => {
-                        const perCase = e.target.value;
+                        const pricePerCase = parseFloat(e.target.value) || 0;
                         const packSize = parseFloat(productFormData.pack_size) || 1;
-                        const perUnit = perCase ? (parseFloat(perCase) / packSize).toFixed(4) : '';
-                        const xcgPerUnit = perUnit ? (parseFloat(perUnit) * USD_TO_XCG_RATE).toFixed(2) : '';
-                        const xcgPerCase = perCase ? (parseFloat(perCase) * USD_TO_XCG_RATE).toFixed(2) : '';
-                        setProductFormData({ 
-                          ...productFormData, 
-                          price_usd_per_case: perCase, 
-                          price_usd_per_unit: perUnit,
-                          price_xcg_per_unit: xcgPerUnit,
-                          price_xcg_per_case: xcgPerCase
+                        const pricePerUnit = pricePerCase / packSize;
+                        const xcgPerUnit = pricePerUnit * currencyRate;
+                        const xcgPerCase = pricePerCase * currencyRate;
+                        setProductFormData({
+                          ...productFormData,
+                          price_usd_per_case: e.target.value,
+                          price_usd_per_unit: pricePerUnit.toFixed(4),
+                          price_xcg_per_unit: xcgPerUnit.toFixed(2),
+                          price_xcg_per_case: xcgPerCase.toFixed(2),
                         });
                       }}
                       placeholder="0.00"
@@ -730,17 +749,17 @@ const Suppliers = () => {
                       min="0"
                       value={productFormData.price_xcg_per_unit}
                       onChange={(e) => {
-                        const perUnit = e.target.value;
+                        const pricePerUnit = parseFloat(e.target.value) || 0;
                         const packSize = parseFloat(productFormData.pack_size) || 1;
-                        const perCase = perUnit ? (parseFloat(perUnit) * packSize).toFixed(2) : '';
-                        const usdPerUnit = perUnit ? (parseFloat(perUnit) / USD_TO_XCG_RATE).toFixed(4) : '';
-                        const usdPerCase = usdPerUnit ? (parseFloat(usdPerUnit) * packSize).toFixed(4) : '';
-                        setProductFormData({ 
-                          ...productFormData, 
-                          price_xcg_per_unit: perUnit, 
-                          price_xcg_per_case: perCase,
-                          price_usd_per_unit: usdPerUnit,
-                          price_usd_per_case: usdPerCase
+                        const pricePerCase = pricePerUnit * packSize;
+                        const usdPerUnit = pricePerUnit / currencyRate;
+                        const usdPerCase = pricePerCase / currencyRate;
+                        setProductFormData({
+                          ...productFormData,
+                          price_xcg_per_unit: e.target.value,
+                          price_xcg_per_case: pricePerCase.toFixed(2),
+                          price_usd_per_unit: usdPerUnit.toFixed(4),
+                          price_usd_per_case: usdPerCase.toFixed(4),
                         });
                       }}
                       placeholder="0.00"
@@ -755,17 +774,17 @@ const Suppliers = () => {
                       min="0"
                       value={productFormData.price_xcg_per_case}
                       onChange={(e) => {
-                        const perCase = e.target.value;
+                        const pricePerCase = parseFloat(e.target.value) || 0;
                         const packSize = parseFloat(productFormData.pack_size) || 1;
-                        const perUnit = perCase ? (parseFloat(perCase) / packSize).toFixed(4) : '';
-                        const usdPerUnit = perUnit ? (parseFloat(perUnit) / USD_TO_XCG_RATE).toFixed(4) : '';
-                        const usdPerCase = perCase ? (parseFloat(perCase) / USD_TO_XCG_RATE).toFixed(4) : '';
-                        setProductFormData({ 
-                          ...productFormData, 
-                          price_xcg_per_case: perCase, 
-                          price_xcg_per_unit: perUnit,
-                          price_usd_per_unit: usdPerUnit,
-                          price_usd_per_case: usdPerCase
+                        const pricePerUnit = pricePerCase / packSize;
+                        const usdPerUnit = pricePerUnit / currencyRate;
+                        const usdPerCase = pricePerCase / currencyRate;
+                        setProductFormData({
+                          ...productFormData,
+                          price_xcg_per_case: e.target.value,
+                          price_xcg_per_unit: pricePerUnit.toFixed(4),
+                          price_usd_per_unit: usdPerUnit.toFixed(4),
+                          price_usd_per_case: usdPerCase.toFixed(4),
                         });
                       }}
                       placeholder="0.00"
