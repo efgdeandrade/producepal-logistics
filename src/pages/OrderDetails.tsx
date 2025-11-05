@@ -138,12 +138,13 @@ const OrderDetails = () => {
     return [...new Set(orderItems.map(item => item.customer_name))];
   };
 
-  const handleConfirmFormat = async () => {
+  const handleConfirmFormat = async (actionOverride?: 'view' | 'print' | 'download') => {
     setShowFormatDialog(false);
     
     if (!pendingAction) return;
 
-    const { type, action } = pendingAction;
+    const { type, action: originalAction } = pendingAction;
+    const action = actionOverride || originalAction;
 
     if (action === 'view') {
       setViewDialog(type);
@@ -474,20 +475,14 @@ const OrderDetails = () => {
                 <p className="text-sm font-medium mb-2">Action:</p>
                 <div className="grid grid-cols-2 gap-4">
                   <Button 
-                    onClick={() => {
-                      setPendingAction({ ...pendingAction, action: 'print' });
-                      handleConfirmFormat();
-                    }}
+                    onClick={() => handleConfirmFormat('print')}
                     className="w-full"
                   >
                     <Printer className="mr-2 h-4 w-4" />
                     Print
                   </Button>
                   <Button 
-                    onClick={() => {
-                      setPendingAction({ ...pendingAction, action: 'download' });
-                      handleConfirmFormat();
-                    }}
+                    onClick={() => handleConfirmFormat('download')}
                     className="w-full"
                   >
                     <Download className="mr-2 h-4 w-4" />
@@ -496,7 +491,7 @@ const OrderDetails = () => {
                 </div>
               </div>
             ) : (
-              <Button onClick={handleConfirmFormat} className="w-full">
+              <Button onClick={() => handleConfirmFormat()} className="w-full">
                 Continue
               </Button>
             )}
