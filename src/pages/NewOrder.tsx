@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,23 +8,16 @@ import { CustomerOrder, PRODUCTS, OrderItem } from '@/types/order';
 import { Plus, Trash2, Save, Printer } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-
-const CUSTOMERS = [
-  'FUIK SHOP',
-  'RIO',
-  'HYPER',
-  'VDT JANTHIEL',
-  'CORENDON',
-  'GOISCO JNW',
-];
+import { supabase } from '@/integrations/supabase/client';
 
 const NewOrder = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([]);
   const [weekNumber, setWeekNumber] = useState(45);
   const [deliveryDate, setDeliveryDate] = useState('2025-11-03');
   const [placedBy, setPlacedBy] = useState('');
-  const [customerOrders, setCustomerOrders] = useState<CustomerOrder[]>([
+  const [supplierOrders, setSupplierOrders] = useState<CustomerOrder[]>([
     {
       customerId: '1',
       customerName: '',
@@ -32,9 +25,32 @@ const NewOrder = () => {
     }
   ]);
 
-  const addCustomer = () => {
-    setCustomerOrders([
-      ...customerOrders,
+  useEffect(() => {
+    const fetchSuppliers = async () => {
+      const { data, error } = await supabase
+        .from('suppliers')
+        .select('id, name')
+        .order('name');
+      
+      if (error) {
+        console.error('Error fetching suppliers:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load suppliers',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      setSuppliers(data || []);
+    };
+    
+    fetchSuppliers();
+  }, []);
+
+  const addSupplier = () => {
+    setSupplierOrders([
+      ...supplierOrders,
       {
         customerId: Date.now().toString(),
         customerName: '',
@@ -43,19 +59,19 @@ const NewOrder = () => {
     ]);
   };
 
-  const removeCustomer = (customerId: string) => {
-    setCustomerOrders(customerOrders.filter(co => co.customerId !== customerId));
+  const removeSupplier = (supplierId: string) => {
+    setSupplierOrders(supplierOrders.filter(co => co.customerId !== supplierId));
   };
 
-  const updateCustomerName = (customerId: string, name: string) => {
-    setCustomerOrders(customerOrders.map(co => 
-      co.customerId === customerId ? { ...co, customerName: name } : co
+  const updateSupplierName = (supplierId: string, name: string) => {
+    setSupplierOrders(supplierOrders.map(co => 
+      co.customerId === supplierId ? { ...co, customerName: name } : co
     ));
   };
 
-  const updateQuantity = (customerId: string, productCode: string, quantity: number) => {
-    setCustomerOrders(customerOrders.map(co => 
-      co.customerId === customerId 
+  const updateQuantity = (supplierId: string, productCode: string, quantity: number) => {
+    setSupplierOrders(supplierOrders.map(co => 
+      co.customerId === supplierId 
         ? {
             ...co,
             items: co.items.map(item =>
@@ -68,7 +84,7 @@ const NewOrder = () => {
 
   const calculateRoundup = () => {
     const roundup = PRODUCTS.map(product => {
-      const totalTrays = customerOrders.reduce((sum, co) => {
+      const totalTrays = supplierOrders.reduce((sum, co) => {
         const item = co.items.find(i => i.productCode === product.code);
         return sum + (item?.quantity || 0);
       }, 0);
@@ -88,10 +104,10 @@ const NewOrder = () => {
       return;
     }
 
-    if (customerOrders.every(co => !co.customerName)) {
+    if (supplierOrders.every(co => !co.customerName)) {
       toast({
         title: 'Error',
-        description: 'Please add at least one customer',
+        description: 'Please add at least one supplier',
         variant: 'destructive',
       });
       return;
@@ -114,7 +130,7 @@ const NewOrder = () => {
       <main className="container py-8">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-foreground mb-2">New Order</h1>
-          <p className="text-muted-foreground">Create a new order for your customers</p>
+          <p className="text-muted-foreground">Place a new order with your suppliers</p>
         </div>
 
         <div className="grid gap-6 mb-6">
@@ -153,28 +169,28 @@ const NewOrder = () => {
             </CardContent>
           </Card>
 
-          {customerOrders.map((customerOrder) => (
-            <Card key={customerOrder.customerId}>
+          {supplierOrders.map((supplierOrder) => (
+            <Card key={supplierOrder.customerId}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex-1 max-w-xs">
-                    <Label htmlFor={`customer-${customerOrder.customerId}`}>Customer Name</Label>
+                    <Label htmlFor={`supplier-${supplierOrder.customerId}`}>Supplier Name</Label>
                     <select
-                      id={`customer-${customerOrder.customerId}`}
+                      id={`supplier-${supplierOrder.customerId}`}
                       className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      value={customerOrder.customerName}
-                      onChange={(e) => updateCustomerName(customerOrder.customerId, e.target.value)}
+                      value={supplierOrder.customerName}
+                      onChange={(e) => updateSupplierName(supplierOrder.customerId, e.target.value)}
                     >
-                      <option value="">Select customer...</option>
-                      {CUSTOMERS.map(customer => (
-                        <option key={customer} value={customer}>{customer}</option>
+                      <option value="">Select supplier...</option>
+                      {suppliers.map(supplier => (
+                        <option key={supplier.id} value={supplier.name}>{supplier.name}</option>
                       ))}
                     </select>
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => removeCustomer(customerOrder.customerId)}
+                    onClick={() => removeSupplier(supplierOrder.customerId)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -192,7 +208,7 @@ const NewOrder = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {customerOrder.items.map((item) => {
+                      {supplierOrder.items.map((item) => {
                         const product = PRODUCTS.find(p => p.code === item.productCode)!;
                         const totalUnits = item.quantity * product.packSize;
                         return (
@@ -203,7 +219,7 @@ const NewOrder = () => {
                                 type="number"
                                 min="0"
                                 value={item.quantity || ''}
-                                onChange={(e) => updateQuantity(customerOrder.customerId, item.productCode, parseInt(e.target.value) || 0)}
+                                onChange={(e) => updateQuantity(supplierOrder.customerId, item.productCode, parseInt(e.target.value) || 0)}
                                 className="w-24 ml-auto"
                               />
                             </td>
@@ -219,9 +235,9 @@ const NewOrder = () => {
             </Card>
           ))}
 
-          <Button onClick={addCustomer} variant="outline" className="w-full">
+          <Button onClick={addSupplier} variant="outline" className="w-full">
             <Plus className="mr-2 h-4 w-4" />
-            Add Customer
+            Add Supplier
           </Button>
 
           <Card className="border-primary/50 bg-primary/5">
