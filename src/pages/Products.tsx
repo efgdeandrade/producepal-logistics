@@ -390,18 +390,23 @@ const Products = () => {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {products
-            ?.filter((product) => {
-              const query = searchQuery.toLowerCase();
-              const supplierName = suppliers?.find(s => s.id === product.supplier_id)?.name?.toLowerCase() || '';
-              return (
-                product.code.toLowerCase().includes(query) ||
-                product.name.toLowerCase().includes(query) ||
-                supplierName.includes(query)
-              );
-            })
-            .map((product) => (
+        {products && products.length === 0 ? (
+          <div className="col-span-full text-center py-12 text-muted-foreground">
+            No products found. Add your first product to get started.
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {products
+              ?.filter((product) => {
+                const query = searchQuery.toLowerCase();
+                const supplierName = suppliers?.find(s => s.id === product.supplier_id)?.name?.toLowerCase() || '';
+                return (
+                  product.code.toLowerCase().includes(query) ||
+                  product.name.toLowerCase().includes(query) ||
+                  supplierName.includes(query)
+                );
+              })
+              .map((product) => (
             <Card key={product.id}>
               <CardHeader>
                 <CardTitle>{product.name}</CardTitle>
@@ -474,7 +479,8 @@ const Products = () => {
               </CardContent>
             </Card>
           ))}
-        </div>
+          </div>
+        )}
       </main>
     </div>
   );

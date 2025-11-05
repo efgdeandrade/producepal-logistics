@@ -273,18 +273,23 @@ const Suppliers = () => {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {suppliers
-            ?.filter((supplier) => {
-              const query = searchQuery.toLowerCase();
-              return (
-                supplier.name.toLowerCase().includes(query) ||
-                supplier.contact?.toLowerCase().includes(query) ||
-                supplier.email?.toLowerCase().includes(query) ||
-                supplier.phone?.toLowerCase().includes(query)
-              );
-            })
-            .map((supplier) => (
+        {suppliers && suppliers.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            No suppliers found. Add your first supplier to get started.
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {suppliers
+              ?.filter((supplier) => {
+                const query = searchQuery.toLowerCase();
+                return (
+                  supplier.name.toLowerCase().includes(query) ||
+                  supplier.contact?.toLowerCase().includes(query) ||
+                  supplier.email?.toLowerCase().includes(query) ||
+                  supplier.phone?.toLowerCase().includes(query)
+                );
+              })
+              .map((supplier) => (
             <Card key={supplier.id}>
               <CardHeader>
                 <CardTitle>{supplier.name}</CardTitle>
@@ -334,7 +339,8 @@ const Suppliers = () => {
               </CardContent>
             </Card>
           ))}
-        </div>
+          </div>
+        )}
       </main>
     </div>
   );

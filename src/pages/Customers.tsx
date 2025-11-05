@@ -279,6 +279,10 @@ export default function Customers() {
 
       {isLoading ? (
         <div>Loading...</div>
+      ) : customers && customers.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          No customers found. Add your first customer to get started.
+        </div>
       ) : (
         <div className="rounded-md border">
           <Table>
