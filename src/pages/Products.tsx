@@ -390,14 +390,24 @@ const Products = () => {
                     <span className="font-medium">Pack Size:</span> {product.pack_size} units/tray
                   </p>
                   {product.price_usd && (
-                    <p className="text-muted-foreground">
-                      <span className="font-medium">Price USD:</span> ${product.price_usd.toFixed(2)}/tray
-                    </p>
+                    <>
+                      <p className="text-muted-foreground">
+                        <span className="font-medium">Price USD:</span> ${product.price_usd.toFixed(2)}/tray
+                      </p>
+                      <p className="text-muted-foreground text-sm">
+                        <span className="font-medium">Price per unit:</span> ${(product.price_usd / product.pack_size).toFixed(2)}
+                      </p>
+                    </>
                   )}
                   {product.price_xcg && (
-                    <p className="text-muted-foreground">
-                      <span className="font-medium">Price XCG:</span> ${product.price_xcg.toFixed(2)}/tray
-                    </p>
+                    <>
+                      <p className="text-muted-foreground">
+                        <span className="font-medium">Price XCG:</span> ${product.price_xcg.toFixed(2)}/tray
+                      </p>
+                      <p className="text-muted-foreground text-sm">
+                        <span className="font-medium">Price per unit:</span> ${(product.price_xcg / product.pack_size).toFixed(2)}
+                      </p>
+                    </>
                   )}
                   {product.weight && product.unit && (
                     <p className="text-muted-foreground">
