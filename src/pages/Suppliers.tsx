@@ -9,7 +9,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { PlusCircle, Pencil, Trash2, ArrowLeft, Search } from 'lucide-react';
+import { PlusCircle, Pencil, Trash2, ArrowLeft, Search, Package, Calendar } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { format } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
@@ -29,6 +33,25 @@ interface Supplier {
   phone?: string;
 }
 
+interface SupplierOrder {
+  id: string;
+  order_number: string;
+  order_date: string;
+  expected_delivery_date?: string;
+  actual_delivery_date?: string;
+  status: 'pending' | 'confirmed' | 'delivered' | 'cancelled';
+  total_amount: number;
+  notes?: string;
+}
+
+interface SupplierOrderItem {
+  id: string;
+  product_code: string;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+}
+
 
 const Suppliers = () => {
   const navigate = useNavigate();
@@ -39,6 +62,7 @@ const Suppliers = () => {
   
   const [searchQuery, setSearchQuery] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [viewingSupplier, setViewingSupplier] = useState<Supplier | null>(null);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [formData, setFormData] = useState<Omit<Supplier, 'id'>>({
     name: '',
@@ -57,6 +81,21 @@ const Suppliers = () => {
       if (error) throw error;
       return data as Supplier[];
     },
+  });
+
+  const { data: supplierOrders } = useQuery({
+    queryKey: ['supplier-orders', viewingSupplier?.id],
+    queryFn: async () => {
+      if (!viewingSupplier) return [];
+      const { data, error } = await supabase
+        .from('supplier_orders')
+        .select('*')
+        .eq('supplier_id', viewingSupplier.id)
+        .order('order_date', { ascending: false });
+      if (error) throw error;
+      return data as SupplierOrder[];
+    },
+    enabled: !!viewingSupplier,
   });
 
   const createMutation = useMutation({
@@ -152,6 +191,20 @@ const Suppliers = () => {
       setFormData({ name: '', contact: '', email: '', phone: '' });
     }
     setIsDialogOpen(true);
+  };
+
+  const getStatusBadge = (status: string) => {
+    const variants: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
+      pending: "secondary",
+      confirmed: "default",
+      delivered: "outline",
+      cancelled: "destructive",
+    };
+    return (
+      <Badge variant={variants[status] || "default"}>
+        {status.charAt(0).toUpperCase() + status.slice(1)}
+      </Badge>
+    );
   };
 
   const handleSave = () => {
@@ -273,7 +326,104 @@ const Suppliers = () => {
           </div>
         </div>
 
-        {suppliers && suppliers.length === 0 ? (
+        {viewingSupplier ? (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-2xl">{viewingSupplier.name}</CardTitle>
+                  {viewingSupplier.contact && (
+                    <CardDescription>{viewingSupplier.contact}</CardDescription>
+                  )}
+                </div>
+                <Button variant="outline" onClick={() => setViewingSupplier(null)}>
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to All Suppliers
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="info">
+                <TabsList>
+                  <TabsTrigger value="info">Supplier Information</TabsTrigger>
+                  <TabsTrigger value="orders">Purchase Orders</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="info" className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {viewingSupplier.email && (
+                      <div>
+                        <Label className="text-muted-foreground">Email</Label>
+                        <p className="text-lg">{viewingSupplier.email}</p>
+                      </div>
+                    )}
+                    {viewingSupplier.phone && (
+                      <div>
+                        <Label className="text-muted-foreground">Phone</Label>
+                        <p className="text-lg">{viewingSupplier.phone}</p>
+                      </div>
+                    )}
+                  </div>
+                  {canManage && (
+                    <div className="flex gap-2 pt-4">
+                      <Button onClick={() => handleOpenDialog(viewingSupplier)}>
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Edit Supplier
+                      </Button>
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="orders">
+                  {supplierOrders && supplierOrders.length > 0 ? (
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Order #</TableHead>
+                            <TableHead>Order Date</TableHead>
+                            <TableHead>Expected Delivery</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Total Amount</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {supplierOrders.map((order) => (
+                            <TableRow key={order.id}>
+                              <TableCell className="font-medium">{order.order_number}</TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                                  {format(new Date(order.order_date), 'MMM dd, yyyy')}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {order.expected_delivery_date ? (
+                                  format(new Date(order.expected_delivery_date), 'MMM dd, yyyy')
+                                ) : (
+                                  <span className="text-muted-foreground">Not set</span>
+                                )}
+                              </TableCell>
+                              <TableCell>{getStatusBadge(order.status)}</TableCell>
+                              <TableCell className="text-right">
+                                cg {order.total_amount.toFixed(2)}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No purchase orders found for this supplier.</p>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        ) : suppliers && suppliers.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             No suppliers found. Add your first supplier to get started.
           </div>
@@ -290,7 +440,7 @@ const Suppliers = () => {
                 );
               })
               .map((supplier) => (
-            <Card key={supplier.id}>
+            <Card key={supplier.id} className="cursor-pointer hover:shadow-md transition-shadow">
               <CardHeader>
                 <CardTitle>{supplier.name}</CardTitle>
                 {supplier.contact && (
@@ -311,12 +461,23 @@ const Suppliers = () => {
                   )}
                 </div>
                 <div className="flex gap-2">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => setViewingSupplier(supplier)}
+                  >
+                    <Package className="h-4 w-4 mr-1" />
+                    View Details
+                  </Button>
                   {canManage && (
                     <>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleOpenDialog(supplier)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenDialog(supplier);
+                        }}
                       >
                         <Pencil className="h-4 w-4 mr-1" />
                         Edit
@@ -324,7 +485,8 @@ const Suppliers = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           if (confirm('Are you sure you want to delete this supplier?')) {
                             deleteMutation.mutate(supplier.id);
                           }
