@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Package, History, PlusCircle, LayoutDashboard, Users, Activity, LogOut, MapPin, Truck, Factory, TrendingUp, Settings, ChevronDown, Calculator } from 'lucide-react';
+import { Package, History, PlusCircle, LayoutDashboard, Users, Activity, LogOut, MapPin, Truck, Factory, TrendingUp, Settings, ChevronDown, Calculator, FileText } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import logo from '@/assets/logo.png';
 import {
@@ -152,6 +152,12 @@ export const Header = () => {
                   <Link to="/deliveries">
                     <Truck className="mr-2 h-4 w-4" />
                     Deliveries
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/invoices">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Invoices
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>

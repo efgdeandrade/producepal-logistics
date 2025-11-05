@@ -171,11 +171,27 @@ const DeliveryManagement = () => {
     if (!selectedDelivery) return;
 
     try {
-      // Calculate totals
-      const totalAdjusted = selectedDelivery.items.reduce(
-        (sum, item) => sum + (item.adjusted_total || item.line_total),
-        0
+      // Fetch wholesale prices for all products in the delivery
+      const productCodes = selectedDelivery.items.map(item => item.product_code);
+      const { data: products, error: productsError } = await supabase
+        .from('products')
+        .select('code, wholesale_price_xcg_per_unit')
+        .in('code', productCodes);
+
+      if (productsError) throw productsError;
+
+      const priceMap = new Map(
+        products?.map(p => [p.code, p.wholesale_price_xcg_per_unit || 0]) || []
       );
+
+      // Calculate totals using wholesale prices and delivered quantities
+      const totalAdjusted = selectedDelivery.items.reduce((sum, item) => {
+        const deliveredQty = item.delivered_quantity !== null 
+          ? item.delivered_quantity 
+          : item.planned_quantity - item.waste_quantity;
+        const wholesalePrice = priceMap.get(item.product_code) || 0;
+        return sum + (deliveredQty * wholesalePrice);
+      }, 0);
 
       const { error: deliveryError } = await supabase
         .from('deliveries')
@@ -197,8 +213,8 @@ const DeliveryManagement = () => {
           delivery_id: selectedDelivery.id,
           customer_id: selectedDelivery.items[0]?.customer_id,
           invoice_date: new Date().toISOString().split('T')[0],
-          subtotal: selectedDelivery.total_amount,
-          total: selectedDelivery.total_amount,
+          subtotal: totalAdjusted,
+          total: totalAdjusted,
           waste_adjustment: selectedDelivery.total_amount - totalAdjusted,
           adjusted_total: totalAdjusted,
           status: 'draft',

@@ -22,6 +22,7 @@ import ProductionDashboard from "./pages/ProductionDashboard";
 import ProductionInput from "./pages/ProductionInput";
 import ProductionEdit from "./pages/ProductionEdit";
 import DeliveryManagement from "./pages/DeliveryManagement";
+import Invoices from "./pages/Invoices";
 import PredictionsAnalytics from "./pages/PredictionsAnalytics";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -53,6 +54,7 @@ const App = () => (
             <Route path="/production-input" element={<ProtectedRoute><ProductionInput /></ProtectedRoute>} />
             <Route path="/production-edit/:orderId" element={<ProtectedRoute><ProductionEdit /></ProtectedRoute>} />
             <Route path="/deliveries" element={<ProtectedRoute><DeliveryManagement /></ProtectedRoute>} />
+            <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
             <Route path="/analytics" element={<ProtectedRoute><PredictionsAnalytics /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute requiredRole="admin"><Settings /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
