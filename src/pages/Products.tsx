@@ -29,6 +29,9 @@ const productSchema = z.object({
   unit: z.string().trim().max(20, 'Unit too long').optional().nullable(),
 });
 
+// Conversion rate: 1 USD = 655.957 XCF (Central African CFA franc)
+const USD_TO_XCG_RATE = 655.957;
+
 interface Product {
   id: string;
   code: string;
@@ -443,7 +446,15 @@ const Products = () => {
                             const perUnit = e.target.value;
                             const packSize = parseFloat(formData.pack_size) || 1;
                             const perCase = perUnit ? (parseFloat(perUnit) * packSize).toFixed(2) : '';
-                            setFormData({ ...formData, price_usd_per_unit: perUnit, price_usd_per_case: perCase });
+                            const xcgPerUnit = perUnit ? (parseFloat(perUnit) * USD_TO_XCG_RATE).toFixed(2) : '';
+                            const xcgPerCase = xcgPerUnit ? (parseFloat(xcgPerUnit) * packSize).toFixed(2) : '';
+                            setFormData({ 
+                              ...formData, 
+                              price_usd_per_unit: perUnit, 
+                              price_usd_per_case: perCase,
+                              price_xcg_per_unit: xcgPerUnit,
+                              price_xcg_per_case: xcgPerCase
+                            });
                           }}
                           placeholder="0.00"
                         />
@@ -459,7 +470,15 @@ const Products = () => {
                             const perCase = e.target.value;
                             const packSize = parseFloat(formData.pack_size) || 1;
                             const perUnit = perCase ? (parseFloat(perCase) / packSize).toFixed(4) : '';
-                            setFormData({ ...formData, price_usd_per_case: perCase, price_usd_per_unit: perUnit });
+                            const xcgPerUnit = perUnit ? (parseFloat(perUnit) * USD_TO_XCG_RATE).toFixed(2) : '';
+                            const xcgPerCase = perCase ? (parseFloat(perCase) * USD_TO_XCG_RATE).toFixed(2) : '';
+                            setFormData({ 
+                              ...formData, 
+                              price_usd_per_case: perCase, 
+                              price_usd_per_unit: perUnit,
+                              price_xcg_per_unit: xcgPerUnit,
+                              price_xcg_per_case: xcgPerCase
+                            });
                           }}
                           placeholder="0.00"
                         />
@@ -481,7 +500,15 @@ const Products = () => {
                             const perUnit = e.target.value;
                             const packSize = parseFloat(formData.pack_size) || 1;
                             const perCase = perUnit ? (parseFloat(perUnit) * packSize).toFixed(2) : '';
-                            setFormData({ ...formData, price_xcg_per_unit: perUnit, price_xcg_per_case: perCase });
+                            const usdPerUnit = perUnit ? (parseFloat(perUnit) / USD_TO_XCG_RATE).toFixed(4) : '';
+                            const usdPerCase = usdPerUnit ? (parseFloat(usdPerUnit) * packSize).toFixed(4) : '';
+                            setFormData({ 
+                              ...formData, 
+                              price_xcg_per_unit: perUnit, 
+                              price_xcg_per_case: perCase,
+                              price_usd_per_unit: usdPerUnit,
+                              price_usd_per_case: usdPerCase
+                            });
                           }}
                           placeholder="0.00"
                         />
@@ -497,7 +524,15 @@ const Products = () => {
                             const perCase = e.target.value;
                             const packSize = parseFloat(formData.pack_size) || 1;
                             const perUnit = perCase ? (parseFloat(perCase) / packSize).toFixed(4) : '';
-                            setFormData({ ...formData, price_xcg_per_case: perCase, price_xcg_per_unit: perUnit });
+                            const usdPerUnit = perUnit ? (parseFloat(perUnit) / USD_TO_XCG_RATE).toFixed(4) : '';
+                            const usdPerCase = perCase ? (parseFloat(perCase) / USD_TO_XCG_RATE).toFixed(4) : '';
+                            setFormData({ 
+                              ...formData, 
+                              price_xcg_per_case: perCase, 
+                              price_xcg_per_unit: perUnit,
+                              price_usd_per_unit: usdPerUnit,
+                              price_usd_per_case: usdPerCase
+                            });
                           }}
                           placeholder="0.00"
                         />
