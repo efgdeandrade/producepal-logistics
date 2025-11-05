@@ -44,9 +44,8 @@ export const Header = () => {
     <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link to="/" className="flex items-center space-x-2">
+          <Link to="/" className="flex items-center">
             <img src={logo} alt="Fuik.io Logo" className="h-8 object-contain" />
-            <span className="text-xl font-bold text-foreground">Fuik.io</span>
           </Link>
           <div className="hidden md:flex flex-col text-sm">
             <div className="font-semibold text-foreground">
