@@ -52,6 +52,28 @@ interface SupplierOrderItem {
   line_total: number;
 }
 
+interface Product {
+  id: string;
+  code: string;
+  name: string;
+  pack_size: number;
+  supplier_id?: string | null;
+  price_usd?: number | null;
+  price_xcg?: number | null;
+  weight?: number | null;
+  unit?: string | null;
+}
+
+const productSchema = z.object({
+  code: z.string().trim().min(1, 'Product code is required').max(50, 'Code too long'),
+  name: z.string().trim().min(1, 'Product name is required').max(200, 'Name too long'),
+  pack_size: z.number().int().min(1, 'Pack size must be at least 1'),
+  price_usd: z.number().min(0, 'Price cannot be negative').optional().nullable(),
+  price_xcg: z.number().min(0, 'Price cannot be negative').optional().nullable(),
+  weight: z.number().min(0, 'Weight cannot be negative').optional().nullable(),
+  unit: z.string().trim().max(20, 'Unit too long').optional().nullable(),
+});
+
 
 const Suppliers = () => {
   const navigate = useNavigate();
@@ -69,6 +91,18 @@ const Suppliers = () => {
     contact: '',
     email: '',
     phone: '',
+  });
+  
+  const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [productFormData, setProductFormData] = useState({
+    code: '',
+    name: '',
+    pack_size: '',
+    price_usd: '',
+    price_xcg: '',
+    weight: '',
+    unit: '',
   });
 
   const { data: suppliers, isLoading } = useQuery({
@@ -94,6 +128,21 @@ const Suppliers = () => {
         .order('order_date', { ascending: false });
       if (error) throw error;
       return data as SupplierOrder[];
+    },
+    enabled: !!viewingSupplier,
+  });
+
+  const { data: supplierProducts } = useQuery({
+    queryKey: ['supplier-products', viewingSupplier?.id],
+    queryFn: async () => {
+      if (!viewingSupplier) return [];
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('supplier_id', viewingSupplier.id)
+        .order('code');
+      if (error) throw error;
+      return data as Product[];
     },
     enabled: !!viewingSupplier,
   });
@@ -176,6 +225,100 @@ const Suppliers = () => {
     },
   });
 
+  const createProductMutation = useMutation({
+    mutationFn: async (values: typeof productFormData) => {
+      const parsed = {
+        code: values.code,
+        name: values.name,
+        pack_size: parseInt(values.pack_size),
+        supplier_id: viewingSupplier?.id || null,
+        price_usd: values.price_usd ? parseFloat(values.price_usd) : null,
+        price_xcg: values.price_xcg ? parseFloat(values.price_xcg) : null,
+        weight: values.weight ? parseFloat(values.weight) : null,
+        unit: values.unit || null,
+      };
+      
+      const validated = productSchema.parse(parsed);
+      const productData = {
+        code: validated.code,
+        name: validated.name,
+        pack_size: validated.pack_size,
+        supplier_id: viewingSupplier?.id || null,
+        price_usd: validated.price_usd,
+        price_xcg: validated.price_xcg,
+        weight: validated.weight,
+        unit: validated.unit,
+      };
+      const { data, error } = await supabase
+        .from('products')
+        .insert([productData])
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      logActivity('create_product', 'product', data.id, { name: data.name, supplier_id: viewingSupplier?.id });
+      queryClient.invalidateQueries({ queryKey: ['supplier-products', viewingSupplier?.id] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast({ title: 'Product added successfully' });
+      setIsProductDialogOpen(false);
+      setProductFormData({ code: '', name: '', pack_size: '', price_usd: '', price_xcg: '', weight: '', unit: '' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error adding product', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const updateProductMutation = useMutation({
+    mutationFn: async ({ id, ...values }: Product & { id: string }) => {
+      const parsed = {
+        code: values.code,
+        name: values.name,
+        pack_size: values.pack_size,
+        price_usd: values.price_usd,
+        price_xcg: values.price_xcg,
+        weight: values.weight,
+        unit: values.unit,
+      };
+      
+      const validated = productSchema.parse(parsed);
+      const { error } = await supabase
+        .from('products')
+        .update(validated)
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      logActivity('update_product', 'product', variables.id);
+      queryClient.invalidateQueries({ queryKey: ['supplier-products', viewingSupplier?.id] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast({ title: 'Product updated successfully' });
+      setIsProductDialogOpen(false);
+      setEditingProduct(null);
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error updating product', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const deleteProductMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: (id) => {
+      logActivity('delete_product', 'product', id);
+      queryClient.invalidateQueries({ queryKey: ['supplier-products', viewingSupplier?.id] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast({ title: 'Product deleted successfully' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error deleting product', description: error.message, variant: 'destructive' });
+    },
+  });
+
 
   const handleOpenDialog = (supplier?: Supplier) => {
     if (supplier) {
@@ -205,6 +348,52 @@ const Suppliers = () => {
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
+  };
+
+  const handleOpenProductDialog = (product?: Product) => {
+    if (product) {
+      setEditingProduct(product);
+      setProductFormData({
+        code: product.code,
+        name: product.name,
+        pack_size: product.pack_size.toString(),
+        price_usd: product.price_usd?.toString() || '',
+        price_xcg: product.price_xcg?.toString() || '',
+        weight: product.weight?.toString() || '',
+        unit: product.unit || '',
+      });
+    } else {
+      setEditingProduct(null);
+      setProductFormData({ code: '', name: '', pack_size: '', price_usd: '', price_xcg: '', weight: '', unit: '' });
+    }
+    setIsProductDialogOpen(true);
+  };
+
+  const handleSaveProduct = () => {
+    try {
+      if (editingProduct) {
+        updateProductMutation.mutate({ 
+          id: editingProduct.id, 
+          code: productFormData.code,
+          name: productFormData.name,
+          pack_size: parseInt(productFormData.pack_size),
+          price_usd: productFormData.price_usd ? parseFloat(productFormData.price_usd) : null,
+          price_xcg: productFormData.price_xcg ? parseFloat(productFormData.price_xcg) : null,
+          weight: productFormData.weight ? parseFloat(productFormData.weight) : null,
+          unit: productFormData.unit || null,
+        });
+      } else {
+        createProductMutation.mutate(productFormData);
+      }
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({ 
+          title: 'Validation Error', 
+          description: error.errors[0].message, 
+          variant: 'destructive' 
+        });
+      }
+    }
   };
 
   const handleSave = () => {
@@ -314,6 +503,107 @@ const Suppliers = () => {
           )}
         </div>
 
+        {/* Product Dialog */}
+        <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="product-code">Product Code *</Label>
+                  <Input
+                    id="product-code"
+                    value={productFormData.code}
+                    onChange={(e) => setProductFormData({ ...productFormData, code: e.target.value })}
+                    placeholder="e.g., STB_500"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="product-name">Product Name *</Label>
+                  <Input
+                    id="product-name"
+                    value={productFormData.name}
+                    onChange={(e) => setProductFormData({ ...productFormData, name: e.target.value })}
+                    placeholder="e.g., Strawberries 500g"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="pack-size">Pack Size *</Label>
+                  <Input
+                    id="pack-size"
+                    type="number"
+                    min="1"
+                    value={productFormData.pack_size}
+                    onChange={(e) => setProductFormData({ ...productFormData, pack_size: e.target.value })}
+                    placeholder="e.g., 10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="unit">Unit</Label>
+                  <Input
+                    id="unit"
+                    value={productFormData.unit}
+                    onChange={(e) => setProductFormData({ ...productFormData, unit: e.target.value })}
+                    placeholder="e.g., trays"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="weight">Weight</Label>
+                  <Input
+                    id="weight"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={productFormData.weight}
+                    onChange={(e) => setProductFormData({ ...productFormData, weight: e.target.value })}
+                    placeholder="e.g., 0.5"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="price-usd">Price USD</Label>
+                  <Input
+                    id="price-usd"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={productFormData.price_usd}
+                    onChange={(e) => setProductFormData({ ...productFormData, price_usd: e.target.value })}
+                    placeholder="e.g., 12.50"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="price-xcg">Price XCG</Label>
+                  <Input
+                    id="price-xcg"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={productFormData.price_xcg}
+                    onChange={(e) => setProductFormData({ ...productFormData, price_xcg: e.target.value })}
+                    placeholder="e.g., 5.50"
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsProductDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveProduct}>
+                {editingProduct ? 'Update' : 'Add'} Product
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <div className="mb-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -346,6 +636,7 @@ const Suppliers = () => {
               <Tabs defaultValue="info">
                 <TabsList>
                   <TabsTrigger value="info">Supplier Information</TabsTrigger>
+                  <TabsTrigger value="products">Products</TabsTrigger>
                   <TabsTrigger value="orders">Purchase Orders</TabsTrigger>
                 </TabsList>
                 
@@ -370,6 +661,85 @@ const Suppliers = () => {
                         <Pencil className="h-4 w-4 mr-2" />
                         Edit Supplier
                       </Button>
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="products">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Products from this Supplier</h3>
+                    {canManage && (
+                      <Button onClick={() => handleOpenProductDialog()}>
+                        <PlusCircle className="h-4 w-4 mr-2" />
+                        Add Product
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {supplierProducts && supplierProducts.length > 0 ? (
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Code</TableHead>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Pack Size</TableHead>
+                            <TableHead>Price USD</TableHead>
+                            <TableHead>Price XCG</TableHead>
+                            {canManage && <TableHead className="text-right">Actions</TableHead>}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {supplierProducts.map((product) => (
+                            <TableRow key={product.id}>
+                              <TableCell className="font-medium">{product.code}</TableCell>
+                              <TableCell>{product.name}</TableCell>
+                              <TableCell>{product.pack_size} {product.unit || 'units'}</TableCell>
+                              <TableCell>
+                                {product.price_usd ? `$${product.price_usd.toFixed(2)}` : '-'}
+                              </TableCell>
+                              <TableCell>
+                                {product.price_xcg ? `cg ${product.price_xcg.toFixed(2)}` : '-'}
+                              </TableCell>
+                              {canManage && (
+                                <TableCell className="text-right">
+                                  <div className="flex justify-end gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleOpenProductDialog(product)}
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        if (confirm('Are you sure you want to delete this product?')) {
+                                          deleteProductMutation.mutate(product.id);
+                                        }
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              )}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No products found for this supplier.</p>
+                      {canManage && (
+                        <Button className="mt-4" onClick={() => handleOpenProductDialog()}>
+                          <PlusCircle className="h-4 w-4 mr-2" />
+                          Add First Product
+                        </Button>
+                      )}
                     </div>
                   )}
                 </TabsContent>
