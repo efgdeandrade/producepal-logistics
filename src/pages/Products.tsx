@@ -10,10 +10,11 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlusCircle, Pencil, Trash2, ArrowLeft, Search } from 'lucide-react';
+import { PlusCircle, Pencil, Trash2, ArrowLeft, Search, History } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
+import { ProductPriceHistory } from '@/components/ProductPriceHistory';
 
 const productSchema = z.object({
   code: z.string().trim().min(1, 'Product code is required').max(50, 'Code too long'),
@@ -56,6 +57,7 @@ const Products = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [priceHistoryProduct, setPriceHistoryProduct] = useState<{ id: string; code: string } | null>(null);
   const [formData, setFormData] = useState({
     code: '',
     name: '',
@@ -664,6 +666,14 @@ const Products = () => {
                   )}
                 </div>
                 <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPriceHistoryProduct({ id: product.id, code: product.code })}
+                  >
+                    <History className="h-4 w-4 mr-1" />
+                    History
+                  </Button>
                   {canManage && (
                     <>
                       <Button
@@ -693,6 +703,15 @@ const Products = () => {
             </Card>
           ))}
           </div>
+        )}
+        
+        {priceHistoryProduct && (
+          <ProductPriceHistory
+            productId={priceHistoryProduct.id}
+            productCode={priceHistoryProduct.code}
+            open={!!priceHistoryProduct}
+            onOpenChange={(open) => !open && setPriceHistoryProduct(null)}
+          />
         )}
       </main>
     </div>

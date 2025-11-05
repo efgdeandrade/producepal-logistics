@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { PlusCircle, Pencil, Trash2, ArrowLeft, Search, Package, Calendar } from 'lucide-react';
+import { PlusCircle, Pencil, Trash2, ArrowLeft, Search, Package, Calendar, History } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -17,6 +17,7 @@ import { format } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
+import { ProductPriceHistory } from '@/components/ProductPriceHistory';
 
 const supplierSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(200, 'Name too long'),
@@ -101,6 +102,7 @@ const Suppliers = () => {
   
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [priceHistoryProduct, setPriceHistoryProduct] = useState<{ id: string; code: string } | null>(null);
   const [productFormData, setProductFormData] = useState({
     code: '',
     name: '',
@@ -923,6 +925,13 @@ const Suppliers = () => {
                                 <TableCell className="text-right">
                                   <div className="flex justify-end gap-2">
                                     <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => setPriceHistoryProduct({ id: product.id, code: product.code })}
+                                    >
+                                      <History className="h-4 w-4" />
+                                    </Button>
+                                    <Button
                                       variant="outline"
                                       size="sm"
                                       onClick={() => handleOpenProductDialog(product)}
@@ -1090,6 +1099,15 @@ const Suppliers = () => {
             </Card>
           ))}
           </div>
+        )}
+        
+        {priceHistoryProduct && (
+          <ProductPriceHistory
+            productId={priceHistoryProduct.id}
+            productCode={priceHistoryProduct.code}
+            open={!!priceHistoryProduct}
+            onOpenChange={(open) => !open && setPriceHistoryProduct(null)}
+          />
         )}
       </main>
     </div>

@@ -369,6 +369,59 @@ export type Database = {
           },
         ]
       }
+      product_price_history: {
+        Row: {
+          change_reason: string | null
+          changed_by: string | null
+          changed_by_email: string | null
+          created_at: string
+          id: string
+          new_price_usd_per_unit: number | null
+          new_price_xcg_per_unit: number | null
+          old_price_usd_per_unit: number | null
+          old_price_xcg_per_unit: number | null
+          product_code: string
+          product_id: string
+          product_name: string
+        }
+        Insert: {
+          change_reason?: string | null
+          changed_by?: string | null
+          changed_by_email?: string | null
+          created_at?: string
+          id?: string
+          new_price_usd_per_unit?: number | null
+          new_price_xcg_per_unit?: number | null
+          old_price_usd_per_unit?: number | null
+          old_price_xcg_per_unit?: number | null
+          product_code: string
+          product_id: string
+          product_name: string
+        }
+        Update: {
+          change_reason?: string | null
+          changed_by?: string | null
+          changed_by_email?: string | null
+          created_at?: string
+          id?: string
+          new_price_usd_per_unit?: number | null
+          new_price_xcg_per_unit?: number | null
+          old_price_usd_per_unit?: number | null
+          old_price_xcg_per_unit?: number | null
+          product_code?: string
+          product_id?: string
+          product_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_price_history_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       production_items: {
         Row: {
           actual_quantity: number | null
