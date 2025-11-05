@@ -527,6 +527,8 @@ export type Database = {
           unit: string | null
           updated_at: string
           weight: number | null
+          wholesale_price_usd_per_unit: number | null
+          wholesale_price_xcg_per_unit: number | null
         }
         Insert: {
           case_size?: string | null
@@ -548,6 +550,8 @@ export type Database = {
           unit?: string | null
           updated_at?: string
           weight?: number | null
+          wholesale_price_usd_per_unit?: number | null
+          wholesale_price_xcg_per_unit?: number | null
         }
         Update: {
           case_size?: string | null
@@ -569,6 +573,8 @@ export type Database = {
           unit?: string | null
           updated_at?: string
           weight?: number | null
+          wholesale_price_usd_per_unit?: number | null
+          wholesale_price_xcg_per_unit?: number | null
         }
         Relationships: [
           {

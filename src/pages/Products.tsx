@@ -27,6 +27,10 @@ const productSchema = z.object({
   empty_case_weight: z.number().min(0, 'Empty case weight cannot be negative').optional().nullable(),
   price_usd_per_unit: z.number().min(0, 'Price cannot be negative').optional().nullable(),
   price_xcg_per_unit: z.number().min(0, 'Price cannot be negative').optional().nullable(),
+  wholesale_price_usd_per_unit: z.number().min(0, 'Wholesale price cannot be negative').optional().nullable(),
+  wholesale_price_xcg_per_unit: z.number().min(0, 'Wholesale price cannot be negative').optional().nullable(),
+  retail_price_usd_per_unit: z.number().min(0, 'Retail price cannot be negative').optional().nullable(),
+  retail_price_xcg_per_unit: z.number().min(0, 'Retail price cannot be negative').optional().nullable(),
   unit: z.string().trim().max(20, 'Unit too long').optional().nullable(),
 });
 
@@ -42,6 +46,10 @@ interface Product {
   empty_case_weight?: number | null;
   price_usd_per_unit?: number | null;
   price_xcg_per_unit?: number | null;
+  wholesale_price_usd_per_unit?: number | null;
+  wholesale_price_xcg_per_unit?: number | null;
+  retail_price_usd_per_unit?: number | null;
+  retail_price_xcg_per_unit?: number | null;
   unit?: string | null;
 }
 
@@ -71,6 +79,10 @@ const Products = () => {
     price_usd_per_case: '',
     price_xcg_per_unit: '',
     price_xcg_per_case: '',
+    wholesale_price_usd_per_unit: '',
+    wholesale_price_xcg_per_unit: '',
+    retail_price_usd_per_unit: '',
+    retail_price_xcg_per_unit: '',
     unit: '',
   });
 
@@ -132,6 +144,10 @@ const Products = () => {
         empty_case_weight: values.empty_case_weight ? parseFloat(values.empty_case_weight) : null,
         price_usd_per_unit: values.price_usd_per_unit ? parseFloat(values.price_usd_per_unit) : null,
         price_xcg_per_unit: values.price_xcg_per_unit ? parseFloat(values.price_xcg_per_unit) : null,
+        wholesale_price_usd_per_unit: values.wholesale_price_usd_per_unit ? parseFloat(values.wholesale_price_usd_per_unit) : null,
+        wholesale_price_xcg_per_unit: values.wholesale_price_xcg_per_unit ? parseFloat(values.wholesale_price_xcg_per_unit) : null,
+        retail_price_usd_per_unit: values.retail_price_usd_per_unit ? parseFloat(values.retail_price_usd_per_unit) : null,
+        retail_price_xcg_per_unit: values.retail_price_xcg_per_unit ? parseFloat(values.retail_price_xcg_per_unit) : null,
         unit: values.unit || null,
       };
       
@@ -148,6 +164,10 @@ const Products = () => {
         empty_case_weight: validated.empty_case_weight,
         price_usd_per_unit: validated.price_usd_per_unit,
         price_xcg_per_unit: validated.price_xcg_per_unit,
+        wholesale_price_usd_per_unit: validated.wholesale_price_usd_per_unit,
+        wholesale_price_xcg_per_unit: validated.wholesale_price_xcg_per_unit,
+        retail_price_usd_per_unit: validated.retail_price_usd_per_unit,
+        retail_price_xcg_per_unit: validated.retail_price_xcg_per_unit,
         unit: validated.unit,
       }]).select().single();
       if (error) {
@@ -168,7 +188,9 @@ const Products = () => {
       setFormData({ 
         code: '', name: '', pack_size: '', supplier_id: '', case_size: '',
         netto_weight_per_unit: '', gross_weight_per_unit: '', empty_case_weight: '',
-        price_usd_per_unit: '', price_usd_per_case: '', price_xcg_per_unit: '', price_xcg_per_case: '', unit: '' 
+        price_usd_per_unit: '', price_usd_per_case: '', price_xcg_per_unit: '', price_xcg_per_case: '',
+        wholesale_price_usd_per_unit: '', wholesale_price_xcg_per_unit: '',
+        retail_price_usd_per_unit: '', retail_price_xcg_per_unit: '', unit: '' 
       });
     },
     onError: (error: Error) => {
@@ -190,6 +212,10 @@ const Products = () => {
         empty_case_weight: values.empty_case_weight ? parseFloat(values.empty_case_weight) : null,
         price_usd_per_unit: values.price_usd_per_unit ? parseFloat(values.price_usd_per_unit) : null,
         price_xcg_per_unit: values.price_xcg_per_unit ? parseFloat(values.price_xcg_per_unit) : null,
+        wholesale_price_usd_per_unit: values.wholesale_price_usd_per_unit ? parseFloat(values.wholesale_price_usd_per_unit) : null,
+        wholesale_price_xcg_per_unit: values.wholesale_price_xcg_per_unit ? parseFloat(values.wholesale_price_xcg_per_unit) : null,
+        retail_price_usd_per_unit: values.retail_price_usd_per_unit ? parseFloat(values.retail_price_usd_per_unit) : null,
+        retail_price_xcg_per_unit: values.retail_price_xcg_per_unit ? parseFloat(values.retail_price_xcg_per_unit) : null,
         unit: values.unit || null,
       };
       
@@ -208,6 +234,10 @@ const Products = () => {
           empty_case_weight: validated.empty_case_weight,
           price_usd_per_unit: validated.price_usd_per_unit,
           price_xcg_per_unit: validated.price_xcg_per_unit,
+          wholesale_price_usd_per_unit: validated.wholesale_price_usd_per_unit,
+          wholesale_price_xcg_per_unit: validated.wholesale_price_xcg_per_unit,
+          retail_price_usd_per_unit: validated.retail_price_usd_per_unit,
+          retail_price_xcg_per_unit: validated.retail_price_xcg_per_unit,
           unit: validated.unit,
         })
         .eq('id', id);
@@ -267,6 +297,10 @@ const Products = () => {
         price_usd_per_case: product.price_usd_per_unit ? (product.price_usd_per_unit * packSize).toFixed(2) : '',
         price_xcg_per_unit: product.price_xcg_per_unit?.toString() || '',
         price_xcg_per_case: product.price_xcg_per_unit ? (product.price_xcg_per_unit * packSize).toFixed(2) : '',
+        wholesale_price_usd_per_unit: product.wholesale_price_usd_per_unit?.toString() || '',
+        wholesale_price_xcg_per_unit: product.wholesale_price_xcg_per_unit?.toString() || '',
+        retail_price_usd_per_unit: product.retail_price_usd_per_unit?.toString() || '',
+        retail_price_xcg_per_unit: product.retail_price_xcg_per_unit?.toString() || '',
         unit: product.unit || '',
       });
     } else {
@@ -274,7 +308,9 @@ const Products = () => {
       setFormData({ 
         code: '', name: '', pack_size: '', supplier_id: '', case_size: '',
         netto_weight_per_unit: '', gross_weight_per_unit: '', empty_case_weight: '',
-        price_usd_per_unit: '', price_usd_per_case: '', price_xcg_per_unit: '', price_xcg_per_case: '', unit: '' 
+        price_usd_per_unit: '', price_usd_per_case: '', price_xcg_per_unit: '', price_xcg_per_case: '',
+        wholesale_price_usd_per_unit: '', wholesale_price_xcg_per_unit: '',
+        retail_price_usd_per_unit: '', retail_price_xcg_per_unit: '', unit: '' 
       });
     }
     setIsDialogOpen(true);
@@ -454,7 +490,7 @@ const Products = () => {
                   </div>
 
                   <div className="space-y-3">
-                    <h4 className="text-sm font-medium">Price USD</h4>
+                    <h4 className="text-sm font-medium">Cost Price USD (from supplier)</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="price_usd_per_unit">Per Unit</Label>
@@ -507,7 +543,7 @@ const Products = () => {
                   </div>
 
                   <div className="space-y-3">
-                    <h4 className="text-sm font-medium">Price XCG</h4>
+                    <h4 className="text-sm font-medium">Cost Price XCG (from supplier)</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="price_xcg_per_unit">Per Unit</Label>
@@ -554,6 +590,62 @@ const Products = () => {
                               price_usd_per_case: usdPerCase.toFixed(4),
                             });
                           }}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium">Wholesale Price</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="wholesale_price_usd_per_unit">USD Per Unit</Label>
+                        <Input
+                          id="wholesale_price_usd_per_unit"
+                          type="number"
+                          step="0.01"
+                          value={formData.wholesale_price_usd_per_unit}
+                          onChange={(e) => setFormData({ ...formData, wholesale_price_usd_per_unit: e.target.value })}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="wholesale_price_xcg_per_unit">XCG Per Unit</Label>
+                        <Input
+                          id="wholesale_price_xcg_per_unit"
+                          type="number"
+                          step="0.01"
+                          value={formData.wholesale_price_xcg_per_unit}
+                          onChange={(e) => setFormData({ ...formData, wholesale_price_xcg_per_unit: e.target.value })}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium">Retail Price</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="retail_price_usd_per_unit">USD Per Unit</Label>
+                        <Input
+                          id="retail_price_usd_per_unit"
+                          type="number"
+                          step="0.01"
+                          value={formData.retail_price_usd_per_unit}
+                          onChange={(e) => setFormData({ ...formData, retail_price_usd_per_unit: e.target.value })}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="retail_price_xcg_per_unit">XCG Per Unit</Label>
+                        <Input
+                          id="retail_price_xcg_per_unit"
+                          type="number"
+                          step="0.01"
+                          value={formData.retail_price_xcg_per_unit}
+                          onChange={(e) => setFormData({ ...formData, retail_price_xcg_per_unit: e.target.value })}
                           placeholder="0.00"
                         />
                       </div>
@@ -640,22 +732,42 @@ const Products = () => {
                   {product.price_usd_per_unit && (
                     <>
                       <p className="text-muted-foreground">
-                        <span className="font-medium">Price USD:</span> ${product.price_usd_per_unit.toFixed(2)}/unit
+                        <span className="font-medium">Cost Price USD:</span> ${product.price_usd_per_unit.toFixed(2)}/unit
                       </p>
                       <p className="text-muted-foreground text-sm">
-                        <span className="font-medium">Price per case:</span> ${(product.price_usd_per_unit * product.pack_size).toFixed(2)}
+                        <span className="font-medium">Cost per case:</span> ${(product.price_usd_per_unit * product.pack_size).toFixed(2)}
                       </p>
                     </>
                   )}
                   {product.price_xcg_per_unit && (
                     <>
                       <p className="text-muted-foreground">
-                        <span className="font-medium">Price XCG:</span> {product.price_xcg_per_unit.toFixed(2)}/unit
+                        <span className="font-medium">Cost Price XCG:</span> {product.price_xcg_per_unit.toFixed(2)}/unit
                       </p>
                       <p className="text-muted-foreground text-sm">
-                        <span className="font-medium">Price per case:</span> {(product.price_xcg_per_unit * product.pack_size).toFixed(2)}
+                        <span className="font-medium">Cost per case:</span> {(product.price_xcg_per_unit * product.pack_size).toFixed(2)}
                       </p>
                     </>
+                  )}
+                  {product.wholesale_price_usd_per_unit && (
+                    <p className="text-muted-foreground">
+                      <span className="font-medium">Wholesale USD:</span> ${product.wholesale_price_usd_per_unit.toFixed(2)}/unit
+                    </p>
+                  )}
+                  {product.wholesale_price_xcg_per_unit && (
+                    <p className="text-muted-foreground">
+                      <span className="font-medium">Wholesale XCG:</span> {product.wholesale_price_xcg_per_unit.toFixed(2)}/unit
+                    </p>
+                  )}
+                  {product.retail_price_usd_per_unit && (
+                    <p className="text-muted-foreground">
+                      <span className="font-medium">Retail USD:</span> ${product.retail_price_usd_per_unit.toFixed(2)}/unit
+                    </p>
+                  )}
+                  {product.retail_price_xcg_per_unit && (
+                    <p className="text-muted-foreground">
+                      <span className="font-medium">Retail XCG:</span> {product.retail_price_xcg_per_unit.toFixed(2)}/unit
+                    </p>
                   )}
                   {product.supplier_id && (
                     <p className="text-muted-foreground">
