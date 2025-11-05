@@ -58,19 +58,25 @@ interface Product {
   name: string;
   pack_size: number;
   supplier_id?: string | null;
-  price_usd?: number | null;
-  price_xcg?: number | null;
-  weight?: number | null;
+  case_size?: string | null;
+  netto_weight_per_unit?: number | null;
+  gross_weight_per_unit?: number | null;
+  empty_case_weight?: number | null;
+  price_usd_per_unit?: number | null;
+  price_xcg_per_unit?: number | null;
   unit?: string | null;
 }
 
 const productSchema = z.object({
   code: z.string().trim().min(1, 'Product code is required').max(50, 'Code too long'),
   name: z.string().trim().min(1, 'Product name is required').max(200, 'Name too long'),
-  pack_size: z.number().int().min(1, 'Pack size must be at least 1'),
-  price_usd: z.number().min(0, 'Price cannot be negative').optional().nullable(),
-  price_xcg: z.number().min(0, 'Price cannot be negative').optional().nullable(),
-  weight: z.number().min(0, 'Weight cannot be negative').optional().nullable(),
+  pack_size: z.number().int().min(1, 'Units per case must be at least 1'),
+  case_size: z.string().trim().max(50, 'Case size too long').optional().nullable(),
+  netto_weight_per_unit: z.number().min(0, 'Netto weight cannot be negative').optional().nullable(),
+  gross_weight_per_unit: z.number().min(0, 'Gross weight cannot be negative').optional().nullable(),
+  empty_case_weight: z.number().min(0, 'Empty case weight cannot be negative').optional().nullable(),
+  price_usd_per_unit: z.number().min(0, 'Price cannot be negative').optional().nullable(),
+  price_xcg_per_unit: z.number().min(0, 'Price cannot be negative').optional().nullable(),
   unit: z.string().trim().max(20, 'Unit too long').optional().nullable(),
 });
 
@@ -99,9 +105,14 @@ const Suppliers = () => {
     code: '',
     name: '',
     pack_size: '',
-    price_usd: '',
-    price_xcg: '',
-    weight: '',
+    case_size: '',
+    netto_weight_per_unit: '',
+    gross_weight_per_unit: '',
+    empty_case_weight: '',
+    price_usd_per_unit: '',
+    price_usd_per_case: '',
+    price_xcg_per_unit: '',
+    price_xcg_per_case: '',
     unit: '',
   });
 
@@ -232,26 +243,31 @@ const Suppliers = () => {
         name: values.name,
         pack_size: parseInt(values.pack_size),
         supplier_id: viewingSupplier?.id || null,
-        price_usd: values.price_usd ? parseFloat(values.price_usd) : null,
-        price_xcg: values.price_xcg ? parseFloat(values.price_xcg) : null,
-        weight: values.weight ? parseFloat(values.weight) : null,
+        case_size: values.case_size || null,
+        netto_weight_per_unit: values.netto_weight_per_unit ? parseFloat(values.netto_weight_per_unit) : null,
+        gross_weight_per_unit: values.gross_weight_per_unit ? parseFloat(values.gross_weight_per_unit) : null,
+        empty_case_weight: values.empty_case_weight ? parseFloat(values.empty_case_weight) : null,
+        price_usd_per_unit: values.price_usd_per_unit ? parseFloat(values.price_usd_per_unit) : null,
+        price_xcg_per_unit: values.price_xcg_per_unit ? parseFloat(values.price_xcg_per_unit) : null,
         unit: values.unit || null,
       };
       
       const validated = productSchema.parse(parsed);
-      const productData = {
-        code: validated.code,
-        name: validated.name,
-        pack_size: validated.pack_size,
-        supplier_id: viewingSupplier?.id || null,
-        price_usd: validated.price_usd,
-        price_xcg: validated.price_xcg,
-        weight: validated.weight,
-        unit: validated.unit,
-      };
       const { data, error } = await supabase
         .from('products')
-        .insert([productData])
+        .insert([{
+          code: validated.code,
+          name: validated.name,
+          pack_size: validated.pack_size,
+          supplier_id: viewingSupplier?.id || null,
+          case_size: validated.case_size,
+          netto_weight_per_unit: validated.netto_weight_per_unit,
+          gross_weight_per_unit: validated.gross_weight_per_unit,
+          empty_case_weight: validated.empty_case_weight,
+          price_usd_per_unit: validated.price_usd_per_unit,
+          price_xcg_per_unit: validated.price_xcg_per_unit,
+          unit: validated.unit,
+        }])
         .select()
         .single();
       if (error) throw error;
@@ -263,7 +279,11 @@ const Suppliers = () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       toast({ title: 'Product added successfully' });
       setIsProductDialogOpen(false);
-      setProductFormData({ code: '', name: '', pack_size: '', price_usd: '', price_xcg: '', weight: '', unit: '' });
+      setProductFormData({ 
+        code: '', name: '', pack_size: '', case_size: '',
+        netto_weight_per_unit: '', gross_weight_per_unit: '', empty_case_weight: '',
+        price_usd_per_unit: '', price_usd_per_case: '', price_xcg_per_unit: '', price_xcg_per_case: '', unit: '' 
+      });
     },
     onError: (error: Error) => {
       toast({ title: 'Error adding product', description: error.message, variant: 'destructive' });
@@ -276,16 +296,30 @@ const Suppliers = () => {
         code: values.code,
         name: values.name,
         pack_size: values.pack_size,
-        price_usd: values.price_usd,
-        price_xcg: values.price_xcg,
-        weight: values.weight,
+        case_size: values.case_size,
+        netto_weight_per_unit: values.netto_weight_per_unit,
+        gross_weight_per_unit: values.gross_weight_per_unit,
+        empty_case_weight: values.empty_case_weight,
+        price_usd_per_unit: values.price_usd_per_unit,
+        price_xcg_per_unit: values.price_xcg_per_unit,
         unit: values.unit,
       };
       
       const validated = productSchema.parse(parsed);
       const { error } = await supabase
         .from('products')
-        .update(validated)
+        .update({
+          code: validated.code,
+          name: validated.name,
+          pack_size: validated.pack_size,
+          case_size: validated.case_size,
+          netto_weight_per_unit: validated.netto_weight_per_unit,
+          gross_weight_per_unit: validated.gross_weight_per_unit,
+          empty_case_weight: validated.empty_case_weight,
+          price_usd_per_unit: validated.price_usd_per_unit,
+          price_xcg_per_unit: validated.price_xcg_per_unit,
+          unit: validated.unit,
+        })
         .eq('id', id);
       if (error) throw error;
     },
@@ -353,18 +387,28 @@ const Suppliers = () => {
   const handleOpenProductDialog = (product?: Product) => {
     if (product) {
       setEditingProduct(product);
+      const packSize = product.pack_size || 1;
       setProductFormData({
         code: product.code,
         name: product.name,
         pack_size: product.pack_size.toString(),
-        price_usd: product.price_usd?.toString() || '',
-        price_xcg: product.price_xcg?.toString() || '',
-        weight: product.weight?.toString() || '',
+        case_size: product.case_size || '',
+        netto_weight_per_unit: product.netto_weight_per_unit?.toString() || '',
+        gross_weight_per_unit: product.gross_weight_per_unit?.toString() || '',
+        empty_case_weight: product.empty_case_weight?.toString() || '',
+        price_usd_per_unit: product.price_usd_per_unit?.toString() || '',
+        price_usd_per_case: product.price_usd_per_unit ? (product.price_usd_per_unit * packSize).toFixed(2) : '',
+        price_xcg_per_unit: product.price_xcg_per_unit?.toString() || '',
+        price_xcg_per_case: product.price_xcg_per_unit ? (product.price_xcg_per_unit * packSize).toFixed(2) : '',
         unit: product.unit || '',
       });
     } else {
       setEditingProduct(null);
-      setProductFormData({ code: '', name: '', pack_size: '', price_usd: '', price_xcg: '', weight: '', unit: '' });
+      setProductFormData({ 
+        code: '', name: '', pack_size: '', case_size: '',
+        netto_weight_per_unit: '', gross_weight_per_unit: '', empty_case_weight: '',
+        price_usd_per_unit: '', price_usd_per_case: '', price_xcg_per_unit: '', price_xcg_per_case: '', unit: '' 
+      });
     }
     setIsProductDialogOpen(true);
   };
@@ -377,9 +421,12 @@ const Suppliers = () => {
           code: productFormData.code,
           name: productFormData.name,
           pack_size: parseInt(productFormData.pack_size),
-          price_usd: productFormData.price_usd ? parseFloat(productFormData.price_usd) : null,
-          price_xcg: productFormData.price_xcg ? parseFloat(productFormData.price_xcg) : null,
-          weight: productFormData.weight ? parseFloat(productFormData.weight) : null,
+          case_size: productFormData.case_size || null,
+          netto_weight_per_unit: productFormData.netto_weight_per_unit ? parseFloat(productFormData.netto_weight_per_unit) : null,
+          gross_weight_per_unit: productFormData.gross_weight_per_unit ? parseFloat(productFormData.gross_weight_per_unit) : null,
+          empty_case_weight: productFormData.empty_case_weight ? parseFloat(productFormData.empty_case_weight) : null,
+          price_usd_per_unit: productFormData.price_usd_per_unit ? parseFloat(productFormData.price_usd_per_unit) : null,
+          price_xcg_per_unit: productFormData.price_xcg_per_unit ? parseFloat(productFormData.price_xcg_per_unit) : null,
           unit: productFormData.unit || null,
         });
       } else {
@@ -517,7 +564,7 @@ const Suppliers = () => {
                     id="product-code"
                     value={productFormData.code}
                     onChange={(e) => setProductFormData({ ...productFormData, code: e.target.value })}
-                    placeholder="e.g., STB_500"
+                    placeholder="e.g., BLB_125"
                   />
                 </div>
                 <div className="space-y-2">
@@ -526,21 +573,41 @@ const Suppliers = () => {
                     id="product-name"
                     value={productFormData.name}
                     onChange={(e) => setProductFormData({ ...productFormData, name: e.target.value })}
-                    placeholder="e.g., Strawberries 500g"
+                    placeholder="e.g., Blueberries 125g"
                   />
                 </div>
               </div>
               
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="pack-size">Pack Size *</Label>
+                  <Label htmlFor="pack-size">Units/Case *</Label>
                   <Input
                     id="pack-size"
                     type="number"
                     min="1"
                     value={productFormData.pack_size}
-                    onChange={(e) => setProductFormData({ ...productFormData, pack_size: e.target.value })}
-                    placeholder="e.g., 10"
+                    onChange={(e) => {
+                      const newPackSize = e.target.value;
+                      const packSizeNum = parseFloat(newPackSize) || 1;
+                      const pricePerUnit = parseFloat(productFormData.price_usd_per_unit) || 0;
+                      const pricePerUnitXcg = parseFloat(productFormData.price_xcg_per_unit) || 0;
+                      setProductFormData({ 
+                        ...productFormData, 
+                        pack_size: newPackSize,
+                        price_usd_per_case: pricePerUnit ? (pricePerUnit * packSizeNum).toFixed(2) : '',
+                        price_xcg_per_case: pricePerUnitXcg ? (pricePerUnitXcg * packSizeNum).toFixed(2) : ''
+                      });
+                    }}
+                    placeholder="12"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="case-size">Case Size</Label>
+                  <Input
+                    id="case-size"
+                    value={productFormData.case_size}
+                    onChange={(e) => setProductFormData({ ...productFormData, case_size: e.target.value })}
+                    placeholder="40x30x20cm"
                   />
                 </div>
                 <div className="space-y-2">
@@ -549,47 +616,127 @@ const Suppliers = () => {
                     id="unit"
                     value={productFormData.unit}
                     onChange={(e) => setProductFormData({ ...productFormData, unit: e.target.value })}
-                    placeholder="e.g., trays"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="weight">Weight</Label>
-                  <Input
-                    id="weight"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={productFormData.weight}
-                    onChange={(e) => setProductFormData({ ...productFormData, weight: e.target.value })}
-                    placeholder="e.g., 0.5"
+                    placeholder="g, kg, lb"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="price-usd">Price USD</Label>
+                  <Label htmlFor="netto-weight">Netto Weight/Unit</Label>
                   <Input
-                    id="price-usd"
+                    id="netto-weight"
                     type="number"
                     step="0.01"
                     min="0"
-                    value={productFormData.price_usd}
-                    onChange={(e) => setProductFormData({ ...productFormData, price_usd: e.target.value })}
-                    placeholder="e.g., 12.50"
+                    value={productFormData.netto_weight_per_unit}
+                    onChange={(e) => setProductFormData({ ...productFormData, netto_weight_per_unit: e.target.value })}
+                    placeholder="125"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="price-xcg">Price XCG</Label>
+                  <Label htmlFor="gross-weight">Gross Weight/Unit</Label>
                   <Input
-                    id="price-xcg"
+                    id="gross-weight"
                     type="number"
                     step="0.01"
                     min="0"
-                    value={productFormData.price_xcg}
-                    onChange={(e) => setProductFormData({ ...productFormData, price_xcg: e.target.value })}
-                    placeholder="e.g., 5.50"
+                    value={productFormData.gross_weight_per_unit}
+                    onChange={(e) => setProductFormData({ ...productFormData, gross_weight_per_unit: e.target.value })}
+                    placeholder="130"
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="empty-case">Empty Case Weight</Label>
+                  <Input
+                    id="empty-case"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={productFormData.empty_case_weight}
+                    onChange={(e) => setProductFormData({ ...productFormData, empty_case_weight: e.target.value })}
+                    placeholder="500"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium">Price USD</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="price-usd-unit">Per Unit</Label>
+                    <Input
+                      id="price-usd-unit"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={productFormData.price_usd_per_unit}
+                      onChange={(e) => {
+                        const perUnit = e.target.value;
+                        const packSize = parseFloat(productFormData.pack_size) || 1;
+                        const perCase = perUnit ? (parseFloat(perUnit) * packSize).toFixed(2) : '';
+                        setProductFormData({ ...productFormData, price_usd_per_unit: perUnit, price_usd_per_case: perCase });
+                      }}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="price-usd-case">Per Case</Label>
+                    <Input
+                      id="price-usd-case"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={productFormData.price_usd_per_case}
+                      onChange={(e) => {
+                        const perCase = e.target.value;
+                        const packSize = parseFloat(productFormData.pack_size) || 1;
+                        const perUnit = perCase ? (parseFloat(perCase) / packSize).toFixed(4) : '';
+                        setProductFormData({ ...productFormData, price_usd_per_case: perCase, price_usd_per_unit: perUnit });
+                      }}
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium">Price XCG</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="price-xcg-unit">Per Unit</Label>
+                    <Input
+                      id="price-xcg-unit"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={productFormData.price_xcg_per_unit}
+                      onChange={(e) => {
+                        const perUnit = e.target.value;
+                        const packSize = parseFloat(productFormData.pack_size) || 1;
+                        const perCase = perUnit ? (parseFloat(perUnit) * packSize).toFixed(2) : '';
+                        setProductFormData({ ...productFormData, price_xcg_per_unit: perUnit, price_xcg_per_case: perCase });
+                      }}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="price-xcg-case">Per Case</Label>
+                    <Input
+                      id="price-xcg-case"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={productFormData.price_xcg_per_case}
+                      onChange={(e) => {
+                        const perCase = e.target.value;
+                        const packSize = parseFloat(productFormData.pack_size) || 1;
+                        const perUnit = perCase ? (parseFloat(perCase) / packSize).toFixed(4) : '';
+                        setProductFormData({ ...productFormData, price_xcg_per_case: perCase, price_xcg_per_unit: perUnit });
+                      }}
+                      placeholder="0.00"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -695,13 +842,29 @@ const Suppliers = () => {
                         <TableRow key={product.id}>
                           <TableCell className="font-medium">{product.code}</TableCell>
                           <TableCell>{product.name}</TableCell>
-                          <TableCell>{product.weight ? `${product.weight} ${product.unit || 'gr'}` : '-'}</TableCell>
+                          <TableCell>
+                            {product.netto_weight_per_unit ? `${product.netto_weight_per_unit} ${product.unit || 'gr'}` : '-'}
+                          </TableCell>
                           <TableCell>{product.pack_size}</TableCell>
                           <TableCell>
-                            {product.price_usd ? `$${product.price_usd.toFixed(2)}` : '-'}
+                            {product.price_usd_per_unit ? (
+                              <div>
+                                <div>${product.price_usd_per_unit.toFixed(2)}/unit</div>
+                                <div className="text-xs text-muted-foreground">
+                                  ${(product.price_usd_per_unit * product.pack_size).toFixed(2)}/case
+                                </div>
+                              </div>
+                            ) : '-'}
                           </TableCell>
                           <TableCell>
-                            {product.price_xcg ? `cg ${product.price_xcg.toFixed(2)}` : '-'}
+                            {product.price_xcg_per_unit ? (
+                              <div>
+                                <div>{product.price_xcg_per_unit.toFixed(2)}/unit</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {(product.price_xcg_per_unit * product.pack_size).toFixed(2)}/case
+                                </div>
+                              </div>
+                            ) : '-'}
                           </TableCell>
                               {canManage && (
                                 <TableCell className="text-right">
