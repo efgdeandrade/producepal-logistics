@@ -73,6 +73,12 @@ export const Header = () => {
                     History
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/cif-calculator">
+                    <Calculator className="mr-2 h-4 w-4" />
+                    CIF Calculator
+                  </Link>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -102,12 +108,6 @@ export const Header = () => {
                   <Link to="/customers">
                     <Users className="mr-2 h-4 w-4" />
                     Customers
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/cif-calculator">
-                    <Calculator className="mr-2 h-4 w-4" />
-                    CIF Calculator
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
