@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -113,6 +113,7 @@ const ProductionInput = () => {
 
   const loadProductionItems = async (orderId: string) => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('production_items')
         .select('*')
@@ -122,7 +123,7 @@ const ProductionInput = () => {
 
       const newData: ProductionData = {};
       
-      // Initialize empty grid
+      // Initialize empty grid for all products and customers
       products.forEach(product => {
         newData[product.code] = {};
         customers.forEach(customer => {
@@ -130,24 +131,26 @@ const ProductionInput = () => {
         });
       });
 
-      // Fill in existing data
+      // Fill in existing data from production_items
       (data || []).forEach(item => {
-        if (!newData[item.product_code]) {
-          newData[item.product_code] = {};
+        if (newData[item.product_code] && newData[item.product_code][item.customer_id]) {
+          newData[item.product_code][item.customer_id] = {
+            itemId: item.id,
+            quantity: item.actual_quantity || item.predicted_quantity || 0,
+          };
         }
-        newData[item.product_code][item.customer_id] = {
-          itemId: item.id,
-          quantity: item.actual_quantity || item.predicted_quantity || 0,
-        };
       });
 
       setProductionData(newData);
     } catch (error: any) {
+      console.error('Error loading production items:', error);
       toast({
-        title: 'Error',
+        title: 'Error loading data',
         description: error.message,
         variant: 'destructive',
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -351,9 +354,9 @@ const ProductionInput = () => {
                   if (supplierProducts.length === 0) return null;
                   
                   return (
-                    <>
+                    <React.Fragment key={supplier.id}>
                       {/* Supplier Header Row */}
-                      <tr key={`supplier-${supplier.id}`} className="bg-muted/50">
+                      <tr className="bg-muted/50">
                         <td colSpan={customers.length + 2} className="border border-border p-2 font-bold text-primary">
                           {supplier.name}
                         </td>
@@ -381,7 +384,7 @@ const ProductionInput = () => {
                           </td>
                         </tr>
                       ))}
-                    </>
+                    </React.Fragment>
                   );
                 })}
                 
