@@ -131,11 +131,11 @@ export const Invoice = forwardRef<HTMLDivElement, InvoiceProps>(
         <div className={is80mm ? 'mb-2' : 'mb-4'}>
           <div className="flex justify-between">
             <span className="font-bold">Subtotal:</span>
-            <span>EC$ {subtotal.toFixed(2)}</span>
+            <span>Cg {subtotal.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-lg font-bold">
             <span>TOTAL:</span>
-            <span>EC$ {total.toFixed(2)}</span>
+            <span>Cg {total.toFixed(2)}</span>
           </div>
         </div>
 

@@ -543,7 +543,7 @@ const Products = () => {
                   </div>
 
                   <div className="space-y-3">
-                    <h4 className="text-sm font-medium">Cost Price XCG (from supplier)</h4>
+                    <h4 className="text-sm font-medium">Cost Price Cg (from supplier)</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="price_xcg_per_unit">Per Unit</Label>
@@ -611,7 +611,7 @@ const Products = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="wholesale_price_xcg_per_unit">XCG Per Unit</Label>
+                        <Label htmlFor="wholesale_price_xcg_per_unit">Cg Per Unit</Label>
                         <Input
                           id="wholesale_price_xcg_per_unit"
                           type="number"
@@ -639,7 +639,7 @@ const Products = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="retail_price_xcg_per_unit">XCG Per Unit</Label>
+                        <Label htmlFor="retail_price_xcg_per_unit">Cg Per Unit</Label>
                         <Input
                           id="retail_price_xcg_per_unit"
                           type="number"
@@ -742,10 +742,10 @@ const Products = () => {
                   {product.price_xcg_per_unit && (
                     <>
                       <p className="text-muted-foreground">
-                        <span className="font-medium">Cost Price XCG:</span> {product.price_xcg_per_unit.toFixed(2)}/unit
+                        <span className="font-medium">Cost Price Cg:</span> Cg {product.price_xcg_per_unit.toFixed(2)}/unit
                       </p>
                       <p className="text-muted-foreground text-sm">
-                        <span className="font-medium">Cost per case:</span> {(product.price_xcg_per_unit * product.pack_size).toFixed(2)}
+                        <span className="font-medium">Cost per case:</span> Cg {(product.price_xcg_per_unit * product.pack_size).toFixed(2)}
                       </p>
                     </>
                   )}
@@ -756,7 +756,7 @@ const Products = () => {
                   )}
                   {product.wholesale_price_xcg_per_unit && (
                     <p className="text-muted-foreground">
-                      <span className="font-medium">Wholesale XCG:</span> {product.wholesale_price_xcg_per_unit.toFixed(2)}/unit
+                      <span className="font-medium">Wholesale Cg:</span> Cg {product.wholesale_price_xcg_per_unit.toFixed(2)}/unit
                     </p>
                   )}
                   {product.retail_price_usd_per_unit && (
@@ -766,7 +766,7 @@ const Products = () => {
                   )}
                   {product.retail_price_xcg_per_unit && (
                     <p className="text-muted-foreground">
-                      <span className="font-medium">Retail XCG:</span> {product.retail_price_xcg_per_unit.toFixed(2)}/unit
+                      <span className="font-medium">Retail Cg:</span> Cg {product.retail_price_xcg_per_unit.toFixed(2)}/unit
                     </p>
                   )}
                   {product.supplier_id && (

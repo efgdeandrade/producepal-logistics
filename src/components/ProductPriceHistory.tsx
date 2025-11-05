@@ -86,8 +86,8 @@ export function ProductPriceHistory({ productId, productCode, open, onOpenChange
                   <TableHead className="text-right">Old USD/Unit</TableHead>
                   <TableHead className="text-right">New USD/Unit</TableHead>
                   <TableHead className="text-center">Change</TableHead>
-                  <TableHead className="text-right">Old XCG/Unit</TableHead>
-                  <TableHead className="text-right">New XCG/Unit</TableHead>
+                  <TableHead className="text-right">Old Cg/Unit</TableHead>
+                  <TableHead className="text-right">New Cg/Unit</TableHead>
                   <TableHead className="text-center">Change</TableHead>
                 </TableRow>
               </TableHeader>
@@ -118,12 +118,12 @@ export function ProductPriceHistory({ productId, productCode, open, onOpenChange
                     </TableCell>
                     <TableCell className="text-right">
                       {entry.old_price_xcg_per_unit !== null 
-                        ? `${entry.old_price_xcg_per_unit.toFixed(2)} XCG`
+                        ? `Cg ${entry.old_price_xcg_per_unit.toFixed(2)}`
                         : '-'}
                     </TableCell>
                     <TableCell className="text-right font-semibold">
                       {entry.new_price_xcg_per_unit !== null 
-                        ? `${entry.new_price_xcg_per_unit.toFixed(2)} XCG`
+                        ? `Cg ${entry.new_price_xcg_per_unit.toFixed(2)}`
                         : '-'}
                     </TableCell>
                     <TableCell className="text-center">

@@ -182,7 +182,7 @@ export const OrderCIFTable = ({ orderItems }: OrderCIFTableProps) => {
                 <TableHead className="text-right">Cost USD</TableHead>
                 <TableHead className="text-right">Freight</TableHead>
                 <TableHead className="text-right">CIF USD</TableHead>
-                <TableHead className="text-right">CIF XCG</TableHead>
+                <TableHead className="text-right">CIF Cg</TableHead>
                 <TableHead className="text-right">CIF/Unit</TableHead>
                 <TableHead className="text-right">Wholesale</TableHead>
                 <TableHead className="text-right">Retail</TableHead>
@@ -198,17 +198,17 @@ export const OrderCIFTable = ({ orderItems }: OrderCIFTableProps) => {
                   <TableCell className="text-right">${result.costUSD.toFixed(2)}</TableCell>
                   <TableCell className="text-right">${result.freightCost.toFixed(2)}</TableCell>
                   <TableCell className="text-right">${result.cifUSD.toFixed(2)}</TableCell>
-                  <TableCell className="text-right">EC$ {result.cifXCG.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">Cg {result.cifXCG.toFixed(2)}</TableCell>
                   <TableCell className="text-right font-bold">
-                    EC$ {result.cifPerUnit.toFixed(2)}
+                    Cg {result.cifPerUnit.toFixed(2)}
                   </TableCell>
-                  <TableCell className="text-right">EC$ {result.wholesalePrice.toFixed(2)}</TableCell>
-                  <TableCell className="text-right">EC$ {result.retailPrice.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">Cg {result.wholesalePrice.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">Cg {result.retailPrice.toFixed(2)}</TableCell>
                   <TableCell className="text-right text-green-600">
-                    EC$ {result.wholesaleMargin.toFixed(2)}
+                    Cg {result.wholesaleMargin.toFixed(2)}
                   </TableCell>
                   <TableCell className="text-right text-green-600">
-                    EC$ {result.retailMargin.toFixed(2)}
+                    Cg {result.retailMargin.toFixed(2)}
                   </TableCell>
                 </TableRow>
               ))}

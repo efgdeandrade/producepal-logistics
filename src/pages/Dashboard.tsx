@@ -289,8 +289,8 @@ const Dashboard = () => {
             <span className="text-foreground">${data.usd.toLocaleString()}</span>
           </p>
           <p className="text-sm">
-            <span className="text-chart-2 font-medium">XCG:</span>{' '}
-            <span className="text-foreground">{data.xcg.toLocaleString()}</span>
+            <span className="text-chart-2 font-medium">Cg:</span>{' '}
+            <span className="text-foreground">Cg {data.xcg.toLocaleString()}</span>
           </p>
         </div>
         {Object.keys(suppliers).length > 0 && (
@@ -300,7 +300,7 @@ const Dashboard = () => {
               <div key={name} className="text-xs space-y-0.5 mb-1">
                 <p className="font-medium text-foreground">{name}</p>
                 <p className="text-muted-foreground pl-2">
-                  USD: ${values.usd.toLocaleString()} | XCG: {values.xcg.toLocaleString()}
+                  USD: ${values.usd.toLocaleString()} | Cg: {values.xcg.toLocaleString()}
                 </p>
               </div>
             ))}
@@ -400,7 +400,7 @@ const Dashboard = () => {
         <Card className="mb-8">
           <CardHeader>
             <CardTitle>Sales Analytics</CardTitle>
-            <CardDescription>View amounts in USD and XCG across different time periods</CardDescription>
+            <CardDescription>View amounts in USD and Cg across different time periods</CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="weekly" className="space-y-4">
@@ -426,7 +426,7 @@ const Dashboard = () => {
                       />
                       <Tooltip content={<CustomTooltip />} />
                       <Bar dataKey="usd" fill="hsl(var(--chart-1))" name="USD" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="xcg" fill="hsl(var(--chart-2))" name="XCG" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="xcg" fill="hsl(var(--chart-2))" name="Cg" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -482,7 +482,7 @@ const Dashboard = () => {
                       />
                       <Tooltip content={<CustomTooltip />} />
                       <Bar dataKey="usd" fill="hsl(var(--chart-1))" name="USD" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="xcg" fill="hsl(var(--chart-2))" name="XCG" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="xcg" fill="hsl(var(--chart-2))" name="Cg" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

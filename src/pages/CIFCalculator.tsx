@@ -295,7 +295,7 @@ export default function CIFCalculator() {
             <p className="text-muted-foreground mt-2">Calculate Cost, Insurance, and Freight pricing</p>
           </div>
           <div className="w-48 ml-auto">
-            <Label>Exchange Rate (USD to XCG)</Label>
+            <Label>Exchange Rate (USD to Cg)</Label>
             <Input
               type="number"
               step="0.01"

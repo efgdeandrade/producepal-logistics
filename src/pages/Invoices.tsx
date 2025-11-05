@@ -243,7 +243,7 @@ const Invoices = () => {
                     <TableHead>Invoice #</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Customer</TableHead>
-                    <TableHead className="text-right">Total (XCG)</TableHead>
+                    <TableHead className="text-right">Total (Cg)</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -255,7 +255,7 @@ const Invoices = () => {
                       <TableCell>{format(new Date(invoice.invoice_date), 'MMM d, yyyy')}</TableCell>
                       <TableCell>{invoice.customer_name}</TableCell>
                       <TableCell className="text-right font-bold">
-                        EC$ {invoice.total.toFixed(2)}
+                        Cg {invoice.total.toFixed(2)}
                       </TableCell>
                       <TableCell>
                         <Badge variant={invoice.status === 'paid' ? 'default' : 'secondary'}>
