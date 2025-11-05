@@ -28,8 +28,7 @@ interface Product {
   code: string;
   name: string;
   pack_size: number;
-  retail_price_usd_per_unit: number | null;
-  retail_price_xcg_per_unit: number | null;
+  wholesale_price_xcg_per_unit: number | null;
 }
 
 interface Customer {
@@ -40,6 +39,7 @@ interface Customer {
 export const CustomerReceipt = ({ order, orderItems, customerName, format }: Props) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -50,7 +50,7 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format }: Pro
     setLoading(true);
     const { data: productsData } = await supabase
       .from('products')
-      .select('code, name, pack_size, retail_price_usd_per_unit, retail_price_xcg_per_unit');
+      .select('code, name, pack_size, wholesale_price_xcg_per_unit');
     if (productsData) setProducts(productsData);
 
     const { data: customerData } = await supabase
@@ -59,6 +59,14 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format }: Pro
       .eq('name', customerName)
       .single();
     if (customerData) setCustomer(customerData);
+
+    const { data: companyData } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'company_info')
+      .single();
+    if (companyData) setCompanyInfo(companyData.value);
+
     setLoading(false);
   };
 
@@ -71,9 +79,9 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format }: Pro
   const calculateTotal = () => {
     return customerItems.reduce((sum, item) => {
       const product = getProductInfo(item.product_code);
-      if (!product || !product.retail_price_usd_per_unit) return sum;
+      if (!product || !product.wholesale_price_xcg_per_unit) return sum;
       const units = item.quantity * product.pack_size;
-      return sum + (units * product.retail_price_usd_per_unit);
+      return sum + (units * product.wholesale_price_xcg_per_unit);
     }, 0);
   };
 
@@ -90,6 +98,29 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format }: Pro
 
   return (
     <div className={`${containerClass} mx-auto bg-white text-black p-6`}>
+      {/* Company Header */}
+      {companyInfo && (
+        <div className="text-center mb-4 pb-4 border-b border-gray-300">
+          {companyInfo.logo_url && (
+            <img 
+              src={companyInfo.logo_url} 
+              alt="Company Logo" 
+              className={`mx-auto mb-2 ${format === 'receipt' ? 'h-12' : 'h-16'} object-contain`}
+            />
+          )}
+          <h2 className={`font-bold ${format === 'receipt' ? 'text-base' : 'text-xl'}`}>
+            {companyInfo.company_name}
+          </h2>
+          <div className={`${textSize} text-gray-700 mt-1`}>
+            <p>{companyInfo.address_line1}</p>
+            {companyInfo.address_line2 && <p>{companyInfo.address_line2}</p>}
+            <p>{companyInfo.city}, {companyInfo.postal_code}</p>
+            <p>Tel: {companyInfo.phone} | Email: {companyInfo.email}</p>
+            {companyInfo.tax_info && <p className="text-xs mt-1">{companyInfo.tax_info}</p>}
+          </div>
+        </div>
+      )}
+
       <div className="border-b-2 border-black pb-4 mb-4">
         <h1 className={`${format === 'receipt' ? 'text-lg' : 'text-2xl'} font-bold text-center`}>RECEIPT</h1>
         <div className={`${textSize} mt-2`}>
@@ -120,7 +151,7 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format }: Pro
           {customerItems.map((item) => {
             const product = getProductInfo(item.product_code);
             const units = product ? item.quantity * product.pack_size : 0;
-            const price = product?.retail_price_usd_per_unit || 0;
+            const price = product?.wholesale_price_xcg_per_unit || 0;
             const lineTotal = units * price;
             
             return (
@@ -131,8 +162,8 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format }: Pro
                   <div className="text-gray-500 text-xs">{item.quantity} trays × {product?.pack_size} = {units} units</div>
                 </td>
                 <td className={`${textSize} text-right py-2`}>{units}</td>
-                <td className={`${textSize} text-right py-2`}>${price.toFixed(2)}</td>
-                <td className={`${textSize} text-right py-2`}>${lineTotal.toFixed(2)}</td>
+                <td className={`${textSize} text-right py-2`}>Cg {price.toFixed(2)}</td>
+                <td className={`${textSize} text-right py-2`}>Cg {lineTotal.toFixed(2)}</td>
               </tr>
             );
           })}
@@ -140,7 +171,7 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format }: Pro
         <tfoot>
           <tr className="border-t-2 border-black">
             <td colSpan={3} className={`${textSize} font-bold py-2 text-right`}>Total Amount Due:</td>
-            <td className={`${textSize} font-bold text-right py-2`}>${calculateTotal().toFixed(2)}</td>
+            <td className={`${textSize} font-bold text-right py-2`}>Cg {calculateTotal().toFixed(2)}</td>
           </tr>
         </tfoot>
       </table>

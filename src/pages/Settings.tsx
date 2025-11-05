@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Save } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,6 +22,16 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const [companyName, setCompanyName] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
+  const [addressLine1, setAddressLine1] = useState('');
+  const [addressLine2, setAddressLine2] = useState('');
+  const [city, setCity] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [taxInfo, setTaxInfo] = useState('');
+
   const [rolePermissions, setRolePermissions] = useState<any[]>([]);
   const roles = ['admin', 'manager', 'management', 'driver', 'production', 'accounting'];
   const resources = ['dashboard', 'orders', 'others', 'logistics', 'production', 'analytics', 'settings', 'users'];
@@ -32,6 +43,7 @@ export default function Settings() {
     }
     loadSettings();
     loadPermissions();
+    loadCompanyInfo();
   }, [isAdmin, navigate]);
 
   const loadSettings = async () => {
@@ -39,7 +51,7 @@ export default function Settings() {
       const { data, error } = await supabase
         .from('settings')
         .select('*')
-        .in('key', ['freight_exterior_tariff', 'freight_local_tariff', 'usd_to_xcg_rate']);
+        .in('key', ['freight_exterior_tariff', 'freight_local_tariff', 'usd_to_xcg_rate', 'company_info']);
 
       if (error) throw error;
 
@@ -75,6 +87,33 @@ export default function Settings() {
     }
   };
 
+  const loadCompanyInfo = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'company_info')
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+
+      if (data?.value) {
+        const info = data.value as any;
+        setCompanyName(info.company_name || '');
+        setLogoUrl(info.logo_url || '');
+        setAddressLine1(info.address_line1 || '');
+        setAddressLine2(info.address_line2 || '');
+        setCity(info.city || '');
+        setPostalCode(info.postal_code || '');
+        setPhone(info.phone || '');
+        setEmail(info.email || '');
+        setTaxInfo(info.tax_info || '');
+      }
+    } catch (error: any) {
+      console.error('Failed to load company info:', error);
+    }
+  };
+
   const handleSaveTariffs = async () => {
     setSaving(true);
     try {
@@ -107,6 +146,39 @@ export default function Settings() {
       toast.success('Settings saved successfully');
     } catch (error: any) {
       toast.error('Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveCompanyInfo = async () => {
+    setSaving(true);
+    try {
+      const companyData = {
+        company_name: companyName,
+        logo_url: logoUrl,
+        address_line1: addressLine1,
+        address_line2: addressLine2,
+        city: city,
+        postal_code: postalCode,
+        phone: phone,
+        email: email,
+        tax_info: taxInfo
+      };
+
+      const { error } = await supabase
+        .from('settings')
+        .upsert({
+          key: 'company_info',
+          value: companyData,
+          description: 'Company information for receipts and documents'
+        }, { onConflict: 'key' });
+
+      if (error) throw error;
+
+      toast.success('Company information saved successfully');
+    } catch (error: any) {
+      toast.error('Failed to save company information');
     } finally {
       setSaving(false);
     }
@@ -176,6 +248,7 @@ export default function Settings() {
         <Tabs defaultValue="tariffs" className="space-y-4">
           <TabsList>
             <TabsTrigger value="tariffs">Currency & Tariffs</TabsTrigger>
+            <TabsTrigger value="company">Company Information</TabsTrigger>
             <TabsTrigger value="permissions">Role Permissions</TabsTrigger>
           </TabsList>
 
@@ -225,6 +298,109 @@ export default function Settings() {
                 <Button onClick={handleSaveTariffs} disabled={saving}>
                   <Save className="mr-2 h-4 w-4" />
                   Save Settings
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="company">
+            <Card>
+              <CardHeader>
+                <CardTitle>Company Information</CardTitle>
+                <CardDescription>Configure your company details for receipts and documents</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="companyName">Company Name</Label>
+                    <Input
+                      id="companyName"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      placeholder="Your Company Name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="logoUrl">Company Logo URL</Label>
+                    <Input
+                      id="logoUrl"
+                      value={logoUrl}
+                      onChange={(e) => setLogoUrl(e.target.value)}
+                      placeholder="https://example.com/logo.png"
+                    />
+                    <p className="text-sm text-muted-foreground">Upload your logo to an image hosting service and paste the URL here</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="addressLine1">Address Line 1</Label>
+                    <Input
+                      id="addressLine1"
+                      value={addressLine1}
+                      onChange={(e) => setAddressLine1(e.target.value)}
+                      placeholder="123 Main Street"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="addressLine2">Address Line 2 (Optional)</Label>
+                    <Input
+                      id="addressLine2"
+                      value={addressLine2}
+                      onChange={(e) => setAddressLine2(e.target.value)}
+                      placeholder="Suite 100"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="city">City</Label>
+                      <Input
+                        id="city"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        placeholder="City Name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="postalCode">Postal Code</Label>
+                      <Input
+                        id="postalCode"
+                        value={postalCode}
+                        onChange={(e) => setPostalCode(e.target.value)}
+                        placeholder="12345"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input
+                      id="phone"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="+1-xxx-xxx-xxxx"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="info@company.com"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="taxInfo">Business Registration / Tax Information (Optional)</Label>
+                    <Textarea
+                      id="taxInfo"
+                      value={taxInfo}
+                      onChange={(e) => setTaxInfo(e.target.value)}
+                      placeholder="Tax ID: xxxxx"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+                <Button onClick={handleSaveCompanyInfo} disabled={saving}>
+                  <Save className="mr-2 h-4 w-4" />
+                  Save Company Information
                 </Button>
               </CardContent>
             </Card>
