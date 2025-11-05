@@ -101,11 +101,12 @@ const NewOrder = () => {
 
   const calculateRoundup = () => {
     const roundup = PRODUCTS.map(product => {
-      const totalUnits = customerOrders.reduce((sum, co) => {
+      const totalUnitsNeeded = customerOrders.reduce((sum, co) => {
         const item = co.items.find(i => i.productCode === product.code);
         return sum + (item?.quantity || 0);
       }, 0);
-      const totalTrays = Math.ceil(totalUnits / product.packSize);
+      const totalTrays = Math.ceil(totalUnitsNeeded / product.packSize);
+      const totalUnits = totalTrays * product.packSize;
       return { product, totalTrays, totalUnits };
     });
     return roundup;
