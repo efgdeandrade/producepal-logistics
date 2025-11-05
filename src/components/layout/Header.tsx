@@ -13,11 +13,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useState, useEffect } from 'react';
+import { format, getWeek } from 'date-fns';
 
 export const Header = () => {
   const location = useLocation();
   const { user, isAdmin, signOut } = useAuth();
   const { canView, loading: permissionsLoading } = usePermissions();
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -26,6 +29,13 @@ export const Header = () => {
     return email.substring(0, 2).toUpperCase();
   };
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   if (permissionsLoading) {
     return null;
   }
@@ -33,10 +43,20 @@ export const Header = () => {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
       <div className="container flex h-16 items-center justify-between">
-        <Link to="/" className="flex items-center space-x-2">
-          <img src={logo} alt="Fuik.io Logo" className="h-8 object-contain" />
-          <span className="text-xl font-bold text-foreground">Fuik.io</span>
-        </Link>
+        <div className="flex items-center gap-6">
+          <Link to="/" className="flex items-center space-x-2">
+            <img src={logo} alt="Fuik.io Logo" className="h-8 object-contain" />
+            <span className="text-xl font-bold text-foreground">Fuik.io</span>
+          </Link>
+          <div className="hidden md:flex flex-col text-sm">
+            <div className="font-semibold text-foreground">
+              {format(currentTime, 'EEEE, MMMM d, yyyy')}
+            </div>
+            <div className="text-muted-foreground">
+              {format(currentTime, 'HH:mm:ss')} • Week {getWeek(currentTime)}
+            </div>
+          </div>
+        </div>
         
         <nav className="flex items-center space-x-2">
           {canView('dashboard') && (
