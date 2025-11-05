@@ -183,7 +183,7 @@ export default function CIFCalculator() {
                 <tr className="border-b">
                   <th className="text-left p-2">Product</th>
                   <th className="text-right p-2">Qty</th>
-                  <th className="text-right p-2">CIF/Unit (XCG)</th>
+                  <th className="text-right p-2">CIF/Unit</th>
                   <th className="text-right p-2">Wholesale</th>
                   <th className="text-right p-2">Retail</th>
                   <th className="text-right p-2">W. Margin</th>
@@ -195,11 +195,11 @@ export default function CIFCalculator() {
                   <tr key={idx} className="border-b">
                     <td className="p-2">{result.productName}</td>
                     <td className="text-right p-2">{result.quantity}</td>
-                    <td className="text-right p-2">${(result.cifXCG / result.quantity).toFixed(2)}</td>
-                    <td className="text-right p-2">${result.wholesalePrice.toFixed(2)}</td>
-                    <td className="text-right p-2">${result.retailPrice.toFixed(2)}</td>
-                    <td className="text-right p-2">${result.wholesaleMargin.toFixed(2)}</td>
-                    <td className="text-right p-2">${result.retailMargin.toFixed(2)}</td>
+                    <td className="text-right p-2">cg {(result.cifXCG / result.quantity).toFixed(2)}</td>
+                    <td className="text-right p-2">cg {result.wholesalePrice.toFixed(2)}</td>
+                    <td className="text-right p-2">cg {result.retailPrice.toFixed(2)}</td>
+                    <td className="text-right p-2">cg {result.wholesaleMargin.toFixed(2)}</td>
+                    <td className="text-right p-2">cg {result.retailMargin.toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
