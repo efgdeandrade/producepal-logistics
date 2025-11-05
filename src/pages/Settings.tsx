@@ -17,6 +17,7 @@ export default function Settings() {
   const { isAdmin } = useAuth();
   const [exteriorRate, setExteriorRate] = useState('0');
   const [localRate, setLocalRate] = useState('0');
+  const [currencyRate, setCurrencyRate] = useState('1.82');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -38,7 +39,7 @@ export default function Settings() {
       const { data, error } = await supabase
         .from('settings')
         .select('*')
-        .in('key', ['freight_exterior_tariff', 'freight_local_tariff']);
+        .in('key', ['freight_exterior_tariff', 'freight_local_tariff', 'usd_to_xcg_rate']);
 
       if (error) throw error;
 
@@ -48,6 +49,8 @@ export default function Settings() {
           setExteriorRate(value?.rate?.toString() || '0');
         } else if (setting.key === 'freight_local_tariff') {
           setLocalRate(value?.rate?.toString() || '0');
+        } else if (setting.key === 'usd_to_xcg_rate') {
+          setCurrencyRate(value?.rate?.toString() || '1.82');
         }
       });
     } catch (error: any) {
@@ -85,6 +88,11 @@ export default function Settings() {
           key: 'freight_local_tariff',
           value: { rate: parseFloat(localRate), currency: 'XCD' },
           description: 'Local freight agent tariff'
+        },
+        {
+          key: 'usd_to_xcg_rate',
+          value: { rate: parseFloat(currencyRate) },
+          description: 'USD to XCG currency conversion rate'
         }
       ];
 
@@ -96,9 +104,9 @@ export default function Settings() {
         if (error) throw error;
       }
 
-      toast.success('Tariffs saved successfully');
+      toast.success('Settings saved successfully');
     } catch (error: any) {
-      toast.error('Failed to save tariffs');
+      toast.error('Failed to save settings');
     } finally {
       setSaving(false);
     }
@@ -167,18 +175,30 @@ export default function Settings() {
 
         <Tabs defaultValue="tariffs" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="tariffs">Tariffs</TabsTrigger>
+            <TabsTrigger value="tariffs">Currency & Tariffs</TabsTrigger>
             <TabsTrigger value="permissions">Role Permissions</TabsTrigger>
           </TabsList>
 
           <TabsContent value="tariffs">
             <Card>
               <CardHeader>
-                <CardTitle>Freight Tariffs</CardTitle>
-                <CardDescription>Configure tariff rates for freight calculations</CardDescription>
+                <CardTitle>Currency & Tariffs</CardTitle>
+                <CardDescription>Configure currency conversion and freight tariff rates</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="currency">USD to XCG Conversion Rate</Label>
+                    <Input
+                      id="currency"
+                      type="number"
+                      step="0.01"
+                      value={currencyRate}
+                      onChange={(e) => setCurrencyRate(e.target.value)}
+                      placeholder="1.82"
+                    />
+                    <p className="text-sm text-muted-foreground">1 USD = {currencyRate} XCG</p>
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="exterior">Exterior Agent Tariff (USD)</Label>
                     <Input
@@ -204,7 +224,7 @@ export default function Settings() {
                 </div>
                 <Button onClick={handleSaveTariffs} disabled={saving}>
                   <Save className="mr-2 h-4 w-4" />
-                  Save Tariffs
+                  Save Settings
                 </Button>
               </CardContent>
             </Card>

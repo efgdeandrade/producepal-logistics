@@ -80,8 +80,8 @@ const productSchema = z.object({
   unit: z.string().trim().max(20, 'Unit too long').optional().nullable(),
 });
 
-// Conversion rate: 1 USD = 655.957 XCF (Central African CFA franc)
-const USD_TO_XCG_RATE = 655.957;
+// Conversion rate: 1 USD = 1.82 XCG
+const USD_TO_XCG_RATE = 1.82;
 
 const Suppliers = () => {
   const navigate = useNavigate();
