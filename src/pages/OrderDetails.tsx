@@ -446,29 +446,60 @@ const OrderDetails = () => {
       <Dialog open={showFormatDialog} onOpenChange={setShowFormatDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Select Format</DialogTitle>
+            <DialogTitle>Select Format & Action</DialogTitle>
             <DialogDescription>
-              Choose the format for your document
+              Choose the format and how you want to handle the document
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <Button
-                variant={printFormat === 'a4' ? 'default' : 'outline'}
-                onClick={() => setPrintFormat('a4')}
-              >
-                A4 Format
-              </Button>
-              <Button
-                variant={printFormat === 'receipt' ? 'default' : 'outline'}
-                onClick={() => setPrintFormat('receipt')}
-              >
-                80mm Receipt
-              </Button>
+            <div>
+              <p className="text-sm font-medium mb-2">Format:</p>
+              <div className="grid grid-cols-2 gap-4">
+                <Button
+                  variant={printFormat === 'a4' ? 'default' : 'outline'}
+                  onClick={() => setPrintFormat('a4')}
+                >
+                  A4 Format
+                </Button>
+                <Button
+                  variant={printFormat === 'receipt' ? 'default' : 'outline'}
+                  onClick={() => setPrintFormat('receipt')}
+                >
+                  80mm Receipt
+                </Button>
+              </div>
             </div>
-            <Button onClick={handleConfirmFormat} className="w-full">
-              Continue
-            </Button>
+            {pendingAction?.type === 'receipt' ? (
+              <div>
+                <p className="text-sm font-medium mb-2">Action:</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <Button 
+                    onClick={() => {
+                      setPendingAction({ ...pendingAction, action: 'print' });
+                      handleConfirmFormat();
+                    }}
+                    className="w-full"
+                  >
+                    <Printer className="mr-2 h-4 w-4" />
+                    Print
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      setPendingAction({ ...pendingAction, action: 'download' });
+                      handleConfirmFormat();
+                    }}
+                    className="w-full"
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Download
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button onClick={handleConfirmFormat} className="w-full">
+                Continue
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
