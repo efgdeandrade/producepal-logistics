@@ -5,8 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calculator } from 'lucide-react';
+import { Calculator, ArrowLeft } from 'lucide-react';
 import { PRODUCTS, ProductCode } from '@/types/order';
+import { useNavigate } from 'react-router-dom';
 
 interface ProductInput {
   code: ProductCode;
@@ -34,6 +35,7 @@ const EXCHANGE_RATE_KEY = 'cif_exchange_rate';
 const DEFAULT_EXCHANGE_RATE = 1.82;
 
 export default function CIFCalculator() {
+  const navigate = useNavigate();
   const [exchangeRate, setExchangeRate] = useState(() => {
     const saved = localStorage.getItem(EXCHANGE_RATE_KEY);
     return saved ? parseFloat(saved) : DEFAULT_EXCHANGE_RATE;
@@ -281,15 +283,18 @@ export default function CIFCalculator() {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container mx-auto py-8 px-4">
-        <div className="flex items-center justify-between mb-8">
-          <div>
+        <div className="flex items-center gap-4 mb-8">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div className="flex-1">
             <h1 className="text-4xl font-bold text-foreground flex items-center gap-2">
               <Calculator className="h-8 w-8 text-primary" />
               CIF Calculator
             </h1>
             <p className="text-muted-foreground mt-2">Calculate Cost, Insurance, and Freight pricing</p>
           </div>
-          <div className="w-48">
+          <div className="w-48 ml-auto">
             <Label>Exchange Rate (USD to XCG)</Label>
             <Input
               type="number"

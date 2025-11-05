@@ -7,10 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Product, PRODUCTS } from '@/types/order';
-import { PlusCircle, Pencil, Trash2 } from 'lucide-react';
+import { PlusCircle, Pencil, Trash2, ArrowLeft } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 const Products = () => {
+  const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>(PRODUCTS);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -99,12 +101,16 @@ const Products = () => {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container py-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
+        <div className="flex items-center mb-6">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="mr-4">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div className="flex-1">
             <h1 className="text-3xl font-bold text-foreground mb-2">Products</h1>
             <p className="text-muted-foreground">Manage your product catalog, pricing, and supplier information</p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <div className="ml-auto">
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={() => handleOpenDialog()}>
                 <PlusCircle className="mr-2 h-4 w-4" />
@@ -211,6 +217,7 @@ const Products = () => {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

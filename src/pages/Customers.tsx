@@ -21,8 +21,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { MapPin, Plus, Edit, Trash2 } from 'lucide-react';
+import { MapPin, Plus, Edit, Trash2, ArrowLeft } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { useNavigate } from 'react-router-dom';
 
 interface Customer {
   id: string;
@@ -38,6 +39,7 @@ interface Customer {
 }
 
 export default function Customers() {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const { hasRole } = useAuth();
   const queryClient = useQueryClient();
@@ -129,8 +131,11 @@ export default function Customers() {
 
   return (
     <div className="container mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Customers</h1>
+      <div className="flex items-center gap-4 mb-6">
+        <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <h1 className="text-3xl font-bold flex-1">Customers</h1>
         {canManage && (
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>

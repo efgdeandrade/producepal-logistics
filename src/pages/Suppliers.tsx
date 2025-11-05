@@ -6,10 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Supplier } from '@/types/order';
-import { PlusCircle, Pencil, Trash2 } from 'lucide-react';
+import { PlusCircle, Pencil, Trash2, ArrowLeft } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 const Suppliers = () => {
+  const navigate = useNavigate();
   const [suppliers, setSuppliers] = useState<Supplier[]>([
     { id: '1', name: 'Fresh Farms Co.', contact: 'John Doe', email: 'john@freshfarms.com', phone: '+1234567890' },
     { id: '2', name: 'Berry Suppliers Ltd.', contact: 'Jane Smith', email: 'jane@berry.com', phone: '+0987654321' },
@@ -84,12 +86,16 @@ const Suppliers = () => {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container py-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
+        <div className="flex items-center mb-6">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="mr-4">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div className="flex-1">
             <h1 className="text-3xl font-bold text-foreground mb-2">Suppliers</h1>
             <p className="text-muted-foreground">Manage your supplier contacts and information</p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <div className="ml-auto">
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={() => handleOpenDialog()}>
                 <PlusCircle className="mr-2 h-4 w-4" />
@@ -149,6 +155,7 @@ const Suppliers = () => {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

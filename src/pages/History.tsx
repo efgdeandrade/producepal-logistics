@@ -3,7 +3,8 @@ import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Printer, Eye, Ban } from 'lucide-react';
+import { Search, Printer, Eye, Ban, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const mockOrders = [
   {
@@ -39,6 +40,7 @@ const mockOrders = [
 ];
 
 const History = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredOrders = mockOrders.filter(order =>
@@ -51,9 +53,14 @@ const History = () => {
       <Header />
       
       <main className="container py-8">
-        <div className="mb-8">
+        <div className="flex items-center gap-4 mb-8">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
           <h1 className="text-4xl font-bold text-foreground mb-2">Order History</h1>
-          <p className="text-muted-foreground">View and manage all past orders</p>
+            <p className="text-muted-foreground">View and manage all past orders</p>
+          </div>
         </div>
 
         <Card className="mb-6">

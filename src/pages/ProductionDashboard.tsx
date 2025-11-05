@@ -11,6 +11,7 @@ import { Package, CheckCircle2, Clock, AlertCircle, Plus, ArrowLeft, Printer, X,
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import ProductionReceiptDialog from '@/components/ProductionReceiptDialog';
+import LoadingBox from '@/components/LoadingBox';
 
 interface ProductionItem {
   id: string;
@@ -262,14 +263,7 @@ const ProductionDashboard = () => {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <Package className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-xl text-muted-foreground">Loading production orders...</p>
-        </div>
-      </div>
-    );
+    return <LoadingBox />;
   }
 
   const productTotals = calculateProductTotals(orders);
