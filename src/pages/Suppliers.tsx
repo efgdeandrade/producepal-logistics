@@ -679,28 +679,30 @@ const Suppliers = () => {
                   {supplierProducts && supplierProducts.length > 0 ? (
                     <div className="rounded-md border">
                       <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Code</TableHead>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Pack Size</TableHead>
-                            <TableHead>Price USD</TableHead>
-                            <TableHead>Price XCG</TableHead>
-                            {canManage && <TableHead className="text-right">Actions</TableHead>}
-                          </TableRow>
-                        </TableHeader>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Code</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Unit Size</TableHead>
+                        <TableHead>Units per Case</TableHead>
+                        <TableHead>Price USD</TableHead>
+                        <TableHead>Price XCG</TableHead>
+                        {canManage && <TableHead className="text-right">Actions</TableHead>}
+                      </TableRow>
+                    </TableHeader>
                         <TableBody>
                           {supplierProducts.map((product) => (
-                            <TableRow key={product.id}>
-                              <TableCell className="font-medium">{product.code}</TableCell>
-                              <TableCell>{product.name}</TableCell>
-                              <TableCell>{product.pack_size} {product.unit || 'units'}</TableCell>
-                              <TableCell>
-                                {product.price_usd ? `$${product.price_usd.toFixed(2)}` : '-'}
-                              </TableCell>
-                              <TableCell>
-                                {product.price_xcg ? `cg ${product.price_xcg.toFixed(2)}` : '-'}
-                              </TableCell>
+                        <TableRow key={product.id}>
+                          <TableCell className="font-medium">{product.code}</TableCell>
+                          <TableCell>{product.name}</TableCell>
+                          <TableCell>{product.weight ? `${product.weight} ${product.unit || 'gr'}` : '-'}</TableCell>
+                          <TableCell>{product.pack_size}</TableCell>
+                          <TableCell>
+                            {product.price_usd ? `$${product.price_usd.toFixed(2)}` : '-'}
+                          </TableCell>
+                          <TableCell>
+                            {product.price_xcg ? `cg ${product.price_xcg.toFixed(2)}` : '-'}
+                          </TableCell>
                               {canManage && (
                                 <TableCell className="text-right">
                                   <div className="flex justify-end gap-2">
