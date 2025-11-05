@@ -6,8 +6,9 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
+import { Separator } from '@/components/ui/separator';
 
 interface Product {
   code: string;
@@ -29,24 +30,32 @@ interface ProductionData {
 
 const PRODUCT_CATEGORIES = {
   HERBS_PACKS: {
-    name: 'HERBS PACKS (xcd 2.00)',
-    codes: ['HP_MINT', 'HP_PEPPERMINT', 'HP_BASIL', 'HP_PURPLE_BASIL', 'HP_YERBI_HOLE', 'HP_LEMON_BASIL', 
-            'HP_LEMONGRASS', 'HP_OREGANO', 'HP_LIPPIA_ALBA', 'HP_CILANTRO', 'HP_PARSLEY', 'HP_ROMERO', 
-            'HP_THYME', 'HP_DILL', 'HP_SAGE', 'HP_CHIVES', 'HP_TARRAGON', 'HP_MORINGA', 'HP_EUCALYPTUS', 
-            'HP_BAY', 'HP_GUASCA', 'HP_CALENDULA', 'HP_CAMOMILE', 'HP_MARJORAM', 'HP_RUDA', 'HP_PARSLEY_ITALIAN']
+    name: 'HERBS PACKS',
+    price: 'xcd 2.00',
+    codes: ['HERBS_PACKS_MINT', 'HERBS_PACKS_PEPPERMINT', 'HERBS_PACKS_BASIL', 'HERBS_PACKS_PURPLE_BASIL', 
+            'HERBS_PACKS_YERBI_HOLE', 'HERBS_PACKS_LEMON_BASIL', 'HERBS_PACKS_LEMONGRASS', 'HERBS_PACKS_OREGANO', 
+            'HERBS_PACKS_LIPPIA_ALBA', 'HERBS_PACKS_CILANTRO', 'HERBS_PACKS_PARSLEY', 'HERBS_PACKS_ROMERO', 
+            'HERBS_PACKS_THYME', 'HERBS_PACKS_DILL', 'HERBS_PACKS_SAGE', 'HERBS_PACKS_CHIVES', 'HERBS_PACKS_TARRAGON', 
+            'HERBS_PACKS_MORINGA', 'HERBS_PACKS_EUCALYPTUS', 'HERBS_PACKS_BAY', 'HERBS_PACKS_GUASCA', 
+            'HERBS_PACKS_CALENDULA', 'HERBS_PACKS_CAMOMILE', 'HERBS_PACKS_MARJORAM', 'HERBS_PACKS_RUDA', 
+            'HERBS_PACKS_PARSLEY_ITALIAN']
   },
   HERBS_BOX: {
-    name: 'HERBS BOX (xcc 11.00)',
-    codes: ['HB_MINT', 'HB_BASIL', 'HB_LEMONGRASS', 'HB_ROMERO', 'HB_THYME', 'HB_LIPPIA_ALBA']
+    name: 'HERBS BOX',
+    price: 'xcc 11.00',
+    codes: ['HERBS_BOX_MINT', 'HERBS_BOX_BASIL', 'HERBS_BOX_LEMONGRASS', 'HERBS_BOX_ROMERO', 
+            'HERBS_BOX_THYME', 'HERBS_BOX_LIPPIA_ALBA']
   },
   MICROGREENS: {
-    name: 'MICROGREENS (xcc 5.00)',
-    codes: ['MG_AMARANTH', 'MG_ARUGULA', 'MG_ITALIAN_BASIL', 'MG_MIZUNA', 'MG_MUSTARD', 
-            'MG_GREEN_RADISH', 'MG_RED_RADISH', 'MG_TENDRIL']
+    name: 'MICROGREENS',
+    price: 'xcc 5.00',
+    codes: ['MICROGREENS_AMARANTH', 'MICROGREENS_ARUGULA', 'MICROGREENS_ITALIAN_BASIL', 'MICROGREENS_MIZUNA', 
+            'MICROGREENS_MUSTARD', 'MICROGREENS_GREEN_RADISH', 'MICROGREENS_RED_RADISH', 'MICROGREENS_TENDRIL']
   },
   SPROUTS: {
-    name: 'SPROUTS (xcc 3.5)',
-    codes: ['SP_TAUGE', 'SP_ALFALFA']
+    name: 'SPROUTS',
+    price: 'xcc 3.50',
+    codes: ['SPROUTS_TAUGE', 'SPROUTS_ALFALFA']
   }
 };
 
@@ -76,7 +85,7 @@ const ProductionInput = () => {
       const { data: productsData, error: productsError } = await supabase
         .from('products')
         .select('code, name')
-        .or(`code.like.HP_%,code.like.HB_%,code.like.MG_%,code.like.SP_%`)
+        .or(`code.like.HERBS_PACKS_%,code.like.HERBS_BOX_%,code.like.MICROGREENS_%,code.like.SPROUTS_%`)
         .order('code');
 
       if (productsError) throw productsError;
@@ -86,16 +95,16 @@ const ProductionInput = () => {
         let category = '';
         let categoryName = '';
         
-        if (p.code.startsWith('HP_')) {
+        if (p.code.startsWith('HERBS_PACKS_')) {
           category = 'HERBS_PACKS';
           categoryName = PRODUCT_CATEGORIES.HERBS_PACKS.name;
-        } else if (p.code.startsWith('HB_')) {
+        } else if (p.code.startsWith('HERBS_BOX_')) {
           category = 'HERBS_BOX';
           categoryName = PRODUCT_CATEGORIES.HERBS_BOX.name;
-        } else if (p.code.startsWith('MG_')) {
+        } else if (p.code.startsWith('MICROGREENS_')) {
           category = 'MICROGREENS';
           categoryName = PRODUCT_CATEGORIES.MICROGREENS.name;
-        } else if (p.code.startsWith('SP_')) {
+        } else if (p.code.startsWith('SPROUTS_')) {
           category = 'SPROUTS';
           categoryName = PRODUCT_CATEGORIES.SPROUTS.name;
         }
@@ -271,111 +280,131 @@ const ProductionInput = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
       {/* Header */}
-      <div className="bg-card border-b shadow-sm">
-        <div className="container mx-auto px-8 py-6">
+      <div className="bg-card border-b shadow-sm sticky top-0 z-10">
+        <div className="container mx-auto px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="icon" onClick={() => navigate('/production')}>
                 <ArrowLeft className="h-6 w-6" />
               </Button>
               <div>
-                <h1 className="text-4xl font-bold text-foreground">Production Input</h1>
-                <p className="text-lg text-muted-foreground">Create production order</p>
+                <h1 className="text-3xl font-bold text-foreground">Production Input</h1>
+                <p className="text-sm text-muted-foreground">Enter quantities for {currentCustomer?.name}</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
               <div>
-                <Label>Delivery Date</Label>
+                <Label className="text-xs">Delivery Date</Label>
                 <Input
                   type="date"
                   value={deliveryDate}
                   onChange={(e) => setDeliveryDate(e.target.value)}
-                  className="w-48"
+                  className="w-44"
                 />
               </div>
-              <Button onClick={handleSubmit} size="lg">
+              <Button onClick={handleSubmit} size="lg" className="h-auto py-3">
                 <Save className="mr-2 h-5 w-5" />
-                Submit Production Order
+                Submit Order
               </Button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-8 py-8">
-        {/* Customer Progress */}
-        <Card className="mb-6">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-4">
+      <div className="container mx-auto px-8 py-6">
+        {/* Customer Navigation */}
+        <Card className="mb-6 border-2 border-primary/20">
+          <CardContent className="py-6">
+            <div className="flex items-center justify-between">
               <Button
                 onClick={handlePrevious}
                 disabled={currentCustomerIndex === 0}
+                size="lg"
                 variant="outline"
               >
-                Previous Customer
+                <ChevronLeft className="mr-2 h-5 w-5" />
+                Previous
               </Button>
-              <div className="text-center">
-                <h2 className="text-3xl font-bold text-primary">
+              
+              <div className="text-center flex-1 mx-8">
+                <h2 className="text-4xl font-bold text-primary mb-2">
                   {currentCustomer?.name}
                 </h2>
-                <p className="text-muted-foreground">
+                <p className="text-lg text-muted-foreground mb-4">
                   Customer {currentCustomerIndex + 1} of {customers.length}
                 </p>
+                <div className="w-full bg-muted h-3 rounded-full overflow-hidden">
+                  <div
+                    className="bg-primary h-3 transition-all duration-300"
+                    style={{
+                      width: `${((currentCustomerIndex + 1) / customers.length) * 100}%`
+                    }}
+                  />
+                </div>
               </div>
+              
               <Button
                 onClick={handleNext}
                 disabled={currentCustomerIndex === customers.length - 1}
+                size="lg"
                 variant="outline"
               >
-                Next Customer
+                Next
+                <ChevronRight className="ml-2 h-5 w-5" />
               </Button>
-            </div>
-            <div className="w-full bg-muted h-2 rounded-full">
-              <div
-                className="bg-primary h-2 rounded-full transition-all"
-                style={{
-                  width: `${((currentCustomerIndex + 1) / customers.length) * 100}%`
-                }}
-              />
             </div>
           </CardContent>
         </Card>
 
         {/* Product Categories */}
-        <div className="space-y-6">
-          {Object.entries(groupedProducts).map(([category, categoryProducts]) => (
-            <Card key={category}>
-              <CardHeader className="bg-primary/10">
-                <CardTitle className="text-2xl">
-                  {categoryProducts[0]?.categoryName}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {categoryProducts.map(product => (
-                    <div key={product.code} className="space-y-2">
-                      <Label className="text-base font-medium">
-                        {product.name}
-                      </Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={productionData[currentCustomer?.id]?.[product.code] || 0}
-                        onChange={(e) =>
-                          updateQuantity(
-                            currentCustomer?.id,
-                            product.code,
-                            parseInt(e.target.value) || 0
-                          )
-                        }
-                        className="text-lg font-semibold"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="grid gap-6 md:grid-cols-2">
+          {Object.entries(groupedProducts).map(([category, categoryProducts]) => {
+            const categoryInfo = PRODUCT_CATEGORIES[category as keyof typeof PRODUCT_CATEGORIES];
+            return (
+              <Card key={category} className="border-2">
+                <CardHeader className="bg-primary/5 border-b-2 border-primary/10">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-2xl font-bold">
+                      {categoryInfo?.name}
+                    </CardTitle>
+                    <span className="text-sm font-semibold text-muted-foreground bg-background px-3 py-1 rounded-full">
+                      {categoryInfo?.price}
+                    </span>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    {categoryProducts.map(product => {
+                      const currentQty = productionData[currentCustomer?.id]?.[product.code] || 0;
+                      return (
+                        <div key={product.code} className="space-y-2">
+                          <Label className="text-sm font-medium text-muted-foreground">
+                            {product.name}
+                          </Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={currentQty || ''}
+                            onChange={(e) =>
+                              updateQuantity(
+                                currentCustomer?.id,
+                                product.code,
+                                parseInt(e.target.value) || 0
+                              )
+                            }
+                            placeholder="0"
+                            className={`text-xl font-bold text-center h-12 ${
+                              currentQty > 0 ? 'border-primary border-2' : ''
+                            }`}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
     </div>
