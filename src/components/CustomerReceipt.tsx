@@ -40,12 +40,14 @@ interface Customer {
 export const CustomerReceipt = ({ order, orderItems, customerName, format }: Props) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchData();
   }, [customerName]);
 
   const fetchData = async () => {
+    setLoading(true);
     const { data: productsData } = await supabase
       .from('products')
       .select('code, name, pack_size, retail_price_usd_per_unit, retail_price_xcg_per_unit');
@@ -57,6 +59,7 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format }: Pro
       .eq('name', customerName)
       .single();
     if (customerData) setCustomer(customerData);
+    setLoading(false);
   };
 
   const getProductInfo = (code: string) => {
@@ -76,6 +79,14 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format }: Pro
 
   const containerClass = format === 'receipt' ? 'max-w-[80mm]' : 'max-w-[210mm]';
   const textSize = format === 'receipt' ? 'text-xs' : 'text-sm';
+
+  if (loading) {
+    return (
+      <div className={`${containerClass} mx-auto bg-white text-black p-6`}>
+        <div className="text-center py-8">Loading receipt data...</div>
+      </div>
+    );
+  }
 
   return (
     <div className={`${containerClass} mx-auto bg-white text-black p-6`}>

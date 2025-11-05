@@ -181,7 +181,7 @@ const OrderDetails = () => {
           }
         }
         setViewDialog(null);
-      }, 500);
+      }, 2500);
     }
     
     setPendingAction(null);
