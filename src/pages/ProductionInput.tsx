@@ -72,8 +72,33 @@ const ProductionInput = () => {
   const [currentCustomerIndex, setCurrentCustomerIndex] = useState(0);
 
   useEffect(() => {
-    loadData();
+    checkAuthAndLoadData();
   }, []);
+
+  const checkAuthAndLoadData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: 'Authentication Required',
+          description: 'Please log in to access production input',
+          variant: 'destructive',
+        });
+        navigate('/auth');
+        return;
+      }
+      
+      await loadData();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+      navigate('/auth');
+    }
+  };
 
   const loadData = async () => {
     try {
