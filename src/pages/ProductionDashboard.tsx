@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Package, CheckCircle2, Clock, AlertCircle, Plus, ArrowLeft } from 'lucide-react';
+import { Package, CheckCircle2, Clock, AlertCircle, Plus, ArrowLeft, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
@@ -272,6 +272,10 @@ const ProductionDashboard = () => {
                   {format(currentTime, 'EEEE, MMMM d, yyyy')}
                 </div>
               </div>
+              <Button size="lg" variant="outline" onClick={() => navigate('/production-input')}>
+                <Edit className="mr-2 h-5 w-5" />
+                Input Quantities
+              </Button>
               <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
                 <DialogTrigger asChild>
                   <Button size="lg">
