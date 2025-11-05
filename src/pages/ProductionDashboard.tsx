@@ -272,11 +272,15 @@ const ProductionDashboard = () => {
                   {format(currentTime, 'EEEE, MMMM d, yyyy')}
                 </div>
               </div>
+              <Button size="lg" onClick={() => navigate('/production-input')}>
+                <Plus className="mr-2 h-5 w-5" />
+                Create Production Order
+              </Button>
               <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button size="lg">
+                  <Button size="lg" variant="outline">
                     <Plus className="mr-2 h-5 w-5" />
-                    New Production Order
+                    Quick Order (Empty)
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
