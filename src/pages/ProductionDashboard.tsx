@@ -7,9 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Package, CheckCircle2, Clock, AlertCircle, Plus, ArrowLeft, Edit } from 'lucide-react';
+import { Package, CheckCircle2, Clock, AlertCircle, Plus, ArrowLeft, Printer } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
+import ProductionReceiptDialog from '@/components/ProductionReceiptDialog';
 
 interface ProductionItem {
   id: string;
@@ -38,6 +39,8 @@ const ProductionDashboard = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newOrderDate, setNewOrderDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [newDeliveryDate, setNewDeliveryDate] = useState('');
+  const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
+  const [selectedOrderForReceipt, setSelectedOrderForReceipt] = useState<ProductionOrder | null>(null);
 
   useEffect(() => {
     fetchProductionOrders();
@@ -375,6 +378,17 @@ const ProductionDashboard = () => {
                         <Badge className={getStatusColor(order.status)}>
                           {order.status.replace('_', ' ').toUpperCase()}
                         </Badge>
+                        <Button 
+                          onClick={() => {
+                            setSelectedOrderForReceipt(order);
+                            setReceiptDialogOpen(true);
+                          }}
+                          variant="outline"
+                          size="lg"
+                        >
+                          <Printer className="mr-2 h-5 w-5" />
+                          Print Receipts
+                        </Button>
                         {order.status === 'in_production' && (
                           <Button onClick={() => markOrderComplete(order.id)} size="lg">
                             <CheckCircle2 className="mr-2 h-5 w-5" />
@@ -449,6 +463,16 @@ const ProductionDashboard = () => {
           </div>
         )}
       </div>
+
+      {/* Receipt Dialog */}
+      {selectedOrderForReceipt && (
+        <ProductionReceiptDialog
+          open={receiptDialogOpen}
+          onOpenChange={setReceiptDialogOpen}
+          deliveryDate={selectedOrderForReceipt.delivery_date}
+          items={selectedOrderForReceipt.items}
+        />
+      )}
     </div>
   );
 };
