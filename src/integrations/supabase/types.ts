@@ -521,6 +521,8 @@ export type Database = {
           price_usd_per_unit: number | null
           price_xcg: number | null
           price_xcg_per_unit: number | null
+          retail_price_usd_per_unit: number | null
+          retail_price_xcg_per_unit: number | null
           supplier_id: string | null
           unit: string | null
           updated_at: string
@@ -540,6 +542,8 @@ export type Database = {
           price_usd_per_unit?: number | null
           price_xcg?: number | null
           price_xcg_per_unit?: number | null
+          retail_price_usd_per_unit?: number | null
+          retail_price_xcg_per_unit?: number | null
           supplier_id?: string | null
           unit?: string | null
           updated_at?: string
@@ -559,6 +563,8 @@ export type Database = {
           price_usd_per_unit?: number | null
           price_xcg?: number | null
           price_xcg_per_unit?: number | null
+          retail_price_usd_per_unit?: number | null
+          retail_price_xcg_per_unit?: number | null
           supplier_id?: string | null
           unit?: string | null
           updated_at?: string

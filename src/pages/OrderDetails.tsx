@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Printer, Ban, Edit, Eye, Download } from 'lucide-react';
+import { ArrowLeft, Printer, Ban, Edit, Eye, Download, Receipt } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import LoadingBox from '@/components/LoadingBox';
@@ -14,9 +14,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { CustomerPackingSlip } from '@/components/CustomerPackingSlip';
 import { SupplierOrderList } from '@/components/SupplierOrderList';
 import { RoundupTable } from '@/components/RoundupTable';
+import { CustomerReceipt } from '@/components/CustomerReceipt';
 import html2pdf from 'html2pdf.js';
 
 interface OrderItem {
@@ -44,10 +46,12 @@ const OrderDetails = () => {
   const [order, setOrder] = useState<Order | null>(null);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewDialog, setViewDialog] = useState<'packing' | 'supplier' | 'roundup' | null>(null);
+  const [viewDialog, setViewDialog] = useState<'packing' | 'supplier' | 'roundup' | 'receipt' | null>(null);
   const [printFormat, setPrintFormat] = useState<'a4' | 'receipt'>('a4');
   const [showFormatDialog, setShowFormatDialog] = useState(false);
-  const [pendingAction, setPendingAction] = useState<{type: 'packing' | 'supplier' | 'roundup', action: 'view' | 'print' | 'download'} | null>(null);
+  const [pendingAction, setPendingAction] = useState<{type: 'packing' | 'supplier' | 'roundup' | 'receipt', action: 'view' | 'print' | 'download'} | null>(null);
+  const [showReceiptCustomerDialog, setShowReceiptCustomerDialog] = useState(false);
+  const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -102,9 +106,35 @@ const OrderDetails = () => {
     }
   };
 
-  const handleAction = (type: 'packing' | 'supplier' | 'roundup', action: 'view' | 'print' | 'download') => {
+  const handleAction = (type: 'packing' | 'supplier' | 'roundup' | 'receipt', action: 'view' | 'print' | 'download') => {
     setPendingAction({ type, action });
     setShowFormatDialog(true);
+  };
+
+  const handleCreateReceipt = () => {
+    setShowReceiptCustomerDialog(true);
+  };
+
+  const handleCustomerToggle = (customerName: string) => {
+    setSelectedCustomers(prev => 
+      prev.includes(customerName) 
+        ? prev.filter(c => c !== customerName)
+        : [...prev, customerName]
+    );
+  };
+
+  const handleConfirmCustomers = () => {
+    if (selectedCustomers.length === 0) {
+      toast.error('Please select at least one customer');
+      return;
+    }
+    setShowReceiptCustomerDialog(false);
+    setPendingAction({ type: 'receipt', action: 'view' });
+    setShowFormatDialog(true);
+  };
+
+  const getUniqueCustomers = () => {
+    return [...new Set(orderItems.map(item => item.customer_name))];
   };
 
   const handleConfirmFormat = async () => {
@@ -153,6 +183,9 @@ const OrderDetails = () => {
     }
     
     setPendingAction(null);
+    if (type === 'receipt') {
+      setSelectedCustomers([]);
+    }
   };
 
   if (loading) {
@@ -221,6 +254,14 @@ const OrderDetails = () => {
                 <div className="flex gap-2">
                   {order.status !== 'void' && (
                     <>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={handleCreateReceipt}
+                      >
+                        <Receipt className="mr-2 h-4 w-4" />
+                        Create Receipt
+                      </Button>
                       <Button 
                         variant="outline" 
                         size="sm"
@@ -429,6 +470,39 @@ const OrderDetails = () => {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={showReceiptCustomerDialog} onOpenChange={setShowReceiptCustomerDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Select Customers for Receipt</DialogTitle>
+            <DialogDescription>
+              Choose which customers to generate receipts for
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              {getUniqueCustomers().map((customerName) => (
+                <div key={customerName} className="flex items-center space-x-2 p-2 border rounded-lg hover:bg-accent">
+                  <Checkbox
+                    id={customerName}
+                    checked={selectedCustomers.includes(customerName)}
+                    onCheckedChange={() => handleCustomerToggle(customerName)}
+                  />
+                  <label
+                    htmlFor={customerName}
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
+                  >
+                    {customerName}
+                  </label>
+                </div>
+              ))}
+            </div>
+            <Button onClick={handleConfirmCustomers} className="w-full">
+              Continue with {selectedCustomers.length} Customer{selectedCustomers.length !== 1 ? 's' : ''}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={viewDialog !== null} onOpenChange={() => setViewDialog(null)}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -436,6 +510,7 @@ const OrderDetails = () => {
               {viewDialog === 'packing' && 'Customer Packing Slips'}
               {viewDialog === 'supplier' && 'Supplier Order Lists'}
               {viewDialog === 'roundup' && 'Total Roundup Table'}
+              {viewDialog === 'receipt' && 'Customer Receipts'}
             </DialogTitle>
           </DialogHeader>
           <div ref={printRef} className="print:block">
@@ -459,6 +534,19 @@ const OrderDetails = () => {
                 orderItems={orderItems} 
                 format={printFormat}
               />
+            )}
+            {viewDialog === 'receipt' && order && (
+              <div className="space-y-8">
+                {selectedCustomers.map((customerName) => (
+                  <CustomerReceipt
+                    key={customerName}
+                    order={order}
+                    orderItems={orderItems}
+                    customerName={customerName}
+                    format={printFormat}
+                  />
+                ))}
+              </div>
             )}
           </div>
         </DialogContent>
