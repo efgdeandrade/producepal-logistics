@@ -422,13 +422,22 @@ const Products = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 text-sm mb-4">
+                  {product.weight && product.unit ? (
+                    <p className="text-muted-foreground">
+                      <span className="font-medium">Unit Size:</span> {product.weight} {product.unit}
+                    </p>
+                  ) : (
+                    <p className="text-muted-foreground">
+                      <span className="font-medium">Unit Size:</span> -
+                    </p>
+                  )}
                   <p className="text-muted-foreground">
-                    <span className="font-medium">Pack Size:</span> {product.pack_size} units/tray
+                    <span className="font-medium">Units per Case:</span> {product.pack_size}
                   </p>
                   {product.price_usd && (
                     <>
                       <p className="text-muted-foreground">
-                        <span className="font-medium">Price USD:</span> ${product.price_usd.toFixed(2)}/tray
+                        <span className="font-medium">Price USD:</span> ${product.price_usd.toFixed(2)}/case
                       </p>
                       <p className="text-muted-foreground text-sm">
                         <span className="font-medium">Price per unit:</span> ${(product.price_usd / product.pack_size).toFixed(2)}
@@ -438,17 +447,12 @@ const Products = () => {
                   {product.price_xcg && (
                     <>
                       <p className="text-muted-foreground">
-                        <span className="font-medium">Price XCG:</span> cg {product.price_xcg.toFixed(2)}/tray
+                        <span className="font-medium">Price XCG:</span> cg {product.price_xcg.toFixed(2)}/case
                       </p>
                       <p className="text-muted-foreground text-sm">
                         <span className="font-medium">Price per unit:</span> cg {(product.price_xcg / product.pack_size).toFixed(2)}
                       </p>
                     </>
-                  )}
-                  {product.weight && product.unit && (
-                    <p className="text-muted-foreground">
-                      <span className="font-medium">Weight:</span> {product.weight}{product.unit}
-                    </p>
                   )}
                   {product.supplier_id && (
                     <p className="text-muted-foreground">
