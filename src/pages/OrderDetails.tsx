@@ -146,47 +146,51 @@ const OrderDetails = () => {
     const { type, action: originalAction } = pendingAction;
     const action = actionOverride || originalAction;
 
-    if (action === 'view') {
+    // Always show preview first for print and download
+    if (action === 'print' || action === 'download') {
       setViewDialog(type);
-    } else if (action === 'print') {
-      // Show the content briefly then print
+      // Store the original action so we can execute it from the preview
+      setPendingAction({ type, action });
+    } else {
+      // For view action, just show the dialog
       setViewDialog(type);
-      setTimeout(() => {
-        window.print();
-        setTimeout(() => setViewDialog(null), 100);
-      }, 100);
-    } else if (action === 'download') {
-      // Generate PDF and download
-      setViewDialog(type);
-      setTimeout(async () => {
-        if (printRef.current) {
-          const opt = {
-            margin: printFormat === 'receipt' ? 0.2 : 0.5,
-            filename: `${type}-${order?.order_number}.pdf`,
-            image: { type: 'jpeg' as const, quality: 0.98 },
-            html2canvas: { scale: 2 },
-            jsPDF: { 
-              unit: 'in', 
-              format: printFormat === 'receipt' ? [3.15, 11] as [number, number] : 'a4',
-              orientation: 'portrait' as const
-            }
-          };
-          
-          try {
-            await html2pdf().set(opt).from(printRef.current).save();
-            toast.success('PDF downloaded successfully');
-          } catch (error) {
-            console.error('Error generating PDF:', error);
-            toast.error('Failed to generate PDF');
-          }
-        }
-        setViewDialog(null);
-      }, 2500);
+      setPendingAction(null);
+      if (type === 'receipt') {
+        setSelectedCustomers([]);
+      }
     }
-    
-    setPendingAction(null);
-    if (type === 'receipt') {
-      setSelectedCustomers([]);
+  };
+
+  const handlePrintFromPreview = () => {
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  };
+
+  const handleDownloadFromPreview = async () => {
+    if (printRef.current && order) {
+      const opt = {
+        margin: printFormat === 'receipt' ? 0.2 : 0.5,
+        filename: `${viewDialog}-${order.order_number}.pdf`,
+        image: { type: 'jpeg' as const, quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { 
+          unit: 'in', 
+          format: printFormat === 'receipt' ? [3.15, 11] as [number, number] : 'a4',
+          orientation: 'portrait' as const
+        }
+      };
+      
+      try {
+        await html2pdf().set(opt).from(printRef.current).save();
+        toast.success('PDF downloaded successfully');
+        setViewDialog(null);
+        setPendingAction(null);
+        setSelectedCustomers([]);
+      } catch (error) {
+        console.error('Error generating PDF:', error);
+        toast.error('Failed to generate PDF');
+      }
     }
   };
 
@@ -532,15 +536,37 @@ const OrderDetails = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={viewDialog !== null} onOpenChange={() => setViewDialog(null)}>
+      <Dialog open={viewDialog !== null} onOpenChange={() => {
+        setViewDialog(null);
+        setPendingAction(null);
+        setSelectedCustomers([]);
+      }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {viewDialog === 'packing' && 'Customer Packing Slips'}
-              {viewDialog === 'supplier' && 'Supplier Order Lists'}
-              {viewDialog === 'roundup' && 'Total Roundup Table'}
-              {viewDialog === 'receipt' && 'Customer Receipts'}
-            </DialogTitle>
+            <div className="flex items-center justify-between">
+              <DialogTitle>
+                {viewDialog === 'packing' && 'Customer Packing Slips'}
+                {viewDialog === 'supplier' && 'Supplier Order Lists'}
+                {viewDialog === 'roundup' && 'Total Roundup Table'}
+                {viewDialog === 'receipt' && 'Customer Receipts'}
+              </DialogTitle>
+              {pendingAction && (
+                <div className="flex gap-2">
+                  {pendingAction.action === 'print' && (
+                    <Button onClick={handlePrintFromPreview} size="sm">
+                      <Printer className="mr-2 h-4 w-4" />
+                      Print Now
+                    </Button>
+                  )}
+                  {pendingAction.action === 'download' && (
+                    <Button onClick={handleDownloadFromPreview} size="sm">
+                      <Download className="mr-2 h-4 w-4" />
+                      Download PDF
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
           </DialogHeader>
           <div ref={printRef} className="print:block">
             {viewDialog === 'packing' && order && (
