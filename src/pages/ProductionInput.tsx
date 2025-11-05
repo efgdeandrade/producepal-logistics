@@ -32,30 +32,26 @@ const PRODUCT_CATEGORIES = {
   HERBS_PACKS: {
     name: 'HERBS PACKS',
     price: 'xcd 2.00',
-    codes: ['HERBS_PACKS_MINT', 'HERBS_PACKS_PEPPERMINT', 'HERBS_PACKS_BASIL', 'HERBS_PACKS_PURPLE_BASIL', 
-            'HERBS_PACKS_YERBI_HOLE', 'HERBS_PACKS_LEMON_BASIL', 'HERBS_PACKS_LEMONGRASS', 'HERBS_PACKS_OREGANO', 
-            'HERBS_PACKS_LIPPIA_ALBA', 'HERBS_PACKS_CILANTRO', 'HERBS_PACKS_PARSLEY', 'HERBS_PACKS_ROMERO', 
-            'HERBS_PACKS_THYME', 'HERBS_PACKS_DILL', 'HERBS_PACKS_SAGE', 'HERBS_PACKS_CHIVES', 'HERBS_PACKS_TARRAGON', 
-            'HERBS_PACKS_MORINGA', 'HERBS_PACKS_EUCALYPTUS', 'HERBS_PACKS_BAY', 'HERBS_PACKS_GUASCA', 
-            'HERBS_PACKS_CALENDULA', 'HERBS_PACKS_CAMOMILE', 'HERBS_PACKS_MARJORAM', 'HERBS_PACKS_RUDA', 
-            'HERBS_PACKS_PARSLEY_ITALIAN']
+    codes: ['HP_MINT', 'HP_PEPPERMINT', 'HP_BASIL', 'HP_PURPLE_BASIL', 'HP_YERBI_HOLE', 'HP_LEMON_BASIL', 
+            'HP_LEMONGRASS', 'HP_OREGANO', 'HP_LIPPIA_ALBA', 'HP_CILANTRO', 'HP_PARSLEY', 'HP_ROMERO', 
+            'HP_THYME', 'HP_DILL', 'HP_SAGE', 'HP_CHIVES', 'HP_TARRAGON', 'HP_MORINGA', 'HP_EUCALYPTUS', 
+            'HP_BAY', 'HP_GUASCA', 'HP_CALENDULA', 'HP_CAMOMILE', 'HP_MARJORAM', 'HP_RUDA', 'HP_PARSLEY_ITALIAN']
   },
   HERBS_BOX: {
     name: 'HERBS BOX',
     price: 'xcc 11.00',
-    codes: ['HERBS_BOX_MINT', 'HERBS_BOX_BASIL', 'HERBS_BOX_LEMONGRASS', 'HERBS_BOX_ROMERO', 
-            'HERBS_BOX_THYME', 'HERBS_BOX_LIPPIA_ALBA']
+    codes: ['HB_MINT', 'HB_BASIL', 'HB_LEMONGRASS', 'HB_ROMERO', 'HB_THYME', 'HB_LIPPIA_ALBA']
   },
   MICROGREENS: {
     name: 'MICROGREENS',
     price: 'xcc 5.00',
-    codes: ['MICROGREENS_AMARANTH', 'MICROGREENS_ARUGULA', 'MICROGREENS_ITALIAN_BASIL', 'MICROGREENS_MIZUNA', 
-            'MICROGREENS_MUSTARD', 'MICROGREENS_GREEN_RADISH', 'MICROGREENS_RED_RADISH', 'MICROGREENS_TENDRIL']
+    codes: ['MG_AMARANTH', 'MG_ARUGULA', 'MG_ITALIAN_BASIL', 'MG_MIZUNA', 'MG_MUSTARD', 
+            'MG_GREEN_RADISH', 'MG_RED_RADISH', 'MG_TENDRIL']
   },
   SPROUTS: {
     name: 'SPROUTS',
     price: 'xcc 3.50',
-    codes: ['SPROUTS_TAUGE', 'SPROUTS_ALFALFA']
+    codes: ['SP_TAUGE', 'SP_ALFALFA']
   }
 };
 
@@ -85,7 +81,7 @@ const ProductionInput = () => {
       const { data: productsData, error: productsError } = await supabase
         .from('products')
         .select('code, name')
-        .or(`code.like.HERBS_PACKS_%,code.like.HERBS_BOX_%,code.like.MICROGREENS_%,code.like.SPROUTS_%`)
+        .or(`code.like.HP_%,code.like.HB_%,code.like.MG_%,code.like.SP_%`)
         .order('code');
 
       if (productsError) throw productsError;
@@ -95,16 +91,16 @@ const ProductionInput = () => {
         let category = '';
         let categoryName = '';
         
-        if (p.code.startsWith('HERBS_PACKS_')) {
+        if (p.code.startsWith('HP_')) {
           category = 'HERBS_PACKS';
           categoryName = PRODUCT_CATEGORIES.HERBS_PACKS.name;
-        } else if (p.code.startsWith('HERBS_BOX_')) {
+        } else if (p.code.startsWith('HB_')) {
           category = 'HERBS_BOX';
           categoryName = PRODUCT_CATEGORIES.HERBS_BOX.name;
-        } else if (p.code.startsWith('MICROGREENS_')) {
+        } else if (p.code.startsWith('MG_')) {
           category = 'MICROGREENS';
           categoryName = PRODUCT_CATEGORIES.MICROGREENS.name;
-        } else if (p.code.startsWith('SPROUTS_')) {
+        } else if (p.code.startsWith('SP_')) {
           category = 'SPROUTS';
           categoryName = PRODUCT_CATEGORIES.SPROUTS.name;
         }
@@ -119,28 +115,7 @@ const ProductionInput = () => {
 
       setProducts(mappedProducts);
 
-      // Load or create customers
-      const { data: existingCustomers } = await supabase
-        .from('customers')
-        .select('id, name')
-        .in('name', CUSTOMER_NAMES);
-
-      const existingNames = new Set(existingCustomers?.map(c => c.name) || []);
-      const missingCustomers = CUSTOMER_NAMES.filter(name => !existingNames.has(name));
-
-      // Create missing customers
-      if (missingCustomers.length > 0) {
-        const newCustomers = missingCustomers.map(name => ({
-          name,
-          address: 'To be updated',
-          email: null,
-          phone: null
-        }));
-
-        await supabase.from('customers').insert(newCustomers);
-      }
-
-      // Reload all customers
+      // Load customers
       const { data: allCustomers, error: customersError } = await supabase
         .from('customers')
         .select('id, name')
