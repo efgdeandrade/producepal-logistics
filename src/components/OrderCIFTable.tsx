@@ -12,6 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 interface OrderItem {
   product_code: string;
@@ -21,8 +22,8 @@ interface OrderItem {
 interface CIFResult {
   productCode: string;
   productName: string;
-  quantity: number; // Total units (not cases)
-  totalWeight: number; // Total weight in kg
+  quantity: number;
+  totalWeight: number;
   costUSD: number;
   freightCost: number;
   cifUSD: number;
@@ -47,6 +48,10 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
     byWeight: CIFResult[];
     byCost: CIFResult[];
     equally: CIFResult[];
+    hybrid: CIFResult[];
+    strategic: CIFResult[];
+    volumeOptimized: CIFResult[];
+    customerTier: CIFResult[];
   } | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -58,7 +63,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
     try {
       setLoading(true);
 
-      // Consolidate products by code (sum quantities across all customers)
+      // Consolidate products by code
       const consolidatedItems = orderItems.reduce((acc, item) => {
         const existing = acc.find(i => i.product_code === item.product_code);
         if (existing) {
@@ -69,7 +74,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
         return acc;
       }, [] as OrderItem[]);
 
-      // Fetch tariff settings from database
+      // Fetch settings
       const { data: settings, error: settingsError } = await supabase
         .from('settings')
         .select('*')
@@ -82,7 +87,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
       const freightExteriorPerKg = (settingsMap.get('freight_exterior_tariff') as any)?.rate || 2.46;
       const freightLocalPerKg = (settingsMap.get('freight_local_tariff') as any)?.rate || 0.41;
 
-      // Fetch product data with weight fields
+      // Fetch product data
       const productCodes = [...new Set(consolidatedItems.map(item => item.product_code))];
       const { data: products, error } = await supabase
         .from('products')
@@ -91,10 +96,22 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
 
       if (error) throw error;
 
+      // Fetch historical order frequency for volume-optimized method
+      const { data: demandPatterns } = await supabase
+        .from('demand_patterns')
+        .select('product_code, order_frequency, avg_waste_rate')
+        .in('product_code', productCodes);
+
+      const demandMap = new Map(
+        demandPatterns?.map(d => [d.product_code, {
+          frequency: d.order_frequency || 1,
+          wasteRate: d.avg_waste_rate || 0
+        }]) || []
+      );
+
       const productMap = new Map(
         products?.map(p => {
           const packSize = p.pack_size || 1;
-          // Use gross weight if available (not null and > 0), otherwise use netto
           const weightPerUnit = (p.gross_weight_per_unit && p.gross_weight_per_unit > 0) 
             ? p.gross_weight_per_unit 
             : (p.netto_weight_per_unit || 0);
@@ -105,7 +122,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
             {
               name: p.name,
               costPerUnit: p.price_usd_per_unit || 0,
-              weightPerUnit: weightPerUnit, // Store weight per UNIT
+              weightPerUnit: weightPerUnit,
               packSize: packSize,
               emptyCaseWeight: emptyCaseWeight,
               wholesalePriceXCG: p.wholesale_price_xcg_per_unit || 0,
@@ -114,66 +131,103 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
         }) || []
       );
 
-      // Constants from CIF Calculator
       const LOCAL_LOGISTICS_XCG = 50;
       const LOCAL_LOGISTICS_USD = 91;
       const LABOR_XCG = 50;
       const WHOLESALE_MULTIPLIER = 1.25;
       const RETAIL_MULTIPLIER = 1.786;
 
-      // Calculate totals
+      // Prepare products with data
       const productsWithData = consolidatedItems.map(item => {
         const productData = productMap.get(item.product_code);
         const packSize = productData?.packSize || 1;
-        const totalUnits = item.quantity * packSize; // Quantity in order is cases
+        const totalUnits = item.quantity * packSize;
+        const demand = demandMap.get(item.product_code);
         
         return {
           code: item.product_code,
           name: productData?.name || item.product_code,
-          numberOfCases: item.quantity, // Store cases for weight calc
-          totalUnits: totalUnits, // Display this in table
+          numberOfCases: item.quantity,
+          totalUnits: totalUnits,
           costPerUnit: productData?.costPerUnit || 0,
           weightPerUnit: productData?.weightPerUnit || 0,
           emptyCaseWeight: productData?.emptyCaseWeight || 0,
           wholesalePriceXCG: productData?.wholesalePriceXCG || 0,
+          orderFrequency: demand?.frequency || 1,
+          wasteRate: demand?.wasteRate || 0,
         };
       });
 
-      // Calculate weight correctly: (units × weight per unit) + (cases × empty case weight)
       const productsWithWeight = productsWithData.map(p => {
-        const productWeight = (p.totalUnits * p.weightPerUnit / 1000) + // Convert g to kg
+        const productWeight = (p.totalUnits * p.weightPerUnit / 1000) + 
                               (p.numberOfCases * p.emptyCaseWeight / 1000);
-        return {
-          ...p,
-          totalWeight: productWeight
-        };
+        return { ...p, totalWeight: productWeight };
       });
 
       const totalWeight = productsWithWeight.reduce((sum, p) => sum + p.totalWeight, 0);
       const totalCost = productsWithWeight.reduce((sum, p) => sum + (p.totalUnits * p.costPerUnit), 0);
-
-      // Sum tariffs FIRST, then multiply by weight
       const combinedTariffPerKg = freightExteriorPerKg + freightLocalPerKg;
       const totalFreightCost = totalWeight * combinedTariffPerKg;
       const totalFreight = LOCAL_LOGISTICS_USD + totalFreightCost;
 
       const calculateResults = (
-        distributionMethod: 'weight' | 'cost' | 'equal'
+        distributionMethod: 'weight' | 'cost' | 'equal' | 'hybrid' | 'strategic' | 'volumeOptimized' | 'customerTier'
       ): CIFResult[] => {
         return productsWithWeight.map(product => {
           const productCost = product.totalUnits * product.costPerUnit;
 
           let freightShare = 0;
-          if (distributionMethod === 'weight') {
-            freightShare = totalWeight > 0 
-              ? (product.totalWeight / totalWeight) * totalFreight 
-              : 0;
-          } else if (distributionMethod === 'cost') {
-            freightShare = totalCost > 0 
-              ? (productCost / totalCost) * totalFreight 
-              : 0;
-          } else {
-            freightShare = totalFreight / productsWithWeight.length;
+          
+          switch (distributionMethod) {
+            case 'weight':
+              freightShare = totalWeight > 0 ? (product.totalWeight / totalWeight) * totalFreight : 0;
+              break;
+              
+            case 'cost':
+              freightShare = totalCost > 0 ? (productCost / totalCost) * totalFreight : 0;
+              break;
+              
+            case 'equal':
+              freightShare = totalFreight / productsWithWeight.length;
+              break;
+              
+            case 'hybrid':
+              // 50% by weight + 50% by cost
+              const weightShare = totalWeight > 0 ? (product.totalWeight / totalWeight) * totalFreight : 0;
+              const costShare = totalCost > 0 ? (productCost / totalCost) * totalFreight : 0;
+              freightShare = (weightShare + costShare) / 2;
+              break;
+              
+            case 'volumeOptimized':
+              // Products with higher order frequency get preferential rates (lower freight allocation)
+              const totalFrequency = productsWithWeight.reduce((sum, p) => sum + p.orderFrequency, 0);
+              const frequencyWeight = totalFrequency > 0 ? (product.orderFrequency / totalFrequency) : 1 / productsWithWeight.length;
+              // Invert the weight so higher frequency = lower freight
+              const invertedWeight = 1 - (frequencyWeight / 2);
+              freightShare = invertedWeight * (totalFreight / productsWithWeight.length);
+              break;
+              
+            case 'strategic':
+              // AI-driven: Products with high waste rate get less freight, fast movers get less freight
+              const riskFactor = 1 + (product.wasteRate / 100);
+              const velocityFactor = 1 / Math.sqrt(product.orderFrequency || 1);
+              const strategicWeight = riskFactor * velocityFactor;
+              const totalStrategicWeight = productsWithWeight.reduce((sum, p) => {
+                const rf = 1 + (p.wasteRate / 100);
+                const vf = 1 / Math.sqrt(p.orderFrequency || 1);
+                return sum + (rf * vf);
+              }, 0);
+              freightShare = totalStrategicWeight > 0 ? (strategicWeight / totalStrategicWeight) * totalFreight : totalFreight / productsWithWeight.length;
+              break;
+              
+            case 'customerTier':
+              // Wholesale products (high volume) get lower freight allocation
+              // Assume products with higher order frequency are wholesale-heavy
+              const isWholesaleHeavy = product.orderFrequency > 5;
+              const tierMultiplier = isWholesaleHeavy ? 0.85 : 1.15;
+              const baseShare = totalFreight / productsWithWeight.length;
+              freightShare = baseShare * tierMultiplier;
+              break;
           }
 
           const cifUSD = productCost + freightShare;
@@ -188,8 +242,8 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
           return {
             productCode: product.code,
             productName: product.name,
-            quantity: product.totalUnits, // SHOW UNITS, not cases
-            totalWeight: product.totalWeight, // Add weight to results
+            quantity: product.totalUnits,
+            totalWeight: product.totalWeight,
             costUSD: productCost,
             freightCost: freightShare,
             cifUSD,
@@ -207,6 +261,10 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
         byWeight: calculateResults('weight'),
         byCost: calculateResults('cost'),
         equally: calculateResults('equal'),
+        hybrid: calculateResults('hybrid'),
+        strategic: calculateResults('strategic'),
+        volumeOptimized: calculateResults('volumeOptimized'),
+        customerTier: calculateResults('customerTier'),
       });
     } catch (error: any) {
       console.error('Error calculating CIF:', error);
@@ -215,13 +273,16 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
     }
   };
 
-  const renderTable = (results: CIFResult[], title: string) => {
+  const renderTable = (results: CIFResult[], title: string, description?: string) => {
     if (!results || results.length === 0) return null;
 
     return (
       <div>
-        <h3 className="text-sm font-semibold mb-3">{title}</h3>
-        <div className="overflow-x-auto">
+        <div className="mb-3">
+          <h3 className="text-sm font-semibold">{title}</h3>
+          {description && <p className="text-xs text-muted-foreground mt-1">{description}</p>}
+        </div>
+        <ScrollArea className="w-full">
           <Table>
             <TableHeader>
               <TableRow>
@@ -264,7 +325,8 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
               ))}
             </TableBody>
           </Table>
-        </div>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
       </div>
     );
   };
@@ -281,7 +343,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
         <CardContent>
           <div className="text-center py-8">
             <Calculator className="h-12 w-12 animate-pulse text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">Calculating CIF...</p>
+            <p className="text-muted-foreground">Calculating CIF with 7 allocation methods...</p>
           </div>
         </CardContent>
       </Card>
@@ -292,15 +354,25 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
     return null;
   }
 
+  const methodDescriptions = {
+    byWeight: "Freight allocated proportionally to product weight (kg). Heavier products pay more.",
+    byCost: "Freight allocated proportionally to product cost (USD). More expensive products pay more.",
+    equally: "Freight split equally across all products regardless of weight or cost.",
+    hybrid: "Balanced approach: 50% by weight + 50% by cost. Combines both factors.",
+    strategic: "AI-driven allocation based on waste rate and order velocity. High-risk/slow products pay less.",
+    volumeOptimized: "Fast-moving products (high order frequency) get preferential rates.",
+    customerTier: "Wholesale-heavy products (high volume) absorb less freight cost."
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Calculator className="h-5 w-5" />
-          CIF Calculations
+          CIF Calculations (7 Methods)
         </CardTitle>
         <CardDescription>
-          Cost, Insurance, and Freight calculations for this order
+          Cost, Insurance, and Freight calculations using multiple allocation strategies
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -310,68 +382,48 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
               <Award className="h-4 w-4 text-primary" />
               <span className="text-sm font-semibold">Profit Comparison</span>
             </div>
-            <div className="grid grid-cols-3 gap-2 text-xs">
-              <div>
-                <p className="text-muted-foreground">By Weight</p>
-                <p className="font-semibold">
-                  Cg {cifResults.byWeight.reduce((sum, r) => sum + (r.wholesaleMargin * r.quantity), 0).toFixed(2)}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">By Cost</p>
-                <p className="font-semibold">
-                  Cg {cifResults.byCost.reduce((sum, r) => sum + (r.wholesaleMargin * r.quantity), 0).toFixed(2)}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Equal</p>
-                <p className="font-semibold">
-                  Cg {cifResults.equally.reduce((sum, r) => sum + (r.wholesaleMargin * r.quantity), 0).toFixed(2)}
-                </p>
-              </div>
+            <div className="grid grid-cols-4 gap-2 text-xs">
+              {Object.entries(cifResults).map(([method, results]) => (
+                <div key={method}>
+                  <p className="text-muted-foreground capitalize">{method.replace(/([A-Z])/g, ' $1').trim()}</p>
+                  <p className="font-semibold">
+                    Cg {results.reduce((sum, r) => sum + (r.wholesaleMargin * r.quantity), 0).toFixed(2)}
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
         )}
 
         <Tabs defaultValue="weight" className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-3 mb-6">
-            <TabsTrigger value="weight" className="relative">
-              By Weight
-              {recommendedMethod === 'By Weight' && (
-                <Badge variant="default" className="ml-2 text-[10px] px-1 py-0">
-                  Recommended
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="cost" className="relative">
-              By Cost
-              {recommendedMethod === 'By Cost' && (
-                <Badge variant="default" className="ml-2 text-[10px] px-1 py-0">
-                  Recommended
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="equal" className="relative">
-              Equal
-              {recommendedMethod === 'Equal' && (
-                <Badge variant="default" className="ml-2 text-[10px] px-1 py-0">
-                  Recommended
-                </Badge>
-              )}
-            </TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-7 mb-6">
+            {Object.keys(cifResults).map(method => (
+              <TabsTrigger key={method} value={method} className="relative text-xs">
+                {method === 'byWeight' && 'Weight'}
+                {method === 'byCost' && 'Cost'}
+                {method === 'equally' && 'Equal'}
+                {method === 'hybrid' && 'Hybrid'}
+                {method === 'strategic' && 'Strategic'}
+                {method === 'volumeOptimized' && 'Volume'}
+                {method === 'customerTier' && 'Customer'}
+                {recommendedMethod === method && (
+                  <Badge variant="default" className="ml-1 text-[9px] px-1 py-0">
+                    ✓
+                  </Badge>
+                )}
+              </TabsTrigger>
+            ))}
           </TabsList>
 
-          <TabsContent value="weight">
-            {renderTable(cifResults.byWeight, 'Distribution by Weight')}
-          </TabsContent>
-
-          <TabsContent value="cost">
-            {renderTable(cifResults.byCost, 'Distribution by Cost')}
-          </TabsContent>
-
-          <TabsContent value="equal">
-            {renderTable(cifResults.equally, 'Equal Distribution')}
-          </TabsContent>
+          {Object.entries(cifResults).map(([method, results]) => (
+            <TabsContent key={method} value={method}>
+              {renderTable(
+                results, 
+                method.replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase()),
+                methodDescriptions[method as keyof typeof methodDescriptions]
+              )}
+            </TabsContent>
+          ))}
         </Tabs>
       </CardContent>
     </Card>

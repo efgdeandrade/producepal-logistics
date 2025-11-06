@@ -26,10 +26,39 @@ interface AIRecommendation {
   recommendedMethod: string;
   confidence: string;
   reasoning: string[];
+  profitAnalysis: {
+    totalProfit: string;
+    averageMargin: string;
+    targetMarginCompliance: string;
+  };
+  marketCompetitiveness: {
+    productsOverpriced: number;
+    productsUnderpriced: number;
+    productsCompetitive: number;
+    competitiveRisk: string;
+    explanation: string;
+  };
+  strategicInsights: {
+    lossLeaders: string[];
+    profitDrivers: string[];
+    crossSubsidizationStrategy: string;
+  };
+  customerImpact: {
+    wholesaleCustomerRisk: string;
+    explanation: string;
+  };
+  alternativeRecommendation: {
+    method: string;
+    whenToUse: string;
+  };
   profitComparison: {
     byWeight: string;
     byCost: string;
     equal: string;
+    hybrid?: string;
+    strategic?: string;
+    volumeOptimized?: string;
+    customerTier?: string;
   };
   concerns: string;
 }
@@ -95,7 +124,7 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
         return acc;
       }, [] as OrderItem[]);
       
-      // First calculate CIF for all three methods
+      // Fetch settings
       const { data: settings } = await supabase
         .from('settings')
         .select('*')
@@ -107,10 +136,53 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
       const freightLocalPerKg = (settingsMap.get('freight_local_tariff') as any)?.rate || 0.41;
 
       const productCodes = [...new Set(consolidatedItems.map(item => item.product_code))];
+      
+      // Fetch products with all data
       const { data: products } = await supabase
         .from('products')
         .select('code, name, price_usd_per_unit, netto_weight_per_unit, gross_weight_per_unit, pack_size, empty_case_weight, wholesale_price_xcg_per_unit')
         .in('code', productCodes);
+
+      // Fetch historical demand patterns for velocity analysis
+      const { data: demandPatterns } = await supabase
+        .from('demand_patterns')
+        .select('product_code, order_frequency, avg_order_quantity, avg_waste_rate, last_order_date, total_ordered')
+        .in('code', productCodes);
+
+      const demandMap = new Map<string, {
+        frequency: number;
+        avgOrderSize: number;
+        wasteRate: number;
+        totalOrdered: number;
+      }>(
+        demandPatterns?.map(d => [d.product_code, {
+          frequency: d.order_frequency || 1,
+          avgOrderSize: d.avg_order_quantity || 0,
+          wasteRate: d.avg_waste_rate || 0,
+          totalOrdered: d.total_ordered || 0
+        }]) || []
+      );
+
+      // Fetch market intelligence data
+      const { data: marketSnapshots } = await supabase
+        .from('market_price_snapshots')
+        .select('*')
+        .in('product_code', productCodes)
+        .order('snapshot_date', { ascending: false })
+        .limit(productCodes.length);
+
+      const marketMap = new Map<string, any>(
+        marketSnapshots?.map(m => [m.product_code, {
+          retailPriceFound: m.retail_price_found,
+          calculatedWholesale: m.calculated_wholesale,
+          position: m.supply_demand_index && m.supply_demand_index > 1.1 ? 'OVERPRICED' : 
+                   m.supply_demand_index && m.supply_demand_index < 0.9 ? 'UNDERPRICED' : 'COMPETITIVE',
+          seasonalFactor: m.seasonal_factor,
+          importSource: m.import_source_country,
+          confidence: m.confidence_score > 0.7 ? 'HIGH' : m.confidence_score > 0.4 ? 'MEDIUM' : 'LOW',
+          source: m.source
+        }]) || []
+      );
 
       const productMap = new Map(
         products?.map(p => {
@@ -136,6 +208,7 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
 
       const productsWithData = consolidatedItems.map(item => {
         const productData = productMap.get(item.product_code);
+        const demand = demandMap.get(item.product_code);
         const packSize = productData?.packSize || 1;
         const totalUnits = item.quantity * packSize;
         
@@ -148,6 +221,8 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
           weightPerUnit: productData?.weightPerUnit || 0,
           emptyCaseWeight: productData?.emptyCaseWeight || 0,
           wholesalePriceXCG: productData?.wholesalePriceXCG || 0,
+          orderFrequency: demand?.frequency || 1,
+          wasteRate: demand?.wasteRate || 0,
         };
       });
 
@@ -164,17 +239,51 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
       const totalFreightCost = totalWeight * combinedTariffPerKg;
       const totalFreight = LOCAL_LOGISTICS_USD + totalFreightCost;
 
-      const calculateResults = (distributionMethod: 'weight' | 'cost' | 'equal') => {
+      // Calculate all 7 methods
+      const calculateResults = (distributionMethod: 'weight' | 'cost' | 'equal' | 'hybrid' | 'strategic' | 'volumeOptimized' | 'customerTier') => {
         return productsWithWeight.map(product => {
           const productCost = product.totalUnits * product.costPerUnit;
 
           let freightShare = 0;
-          if (distributionMethod === 'weight') {
-            freightShare = totalWeight > 0 ? (product.totalWeight / totalWeight) * totalFreight : 0;
-          } else if (distributionMethod === 'cost') {
-            freightShare = totalCost > 0 ? (productCost / totalCost) * totalFreight : 0;
-          } else {
-            freightShare = totalFreight / productsWithWeight.length;
+          
+          switch (distributionMethod) {
+            case 'weight':
+              freightShare = totalWeight > 0 ? (product.totalWeight / totalWeight) * totalFreight : 0;
+              break;
+            case 'cost':
+              freightShare = totalCost > 0 ? (productCost / totalCost) * totalFreight : 0;
+              break;
+            case 'equal':
+              freightShare = totalFreight / productsWithWeight.length;
+              break;
+            case 'hybrid':
+              const weightShare = totalWeight > 0 ? (product.totalWeight / totalWeight) * totalFreight : 0;
+              const costShare = totalCost > 0 ? (productCost / totalCost) * totalFreight : 0;
+              freightShare = (weightShare + costShare) / 2;
+              break;
+            case 'volumeOptimized':
+              const totalFrequency = productsWithWeight.reduce((sum, p) => sum + p.orderFrequency, 0);
+              const frequencyWeight = totalFrequency > 0 ? (product.orderFrequency / totalFrequency) : 1 / productsWithWeight.length;
+              const invertedWeight = 1 - (frequencyWeight / 2);
+              freightShare = invertedWeight * (totalFreight / productsWithWeight.length);
+              break;
+            case 'strategic':
+              const riskFactor = 1 + (product.wasteRate / 100);
+              const velocityFactor = 1 / Math.sqrt(product.orderFrequency || 1);
+              const strategicWeight = riskFactor * velocityFactor;
+              const totalStrategicWeight = productsWithWeight.reduce((sum, p) => {
+                const rf = 1 + (p.wasteRate / 100);
+                const vf = 1 / Math.sqrt(p.orderFrequency || 1);
+                return sum + (rf * vf);
+              }, 0);
+              freightShare = totalStrategicWeight > 0 ? (strategicWeight / totalStrategicWeight) * totalFreight : totalFreight / productsWithWeight.length;
+              break;
+            case 'customerTier':
+              const isWholesaleHeavy = product.orderFrequency > 5;
+              const tierMultiplier = isWholesaleHeavy ? 0.85 : 1.15;
+              const baseShare = totalFreight / productsWithWeight.length;
+              freightShare = baseShare * tierMultiplier;
+              break;
           }
 
           const cifUSD = productCost + freightShare;
@@ -187,6 +296,7 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
             productCode: product.code,
             productName: product.name,
             quantity: product.totalUnits,
+            totalWeight: product.totalWeight,
             costUSD: productCost,
             freightCost: freightShare,
             cifUSD,
@@ -204,11 +314,61 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
         byWeight: calculateResults('weight'),
         byCost: calculateResults('cost'),
         equally: calculateResults('equal'),
+        hybrid: calculateResults('hybrid'),
+        strategic: calculateResults('strategic'),
+        volumeOptimized: calculateResults('volumeOptimized'),
+        customerTier: calculateResults('customerTier'),
       };
 
-      // Call edge function
+      // Build market intelligence context
+      const marketIntelligence = {
+        products: productsWithData.map(p => {
+          const market = marketMap.get(p.code);
+          const wholesalePrice = p.wholesalePriceXCG || 0;
+          const calculatedWholesale = market?.calculatedWholesale || 0;
+          const competitiveGap = calculatedWholesale > 0 ? ((wholesalePrice - calculatedWholesale) / calculatedWholesale) * 100 : 0;
+          
+          return {
+            productName: p.name,
+            retailPriceFound: market?.retailPriceFound,
+            calculatedWholesale: market?.calculatedWholesale,
+            position: market?.position,
+            competitiveGap,
+            seasonalFactor: market?.seasonalFactor,
+            importSource: market?.importSource,
+            confidence: market?.confidence,
+            source: market?.source
+          };
+        })
+      };
+
+      // Build historical performance context
+      const historicalPerformance = {
+        products: productsWithData.map(p => {
+          const demand = demandMap.get(p.code);
+          const ordersPerWeek = (demand?.frequency || 0) / 12; // Assuming data is for ~3 months
+          
+          return {
+            productName: p.name,
+            orderFrequency: demand?.frequency || 0,
+            ordersPerWeek,
+            avgOrderSize: demand?.avgOrderSize || 0,
+            wasteRate: demand?.wasteRate || 0,
+            velocity: ordersPerWeek >= 2 ? 'FAST' : ordersPerWeek >= 0.5 ? 'MEDIUM' : 'SLOW',
+            wholesalePercentage: p.orderFrequency > 5 ? 75 : 50, // Simplified assumption
+            retailPercentage: p.orderFrequency > 5 ? 25 : 50
+          };
+        })
+      };
+
+      // Call edge function with comprehensive context
       const { data, error } = await supabase.functions.invoke('cif-advisor', {
-        body: { cifResults }
+        body: { 
+          cifResults,
+          orderItems: consolidatedItems,
+          marketIntelligence,
+          historicalPerformance
+        }
       });
 
       if (error) throw error;
@@ -469,9 +629,9 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
             <div className="space-y-4">
               <div className="flex items-start gap-3">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-3">
                     <span className="text-sm font-semibold">Recommended Method:</span>
-                    <Badge variant="default" className="text-sm">
+                    <Badge variant="default" className="text-sm capitalize">
                       {aiRecommendation.recommendedMethod}
                     </Badge>
                     <Badge variant="outline" className="text-xs">
@@ -480,7 +640,7 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
                   </div>
                   
                   <div className="space-y-2 mb-4">
-                    <p className="text-sm font-medium">Key Reasons:</p>
+                    <p className="text-sm font-medium">Key Reasoning:</p>
                     <ul className="text-sm text-muted-foreground space-y-1 ml-4">
                       {aiRecommendation.reasoning.map((reason, idx) => (
                         <li key={idx} className="list-disc">{reason}</li>
@@ -488,20 +648,79 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
                     </ul>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 mb-3">
-                    <div className="bg-background/50 rounded p-2 text-center">
-                      <p className="text-xs text-muted-foreground">By Weight</p>
-                      <p className="text-sm font-semibold">{aiRecommendation.profitComparison.byWeight}</p>
+                  {/* Strategic Insights */}
+                  {aiRecommendation.strategicInsights && (
+                    <div className="bg-primary/5 rounded-lg p-3 mb-3 space-y-2">
+                      <p className="text-sm font-semibold">Strategic Insights</p>
+                      {aiRecommendation.strategicInsights.lossLeaders.length > 0 && (
+                        <div className="text-xs">
+                          <span className="font-medium">Volume Drivers:</span>
+                          <span className="text-muted-foreground ml-1">
+                            {aiRecommendation.strategicInsights.lossLeaders.join(', ')}
+                          </span>
+                        </div>
+                      )}
+                      {aiRecommendation.strategicInsights.profitDrivers.length > 0 && (
+                        <div className="text-xs">
+                          <span className="font-medium">Profit Drivers:</span>
+                          <span className="text-muted-foreground ml-1">
+                            {aiRecommendation.strategicInsights.profitDrivers.join(', ')}
+                          </span>
+                        </div>
+                      )}
+                      <p className="text-xs text-muted-foreground italic">
+                        {aiRecommendation.strategicInsights.crossSubsidizationStrategy}
+                      </p>
                     </div>
-                    <div className="bg-background/50 rounded p-2 text-center">
-                      <p className="text-xs text-muted-foreground">By Cost</p>
-                      <p className="text-sm font-semibold">{aiRecommendation.profitComparison.byCost}</p>
+                  )}
+
+                  {/* Market Competitiveness */}
+                  {aiRecommendation.marketCompetitiveness && (
+                    <div className="bg-background/50 rounded-lg p-3 mb-3">
+                      <p className="text-sm font-semibold mb-2">Market Position</p>
+                      <div className="flex gap-3 text-xs mb-2">
+                        <div className="text-center">
+                          <p className="text-muted-foreground">Competitive</p>
+                          <p className="font-bold text-green-600">{aiRecommendation.marketCompetitiveness.productsCompetitive}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-muted-foreground">Underpriced</p>
+                          <p className="font-bold text-blue-600">{aiRecommendation.marketCompetitiveness.productsUnderpriced}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-muted-foreground">Overpriced</p>
+                          <p className="font-bold text-red-600">{aiRecommendation.marketCompetitiveness.productsOverpriced}</p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Risk: <span className={`font-medium ${
+                          aiRecommendation.marketCompetitiveness.competitiveRisk === 'HIGH' ? 'text-red-600' :
+                          aiRecommendation.marketCompetitiveness.competitiveRisk === 'MEDIUM' ? 'text-yellow-600' : 'text-green-600'
+                        }`}>{aiRecommendation.marketCompetitiveness.competitiveRisk}</span>
+                        {' - '}{aiRecommendation.marketCompetitiveness.explanation}
+                      </p>
                     </div>
-                    <div className="bg-background/50 rounded p-2 text-center">
-                      <p className="text-xs text-muted-foreground">Equal</p>
-                      <p className="text-sm font-semibold">{aiRecommendation.profitComparison.equal}</p>
-                    </div>
+                  )}
+
+                  {/* Profit Comparison Grid */}
+                  <div className="grid grid-cols-4 gap-2 mb-3">
+                    {Object.entries(aiRecommendation.profitComparison).map(([method, profit]) => (
+                      <div key={method} className="bg-background/50 rounded p-2 text-center">
+                        <p className="text-[10px] text-muted-foreground capitalize">
+                          {method.replace(/([A-Z])/g, ' $1').trim()}
+                        </p>
+                        <p className="text-xs font-semibold">{profit}</p>
+                      </div>
+                    ))}
                   </div>
+
+                  {/* Alternative Recommendation */}
+                  {aiRecommendation.alternativeRecommendation && (
+                    <div className="bg-muted/50 rounded p-2 mb-3">
+                      <p className="text-xs font-medium">Alternative: {aiRecommendation.alternativeRecommendation.method}</p>
+                      <p className="text-xs text-muted-foreground">{aiRecommendation.alternativeRecommendation.whenToUse}</p>
+                    </div>
+                  )}
 
                   {aiRecommendation.concerns && (
                     <p className="text-xs text-muted-foreground italic">

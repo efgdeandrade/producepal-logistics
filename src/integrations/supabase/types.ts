@@ -14,6 +14,139 @@ export type Database = {
   }
   public: {
     Tables: {
+      cif_allocation_decisions: {
+        Row: {
+          actual_profit_xcg: number | null
+          ai_reasoning: Json | null
+          chosen_method: string
+          confidence_level: string | null
+          created_at: string
+          decision_date: string
+          id: string
+          market_context: Json | null
+          order_id: string | null
+          predicted_profit_xcg: number | null
+          recommended_method: string
+          strategic_insights: Json | null
+          total_cost_usd: number | null
+          total_freight_usd: number | null
+          total_products: number
+          total_weight_kg: number | null
+          updated_at: string
+        }
+        Insert: {
+          actual_profit_xcg?: number | null
+          ai_reasoning?: Json | null
+          chosen_method: string
+          confidence_level?: string | null
+          created_at?: string
+          decision_date?: string
+          id?: string
+          market_context?: Json | null
+          order_id?: string | null
+          predicted_profit_xcg?: number | null
+          recommended_method: string
+          strategic_insights?: Json | null
+          total_cost_usd?: number | null
+          total_freight_usd?: number | null
+          total_products: number
+          total_weight_kg?: number | null
+          updated_at?: string
+        }
+        Update: {
+          actual_profit_xcg?: number | null
+          ai_reasoning?: Json | null
+          chosen_method?: string
+          confidence_level?: string | null
+          created_at?: string
+          decision_date?: string
+          id?: string
+          market_context?: Json | null
+          order_id?: string | null
+          predicted_profit_xcg?: number | null
+          recommended_method?: string
+          strategic_insights?: Json | null
+          total_cost_usd?: number | null
+          total_freight_usd?: number | null
+          total_products?: number
+          total_weight_kg?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cif_allocation_decisions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cif_product_performance: {
+        Row: {
+          actual_margin_xcg: number | null
+          allocation_method: string
+          cif_per_unit_xcg: number | null
+          competitive_gap_percentage: number | null
+          created_at: string
+          decision_id: string | null
+          freight_allocated_usd: number | null
+          id: string
+          market_position: string | null
+          predicted_margin_percentage: number | null
+          predicted_margin_xcg: number | null
+          product_code: string
+          product_name: string
+          quantity: number
+          waste_quantity: number | null
+          wholesale_price_xcg: number | null
+        }
+        Insert: {
+          actual_margin_xcg?: number | null
+          allocation_method: string
+          cif_per_unit_xcg?: number | null
+          competitive_gap_percentage?: number | null
+          created_at?: string
+          decision_id?: string | null
+          freight_allocated_usd?: number | null
+          id?: string
+          market_position?: string | null
+          predicted_margin_percentage?: number | null
+          predicted_margin_xcg?: number | null
+          product_code: string
+          product_name: string
+          quantity: number
+          waste_quantity?: number | null
+          wholesale_price_xcg?: number | null
+        }
+        Update: {
+          actual_margin_xcg?: number | null
+          allocation_method?: string
+          cif_per_unit_xcg?: number | null
+          competitive_gap_percentage?: number | null
+          created_at?: string
+          decision_id?: string | null
+          freight_allocated_usd?: number | null
+          id?: string
+          market_position?: string | null
+          predicted_margin_percentage?: number | null
+          predicted_margin_xcg?: number | null
+          product_code?: string
+          product_name?: string
+          quantity?: number
+          waste_quantity?: number | null
+          wholesale_price_xcg?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cif_product_performance_decision_id_fkey"
+            columns: ["decision_id"]
+            isOneToOne: false
+            referencedRelation: "cif_allocation_decisions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           address: string
