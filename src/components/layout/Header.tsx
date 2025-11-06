@@ -49,7 +49,7 @@ export const Header = () => {
           </Link>
           <div className="hidden md:flex flex-col text-sm">
             <div className="font-semibold text-foreground">
-              {format(currentTime, 'EEEE, MMMM d, yyyy')}
+              {format(currentTime, 'EEE, MMM d, yyyy')}
             </div>
             <div className="text-muted-foreground">
               {format(currentTime, 'HH:mm:ss')} • Week {getWeek(currentTime)}

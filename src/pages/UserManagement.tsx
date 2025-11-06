@@ -110,59 +110,74 @@ export default function UserManagement() {
       return;
     }
 
-    // Create temporary password (user will be sent a reset password email)
-    const tempPassword = Math.random().toString(36).slice(-12) + 'A1!';
-
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-      email: inviteForm.email,
-      password: tempPassword,
-      options: {
-        data: {
+    try {
+      // Use admin API to create user and send invitation email
+      const { data: userData, error: createError } = await supabase.auth.admin.createUser({
+        email: inviteForm.email,
+        email_confirm: true,
+        user_metadata: {
           full_name: inviteForm.fullName,
         },
-      },
-    });
-
-    if (signUpError) {
-      toast({
-        title: 'Error',
-        description: signUpError.message,
-        variant: 'destructive',
       });
-      return;
-    }
 
-    if (signUpData.user) {
-      // Assign role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: signUpData.user.id,
-          role: inviteForm.role,
-        });
-
-      if (roleError) {
+      if (createError) {
         toast({
           title: 'Error',
-          description: 'User created but failed to assign role',
+          description: createError.message,
           variant: 'destructive',
         });
         return;
       }
 
-      // Send password reset email
-      await supabase.auth.resetPasswordForEmail(inviteForm.email, {
-        redirectTo: `${window.location.origin}/auth`,
-      });
+      if (userData.user) {
+        // Assign role
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: userData.user.id,
+            role: inviteForm.role,
+          });
 
+        if (roleError) {
+          toast({
+            title: 'Error',
+            description: `User created but failed to assign role: ${roleError.message}`,
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        // Send password reset email as invitation
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+          inviteForm.email,
+          {
+            redirectTo: `${window.location.origin}/auth`,
+          }
+        );
+
+        if (resetError) {
+          toast({
+            title: 'Warning',
+            description: 'User created but invitation email failed to send',
+            variant: 'destructive',
+          });
+        } else {
+          toast({
+            title: 'Success',
+            description: `Invitation email sent to ${inviteForm.email}`,
+          });
+        }
+
+        setInviteForm({ email: '', fullName: '', role: 'driver' });
+        setInviteOpen(false);
+        fetchUsers();
+      }
+    } catch (error: any) {
       toast({
-        title: 'Success',
-        description: `Invitation sent to ${inviteForm.email}`,
+        title: 'Error',
+        description: error.message || 'Failed to invite user',
+        variant: 'destructive',
       });
-
-      setInviteForm({ email: '', fullName: '', role: 'driver' });
-      setInviteOpen(false);
-      fetchUsers();
     }
   };
 
