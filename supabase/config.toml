@@ -2,3 +2,6 @@ project_id = "dnxzpkbobzwjcuyfgdnh"
 
 [functions.cif-advisor]
 verify_jwt = false
+
+[functions.market-price-advisor]
+verify_jwt = false

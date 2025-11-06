@@ -242,6 +242,42 @@ export type Database = {
           },
         ]
       }
+      market_price_snapshots: {
+        Row: {
+          created_at: string
+          id: string
+          market_avg: number | null
+          market_high: number | null
+          market_low: number | null
+          product_code: string
+          product_name: string | null
+          snapshot_date: string
+          source: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          market_avg?: number | null
+          market_high?: number | null
+          market_low?: number | null
+          product_code: string
+          product_name?: string | null
+          snapshot_date?: string
+          source?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          market_avg?: number | null
+          market_high?: number | null
+          market_low?: number | null
+          product_code?: string
+          product_name?: string | null
+          snapshot_date?: string
+          source?: string | null
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           created_at: string

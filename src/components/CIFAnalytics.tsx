@@ -5,6 +5,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recha
 import { TrendingUp, TrendingDown, Sparkles, Loader2, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { MarketIntelligence } from './MarketIntelligence';
 import { 
   Table, 
   TableBody, 
@@ -414,10 +416,24 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
     );
   }
 
+  // Prepare simplified market products data
+  const marketProducts = productCostBreakdown.map(item => ({
+    productCode: item.productName, // Using name as code for now
+    productName: item.productName,
+    cifPerUnit: item.costPerUnit * 1.82, // Simple approximation
+    quantity: item.quantity
+  }));
+  
   return (
-    <div className="space-y-6">
-      {/* AI Advisor Card */}
-      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
+    <Tabs defaultValue="analytics" className="w-full">
+      <TabsList className="grid w-full grid-cols-2">
+        <TabsTrigger value="analytics">CIF Analytics</TabsTrigger>
+        <TabsTrigger value="market">Market Intelligence</TabsTrigger>
+      </TabsList>
+      
+      <TabsContent value="analytics" className="space-y-6">
+        {/* AI Advisor Card */}
+        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
@@ -678,6 +694,11 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
           </div>
         </CardContent>
       </Card>
-    </div>
+      </TabsContent>
+      
+      <TabsContent value="market">
+        <MarketIntelligence products={marketProducts} />
+      </TabsContent>
+    </Tabs>
   );
 };
