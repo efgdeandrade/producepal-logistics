@@ -147,14 +147,16 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
       const { data: demandPatterns } = await supabase
         .from('demand_patterns')
         .select('product_code, order_frequency, avg_order_quantity, avg_waste_rate, last_order_date, total_ordered')
-        .in('code', productCodes);
+        .in('product_code', productCodes);
 
-      const demandMap = new Map<string, {
+      type DemandData = {
         frequency: number;
         avgOrderSize: number;
         wasteRate: number;
         totalOrdered: number;
-      }>(
+      };
+
+      const demandMap = new Map<string, DemandData>(
         demandPatterns?.map(d => [d.product_code, {
           frequency: d.order_frequency || 1,
           avgOrderSize: d.avg_order_quantity || 0,
