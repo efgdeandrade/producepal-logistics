@@ -18,7 +18,7 @@ import { z } from 'zod';
 const inviteSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
   fullName: z.string().min(2, { message: 'Name must be at least 2 characters' }),
-  role: z.enum(['admin', 'management', 'driver', 'production', 'logistics']),
+  role: z.enum(['admin', 'management', 'driver', 'production', 'logistics', 'accounting', 'manager']),
 });
 
 interface Profile {
@@ -45,7 +45,7 @@ export default function UserManagement() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const availableRoles = ['admin', 'management', 'driver', 'production', 'logistics', 'user'] as const;
+  const availableRoles = ['admin', 'management', 'driver', 'production', 'logistics', 'accounting', 'manager'] as const;
   type AppRole = typeof availableRoles[number];
 
   const fetchUsers = async () => {
@@ -342,6 +342,8 @@ export default function UserManagement() {
                         <SelectItem value="driver">Driver</SelectItem>
                         <SelectItem value="production">Production</SelectItem>
                         <SelectItem value="logistics">Logistics</SelectItem>
+                        <SelectItem value="accounting">Accounting</SelectItem>
+                        <SelectItem value="manager">Manager</SelectItem>
                       </SelectContent>
                     </Select>
                     {errors.role && <p className="text-sm text-destructive">{errors.role}</p>}
