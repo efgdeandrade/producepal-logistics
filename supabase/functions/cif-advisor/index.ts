@@ -35,9 +35,9 @@ serve(async (req) => {
   }
 
   try {
-    const { cifResults } = await req.json();
+    const { cifResults, orderItems } = await req.json();
     
-    console.log('Analyzing CIF methods...');
+    console.log('Analyzing CIF methods with consolidated products...');
 
     // Analyze all three methods
     const analyses: CIFAnalysis[] = [];

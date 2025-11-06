@@ -2,9 +2,17 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import { TrendingUp, TrendingDown, Sparkles, Loader2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Sparkles, Loader2, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
 
 interface OrderItem {
   product_code: string;
@@ -51,6 +59,19 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
   const [loading, setLoading] = useState(true);
   const [aiRecommendation, setAiRecommendation] = useState<AIRecommendation | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [productCostBreakdown, setProductCostBreakdown] = useState<Array<{
+    productName: string;
+    quantity: number;
+    costPerUnit: number;
+    totalCost: number;
+  }>>([]);
+  const [freightBreakdown, setFreightBreakdown] = useState({
+    exteriorTariff: 0,
+    localTariff: 0,
+    localLogistics: 0,
+    labor: 0
+  });
+  const [grandTotal, setGrandTotal] = useState(0);
 
   useEffect(() => {
     calculateAnalytics();
@@ -59,6 +80,17 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
   const getAIRecommendation = async () => {
     try {
       setAiLoading(true);
+      
+      // Consolidate products by code
+      const consolidatedItems = orderItems.reduce((acc, item) => {
+        const existing = acc.find(i => i.product_code === item.product_code);
+        if (existing) {
+          existing.quantity += item.quantity;
+        } else {
+          acc.push({ ...item });
+        }
+        return acc;
+      }, [] as OrderItem[]);
       
       // First calculate CIF for all three methods
       const { data: settings } = await supabase
@@ -71,43 +103,49 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
       const freightExteriorPerKg = (settingsMap.get('freight_exterior_tariff') as any)?.rate || 2.46;
       const freightLocalPerKg = (settingsMap.get('freight_local_tariff') as any)?.rate || 0.41;
 
-      const productCodes = [...new Set(orderItems.map(item => item.product_code))];
+      const productCodes = [...new Set(consolidatedItems.map(item => item.product_code))];
       const { data: products } = await supabase
         .from('products')
-        .select('code, name, price_usd_per_unit, weight, wholesale_price_xcg_per_unit')
+        .select('code, name, price_usd_per_unit, netto_weight_per_unit, pack_size, empty_case_weight, wholesale_price_xcg_per_unit')
         .in('code', productCodes);
 
       const productMap = new Map(
-        products?.map(p => [p.code, {
-          name: p.name,
-          costPerUnit: p.price_usd_per_unit || 0,
-          weightPerUnit: p.weight || 0,
-          wholesalePriceXCG: p.wholesale_price_xcg_per_unit || 0,
-        }]) || []
+        products?.map(p => {
+          const weightPerCase = ((p.netto_weight_per_unit || 0) * (p.pack_size || 1)) + (p.empty_case_weight || 0);
+          return [p.code, {
+            name: p.name,
+            costPerUnit: p.price_usd_per_unit || 0,
+            weightPerCase,
+            wholesalePriceXCG: p.wholesale_price_xcg_per_unit || 0,
+          }];
+        }) || []
       );
 
       const LOCAL_LOGISTICS_USD = 91;
       const LABOR_XCG = 50;
 
-      const productsWithData = orderItems.map(item => {
+      const productsWithData = consolidatedItems.map(item => {
         const productData = productMap.get(item.product_code);
         return {
           code: item.product_code,
           name: productData?.name || item.product_code,
           quantity: item.quantity,
           costPerUnit: productData?.costPerUnit || 0,
-          weightPerUnit: productData?.weightPerUnit || 0,
+          weightPerCase: productData?.weightPerCase || 0,
           wholesalePriceXCG: productData?.wholesalePriceXCG || 0,
         };
       });
 
-      const totalWeight = productsWithData.reduce((sum, p) => sum + p.quantity * p.weightPerUnit, 0);
+      const totalWeight = productsWithData.reduce((sum, p) => sum + p.quantity * p.weightPerCase, 0);
       const totalCost = productsWithData.reduce((sum, p) => sum + p.quantity * p.costPerUnit, 0);
-      const totalFreight = LOCAL_LOGISTICS_USD + (totalWeight * freightExteriorPerKg) + (totalWeight * freightLocalPerKg);
+      
+      const exteriorFreightCost = totalWeight * freightExteriorPerKg;
+      const localFreightCost = totalWeight * freightLocalPerKg;
+      const totalFreight = LOCAL_LOGISTICS_USD + exteriorFreightCost + localFreightCost;
 
       const calculateResults = (distributionMethod: 'weight' | 'cost' | 'equal') => {
         return productsWithData.map(product => {
-          const productWeight = product.quantity * product.weightPerUnit;
+          const productWeight = product.quantity * product.weightPerCase;
           const productCost = product.quantity * product.costPerUnit;
 
           let freightShare = 0;
@@ -172,6 +210,17 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
     try {
       setLoading(true);
 
+      // Consolidate products by code
+      const consolidatedItems = orderItems.reduce((acc, item) => {
+        const existing = acc.find(i => i.product_code === item.product_code);
+        if (existing) {
+          existing.quantity += item.quantity;
+        } else {
+          acc.push({ ...item });
+        }
+        return acc;
+      }, [] as OrderItem[]);
+
       // Fetch settings
       const { data: settings } = await supabase
         .from('settings')
@@ -184,14 +233,16 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
       const freightLocalPerKg = (settingsMap.get('freight_local_tariff') as any)?.rate || 0.41;
 
       // Fetch products with supplier info
-      const productCodes = [...new Set(orderItems.map(item => item.product_code))];
+      const productCodes = [...new Set(consolidatedItems.map(item => item.product_code))];
       const { data: products } = await supabase
         .from('products')
         .select(`
           code, 
           name, 
-          price_usd_per_unit, 
-          weight,
+          price_usd_per_unit,
+          netto_weight_per_unit,
+          pack_size,
+          empty_case_weight,
           wholesale_price_xcg_per_unit,
           supplier_id,
           suppliers (name)
@@ -201,30 +252,50 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
       if (!products) return;
 
       const LOCAL_LOGISTICS_USD = 91;
+      const LOCAL_LOGISTICS_XCG = LOCAL_LOGISTICS_USD * exchangeRate;
       const LABOR_XCG = 50;
 
-      // Calculate total weight and freight
-      const totalWeight = products.reduce((sum, p) => {
-        const item = orderItems.find(i => i.product_code === p.code);
-        return sum + (item?.quantity || 0) * (p.weight || 0);
-      }, 0);
+      // Calculate total weight using correct formula and build cost breakdown
+      let totalWeight = 0;
+      const costBreakdown: Array<{
+        productName: string;
+        quantity: number;
+        costPerUnit: number;
+        totalCost: number;
+      }> = [];
 
-      const totalFreight = LOCAL_LOGISTICS_USD + 
-                          (totalWeight * freightExteriorPerKg) + 
-                          (totalWeight * freightLocalPerKg);
+      products.forEach(p => {
+        const item = consolidatedItems.find(i => i.product_code === p.code);
+        if (!item) return;
+        
+        const weightPerCase = ((p.netto_weight_per_unit || 0) * (p.pack_size || 1)) + (p.empty_case_weight || 0);
+        totalWeight += item.quantity * weightPerCase;
+        
+        costBreakdown.push({
+          productName: p.name,
+          quantity: item.quantity,
+          costPerUnit: p.price_usd_per_unit || 0,
+          totalCost: item.quantity * (p.price_usd_per_unit || 0)
+        });
+      });
+
+      const exteriorFreightCost = totalWeight * freightExteriorPerKg;
+      const localFreightCost = totalWeight * freightLocalPerKg;
+      const totalFreight = LOCAL_LOGISTICS_USD + exteriorFreightCost + localFreightCost;
 
       // Calculate supplier costs
       const supplierMap = new Map<string, number>();
       let totalWholesaleRevenue = 0;
-      let totalCost = 0;
+      let totalCostXCG = 0;
       const productMargins: ProductMargin[] = [];
 
       products.forEach(product => {
-        const item = orderItems.find(i => i.product_code === product.code);
+        const item = consolidatedItems.find(i => i.product_code === product.code);
         if (!item) return;
 
         const supplierName = (product.suppliers as any)?.name || 'Unknown Supplier';
-        const productWeight = item.quantity * (product.weight || 0);
+        const weightPerCase = ((product.netto_weight_per_unit || 0) * (product.pack_size || 1)) + (product.empty_case_weight || 0);
+        const productWeight = item.quantity * weightPerCase;
         const productCostUSD = item.quantity * (product.price_usd_per_unit || 0);
         
         // Calculate freight share by weight
@@ -242,7 +313,7 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
         const marginPercentage = cifXCG > 0 ? (profit / cifXCG) * 100 : 0;
 
         totalWholesaleRevenue += wholesaleRevenue;
-        totalCost += cifXCG;
+        totalCostXCG += cifXCG;
 
         // Add to supplier map (cost in Cg)
         const currentCost = supplierMap.get(supplierName) || 0;
@@ -264,7 +335,22 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
       }));
 
       setSupplierCosts(supplierArray);
-      setTotalProfit(totalWholesaleRevenue - totalCost);
+      setTotalProfit(totalWholesaleRevenue - totalCostXCG);
+      setProductCostBreakdown(costBreakdown);
+      setFreightBreakdown({
+        exteriorTariff: exteriorFreightCost * exchangeRate,
+        localTariff: localFreightCost * exchangeRate,
+        localLogistics: LOCAL_LOGISTICS_XCG,
+        labor: LABOR_XCG
+      });
+      
+      const productCostTotal = costBreakdown.reduce((sum, p) => sum + p.totalCost, 0) * exchangeRate;
+      const grand = productCostTotal + 
+                    (exteriorFreightCost * exchangeRate) + 
+                    (localFreightCost * exchangeRate) + 
+                    LOCAL_LOGISTICS_XCG + 
+                    LABOR_XCG;
+      setGrandTotal(grand);
 
       // Sort by margin percentage
       productMargins.sort((a, b) => b.marginPercentage - a.marginPercentage);
@@ -380,6 +466,83 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
               </Button>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Cost Breakdown by Product */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="h-5 w-5" />
+            Cost Breakdown by Product
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Product</TableHead>
+                <TableHead className="text-right">Quantity</TableHead>
+                <TableHead className="text-right">Cost per Unit (USD)</TableHead>
+                <TableHead className="text-right">Total Cost (USD)</TableHead>
+                <TableHead className="text-right">Total Cost (Cg)</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {productCostBreakdown.map((item, idx) => (
+                <TableRow key={idx}>
+                  <TableCell className="font-medium">{item.productName}</TableCell>
+                  <TableCell className="text-right">{item.quantity}</TableCell>
+                  <TableCell className="text-right">${item.costPerUnit.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">${item.totalCost.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">Cg {(item.totalCost * 1.82).toFixed(2)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Freight & Tariff Breakdown */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Freight & Tariff Breakdown</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="text-muted-foreground">Exterior Agent Tariff:</span>
+            <span className="font-semibold">Cg {freightBreakdown.exteriorTariff.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-muted-foreground">Local Agent Tariff:</span>
+            <span className="font-semibold">Cg {freightBreakdown.localTariff.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-muted-foreground">Local Logistics:</span>
+            <span className="font-semibold">Cg {freightBreakdown.localLogistics.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-muted-foreground">Labor:</span>
+            <span className="font-semibold">Cg {freightBreakdown.labor.toFixed(2)}</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Grand Total */}
+      <Card className="border-2 border-primary">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-2xl">
+            <DollarSign className="h-6 w-6" />
+            GRAND TOTAL
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-4xl font-bold text-primary mb-2">
+            Cg {grandTotal.toFixed(2)}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Total cost of this order (all expenses included)
+          </p>
         </CardContent>
       </Card>
 
