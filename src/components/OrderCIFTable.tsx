@@ -21,7 +21,8 @@ interface OrderItem {
 interface CIFResult {
   productCode: string;
   productName: string;
-  quantity: number;
+  quantity: number; // Total units (not cases)
+  totalWeight: number; // Total weight in kg
   costUSD: number;
   freightCost: number;
   cifUSD: number;
@@ -85,24 +86,28 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
       const productCodes = [...new Set(consolidatedItems.map(item => item.product_code))];
       const { data: products, error } = await supabase
         .from('products')
-        .select('code, name, price_usd_per_unit, netto_weight_per_unit, pack_size, empty_case_weight, wholesale_price_xcg_per_unit')
+        .select('code, name, price_usd_per_unit, netto_weight_per_unit, gross_weight_per_unit, pack_size, empty_case_weight, wholesale_price_xcg_per_unit')
         .in('code', productCodes);
 
       if (error) throw error;
 
       const productMap = new Map(
         products?.map(p => {
-          const nettoWeightPerUnit = p.netto_weight_per_unit || 0;
           const packSize = p.pack_size || 1;
+          // Use gross weight if available (not null and > 0), otherwise use netto
+          const weightPerUnit = (p.gross_weight_per_unit && p.gross_weight_per_unit > 0) 
+            ? p.gross_weight_per_unit 
+            : (p.netto_weight_per_unit || 0);
           const emptyCaseWeight = p.empty_case_weight || 0;
-          const weightPerCase = (nettoWeightPerUnit * packSize) + emptyCaseWeight;
           
           return [
             p.code,
             {
               name: p.name,
               costPerUnit: p.price_usd_per_unit || 0,
-              weightPerCase: weightPerCase,
+              weightPerUnit: weightPerUnit, // Store weight per UNIT
+              packSize: packSize,
+              emptyCaseWeight: emptyCaseWeight,
               wholesalePriceXCG: p.wholesale_price_xcg_per_unit || 0,
             },
           ];
@@ -119,48 +124,61 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
       // Calculate totals
       const productsWithData = consolidatedItems.map(item => {
         const productData = productMap.get(item.product_code);
+        const packSize = productData?.packSize || 1;
+        const totalUnits = item.quantity * packSize; // Quantity in order is cases
+        
         return {
           code: item.product_code,
           name: productData?.name || item.product_code,
-          quantity: item.quantity,
+          numberOfCases: item.quantity, // Store cases for weight calc
+          totalUnits: totalUnits, // Display this in table
           costPerUnit: productData?.costPerUnit || 0,
-          weightPerCase: productData?.weightPerCase || 0,
+          weightPerUnit: productData?.weightPerUnit || 0,
+          emptyCaseWeight: productData?.emptyCaseWeight || 0,
           wholesalePriceXCG: productData?.wholesalePriceXCG || 0,
         };
       });
 
-      const totalWeight = productsWithData.reduce(
-        (sum, p) => sum + p.quantity * p.weightPerCase,
-        0
-      );
-      const totalCost = productsWithData.reduce(
-        (sum, p) => sum + p.quantity * p.costPerUnit,
-        0
-      );
+      // Calculate weight correctly: (units × weight per unit) + (cases × empty case weight)
+      const productsWithWeight = productsWithData.map(p => {
+        const productWeight = (p.totalUnits * p.weightPerUnit / 1000) + // Convert g to kg
+                              (p.numberOfCases * p.emptyCaseWeight / 1000);
+        return {
+          ...p,
+          totalWeight: productWeight
+        };
+      });
 
-      const exteriorFreightCost = totalWeight * freightExteriorPerKg;
-      const localFreightCost = totalWeight * freightLocalPerKg;
-      const totalFreight = LOCAL_LOGISTICS_USD + exteriorFreightCost + localFreightCost;
+      const totalWeight = productsWithWeight.reduce((sum, p) => sum + p.totalWeight, 0);
+      const totalCost = productsWithWeight.reduce((sum, p) => sum + (p.totalUnits * p.costPerUnit), 0);
+
+      // Sum tariffs FIRST, then multiply by weight
+      const combinedTariffPerKg = freightExteriorPerKg + freightLocalPerKg;
+      const totalFreightCost = totalWeight * combinedTariffPerKg;
+      const totalFreight = LOCAL_LOGISTICS_USD + totalFreightCost;
 
       const calculateResults = (
         distributionMethod: 'weight' | 'cost' | 'equal'
       ): CIFResult[] => {
-        return productsWithData.map(product => {
-          const productWeight = product.quantity * product.weightPerCase;
-          const productCost = product.quantity * product.costPerUnit;
+        return productsWithWeight.map(product => {
+          const productCost = product.totalUnits * product.costPerUnit;
 
           let freightShare = 0;
           if (distributionMethod === 'weight') {
-            freightShare = totalWeight > 0 ? (productWeight / totalWeight) * totalFreight : 0;
+            freightShare = totalWeight > 0 
+              ? (product.totalWeight / totalWeight) * totalFreight 
+              : 0;
           } else if (distributionMethod === 'cost') {
-            freightShare = totalCost > 0 ? (productCost / totalCost) * totalFreight : 0;
+            freightShare = totalCost > 0 
+              ? (productCost / totalCost) * totalFreight 
+              : 0;
           } else {
-            freightShare = totalFreight / productsWithData.length;
+            freightShare = totalFreight / productsWithWeight.length;
           }
 
           const cifUSD = productCost + freightShare;
-          const cifXCG = cifUSD * exchangeRate + LABOR_XCG / productsWithData.length;
-          const cifPerUnit = product.quantity > 0 ? cifXCG / product.quantity : 0;
+          const cifXCG = cifUSD * exchangeRate + LABOR_XCG / productsWithWeight.length;
+          const cifPerUnit = product.totalUnits > 0 ? cifXCG / product.totalUnits : 0;
 
           const wholesalePrice = product.wholesalePriceXCG || (cifPerUnit * WHOLESALE_MULTIPLIER);
           const retailPrice = cifPerUnit * RETAIL_MULTIPLIER;
@@ -170,7 +188,8 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
           return {
             productCode: product.code,
             productName: product.name,
-            quantity: product.quantity,
+            quantity: product.totalUnits, // SHOW UNITS, not cases
+            totalWeight: product.totalWeight, // Add weight to results
             costUSD: productCost,
             freightCost: freightShare,
             cifUSD,
@@ -207,7 +226,8 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
             <TableHeader>
               <TableRow>
                 <TableHead>Product</TableHead>
-                <TableHead className="text-right">Qty</TableHead>
+                <TableHead className="text-right">Units</TableHead>
+                <TableHead className="text-right">Weight (kg)</TableHead>
                 <TableHead className="text-right">Cost USD</TableHead>
                 <TableHead className="text-right">Freight</TableHead>
                 <TableHead className="text-right">CIF USD</TableHead>
@@ -224,6 +244,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
                 <TableRow key={idx}>
                   <TableCell className="font-medium">{result.productName}</TableCell>
                   <TableCell className="text-right">{result.quantity}</TableCell>
+                  <TableCell className="text-right">{result.totalWeight.toFixed(2)}</TableCell>
                   <TableCell className="text-right">${result.costUSD.toFixed(2)}</TableCell>
                   <TableCell className="text-right">${result.freightCost.toFixed(2)}</TableCell>
                   <TableCell className="text-right">${result.cifUSD.toFixed(2)}</TableCell>

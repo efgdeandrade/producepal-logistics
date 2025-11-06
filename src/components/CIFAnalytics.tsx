@@ -106,16 +106,23 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
       const productCodes = [...new Set(consolidatedItems.map(item => item.product_code))];
       const { data: products } = await supabase
         .from('products')
-        .select('code, name, price_usd_per_unit, netto_weight_per_unit, pack_size, empty_case_weight, wholesale_price_xcg_per_unit')
+        .select('code, name, price_usd_per_unit, netto_weight_per_unit, gross_weight_per_unit, pack_size, empty_case_weight, wholesale_price_xcg_per_unit')
         .in('code', productCodes);
 
       const productMap = new Map(
         products?.map(p => {
-          const weightPerCase = ((p.netto_weight_per_unit || 0) * (p.pack_size || 1)) + (p.empty_case_weight || 0);
+          const packSize = p.pack_size || 1;
+          const weightPerUnit = (p.gross_weight_per_unit && p.gross_weight_per_unit > 0) 
+            ? p.gross_weight_per_unit 
+            : (p.netto_weight_per_unit || 0);
+          const emptyCaseWeight = p.empty_case_weight || 0;
+          
           return [p.code, {
             name: p.name,
             costPerUnit: p.price_usd_per_unit || 0,
-            weightPerCase,
+            weightPerUnit,
+            packSize,
+            emptyCaseWeight,
             wholesalePriceXCG: p.wholesale_price_xcg_per_unit || 0,
           }];
         }) || []
@@ -126,47 +133,57 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
 
       const productsWithData = consolidatedItems.map(item => {
         const productData = productMap.get(item.product_code);
+        const packSize = productData?.packSize || 1;
+        const totalUnits = item.quantity * packSize;
+        
         return {
           code: item.product_code,
           name: productData?.name || item.product_code,
-          quantity: item.quantity,
+          numberOfCases: item.quantity,
+          totalUnits: totalUnits,
           costPerUnit: productData?.costPerUnit || 0,
-          weightPerCase: productData?.weightPerCase || 0,
+          weightPerUnit: productData?.weightPerUnit || 0,
+          emptyCaseWeight: productData?.emptyCaseWeight || 0,
           wholesalePriceXCG: productData?.wholesalePriceXCG || 0,
         };
       });
 
-      const totalWeight = productsWithData.reduce((sum, p) => sum + p.quantity * p.weightPerCase, 0);
-      const totalCost = productsWithData.reduce((sum, p) => sum + p.quantity * p.costPerUnit, 0);
+      const productsWithWeight = productsWithData.map(p => {
+        const productWeight = (p.totalUnits * p.weightPerUnit / 1000) + 
+                              (p.numberOfCases * p.emptyCaseWeight / 1000);
+        return { ...p, totalWeight: productWeight };
+      });
+
+      const totalWeight = productsWithWeight.reduce((sum, p) => sum + p.totalWeight, 0);
+      const totalCost = productsWithWeight.reduce((sum, p) => sum + (p.totalUnits * p.costPerUnit), 0);
       
-      const exteriorFreightCost = totalWeight * freightExteriorPerKg;
-      const localFreightCost = totalWeight * freightLocalPerKg;
-      const totalFreight = LOCAL_LOGISTICS_USD + exteriorFreightCost + localFreightCost;
+      const combinedTariffPerKg = freightExteriorPerKg + freightLocalPerKg;
+      const totalFreightCost = totalWeight * combinedTariffPerKg;
+      const totalFreight = LOCAL_LOGISTICS_USD + totalFreightCost;
 
       const calculateResults = (distributionMethod: 'weight' | 'cost' | 'equal') => {
-        return productsWithData.map(product => {
-          const productWeight = product.quantity * product.weightPerCase;
-          const productCost = product.quantity * product.costPerUnit;
+        return productsWithWeight.map(product => {
+          const productCost = product.totalUnits * product.costPerUnit;
 
           let freightShare = 0;
           if (distributionMethod === 'weight') {
-            freightShare = totalWeight > 0 ? (productWeight / totalWeight) * totalFreight : 0;
+            freightShare = totalWeight > 0 ? (product.totalWeight / totalWeight) * totalFreight : 0;
           } else if (distributionMethod === 'cost') {
             freightShare = totalCost > 0 ? (productCost / totalCost) * totalFreight : 0;
           } else {
-            freightShare = totalFreight / productsWithData.length;
+            freightShare = totalFreight / productsWithWeight.length;
           }
 
           const cifUSD = productCost + freightShare;
-          const cifXCG = cifUSD * exchangeRate + LABOR_XCG / productsWithData.length;
-          const cifPerUnit = product.quantity > 0 ? cifXCG / product.quantity : 0;
+          const cifXCG = cifUSD * exchangeRate + LABOR_XCG / productsWithWeight.length;
+          const cifPerUnit = product.totalUnits > 0 ? cifXCG / product.totalUnits : 0;
           const wholesalePrice = product.wholesalePriceXCG || (cifPerUnit * 1.25);
           const wholesaleMargin = wholesalePrice - cifPerUnit;
 
           return {
             productCode: product.code,
             productName: product.name,
-            quantity: product.quantity,
+            quantity: product.totalUnits,
             costUSD: productCost,
             freightCost: freightShare,
             cifUSD,
@@ -241,6 +258,7 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
           name, 
           price_usd_per_unit,
           netto_weight_per_unit,
+          gross_weight_per_unit,
           pack_size,
           empty_case_weight,
           wholesale_price_xcg_per_unit,
@@ -268,20 +286,30 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
         const item = consolidatedItems.find(i => i.product_code === p.code);
         if (!item) return;
         
-        const weightPerCase = ((p.netto_weight_per_unit || 0) * (p.pack_size || 1)) + (p.empty_case_weight || 0);
-        totalWeight += item.quantity * weightPerCase;
+        const packSize = p.pack_size || 1;
+        const totalUnits = item.quantity * packSize;
+        const weightPerUnit = (p.gross_weight_per_unit && p.gross_weight_per_unit > 0) 
+          ? p.gross_weight_per_unit 
+          : (p.netto_weight_per_unit || 0);
+        const emptyCaseWeight = p.empty_case_weight || 0;
+        
+        const productWeight = (totalUnits * weightPerUnit / 1000) + 
+                              (item.quantity * emptyCaseWeight / 1000);
+        totalWeight += productWeight;
         
         costBreakdown.push({
           productName: p.name,
-          quantity: item.quantity,
+          quantity: totalUnits,
           costPerUnit: p.price_usd_per_unit || 0,
-          totalCost: item.quantity * (p.price_usd_per_unit || 0)
+          totalCost: totalUnits * (p.price_usd_per_unit || 0)
         });
       });
 
+      const combinedTariffPerKg = freightExteriorPerKg + freightLocalPerKg;
+      const totalFreightCost = totalWeight * combinedTariffPerKg;
+      const totalFreight = LOCAL_LOGISTICS_USD + totalFreightCost;
       const exteriorFreightCost = totalWeight * freightExteriorPerKg;
       const localFreightCost = totalWeight * freightLocalPerKg;
-      const totalFreight = LOCAL_LOGISTICS_USD + exteriorFreightCost + localFreightCost;
 
       // Calculate supplier costs
       const supplierMap = new Map<string, number>();
@@ -294,9 +322,16 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
         if (!item) return;
 
         const supplierName = (product.suppliers as any)?.name || 'Unknown Supplier';
-        const weightPerCase = ((product.netto_weight_per_unit || 0) * (product.pack_size || 1)) + (product.empty_case_weight || 0);
-        const productWeight = item.quantity * weightPerCase;
-        const productCostUSD = item.quantity * (product.price_usd_per_unit || 0);
+        const packSize = product.pack_size || 1;
+        const totalUnits = item.quantity * packSize;
+        const weightPerUnit = (product.gross_weight_per_unit && product.gross_weight_per_unit > 0) 
+          ? product.gross_weight_per_unit 
+          : (product.netto_weight_per_unit || 0);
+        const emptyCaseWeight = product.empty_case_weight || 0;
+        
+        const productWeight = (totalUnits * weightPerUnit / 1000) + 
+                              (item.quantity * emptyCaseWeight / 1000);
+        const productCostUSD = totalUnits * (product.price_usd_per_unit || 0);
         
         // Calculate freight share by weight
         const freightShare = totalWeight > 0 ? (productWeight / totalWeight) * totalFreight : 0;
@@ -304,11 +339,11 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
         // Calculate CIF in Cg
         const cifUSD = productCostUSD + freightShare;
         const cifXCG = cifUSD * exchangeRate + (LABOR_XCG / products.length);
-        const cifPerUnit = item.quantity > 0 ? cifXCG / item.quantity : 0;
+        const cifPerUnit = totalUnits > 0 ? cifXCG / totalUnits : 0;
         
         // Wholesale price and margin
         const wholesalePricePerUnit = product.wholesale_price_xcg_per_unit || 0;
-        const wholesaleRevenue = item.quantity * wholesalePricePerUnit;
+        const wholesaleRevenue = totalUnits * wholesalePricePerUnit;
         const profit = wholesaleRevenue - cifXCG;
         const marginPercentage = cifXCG > 0 ? (profit / cifXCG) * 100 : 0;
 
@@ -324,7 +359,7 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
           productName: product.name,
           marginPercentage,
           marginAmount: profit,
-          quantity: item.quantity
+          quantity: totalUnits
         });
       });
 

@@ -8,7 +8,8 @@ const corsHeaders = {
 interface CIFResult {
   productCode: string;
   productName: string;
-  quantity: number;
+  quantity: number; // Total units
+  totalWeight?: number; // Total weight in kg
   costUSD: number;
   freightCost: number;
   cifUSD: number;
