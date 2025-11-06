@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { UserPlus, Trash2, Mail, Edit } from 'lucide-react';
+import { UserPlus, Trash2, Mail, Edit, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 
@@ -111,67 +111,30 @@ export default function UserManagement() {
     }
 
     try {
-      // Use admin API to create user and send invitation email
-      const { data: userData, error: createError } = await supabase.auth.admin.createUser({
-        email: inviteForm.email,
-        email_confirm: true,
-        user_metadata: {
-          full_name: inviteForm.fullName,
+      const { data, error } = await supabase.functions.invoke('invite-user', {
+        body: {
+          email: inviteForm.email,
+          fullName: inviteForm.fullName,
+          role: inviteForm.role,
         },
       });
 
-      if (createError) {
-        toast({
-          title: 'Error',
-          description: createError.message,
-          variant: 'destructive',
-        });
-        return;
+      if (error) {
+        throw error;
       }
 
-      if (userData.user) {
-        // Assign role
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: userData.user.id,
-            role: inviteForm.role,
-          });
-
-        if (roleError) {
-          toast({
-            title: 'Error',
-            description: `User created but failed to assign role: ${roleError.message}`,
-            variant: 'destructive',
-          });
-          return;
-        }
-
-        // Send password reset email as invitation
-        const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-          inviteForm.email,
-          {
-            redirectTo: `${window.location.origin}/auth`,
-          }
-        );
-
-        if (resetError) {
-          toast({
-            title: 'Warning',
-            description: 'User created but invitation email failed to send',
-            variant: 'destructive',
-          });
-        } else {
-          toast({
-            title: 'Success',
-            description: `Invitation email sent to ${inviteForm.email}`,
-          });
-        }
-
-        setInviteForm({ email: '', fullName: '', role: 'driver' });
-        setInviteOpen(false);
-        fetchUsers();
+      if (data?.error) {
+        throw new Error(data.error);
       }
+
+      toast({
+        title: 'Success',
+        description: `Invitation email sent to ${inviteForm.email}`,
+      });
+
+      setInviteForm({ email: '', fullName: '', role: 'driver' });
+      setInviteOpen(false);
+      fetchUsers();
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -184,23 +147,59 @@ export default function UserManagement() {
   const handleRemoveUser = async (userId: string, email: string) => {
     if (!confirm(`Are you sure you want to remove ${email}?`)) return;
 
-    const { error } = await supabase.auth.admin.deleteUser(userId);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { userId },
+      });
 
-    if (error) {
+      if (error) {
+        throw error;
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      toast({
+        title: 'Success',
+        description: 'User removed successfully',
+      });
+
+      fetchUsers();
+    } catch (error: any) {
       toast({
         title: 'Error',
-        description: 'Failed to remove user',
+        description: error.message || 'Failed to remove user',
         variant: 'destructive',
       });
-      return;
     }
+  };
 
-    toast({
-      title: 'Success',
-      description: 'User removed successfully',
-    });
+  const handleResendInvitation = async (email: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('resend-invitation', {
+        body: { email },
+      });
 
-    fetchUsers();
+      if (error) {
+        throw error;
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      toast({
+        title: 'Success',
+        description: `Invitation email resent to ${email}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to resend invitation',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleEditRoles = (user: Profile) => {
@@ -427,7 +426,16 @@ export default function UserManagement() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={() => handleResendInvitation(user.email)}
+                            title="Resend invitation email"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => handleEditRoles(user)}
+                            title="Edit roles"
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -435,6 +443,7 @@ export default function UserManagement() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleRemoveUser(user.id, user.email)}
+                            title="Delete user"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
