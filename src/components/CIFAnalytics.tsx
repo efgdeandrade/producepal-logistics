@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MarketIntelligence } from './MarketIntelligence';
-import { 
+import { PricingOptimizer } from './PricingOptimizer';
+import {
   Table, 
   TableBody, 
   TableCell, 
@@ -425,11 +426,15 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
   }));
   
   return (
-    <Tabs defaultValue="analytics" className="w-full">
-      <TabsList className="grid w-full grid-cols-2">
-        <TabsTrigger value="analytics">CIF Analytics</TabsTrigger>
-        <TabsTrigger value="market">Market Intelligence</TabsTrigger>
-      </TabsList>
+      <Tabs defaultValue="analytics" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="analytics">CIF Analytics</TabsTrigger>
+          <TabsTrigger value="market">Market Intelligence</TabsTrigger>
+          <TabsTrigger value="pricing">
+            <DollarSign className="h-4 w-4 mr-2" />
+            Pricing Optimizer
+          </TabsTrigger>
+        </TabsList>
       
       <TabsContent value="analytics" className="space-y-6">
         {/* AI Advisor Card */}
@@ -698,6 +703,10 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
       
       <TabsContent value="market">
         <MarketIntelligence products={marketProducts} />
+      </TabsContent>
+
+      <TabsContent value="pricing">
+        <PricingOptimizer products={orderItems.map(item => item.product_code)} />
       </TabsContent>
     </Tabs>
   );

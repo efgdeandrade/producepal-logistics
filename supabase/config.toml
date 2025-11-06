@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.market-price-advisor]
 verify_jwt = false
+
+[functions.pricing-optimizer]
+verify_jwt = false

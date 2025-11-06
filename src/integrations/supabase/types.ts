@@ -176,6 +176,53 @@ export type Database = {
           },
         ]
       }
+      demand_patterns: {
+        Row: {
+          avg_order_quantity: number | null
+          avg_waste_rate: number | null
+          calculated_at: string | null
+          customer_id: string | null
+          id: string
+          last_order_date: string | null
+          order_frequency: number | null
+          price_sensitivity: string | null
+          product_code: string
+          total_ordered: number | null
+        }
+        Insert: {
+          avg_order_quantity?: number | null
+          avg_waste_rate?: number | null
+          calculated_at?: string | null
+          customer_id?: string | null
+          id?: string
+          last_order_date?: string | null
+          order_frequency?: number | null
+          price_sensitivity?: string | null
+          product_code: string
+          total_ordered?: number | null
+        }
+        Update: {
+          avg_order_quantity?: number | null
+          avg_waste_rate?: number | null
+          calculated_at?: string | null
+          customer_id?: string | null
+          id?: string
+          last_order_date?: string | null
+          order_frequency?: number | null
+          price_sensitivity?: string | null
+          product_code?: string
+          total_ordered?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demand_patterns_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           adjusted_total: number
@@ -404,6 +451,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      pricing_recommendations: {
+        Row: {
+          applied_at: string | null
+          applied_by: string | null
+          confidence_score: string | null
+          created_at: string | null
+          current_retail_price: number | null
+          current_wholesale_price: number
+          data_sources: Json | null
+          expected_margin_change: number | null
+          expected_profit_impact: number | null
+          id: string
+          product_code: string
+          product_name: string
+          reasoning: string
+          recommended_retail_price: number | null
+          recommended_wholesale_price: number
+          status: string | null
+        }
+        Insert: {
+          applied_at?: string | null
+          applied_by?: string | null
+          confidence_score?: string | null
+          created_at?: string | null
+          current_retail_price?: number | null
+          current_wholesale_price: number
+          data_sources?: Json | null
+          expected_margin_change?: number | null
+          expected_profit_impact?: number | null
+          id?: string
+          product_code: string
+          product_name: string
+          reasoning: string
+          recommended_retail_price?: number | null
+          recommended_wholesale_price: number
+          status?: string | null
+        }
+        Update: {
+          applied_at?: string | null
+          applied_by?: string | null
+          confidence_score?: string | null
+          created_at?: string | null
+          current_retail_price?: number | null
+          current_wholesale_price?: number
+          data_sources?: Json | null
+          expected_margin_change?: number | null
+          expected_profit_impact?: number | null
+          id?: string
+          product_code?: string
+          product_name?: string
+          reasoning?: string
+          recommended_retail_price?: number | null
+          recommended_wholesale_price?: number
+          status?: string | null
+        }
+        Relationships: []
       }
       product_price_history: {
         Row: {
