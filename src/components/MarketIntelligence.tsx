@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { TrendingUp, TrendingDown, Minus, Search, Loader2, AlertCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Search, Loader2, AlertCircle, AlertTriangle, Info } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -11,6 +12,8 @@ interface ProductAnalysis {
   productCode: string;
   productName: string;
   currentPrice: number;
+  retailPriceFound?: number;
+  calculatedWholesale?: number;
   marketLow: number;
   marketAverage: number;
   marketHigh: number;
@@ -18,7 +21,13 @@ interface ProductAnalysis {
   priceOpportunity: number;
   recommendation: string;
   confidence: 'HIGH' | 'MEDIUM' | 'LOW';
+  confidenceScore?: number;
   sources: string;
+  sourceUrl?: string;
+  importSource?: 'usa' | 'nld' | 'other' | 'mixed';
+  seasonalFactor?: 'high_season' | 'low_season';
+  supplyDemandIndex?: number;
+  conversionNote?: string;
 }
 
 interface MarketAnalysis {
@@ -88,18 +97,42 @@ export const MarketIntelligence = ({ products }: MarketIntelligenceProps) => {
     );
   };
 
-  const getConfidenceBadge = (confidence: string) => {
-    const variants = {
-      HIGH: 'default' as const,
-      MEDIUM: 'secondary' as const,
-      LOW: 'outline' as const
+  const getConfidenceBadge = (confidence: string, score?: number) => {
+    const variants: Record<string, { variant: any; icon: any }> = {
+      HIGH: { variant: 'default', icon: TrendingUp },
+      MEDIUM: { variant: 'secondary', icon: TrendingUp },
+      LOW: { variant: 'outline', icon: AlertTriangle },
     };
-    
+    const config = variants[confidence] || variants.MEDIUM;
+    const Icon = config.icon;
     return (
-      <Badge variant={variants[confidence as keyof typeof variants]} className="text-xs">
+      <Badge variant={config.variant} className="gap-1">
+        <Icon className="w-3 h-3" />
         {confidence}
+        {score !== undefined && ` (${(score * 100).toFixed(0)}%)`}
       </Badge>
     );
+  };
+
+  const getSeasonalBadge = (factor?: string) => {
+    if (!factor) return null;
+    const isHighSeason = factor === 'high_season';
+    return (
+      <Badge variant={isHighSeason ? 'default' : 'secondary'} className="gap-1 text-xs">
+        {isHighSeason ? '☀️ High Season' : '🌙 Low Season'}
+      </Badge>
+    );
+  };
+
+  const getImportSourceBadge = (source?: string) => {
+    if (!source) return null;
+    const sources: Record<string, string> = {
+      usa: '🇺🇸 USA',
+      nld: '🇳🇱 NLD',
+      other: '🌎 Other',
+      mixed: '🌐 Mixed',
+    };
+    return <Badge variant="outline" className="text-xs">{sources[source] || source}</Badge>;
   };
 
   return (
@@ -155,30 +188,33 @@ export const MarketIntelligence = ({ products }: MarketIntelligenceProps) => {
           {analysis && !loading && (
             <div className="space-y-6">
               {/* Overall Insights */}
-              <Card className="border-primary/20 bg-primary/5">
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" />
-                    Strategic Insights
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">{analysis.overallInsights}</p>
-                </CardContent>
-              </Card>
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="space-y-2">
+                    <p className="font-semibold">Market Intelligence for Curaçao</p>
+                    <p className="text-sm">{analysis.overallInsights}</p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      💡 <strong>Pricing Note:</strong> Retail prices found online are converted to wholesale estimates by dividing by 1.40 
+                      (standard 40% retail markup in Curaçao). This allows accurate wholesale-to-wholesale comparison.
+                    </p>
+                  </div>
+                </AlertDescription>
+              </Alert>
 
               {/* Price Comparison Table */}
-              <div className="rounded-md border">
+              <div className="rounded-md border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Product</TableHead>
-                      <TableHead className="text-right">Your CIF</TableHead>
-                      <TableHead className="text-right">Market Low</TableHead>
-                      <TableHead className="text-right">Market Avg</TableHead>
-                      <TableHead className="text-right">Market High</TableHead>
+                      <TableHead>Your CIF</TableHead>
+                      <TableHead>Market Retail</TableHead>
+                      <TableHead>Calc. Wholesale</TableHead>
+                      <TableHead>Market Range</TableHead>
                       <TableHead>Position</TableHead>
-                      <TableHead className="text-right">Opportunity</TableHead>
+                      <TableHead>Opportunity</TableHead>
+                      <TableHead>Source</TableHead>
                       <TableHead>Confidence</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -186,34 +222,65 @@ export const MarketIntelligence = ({ products }: MarketIntelligenceProps) => {
                     {analysis.marketAnalysis.map((item) => (
                       <TableRow key={item.productCode}>
                         <TableCell className="font-medium">
-                          <div>
-                            <div className="font-semibold">{item.productName}</div>
-                            <div className="text-xs text-muted-foreground">{item.productCode}</div>
+                          <div>{item.productName}</div>
+                          <div className="text-xs text-muted-foreground">{item.productCode}</div>
+                          <div className="flex gap-1 mt-1 flex-wrap">
+                            {getSeasonalBadge(item.seasonalFactor)}
+                            {getImportSourceBadge(item.importSource)}
                           </div>
                         </TableCell>
-                        <TableCell className="text-right font-mono">
-                          Cg {item.currentPrice.toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-green-600">
-                          Cg {item.marketLow.toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono font-semibold">
-                          Cg {item.marketAverage.toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-red-600">
-                          Cg {item.marketHigh.toFixed(2)}
+                        <TableCell>
+                          <div className="font-mono">Cg {item.currentPrice.toFixed(2)}</div>
+                          <div className="text-xs text-muted-foreground">Your CIF</div>
                         </TableCell>
                         <TableCell>
-                          {getPositionBadge(item.position)}
+                          {item.retailPriceFound ? (
+                            <>
+                              <div className="font-mono">Cg {item.retailPriceFound.toFixed(2)}</div>
+                              <div className="text-xs text-muted-foreground">Found online</div>
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">N/A</span>
+                          )}
                         </TableCell>
-                        <TableCell className="text-right">
-                          <span className={item.priceOpportunity > 0 ? 'text-green-600 font-semibold' : item.priceOpportunity < 0 ? 'text-red-600 font-semibold' : 'text-muted-foreground'}>
+                        <TableCell>
+                          {item.calculatedWholesale ? (
+                            <>
+                              <div className="font-semibold font-mono">Cg {item.calculatedWholesale.toFixed(2)}</div>
+                              <div className="text-xs text-muted-foreground">÷ 1.40</div>
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">Estimated</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-xs space-y-1">
+                            <div className="font-mono">Low: Cg {item.marketLow.toFixed(2)}</div>
+                            <div className="font-mono font-semibold">Avg: Cg {item.marketAverage.toFixed(2)}</div>
+                            <div className="font-mono">High: Cg {item.marketHigh.toFixed(2)}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>{getPositionBadge(item.position)}</TableCell>
+                        <TableCell>
+                          <span className={item.priceOpportunity > 0 ? 'text-green-600 font-semibold font-mono' : 'text-red-600 font-mono'}>
                             {item.priceOpportunity > 0 ? '+' : ''}Cg {item.priceOpportunity.toFixed(2)}
                           </span>
                         </TableCell>
                         <TableCell>
-                          {getConfidenceBadge(item.confidence)}
+                          {item.sourceUrl ? (
+                            <a 
+                              href={item.sourceUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-xs text-primary hover:underline flex items-center gap-1"
+                            >
+                              View source →
+                            </a>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">{item.sources}</span>
+                          )}
                         </TableCell>
+                        <TableCell>{getConfidenceBadge(item.confidence, item.confidenceScore)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -231,11 +298,28 @@ export const MarketIntelligence = ({ products }: MarketIntelligenceProps) => {
                   }}>
                     <CardContent className="pt-4">
                       <div className="flex items-start justify-between mb-2">
-                        <h4 className="font-semibold">{item.productName}</h4>
+                        <div>
+                          <h4 className="font-semibold">{item.productName}</h4>
+                          {item.conversionNote && (
+                            <p className="text-xs text-muted-foreground mt-1">{item.conversionNote}</p>
+                          )}
+                        </div>
                         {getPositionBadge(item.position)}
                       </div>
                       <p className="text-sm text-muted-foreground mb-2">{item.recommendation}</p>
-                      <p className="text-xs text-muted-foreground italic">Sources: {item.sources}</p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="italic">Sources: {item.sources}</span>
+                        {item.sourceUrl && (
+                          <a 
+                            href={item.sourceUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline"
+                          >
+                            View →
+                          </a>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                 ))}

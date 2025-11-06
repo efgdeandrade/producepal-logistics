@@ -291,37 +291,70 @@ export type Database = {
       }
       market_price_snapshots: {
         Row: {
+          calculated_wholesale: number | null
+          confidence_score: number | null
           created_at: string
           id: string
+          import_source_country: string | null
           market_avg: number | null
           market_high: number | null
           market_low: number | null
+          metadata: Json | null
           product_code: string
           product_name: string | null
+          region: string | null
+          retail_price_found: number | null
+          scraped_at: string | null
+          seasonal_factor: string | null
           snapshot_date: string
           source: string | null
+          source_url: string | null
+          supply_demand_index: number | null
+          wholesale_conversion_factor: number | null
         }
         Insert: {
+          calculated_wholesale?: number | null
+          confidence_score?: number | null
           created_at?: string
           id?: string
+          import_source_country?: string | null
           market_avg?: number | null
           market_high?: number | null
           market_low?: number | null
+          metadata?: Json | null
           product_code: string
           product_name?: string | null
+          region?: string | null
+          retail_price_found?: number | null
+          scraped_at?: string | null
+          seasonal_factor?: string | null
           snapshot_date?: string
           source?: string | null
+          source_url?: string | null
+          supply_demand_index?: number | null
+          wholesale_conversion_factor?: number | null
         }
         Update: {
+          calculated_wholesale?: number | null
+          confidence_score?: number | null
           created_at?: string
           id?: string
+          import_source_country?: string | null
           market_avg?: number | null
           market_high?: number | null
           market_low?: number | null
+          metadata?: Json | null
           product_code?: string
           product_name?: string | null
+          region?: string | null
+          retail_price_found?: number | null
+          scraped_at?: string | null
+          seasonal_factor?: string | null
           snapshot_date?: string
           source?: string | null
+          source_url?: string | null
+          supply_demand_index?: number | null
+          wholesale_conversion_factor?: number | null
         }
         Relationships: []
       }

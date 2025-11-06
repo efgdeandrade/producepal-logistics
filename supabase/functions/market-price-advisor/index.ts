@@ -33,40 +33,93 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
+    // Get current date for seasonal analysis
+    const currentDate = new Date().toISOString().split('T')[0];
+    const currentMonth = new Date().getMonth() + 1; // 1-12
+    const isHighSeason = currentMonth >= 11 || currentMonth <= 4; // Nov-Apr is high tourism season
+
     // Create a detailed prompt for the AI to search for market prices
     const productList = products.map(p => 
       `- ${p.productName} (${p.productCode}): Current CIF price Cg ${p.currentCIFPrice.toFixed(2)}, Quantity: ${p.quantity} units`
     ).join('\n');
 
-    const prompt = `Analyze current market prices for fresh produce in Curaçao and the Caribbean region.
+    const prompt = `Analyze REAL MARKET PRICES for fresh produce in Curaçao by researching online grocery stores.
 
-Products to analyze:
+CONTEXT:
+- Date: ${currentDate}
+- Season: ${isHighSeason ? 'HIGH SEASON (Nov-Apr: Peak tourism)' : 'LOW SEASON (May-Oct: Lower demand)'}
+- Region: Curaçao (Dutch Caribbean island, 80%+ imports)
+- Currency: ANG (Antillean Guilder, pegged at 1.79 to USD)
+
+PRODUCTS TO ANALYZE:
 ${productList}
 
-Based on typical Caribbean market conditions, import costs, and wholesale pricing patterns:
-1. Estimate realistic wholesale market price ranges (low, average, high) in Curaçao Guilders (Cg)
-2. Compare each product's current CIF price against estimated market benchmarks
-3. Identify pricing opportunities and competitive positioning
-4. Consider factors like perishability, import competition, and local demand
+CRITICAL RETAIL-TO-WHOLESALE CONVERSION:
+Most retailers in Curaçao use a 40% markup (multiply by 1.40) on wholesale prices.
+THEREFORE: To estimate wholesale prices from retail prices found online, DIVIDE by 1.40
+Example: If retail price = Cg 2.80, then wholesale = 2.80 ÷ 1.40 = Cg 2.00
+
+RESEARCH THESE CURAÇAO GROCERY STORES (search for similar products):
+1. https://ewtcuracao.cw/ (EWT Supermarket)
+2. https://www.vdtcuracao.com/ (VDT Supermarket)
+3. https://www.mangusahypermarket.com (Mangusa Hypermarket)
+4. https://goisco.com/ (GoISCO)
+5. https://www.pietersz.com/products (Pietersz)
+6. https://www.deli-nova.com/shop (Deli Nova)
+7. https://www.fayadsfruits.com (Fayads Fruits)
+8. https://www.numbeo.com/food-prices/country_result.jsp?country=Curacao (Price index)
+9. https://fundashonpakonsumido.cw/ (Consumer foundation)
+
+SUPPLY & DEMAND FACTORS TO CONSIDER:
+- Import routes: USA (East Coast), Netherlands, Caribbean neighbors
+- Shipping costs and frequency (affects supply)
+- Current season impact on demand (tourism drives demand)
+- Perishability and cold chain logistics
+- Competition level among suppliers
+- Import duties and port logistics costs
+
+IMPORT SOURCE ANALYSIS:
+- Products from USA: Consider current US market trends and freight costs
+- Products from Netherlands: Consider EUR/USD rates and European supply
+- Seasonal availability affects pricing (e.g., strawberries, tomatoes)
+
+YOUR TASK:
+1. Search online grocery stores for each product
+2. Find RETAIL prices from grocery websites
+3. Calculate WHOLESALE prices by dividing retail by 1.40
+4. Compare calculated wholesale with the current CIF prices
+5. Determine market position (UNDERPRICED/COMPETITIVE/OVERPRICED)
+6. Provide realistic price ranges based on found data
+7. Include seasonal and import source insights
 
 Return ONLY valid JSON in this exact format (no other text):
 {
   "marketAnalysis": [
     {
       "productCode": "string",
-      "productName": "string", 
+      "productName": "string",
       "currentPrice": number,
+      "retailPriceFound": number,
+      "calculatedWholesale": number,
       "marketLow": number,
       "marketAverage": number,
       "marketHigh": number,
       "position": "UNDERPRICED" | "COMPETITIVE" | "OVERPRICED",
       "priceOpportunity": number,
       "recommendation": "string",
-      "confidence": "MEDIUM",
-      "sources": "Market estimates based on Caribbean wholesale pricing patterns"
+      "confidence": "HIGH" | "MEDIUM" | "LOW",
+      "confidenceScore": number,
+      "sources": "string",
+      "sourceUrl": "string",
+      "importSource": "usa" | "nld" | "other" | "mixed",
+      "seasonalFactor": "high_season" | "low_season",
+      "supplyDemandIndex": number,
+      "conversionNote": "Retail Cg X.XX ÷ 1.40 = Wholesale Cg Y.YY"
     }
   ],
-  "overallInsights": "string"
+  "overallInsights": "string",
+  "dataQuality": "HIGH" | "MEDIUM" | "LOW",
+  "researchSummary": "string"
 }`;
 
     // Call Lovable AI to generate market analysis
@@ -77,11 +130,11 @@ Return ONLY valid JSON in this exact format (no other text):
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemini-2.5-pro',
         messages: [
           {
             role: 'system',
-            content: 'You are a market pricing expert for Caribbean fresh produce wholesale markets. Provide realistic price estimates based on typical import costs, logistics, and local market conditions. Always return valid JSON only.'
+            content: 'You are a market pricing expert specializing in Curaçao fresh produce wholesale markets. Research actual retail prices from online grocery stores, then convert to wholesale using the 1.40 markup factor (retail ÷ 1.40 = wholesale). Consider import dependencies (USA/NLD), seasonal factors (tourism seasons), supply chain logistics, and local competition. Always return valid JSON only with real data from your web research.'
           },
           {
             role: 'user',
@@ -89,7 +142,7 @@ Return ONLY valid JSON in this exact format (no other text):
           }
         ],
         response_format: { type: "json_object" },
-        temperature: 0.7,
+        temperature: 0.3,
       }),
     });
 
@@ -157,6 +210,22 @@ Return ONLY valid JSON in this exact format (no other text):
       market_low: item.marketLow,
       market_high: item.marketHigh,
       source: item.sources,
+      retail_price_found: item.retailPriceFound,
+      wholesale_conversion_factor: 1.40,
+      calculated_wholesale: item.calculatedWholesale,
+      region: 'curacao',
+      source_url: item.sourceUrl,
+      import_source_country: item.importSource,
+      seasonal_factor: item.seasonalFactor,
+      supply_demand_index: item.supplyDemandIndex,
+      confidence_score: item.confidenceScore,
+      scraped_at: new Date().toISOString(),
+      metadata: {
+        conversion_note: item.conversionNote,
+        research_summary: analysis.researchSummary,
+        data_quality: analysis.dataQuality,
+        confidence: item.confidence,
+      },
     }));
 
     const { error: dbError } = await supabase
