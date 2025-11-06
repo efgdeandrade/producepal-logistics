@@ -38,44 +38,38 @@ serve(async (req) => {
       `- ${p.productName} (${p.productCode}): Current CIF price Cg ${p.currentCIFPrice.toFixed(2)}, Quantity: ${p.quantity} units`
     ).join('\n');
 
-    const prompt = `You are a market intelligence analyst for fresh produce in Curaçao and the Caribbean region.
+    const prompt = `Analyze current market prices for fresh produce in Curaçao and the Caribbean region.
 
-Analyze current market prices for the following products:
+Products to analyze:
 ${productList}
 
-For each product:
-1. Search for current wholesale and retail market prices in the Caribbean region (especially Curaçao, Aruba, and nearby islands)
-2. Find competitor pricing for similar products
-3. Identify typical price ranges (low, average, high)
-4. Consider seasonal factors and current market trends
+Based on typical Caribbean market conditions, import costs, and wholesale pricing patterns:
+1. Estimate realistic wholesale market price ranges (low, average, high) in Curaçao Guilders (Cg)
+2. Compare each product's current CIF price against estimated market benchmarks
+3. Identify pricing opportunities and competitive positioning
+4. Consider factors like perishability, import competition, and local demand
 
-Return a structured analysis in this EXACT JSON format:
+Return ONLY valid JSON in this exact format (no other text):
 {
   "marketAnalysis": [
     {
-      "productCode": "product code",
-      "productName": "product name", 
+      "productCode": "string",
+      "productName": "string", 
       "currentPrice": number,
       "marketLow": number,
       "marketAverage": number,
       "marketHigh": number,
       "position": "UNDERPRICED" | "COMPETITIVE" | "OVERPRICED",
-      "priceOpportunity": number (positive = can increase, negative = should decrease),
-      "recommendation": "detailed recommendation string",
-      "confidence": "HIGH" | "MEDIUM" | "LOW",
-      "sources": "brief description of price sources found"
+      "priceOpportunity": number,
+      "recommendation": "string",
+      "confidence": "MEDIUM",
+      "sources": "Market estimates based on Caribbean wholesale pricing patterns"
     }
   ],
-  "overallInsights": "key market insights and strategic recommendations"
-}
+  "overallInsights": "string"
+}`;
 
-Important:
-- All prices should be in Curaçao Guilders (Cg)
-- Focus on wholesale prices since these are CIF calculations
-- Be realistic about Caribbean market conditions
-- Consider import costs and local competition`;
-
-    // Call Lovable AI with web search capabilities
+    // Call Lovable AI to generate market analysis
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -87,14 +81,15 @@ Important:
         messages: [
           {
             role: 'system',
-            content: 'You are a market intelligence expert specializing in fresh produce pricing in the Caribbean. Use web search to find current market prices and provide accurate, data-driven analysis.'
+            content: 'You are a market pricing expert for Caribbean fresh produce wholesale markets. Provide realistic price estimates based on typical import costs, logistics, and local market conditions. Always return valid JSON only.'
           },
           {
             role: 'user',
             content: prompt
           }
         ],
-        temperature: 0.3,
+        response_format: { type: "json_object" },
+        temperature: 0.7,
       }),
     });
 
@@ -128,18 +123,25 @@ Important:
 
     console.log('AI Response:', aiMessage);
 
-    // Parse the AI response - it should be JSON
+    // Parse the AI response
     let analysis;
     try {
-      // Try to extract JSON from the response
-      const jsonMatch = aiMessage.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        analysis = JSON.parse(jsonMatch[0]);
-      } else {
-        analysis = JSON.parse(aiMessage);
+      // Clean the response - remove markdown code blocks if present
+      let cleanedMessage = aiMessage.trim();
+      
+      // Remove markdown code fences
+      cleanedMessage = cleanedMessage.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+      
+      // Try to parse as JSON
+      analysis = JSON.parse(cleanedMessage);
+      
+      // Validate the structure
+      if (!analysis.marketAnalysis || !Array.isArray(analysis.marketAnalysis)) {
+        throw new Error('Invalid analysis structure');
       }
     } catch (parseError) {
       console.error('Failed to parse AI response:', parseError);
+      console.error('Raw AI message:', aiMessage);
       throw new Error('Invalid AI response format');
     }
 
