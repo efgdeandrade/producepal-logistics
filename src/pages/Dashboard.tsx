@@ -45,7 +45,7 @@ const Dashboard = () => {
             quantity
           )
         `)
-        .eq('status', 'completed');
+        .eq('status', 'active');
 
       if (!orders) return;
 
