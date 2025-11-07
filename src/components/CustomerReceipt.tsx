@@ -22,6 +22,7 @@ interface Props {
   orderItems: OrderItem[];
   customerName: string;
   format: 'a4' | 'receipt';
+  receiptNumber?: string;
 }
 
 interface Product {
@@ -36,7 +37,7 @@ interface Customer {
   name: string;
 }
 
-export const CustomerReceipt = ({ order, orderItems, customerName, format }: Props) => {
+export const CustomerReceipt = ({ order, orderItems, customerName, format, receiptNumber }: Props) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [companyInfo, setCompanyInfo] = useState<any>(null);
@@ -124,7 +125,7 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format }: Pro
       <div className="border-b-2 border-black pb-4 mb-4">
         <h1 className={`${format === 'receipt' ? 'text-lg' : 'text-2xl'} font-bold text-center`}>RECEIPT</h1>
         <div className={`${textSize} mt-2`}>
-          <p><strong>Receipt #:</strong> {order.order_number}-{customerName.replace(/\s+/g, '-').substring(0, 10)}</p>
+          <p><strong>Receipt #:</strong> {receiptNumber || `${order.order_number}-${customerName.replace(/\s+/g, '-').substring(0, 10)}`}</p>
           <p><strong>Date:</strong> {new Date().toLocaleDateString()}</p>
           <p><strong>Order #:</strong> {order.order_number}</p>
         </div>

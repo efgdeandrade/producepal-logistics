@@ -103,3 +103,10 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Print styles for page breaks */
+@media print {
+  .print\:page-break-after-always {
+    page-break-after: always;
+  }
+}

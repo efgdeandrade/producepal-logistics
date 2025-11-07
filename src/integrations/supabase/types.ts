@@ -1114,6 +1114,63 @@ export type Database = {
           },
         ]
       }
+      receipt_numbers: {
+        Row: {
+          amount: number
+          created_at: string
+          customer_id: string | null
+          customer_name: string
+          delivery_date: string
+          generated_at: string
+          generated_by: string | null
+          id: string
+          order_id: string
+          order_number: string
+          receipt_number: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          customer_id?: string | null
+          customer_name: string
+          delivery_date: string
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          order_id: string
+          order_number: string
+          receipt_number: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          customer_id?: string | null
+          customer_name?: string
+          delivery_date?: string
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          order_id?: string
+          order_number?: string
+          receipt_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipt_numbers_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipt_numbers_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       role_permissions: {
         Row: {
           can_create: boolean
@@ -1548,6 +1605,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_receipt_number: { Args: never; Returns: string }
       get_user_roles: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"][]

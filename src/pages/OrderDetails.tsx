@@ -22,6 +22,13 @@ import { CustomerReceipt } from '@/components/CustomerReceipt';
 import { OrderCIFTable } from '@/components/OrderCIFTable';
 import { CIFAnalytics } from '@/components/CIFAnalytics';
 import html2pdf from 'html2pdf.js';
+import { 
+  generateReceiptNumber, 
+  saveReceiptRecord, 
+  generateMultipleReceiptsPDF,
+  downloadBlob,
+  ReceiptData 
+} from '@/utils/receiptGenerator';
 
 interface OrderItem {
   id: string;
@@ -55,6 +62,8 @@ const OrderDetails = () => {
   const [showReceiptCustomerDialog, setShowReceiptCustomerDialog] = useState(false);
   const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
   const [recommendedCIFMethod, setRecommendedCIFMethod] = useState<string>('');
+  const [receiptNumbers, setReceiptNumbers] = useState<Record<string, string>>({});
+  const [generatingPDF, setGeneratingPDF] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -148,6 +157,58 @@ const OrderDetails = () => {
     const { type, action: originalAction } = pendingAction;
     const action = actionOverride || originalAction;
 
+    // Generate receipt numbers for receipts if needed
+    if (type === 'receipt' && (action === 'print' || action === 'download')) {
+      try {
+        const numbers: Record<string, string> = {};
+        
+        // Generate receipt numbers for selected customers
+        for (const customerName of selectedCustomers) {
+          const receiptNumber = await generateReceiptNumber();
+          numbers[customerName] = receiptNumber;
+          
+          // Calculate customer total
+          const customerItems = orderItems.filter(item => item.customer_name === customerName);
+          const { data: productsData } = await supabase
+            .from('products')
+            .select('code, pack_size, wholesale_price_xcg_per_unit')
+            .in('code', customerItems.map(item => item.product_code));
+          
+          const amount = customerItems.reduce((sum, item) => {
+            const product = productsData?.find(p => p.code === item.product_code);
+            if (!product || !product.wholesale_price_xcg_per_unit) return sum;
+            const units = item.quantity * product.pack_size;
+            return sum + (units * product.wholesale_price_xcg_per_unit);
+          }, 0);
+          
+          // Get customer ID
+          const { data: customerData } = await supabase
+            .from('customers')
+            .select('id')
+            .eq('name', customerName)
+            .maybeSingle();
+          
+          // Save receipt record
+          await saveReceiptRecord({
+            receiptNumber,
+            customerName,
+            customerId: customerData?.id,
+            orderId: order!.id,
+            orderNumber: order!.order_number,
+            amount,
+            deliveryDate: order!.delivery_date
+          });
+        }
+        
+        setReceiptNumbers(numbers);
+        toast.success(`Generated ${selectedCustomers.length} receipt number${selectedCustomers.length !== 1 ? 's' : ''}`);
+      } catch (error) {
+        console.error('Error generating receipt numbers:', error);
+        toast.error('Failed to generate receipt numbers');
+        return;
+      }
+    }
+
     // Always show preview first for print and download
     if (action === 'print' || action === 'download') {
       setViewDialog(type);
@@ -170,7 +231,68 @@ const OrderDetails = () => {
   };
 
   const handleDownloadFromPreview = async () => {
-    if (printRef.current && order) {
+    if (!printRef.current || !order) return;
+    
+    // Handle receipts with multiple customers differently
+    if (viewDialog === 'receipt' && selectedCustomers.length > 1) {
+      setGeneratingPDF(true);
+      
+      try {
+        // Create receipt data array
+        const receipts = selectedCustomers.map((customerName) => {
+          const receiptNumber = receiptNumbers[customerName];
+          const customerItems = orderItems.filter(item => item.customer_name === customerName);
+          
+          // Calculate amount
+          const amount = customerItems.reduce((sum, item) => {
+            // We'll need to fetch product info for accurate pricing
+            return sum; // Placeholder - will be calculated in receipt component
+          }, 0);
+          
+          // Find the div for this customer
+          const receiptDiv = printRef.current!.querySelector(`[data-customer="${customerName}"]`) as HTMLElement;
+          
+          return {
+            element: receiptDiv,
+            receiptNumber: receiptNumber || `${order.order_number}-${customerName.replace(/\s+/g, '-')}`,
+            customerName
+          };
+        }).filter(r => r.element); // Filter out any that don't have elements
+        
+        if (receipts.length === 0) {
+          throw new Error('No receipt elements found');
+        }
+        
+        // Generate ZIP with all PDFs
+        const zipBlob = await generateMultipleReceiptsPDF(
+          receipts,
+          printFormat,
+          order.order_number,
+          (current, total) => {
+            toast.loading(`Generating receipt ${current} of ${total}...`, { id: 'receipt-progress' });
+          }
+        );
+        
+        // Dismiss progress toast
+        toast.dismiss('receipt-progress');
+        
+        // Download ZIP file
+        const zipFilename = `Receipts-${order.order_number}.zip`;
+        downloadBlob(zipBlob, zipFilename);
+        
+        toast.success(`Downloaded ${receipts.length} receipts in ZIP file`);
+        setViewDialog(null);
+        setPendingAction(null);
+        setSelectedCustomers([]);
+        setReceiptNumbers({});
+      } catch (error) {
+        console.error('Error generating PDFs:', error);
+        toast.error('Failed to generate PDFs');
+      } finally {
+        setGeneratingPDF(false);
+      }
+    } else {
+      // Single document download (packing slip, supplier list, roundup, or single receipt)
       const opt = {
         margin: printFormat === 'receipt' ? 0.2 : 0.5,
         filename: `${viewDialog}-${order.order_number}.pdf`,
@@ -189,6 +311,7 @@ const OrderDetails = () => {
         setViewDialog(null);
         setPendingAction(null);
         setSelectedCustomers([]);
+        setReceiptNumbers({});
       } catch (error) {
         console.error('Error generating PDF:', error);
         toast.error('Failed to generate PDF');
@@ -568,9 +691,9 @@ const OrderDetails = () => {
                     </Button>
                   )}
                   {pendingAction.action === 'download' && (
-                    <Button onClick={handleDownloadFromPreview} size="sm">
+                    <Button onClick={handleDownloadFromPreview} size="sm" disabled={generatingPDF}>
                       <Download className="mr-2 h-4 w-4" />
-                      Download PDF
+                      {generatingPDF ? 'Generating...' : 'Download PDF'}
                     </Button>
                   )}
                 </div>
@@ -601,14 +724,20 @@ const OrderDetails = () => {
             )}
             {viewDialog === 'receipt' && order && (
               <div className="space-y-8">
-                {selectedCustomers.map((customerName) => (
-                  <CustomerReceipt
+                {selectedCustomers.map((customerName, index) => (
+                  <div 
                     key={customerName}
-                    order={order}
-                    orderItems={orderItems}
-                    customerName={customerName}
-                    format={printFormat}
-                  />
+                    data-customer={customerName}
+                    className={index < selectedCustomers.length - 1 ? 'print:page-break-after-always' : ''}
+                  >
+                    <CustomerReceipt
+                      order={order}
+                      orderItems={orderItems}
+                      customerName={customerName}
+                      format={printFormat}
+                      receiptNumber={receiptNumbers[customerName]}
+                    />
+                  </div>
                 ))}
               </div>
             )}
