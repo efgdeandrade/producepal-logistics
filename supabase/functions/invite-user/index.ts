@@ -25,8 +25,8 @@ serve(async (req) => {
 
     const { email, fullName, role } = await req.json();
 
-    // Create user with admin API
-    const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
+    // Try to create user with admin API
+    let userData = await supabaseAdmin.auth.admin.createUser({
       email,
       email_confirm: true,
       user_metadata: {
@@ -34,11 +34,53 @@ serve(async (req) => {
       },
     });
 
-    if (createError) {
-      throw createError;
+    // If user already exists (soft-deleted), hard delete them first and retry
+    if (userData.error && userData.error.message.includes('already been registered')) {
+      console.log(`User with email ${email} already exists (likely soft-deleted). Attempting hard delete...`);
+      
+      // List all users and find the one with this email
+      const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+      
+      if (listError) {
+        console.error("Error listing users:", listError);
+        throw new Error(`Failed to check existing users: ${listError.message}`);
+      }
+
+      const existingUser = users.find(u => u.email === email);
+      
+      if (existingUser) {
+        console.log(`Found existing user ${existingUser.id}, performing hard delete...`);
+        
+        // Hard delete the existing user (second parameter: false = hard delete)
+        const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(existingUser.id, false);
+        
+        if (deleteError) {
+          console.error("Error hard deleting existing user:", deleteError);
+          throw new Error(`Failed to remove existing user: ${deleteError.message}`);
+        }
+        
+        console.log(`Successfully hard deleted user ${existingUser.id}. Retrying creation...`);
+        
+        // Retry creating the user
+        userData = await supabaseAdmin.auth.admin.createUser({
+          email,
+          email_confirm: true,
+          user_metadata: {
+            full_name: fullName,
+          },
+        });
+        
+        if (userData.error) {
+          throw userData.error;
+        }
+      } else {
+        throw new Error(`User with email ${email} is registered but could not be found for cleanup`);
+      }
+    } else if (userData.error) {
+      throw userData.error;
     }
 
-    if (!userData.user) {
+    if (!userData.data?.user) {
       throw new Error("Failed to create user");
     }
 
@@ -46,7 +88,7 @@ serve(async (req) => {
     const { error: roleError } = await supabaseAdmin
       .from("user_roles")
       .insert({
-        user_id: userData.user.id,
+        user_id: userData.data.user.id,
         role: role,
       });
 
@@ -128,7 +170,7 @@ serve(async (req) => {
     console.log(`Invitation email sent successfully to ${email}:`, emailData);
 
     return new Response(
-      JSON.stringify({ success: true, userId: userData.user.id }),
+      JSON.stringify({ success: true, userId: userData.data.user.id }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
