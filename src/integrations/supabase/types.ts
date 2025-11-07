@@ -14,6 +14,160 @@ export type Database = {
   }
   public: {
     Tables: {
+      bill_approvals: {
+        Row: {
+          approved_at: string | null
+          approver_id: string
+          approver_role: string
+          bill_id: string
+          comments: string | null
+          created_at: string
+          id: string
+          signature_url: string | null
+          status: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approver_id: string
+          approver_role: string
+          bill_id: string
+          comments?: string | null
+          created_at?: string
+          id?: string
+          signature_url?: string | null
+          status?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approver_id?: string
+          approver_role?: string
+          bill_id?: string
+          comments?: string | null
+          created_at?: string
+          id?: string
+          signature_url?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bill_approvals_bill_id_fkey"
+            columns: ["bill_id"]
+            isOneToOne: false
+            referencedRelation: "bills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bill_line_items: {
+        Row: {
+          account_code: string | null
+          amount: number
+          bill_id: string
+          created_at: string
+          description: string
+          id: string
+          product_id: string | null
+        }
+        Insert: {
+          account_code?: string | null
+          amount: number
+          bill_id: string
+          created_at?: string
+          description: string
+          id?: string
+          product_id?: string | null
+        }
+        Update: {
+          account_code?: string | null
+          amount?: number
+          bill_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          product_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bill_line_items_bill_id_fkey"
+            columns: ["bill_id"]
+            isOneToOne: false
+            referencedRelation: "bills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bill_line_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bills: {
+        Row: {
+          amount: number
+          bill_date: string
+          bill_number: string
+          created_at: string
+          currency: string
+          due_date: string | null
+          google_drive_file_id: string | null
+          google_drive_url: string | null
+          id: string
+          notes: string | null
+          ocr_data: Json | null
+          pdf_url: string | null
+          status: string
+          updated_at: string
+          vendor_id: string | null
+          vendor_name: string
+        }
+        Insert: {
+          amount: number
+          bill_date: string
+          bill_number: string
+          created_at?: string
+          currency?: string
+          due_date?: string | null
+          google_drive_file_id?: string | null
+          google_drive_url?: string | null
+          id?: string
+          notes?: string | null
+          ocr_data?: Json | null
+          pdf_url?: string | null
+          status?: string
+          updated_at?: string
+          vendor_id?: string | null
+          vendor_name: string
+        }
+        Update: {
+          amount?: number
+          bill_date?: string
+          bill_number?: string
+          created_at?: string
+          currency?: string
+          due_date?: string | null
+          google_drive_file_id?: string | null
+          google_drive_url?: string | null
+          id?: string
+          notes?: string | null
+          ocr_data?: Json | null
+          pdf_url?: string | null
+          status?: string
+          updated_at?: string
+          vendor_id?: string | null
+          vendor_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bills_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cif_allocation_decisions: {
         Row: {
           actual_profit_xcg: number | null
@@ -915,6 +1069,50 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      quickbooks_sync_log: {
+        Row: {
+          bill_id: string
+          created_at: string
+          error_message: string | null
+          id: string
+          payment_date: string | null
+          payment_status: string | null
+          quickbooks_bill_id: string | null
+          sync_date: string | null
+          sync_status: string
+        }
+        Insert: {
+          bill_id: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          payment_date?: string | null
+          payment_status?: string | null
+          quickbooks_bill_id?: string | null
+          sync_date?: string | null
+          sync_status?: string
+        }
+        Update: {
+          bill_id?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          payment_date?: string | null
+          payment_status?: string | null
+          quickbooks_bill_id?: string | null
+          sync_date?: string | null
+          sync_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quickbooks_sync_log_bill_id_fkey"
+            columns: ["bill_id"]
+            isOneToOne: false
+            referencedRelation: "bills"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       role_permissions: {
         Row: {
