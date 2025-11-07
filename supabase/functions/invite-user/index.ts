@@ -26,7 +26,7 @@ serve(async (req) => {
     const { email, fullName, role } = await req.json();
 
     // Try to create user with admin API
-    let userData = await supabaseAdmin.auth.admin.createUser({
+    let createResult = await supabaseAdmin.auth.admin.createUser({
       email,
       email_confirm: true,
       user_metadata: {
@@ -35,7 +35,7 @@ serve(async (req) => {
     });
 
     // If user already exists (soft-deleted), hard delete them first and retry
-    if (userData.error && userData.error.message.includes('already been registered')) {
+    if (createResult.error && createResult.error.message.includes('already been registered')) {
       console.log(`User with email ${email} already exists (likely soft-deleted). Attempting hard delete...`);
       
       // List all users and find the one with this email
@@ -62,7 +62,7 @@ serve(async (req) => {
         console.log(`Successfully hard deleted user ${existingUser.id}. Retrying creation...`);
         
         // Retry creating the user
-        userData = await supabaseAdmin.auth.admin.createUser({
+        createResult = await supabaseAdmin.auth.admin.createUser({
           email,
           email_confirm: true,
           user_metadata: {
@@ -70,25 +70,29 @@ serve(async (req) => {
           },
         });
         
-        if (userData.error) {
-          throw userData.error;
-        }
+        console.log(`User creation retry result:`, { hasUser: !!createResult.data?.user, hasError: !!createResult.error });
       } else {
         throw new Error(`User with email ${email} is registered but could not be found for cleanup`);
       }
-    } else if (userData.error) {
-      throw userData.error;
+    }
+    
+    if (createResult.error) {
+      console.error("Final creation error:", createResult.error);
+      throw createResult.error;
     }
 
-    if (!userData.data?.user) {
-      throw new Error("Failed to create user");
+    if (!createResult.data?.user) {
+      console.error("No user in response despite no error:", createResult);
+      throw new Error("Failed to create user - no user data returned");
     }
+
+    const userData = createResult.data.user;
 
     // Assign role
     const { error: roleError } = await supabaseAdmin
       .from("user_roles")
       .insert({
-        user_id: userData.data.user.id,
+        user_id: userData.id,
         role: role,
       });
 
@@ -170,7 +174,7 @@ serve(async (req) => {
     console.log(`Invitation email sent successfully to ${email}:`, emailData);
 
     return new Response(
-      JSON.stringify({ success: true, userId: userData.data.user.id }),
+      JSON.stringify({ success: true, userId: userData.id }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
