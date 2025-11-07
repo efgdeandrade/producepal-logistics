@@ -26,6 +26,7 @@ import {
   generateReceiptNumber, 
   saveReceiptRecord, 
   generateMultipleReceiptsPDF,
+  generateMultipleSupplierOrdersPDF,
   downloadBlob,
   ReceiptData 
 } from '@/utils/receiptGenerator';
@@ -288,6 +289,68 @@ const OrderDetails = () => {
       } catch (error) {
         console.error('Error generating PDFs:', error);
         toast.error('Failed to generate PDFs');
+      } finally {
+        setGeneratingPDF(false);
+      }
+    } else if (viewDialog === 'supplier') {
+      // Handle supplier orders with multiple suppliers
+      setGeneratingPDF(true);
+      
+      try {
+        // Find all supplier divs
+        const supplierDivs = printRef.current.querySelectorAll('[data-supplier]');
+        
+        if (supplierDivs.length > 1) {
+          // Multiple suppliers - create ZIP
+          const suppliers = Array.from(supplierDivs).map((div) => {
+            const supplierName = div.getAttribute('data-supplier') || 'Unknown';
+            return {
+              element: div as HTMLElement,
+              supplierName
+            };
+          });
+          
+          // Generate ZIP with all PDFs
+          const zipBlob = await generateMultipleSupplierOrdersPDF(
+            suppliers,
+            printFormat,
+            order.order_number,
+            (current, total) => {
+              toast.loading(`Generating supplier order ${current} of ${total}...`, { id: 'supplier-progress' });
+            }
+          );
+          
+          // Dismiss progress toast
+          toast.dismiss('supplier-progress');
+          
+          // Download ZIP file
+          const zipFilename = `Supplier-Orders-${order.order_number}.zip`;
+          downloadBlob(zipBlob, zipFilename);
+          
+          toast.success(`Downloaded ${suppliers.length} supplier orders in ZIP file`);
+        } else {
+          // Single supplier - download as single PDF
+          const opt = {
+            margin: printFormat === 'receipt' ? 0.2 : 0.5,
+            filename: `Supplier-${order.order_number}.pdf`,
+            image: { type: 'jpeg' as const, quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { 
+              unit: 'in', 
+              format: printFormat === 'receipt' ? [3.15, 11] as [number, number] : 'a4',
+              orientation: 'portrait' as const
+            }
+          };
+          
+          await html2pdf().set(opt).from(printRef.current).save();
+          toast.success('PDF downloaded successfully');
+        }
+        
+        setViewDialog(null);
+        setPendingAction(null);
+      } catch (error) {
+        console.error('Error generating supplier PDFs:', error);
+        toast.error('Failed to generate supplier PDFs');
       } finally {
         setGeneratingPDF(false);
       }

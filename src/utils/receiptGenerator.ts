@@ -116,6 +116,43 @@ export const generateMultipleReceiptsPDF = async (
 };
 
 /**
+ * Generates multiple supplier order PDFs and packages them in a ZIP file
+ */
+export const generateMultipleSupplierOrdersPDF = async (
+  suppliers: Array<{
+    element: HTMLElement;
+    supplierName: string;
+  }>,
+  format: 'a4' | 'receipt' = 'a4',
+  orderNumber: string,
+  onProgress?: (current: number, total: number) => void
+): Promise<Blob> => {
+  const zip = new JSZip();
+  
+  for (let i = 0; i < suppliers.length; i++) {
+    const supplier = suppliers[i];
+    
+    // Notify progress
+    if (onProgress) {
+      onProgress(i + 1, suppliers.length);
+    }
+    
+    // Clean supplier name for filename
+    const cleanSupplierName = supplier.supplierName.replace(/[^a-zA-Z0-9]/g, '-');
+    const filename = `Supplier-${orderNumber}-${cleanSupplierName}.pdf`;
+    
+    // Generate PDF blob
+    const pdfBlob = await generateReceiptPDF(supplier.element, filename, format);
+    
+    // Add to ZIP
+    zip.file(filename, pdfBlob);
+  }
+  
+  // Generate ZIP file
+  return await zip.generateAsync({ type: 'blob' });
+};
+
+/**
  * Downloads a blob as a file
  */
 export const downloadBlob = (blob: Blob, filename: string): void => {

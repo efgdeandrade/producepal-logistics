@@ -97,7 +97,7 @@ export const SupplierOrderList = ({ order, orderItems, format }: Props) => {
         }, {} as Record<string, number>);
 
         return (
-          <div key={supplierName} className={`${containerClass} mx-auto bg-white text-black p-6 page-break`}>
+          <div key={supplierName} data-supplier={supplierName} className={`${containerClass} mx-auto bg-white text-black p-6 page-break`}>
             <div className="border-b-2 border-black pb-4 mb-4">
               <h1 className={`${format === 'receipt' ? 'text-lg' : 'text-2xl'} font-bold`}>SUPPLIER ORDER</h1>
               <div className={`${textSize} mt-2`}>
