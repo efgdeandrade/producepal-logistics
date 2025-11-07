@@ -81,7 +81,7 @@ export const Header = () => {
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuItem asChild>
-                  <Link to="/new-order">
+                  <Link to="/order/new">
                     <PlusCircle className="mr-2 h-4 w-4" />
                     New Order
                   </Link>

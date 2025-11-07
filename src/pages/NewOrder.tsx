@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Trash2, Save, Printer, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { getWeek } from 'date-fns';
 
@@ -44,6 +44,8 @@ interface CustomerOrderItem {
 const NewOrder = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { orderId } = useParams<{ orderId: string }>();
+  const isEditMode = !!orderId;
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([]);
@@ -53,9 +55,11 @@ const NewOrder = () => {
   const [placedBy, setPlacedBy] = useState('');
   const [customerOrders, setCustomerOrders] = useState<CustomerOrderItem[]>([]);
   const [showPrintOptions, setShowPrintOptions] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       const [customersRes, productsRes, suppliersRes] = await Promise.all([
         supabase.from('customers').select('id, name').order('name'),
         supabase.from('products').select('id, code, name, pack_size, supplier_id').order('name'),
@@ -64,24 +68,94 @@ const NewOrder = () => {
       
       if (customersRes.error) {
         toast({ title: 'Error', description: 'Failed to load customers', variant: 'destructive' });
+        setLoading(false);
         return;
       }
       if (productsRes.error) {
         toast({ title: 'Error', description: 'Failed to load products', variant: 'destructive' });
+        setLoading(false);
         return;
       }
       if (suppliersRes.error) {
         toast({ title: 'Error', description: 'Failed to load suppliers', variant: 'destructive' });
+        setLoading(false);
         return;
       }
       
       setCustomers(customersRes.data || []);
       setProducts(productsRes.data || []);
       setSuppliers(suppliersRes.data || []);
+      
+      // If in edit mode, fetch existing order data
+      if (isEditMode && orderId) {
+        const { data: order, error: orderError } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('id', orderId)
+          .single();
+          
+        if (orderError) {
+          toast({ title: 'Error', description: 'Failed to load order', variant: 'destructive' });
+          navigate('/history');
+          return;
+        }
+        
+        const { data: orderItems, error: itemsError } = await supabase
+          .from('order_items')
+          .select('*')
+          .eq('order_id', orderId);
+          
+        if (itemsError) {
+          toast({ title: 'Error', description: 'Failed to load order items', variant: 'destructive' });
+          setLoading(false);
+          return;
+        }
+        
+        // Populate form with existing order data
+        setWeekNumber(order.week_number);
+        setDeliveryDate(order.delivery_date);
+        setPlacedBy(order.placed_by);
+        
+        // Group order items by customer
+        const customerMap = new Map<string, CustomerOrderItem>();
+        
+        orderItems?.forEach((item) => {
+          const existingCustomer = customerMap.get(item.customer_name);
+          const product = productsRes.data?.find(p => p.code === item.product_code);
+          
+          if (!product) return;
+          
+          const orderProduct: OrderProduct = {
+            id: Date.now().toString() + Math.random(),
+            productId: product.id,
+            productCode: product.code,
+            productName: product.name,
+            packSize: product.pack_size,
+            trays: item.quantity,
+            units: item.quantity * product.pack_size,
+          };
+          
+          if (existingCustomer) {
+            existingCustomer.products.push(orderProduct);
+          } else {
+            const customer = customersRes.data?.find(c => c.name === item.customer_name);
+            customerMap.set(item.customer_name, {
+              id: Date.now().toString() + Math.random(),
+              customerId: customer?.id || '',
+              customerName: item.customer_name,
+              products: [orderProduct],
+            });
+          }
+        });
+        
+        setCustomerOrders(Array.from(customerMap.values()));
+      }
+      
+      setLoading(false);
     };
     
     fetchData();
-  }, []);
+  }, [orderId, isEditMode]);
 
   const addCustomer = () => {
     setCustomerOrders([
@@ -235,41 +309,83 @@ const NewOrder = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
-      // Create order
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          order_number: `ORD-${Date.now()}`,
-          week_number: weekNumber,
-          delivery_date: deliveryDate,
-          placed_by: placedBy,
-          user_id: user?.id,
-          status: 'active',
-        })
-        .select()
-        .single();
+      if (isEditMode && orderId) {
+        // Update existing order
+        const { error: orderError } = await supabase
+          .from('orders')
+          .update({
+            week_number: weekNumber,
+            delivery_date: deliveryDate,
+            placed_by: placedBy,
+          })
+          .eq('id', orderId);
 
-      if (orderError) throw orderError;
+        if (orderError) throw orderError;
 
-      // Create order items
-      const orderItems = customerOrders.flatMap(co => 
-        co.products.map(p => ({
-          order_id: order.id,
-          customer_name: co.customerName,
-          product_code: p.productCode,
-          quantity: p.trays,
-          po_number: null,
-        }))
-      );
+        // Delete old order items
+        const { error: deleteError } = await supabase
+          .from('order_items')
+          .delete()
+          .eq('order_id', orderId);
 
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
+        if (deleteError) throw deleteError;
 
-      if (itemsError) throw itemsError;
+        // Insert new order items
+        const orderItems = customerOrders.flatMap(co => 
+          co.products.map(p => ({
+            order_id: orderId,
+            customer_name: co.customerName,
+            product_code: p.productCode,
+            quantity: p.trays,
+            po_number: null,
+          }))
+        );
 
-      toast({ title: 'Success', description: 'Order saved successfully!' });
-      setTimeout(() => navigate('/history'), 1000);
+        const { error: itemsError } = await supabase
+          .from('order_items')
+          .insert(orderItems);
+
+        if (itemsError) throw itemsError;
+
+        toast({ title: 'Success', description: 'Order updated successfully!' });
+        setTimeout(() => navigate(`/order/${orderId}`), 1000);
+      } else {
+        // Create new order
+        const { data: order, error: orderError } = await supabase
+          .from('orders')
+          .insert({
+            order_number: `ORD-${Date.now()}`,
+            week_number: weekNumber,
+            delivery_date: deliveryDate,
+            placed_by: placedBy,
+            user_id: user?.id,
+            status: 'active',
+          })
+          .select()
+          .single();
+
+        if (orderError) throw orderError;
+
+        // Create order items
+        const orderItems = customerOrders.flatMap(co => 
+          co.products.map(p => ({
+            order_id: order.id,
+            customer_name: co.customerName,
+            product_code: p.productCode,
+            quantity: p.trays,
+            po_number: null,
+          }))
+        );
+
+        const { error: itemsError } = await supabase
+          .from('order_items')
+          .insert(orderItems);
+
+        if (itemsError) throw itemsError;
+
+        toast({ title: 'Success', description: 'Order saved successfully!' });
+        setTimeout(() => navigate('/history'), 1000);
+      }
     } catch (error) {
       console.error('Error saving order:', error);
       toast({ title: 'Error', description: 'Failed to save order', variant: 'destructive' });
@@ -368,9 +484,19 @@ const NewOrder = () => {
       
       <main className="container py-8">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">New Order</h1>
-          <p className="text-muted-foreground">Create a new order from your customers</p>
+          <h1 className="text-4xl font-bold text-foreground mb-2">
+            {isEditMode ? 'Edit Order' : 'New Order'}
+          </h1>
+          <p className="text-muted-foreground">
+            {isEditMode ? 'Update order details and items' : 'Create a new order from your customers'}
+          </p>
         </div>
+
+        {loading && (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Loading order data...</p>
+          </div>
+        )}
 
         <div className="grid gap-6 mb-6">
           <Card>
@@ -554,9 +680,9 @@ const NewOrder = () => {
           </Card>
 
           <div className="flex flex-col gap-4">
-            <Button onClick={handleSave} className="w-full" size="lg">
+            <Button onClick={handleSave} className="w-full" size="lg" disabled={loading}>
               <Save className="mr-2 h-5 w-5" />
-              Save Order
+              {isEditMode ? 'Update Order' : 'Save Order'}
             </Button>
             
             <div className="grid grid-cols-2 gap-4">
