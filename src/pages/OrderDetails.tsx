@@ -459,7 +459,7 @@ const OrderDetails = () => {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => navigate(`/edit-order/${order.id}`)}
+                        onClick={() => navigate(`/production-edit/${order.id}`)}
                       >
                         <Edit className="mr-2 h-4 w-4" />
                         Edit Order
