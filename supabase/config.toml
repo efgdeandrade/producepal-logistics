@@ -8,3 +8,15 @@ verify_jwt = false
 
 [functions.pricing-optimizer]
 verify_jwt = false
+
+[functions.create-user-direct]
+verify_jwt = false
+
+[functions.delete-user]
+verify_jwt = false
+
+[functions.invite-user]
+verify_jwt = false
+
+[functions.resend-invitation]
+verify_jwt = false
