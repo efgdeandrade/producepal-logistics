@@ -3,45 +3,38 @@ import { Button } from '@/components/ui/button';
 import { Package, History, PlusCircle, LayoutDashboard, Users, Activity, LogOut, MapPin, Truck, Factory, TrendingUp, Settings, ChevronDown, Calculator, FileText } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import logo from '@/assets/logo.png';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useState, useEffect } from 'react';
 import { format, getWeek } from 'date-fns';
-
 export const Header = () => {
   const location = useLocation();
-  const { user, isAdmin, signOut } = useAuth();
-  const { canView, loading: permissionsLoading } = usePermissions();
+  const {
+    user,
+    isAdmin,
+    signOut
+  } = useAuth();
+  const {
+    canView,
+    loading: permissionsLoading
+  } = usePermissions();
   const [currentTime, setCurrentTime] = useState(new Date());
-
   const isActive = (path: string) => location.pathname === path;
-
   const getInitials = (email?: string) => {
     if (!email) return 'U';
     return email.substring(0, 2).toUpperCase();
   };
-
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
     return () => clearInterval(timer);
   }, []);
-
   if (permissionsLoading) {
     return null;
   }
-
-  return (
-    <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+  return <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-6">
           <Link to="/" className="flex items-center">
@@ -51,28 +44,20 @@ export const Header = () => {
             <div className="font-semibold text-foreground">
               {format(currentTime, 'EEE, MMM d, yyyy')}
             </div>
-            <div className="text-muted-foreground">
-              {format(currentTime, 'HH:mm:ss')} • Week {getWeek(currentTime)}
+            <div className="text-muted-foreground">21:29:09 • W 45{format(currentTime, 'HH:mm:ss')} • Week {getWeek(currentTime)}
             </div>
           </div>
         </div>
         
         <nav className="flex items-center space-x-2">
-          {canView('dashboard') && (
-            <Button
-              variant={isActive('/') ? 'default' : 'ghost'}
-              size="sm"
-              asChild
-            >
+          {canView('dashboard') && <Button variant={isActive('/') ? 'default' : 'ghost'} size="sm" asChild>
               <Link to="/">
                 <LayoutDashboard className="mr-2 h-4 w-4" />
                 Dashboard
               </Link>
-            </Button>
-          )}
+            </Button>}
 
-          {canView('orders') && (
-            <DropdownMenu>
+          {canView('orders') && <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm">
                   Orders
@@ -99,11 +84,9 @@ export const Header = () => {
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+            </DropdownMenu>}
 
-          {canView('others') && (
-            <DropdownMenu>
+          {canView('others') && <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm">
                   Others
@@ -130,11 +113,9 @@ export const Header = () => {
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+            </DropdownMenu>}
 
-          {canView('logistics') && (
-            <DropdownMenu>
+          {canView('logistics') && <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm">
                   Logistics
@@ -161,69 +142,42 @@ export const Header = () => {
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+            </DropdownMenu>}
 
-          {canView('production') && (
-            <Button
-              variant={isActive('/production') ? 'default' : 'ghost'}
-              size="sm"
-              asChild
-            >
+          {canView('production') && <Button variant={isActive('/production') ? 'default' : 'ghost'} size="sm" asChild>
               <Link to="/production">
                 <Factory className="mr-2 h-4 w-4" />
                 Production
               </Link>
-            </Button>
-          )}
+            </Button>}
 
-          {canView('analytics') && (
-            <Button
-              variant={isActive('/analytics') ? 'default' : 'ghost'}
-              size="sm"
-              asChild
-            >
+          {canView('analytics') && <Button variant={isActive('/analytics') ? 'default' : 'ghost'} size="sm" asChild>
               <Link to="/analytics">
                 <TrendingUp className="mr-2 h-4 w-4" />
                 Analytics
               </Link>
-            </Button>
-          )}
+            </Button>}
 
-          {isAdmin() && (
-            <>
-              <Button
-                variant={isActive('/user-management') ? 'default' : 'ghost'}
-                size="sm"
-                asChild
-              >
+          {isAdmin() && <>
+              <Button variant={isActive('/user-management') ? 'default' : 'ghost'} size="sm" asChild>
                 <Link to="/user-management">
                   <Users className="mr-2 h-4 w-4" />
                   Users
                 </Link>
               </Button>
-              <Button
-                variant={isActive('/user-activity') ? 'default' : 'ghost'}
-                size="sm"
-                asChild
-              >
+              <Button variant={isActive('/user-activity') ? 'default' : 'ghost'} size="sm" asChild>
                 <Link to="/user-activity">
                   <Activity className="mr-2 h-4 w-4" />
                   Activity
                 </Link>
               </Button>
-              <Button
-                variant={isActive('/settings') ? 'default' : 'ghost'}
-                size="sm"
-                asChild
-              >
+              <Button variant={isActive('/settings') ? 'default' : 'ghost'} size="sm" asChild>
                 <Link to="/settings">
                   <Settings className="mr-2 h-4 w-4" />
                   Settings
                 </Link>
               </Button>
-            </>
-          )}
+            </>}
         </nav>
 
         <DropdownMenu>
@@ -248,6 +202,5 @@ export const Header = () => {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </header>
-  );
+    </header>;
 };
