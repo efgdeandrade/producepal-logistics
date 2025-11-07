@@ -25,12 +25,16 @@ serve(async (req) => {
 
     const { userId } = await req.json();
 
-    // Delete user with admin API
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
+    // Permanently delete user (not soft delete) to free up email immediately
+    // Second parameter: false = hard delete (allows email reuse), true = soft delete
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(userId, false);
 
     if (error) {
+      console.error("Error deleting user:", error);
       throw error;
     }
+
+    console.log(`User ${userId} permanently deleted`);
 
     return new Response(
       JSON.stringify({ success: true }),
