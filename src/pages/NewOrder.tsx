@@ -317,6 +317,7 @@ const NewOrder = () => {
             week_number: weekNumber,
             delivery_date: deliveryDate,
             placed_by: placedBy,
+            user_id: user?.id,
           })
           .eq('id', orderId);
 
