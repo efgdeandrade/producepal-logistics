@@ -119,34 +119,35 @@ Return the amount as a number in USD.`;
       };
     }
 
-    console.log('Calling AI with document type:', documentType, 'mime:', mimeType, 'size:', base64.length);
+    // Validate file type - only images supported
+    const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const isPDF = mimeType === 'application/pdf';
 
-    // Build the content array for the user message
-    const userContent: any[] = [
+    if (isPDF) {
+      console.log('PDF upload attempted - not yet supported');
+      throw new Error('PDF support coming soon! Please upload a clear photo or screenshot (JPG/PNG) of your document instead.');
+    }
+
+    if (!allowedImageTypes.includes(mimeType)) {
+      console.log('Unsupported file type:', mimeType);
+      throw new Error(`Unsupported file type. Please upload JPG, PNG, or WEBP images only.`);
+    }
+
+    console.log('Processing image with AI - type:', documentType, 'mime:', mimeType, 'size:', base64.length);
+
+    // Build the content for AI vision analysis
+    const userContent = [
       {
         type: 'text',
-        text: 'Please analyze this document and extract the requested information.'
+        text: 'Please analyze this document image and extract the requested information accurately.'
+      },
+      {
+        type: 'image_url',
+        image_url: {
+          url: `data:${mimeType};base64,${base64}`
+        }
       }
     ];
-
-    // Add the document/image based on type
-    if (mimeType === 'application/pdf') {
-      // For PDFs, some models may not support them - try image_url format
-      userContent.push({
-        type: 'image_url',
-        image_url: {
-          url: `data:${mimeType};base64,${base64}`
-        }
-      });
-    } else {
-      // For images
-      userContent.push({
-        type: 'image_url',
-        image_url: {
-          url: `data:${mimeType};base64,${base64}`
-        }
-      });
-    }
 
     // Call Lovable AI with vision capabilities
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {

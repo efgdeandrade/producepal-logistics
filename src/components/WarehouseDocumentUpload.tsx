@@ -75,7 +75,11 @@ export function WarehouseDocumentUpload({ onDataExtracted }: WarehouseDocumentUp
       
     } catch (error: any) {
       console.error("Error parsing warehouse document:", error);
-      toast.error("Failed to parse document: " + error.message);
+      const errorMessage = error.message || "Failed to parse document";
+      toast.error(errorMessage.includes("PDF") 
+        ? "PDF not supported yet. Please upload a JPG or PNG screenshot instead." 
+        : `Upload failed: ${errorMessage}`
+      );
     } finally {
       setUploading(false);
     }
@@ -94,14 +98,17 @@ export function WarehouseDocumentUpload({ onDataExtracted }: WarehouseDocumentUp
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="warehouse-doc">Warehouse Receipt (PDF, Excel, or Image)</Label>
+          <Label htmlFor="warehouse-doc">Warehouse Receipt (Image)</Label>
           <Input
             id="warehouse-doc"
             type="file"
-            accept=".pdf,.xlsx,.xls,.jpg,.jpeg,.png"
+            accept=".jpg,.jpeg,.png,.webp"
             onChange={handleFileChange}
             disabled={uploading}
           />
+          <p className="text-xs text-muted-foreground mt-1">
+            📸 Upload clear photos or screenshots (JPG, PNG). PDF support coming soon!
+          </p>
           {file && (
             <div className="text-sm text-muted-foreground">
               Selected: {file.name} ({(file.size / 1024).toFixed(2)} KB)
@@ -133,7 +140,7 @@ export function WarehouseDocumentUpload({ onDataExtracted }: WarehouseDocumentUp
             <li>AI extracts product codes, actual weights, and volumetric weights</li>
             <li>Automatically fills the form below with extracted data</li>
             <li>You can review and adjust before saving</li>
-            <li>Supports PDF, Excel, and image formats</li>
+            <li>Supports JPG, PNG, and WEBP image formats (PDF coming soon)</li>
           </ul>
         </div>
       </CardContent>
