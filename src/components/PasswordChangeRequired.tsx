@@ -53,7 +53,7 @@ export function PasswordChangeRequired({ children }: PasswordChangeRequiredProps
         return;
       }
 
-      setMustChangePassword(data?.must_change_password ?? false);
+      setMustChangePassword((data as any)?.must_change_password ?? false);
       setLoading(false);
     };
 
@@ -99,7 +99,7 @@ export function PasswordChangeRequired({ children }: PasswordChangeRequiredProps
       // Set must_change_password to false
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({ must_change_password: false })
+        .update({ must_change_password: false } as any)
         .eq('id', user?.id);
 
       if (profileError) {
