@@ -48,20 +48,24 @@ serve(async (req) => {
 
     if (documentType === 'warehouse') {
       systemPrompt = `You are an expert at extracting data from warehouse receipts and shipping documents. 
-Extract the following information for each product/item:
+Extract the following information for each product/item listed in the document:
 - Product code or SKU
-- Actual weight in kilograms
-- Volumetric weight in kilograms (or calculate it if dimensions are provided)
-- Number of pallets used
-- Which weight type was charged (actual or volumetric)
+- Actual weight in kilograms (the real measured weight)
+- Volumetric weight in kilograms (calculated weight based on dimensions: L×W×H/6000)
+- Number of pallets used for THIS product
+- Which weight type was charged (actual or volumetric - typically whichever is HIGHER)
 
-Return the data as a structured list.`;
+IMPORTANT: This document shows ALL products from a SINGLE SUPPLIER shipment. 
+Extract each product separately, even if the document shows totals.
+Look for line items, product tables, or itemized lists.
+
+Return the data as a structured list with one entry per product.`;
 
       toolDefinition = {
         type: "function",
         function: {
           name: "extract_warehouse_data",
-          description: "Extract weight and pallet data from warehouse receipt",
+          description: "Extract weight and pallet data from warehouse receipt for all products in the shipment",
           parameters: {
             type: "object",
             properties: {
@@ -73,8 +77,8 @@ Return the data as a structured list.`;
                     productCode: { type: "string", description: "Product code or SKU" },
                     actualWeightKg: { type: "number", description: "Actual weight in kilograms" },
                     volumetricWeightKg: { type: "number", description: "Volumetric weight in kilograms" },
-                    palletsUsed: { type: "number", description: "Number of pallets used" },
-                    weightTypeUsed: { type: "string", enum: ["actual", "volumetric"], description: "Which weight was charged" }
+                    palletsUsed: { type: "number", description: "Number of pallets used for this product" },
+                    weightTypeUsed: { type: "string", enum: ["actual", "volumetric"], description: "Which weight was charged (usually the higher one)" }
                   },
                   required: ["productCode", "actualWeightKg", "volumetricWeightKg", "palletsUsed", "weightTypeUsed"],
                   additionalProperties: false
@@ -87,15 +91,18 @@ Return the data as a structured list.`;
         }
       };
     } else if (documentType === 'exterior_agent' || documentType === 'local_agent') {
-      const agentType = documentType === 'exterior_agent' ? 'exterior freight' : 'local';
+      const agentType = documentType === 'exterior_agent' ? 'exterior freight' : 'local freight';
       systemPrompt = `You are an expert at extracting invoice data from ${agentType} agent invoices.
-Extract the total amount charged from the invoice. Look for:
-- Total amount
-- Final charge
-- Amount due
-- Invoice total
+Extract the TOTAL amount charged from the invoice. Look for:
+- Total amount / Total invoice amount
+- Final charge / Amount due
+- Grand total / Invoice total
+- Net amount / Balance due
 
-Return the amount as a number in USD.`;
+IMPORTANT: Extract the FINAL TOTAL amount that needs to be paid.
+Ignore line items - we need the bottom-line total.
+
+Return the amount as a number with the currency code.`;
 
       toolDefinition = {
         type: "function",
@@ -107,14 +114,15 @@ Return the amount as a number in USD.`;
             properties: {
               totalAmount: { 
                 type: "number", 
-                description: "Total amount charged in USD" 
+                description: "Total invoice amount to be paid" 
               },
               currency: {
                 type: "string",
-                description: "Currency code (e.g., USD, EUR)"
+                description: "Currency code (e.g., USD, EUR)",
+                default: "USD"
               }
             },
-            required: ["totalAmount", "currency"],
+            required: ["totalAmount"],
             additionalProperties: false
           }
         }

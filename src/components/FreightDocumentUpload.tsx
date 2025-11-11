@@ -71,8 +71,8 @@ export function FreightDocumentUpload({ type, onDataExtracted }: FreightDocument
 
   const title = type === "exterior" ? "Exterior Agent Invoice" : "Local Agent Invoice";
   const description = type === "exterior" 
-    ? "Upload the exterior freight agent invoice to extract actual freight charges"
-    : "Upload the local agent invoice to extract local freight charges";
+    ? "Upload exterior freight invoice to extract the total cost"
+    : "Upload local agent invoice to extract the total cost";
 
   return (
     <Card className="border-dashed">
@@ -97,7 +97,7 @@ export function FreightDocumentUpload({ type, onDataExtracted }: FreightDocument
             className="text-sm"
           />
           <p className="text-xs text-muted-foreground mt-1">
-            📄 Upload PDF, JPG, PNG, or WEBP (PDFs auto-converted)
+            📄 Upload PDF, JPG, PNG, or WEBP
           </p>
           {file && (
             <div className="text-xs text-muted-foreground">

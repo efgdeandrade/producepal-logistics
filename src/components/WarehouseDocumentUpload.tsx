@@ -90,7 +90,7 @@ export function WarehouseDocumentUpload({ onDataExtracted }: WarehouseDocumentUp
           Upload Warehouse Document
         </CardTitle>
         <CardDescription>
-          Upload your supplier's warehouse receipt to automatically extract actual weights and volumes
+          Upload the warehouse receipt for this supplier to automatically extract weight and pallet data
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -104,7 +104,7 @@ export function WarehouseDocumentUpload({ onDataExtracted }: WarehouseDocumentUp
             disabled={uploading}
           />
           <p className="text-xs text-muted-foreground mt-1">
-            📄 Upload PDF, JPG, PNG, or WEBP files (PDFs are automatically converted)
+            📄 Upload PDF, JPG, PNG, or WEBP files
           </p>
           {file && (
             <div className="text-sm text-muted-foreground">
@@ -134,10 +134,10 @@ export function WarehouseDocumentUpload({ onDataExtracted }: WarehouseDocumentUp
         <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
           <p className="font-medium">💡 How it works:</p>
           <ul className="list-disc list-inside space-y-1 ml-2">
-            <li>AI extracts product codes, actual weights, and volumetric weights</li>
-            <li>Automatically fills the form below with extracted data</li>
-            <li>You can review and adjust before saving</li>
-            <li>Supports PDF, JPG, PNG, and WEBP formats (PDFs auto-converted)</li>
+            <li>AI extracts all products with their weights from the supplier's warehouse receipt</li>
+            <li>Totals are calculated automatically for this supplier</li>
+            <li>Both actual and volumetric weights are captured</li>
+            <li>Supports PDF, JPG, PNG, and WEBP formats</li>
           </ul>
         </div>
       </CardContent>
