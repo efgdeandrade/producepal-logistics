@@ -21,6 +21,7 @@ import { RoundupTable } from '@/components/RoundupTable';
 import { CustomerReceipt } from '@/components/CustomerReceipt';
 import { OrderCIFTable } from '@/components/OrderCIFTable';
 import { CIFAnalytics } from '@/components/CIFAnalytics';
+import { DitoAdvisor } from '@/components/DitoAdvisor';
 import html2pdf from 'html2pdf.js';
 import { 
   generateReceiptNumber, 
@@ -65,13 +66,36 @@ const OrderDetails = () => {
   const [recommendedCIFMethod, setRecommendedCIFMethod] = useState<string>('');
   const [receiptNumbers, setReceiptNumbers] = useState<Record<string, string>>({});
   const [generatingPDF, setGeneratingPDF] = useState(false);
+  const [productWeightData, setProductWeightData] = useState<any[]>([]);
+  const [palletConfig, setPalletConfig] = useState<any>(null);
+  const [freightSettings, setFreightSettings] = useState({ freightCostPerKg: 2.87, exchangeRate: 1.82 });
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (orderId) {
       fetchOrderDetails();
+      fetchFreightSettings();
     }
   }, [orderId]);
+
+  const fetchFreightSettings = async () => {
+    try {
+      const { data: settings } = await supabase
+        .from('settings')
+        .select('*')
+        .in('key', ['freight_exterior_tariff', 'freight_local_tariff', 'usd_to_xcg_rate']);
+
+      const settingsMap = new Map(settings?.map(s => [s.key, s.value]) || []);
+      const exchangeRate = (settingsMap.get('usd_to_xcg_rate') as any)?.rate || 1.82;
+      const freightExteriorPerKg = (settingsMap.get('freight_exterior_tariff') as any)?.rate || 2.46;
+      const freightLocalPerKg = (settingsMap.get('freight_local_tariff') as any)?.rate || 0.41;
+      const freightCostPerKg = freightExteriorPerKg + freightLocalPerKg;
+
+      setFreightSettings({ freightCostPerKg, exchangeRate });
+    } catch (error) {
+      console.error('Error fetching freight settings:', error);
+    }
+  };
 
   const fetchOrderDetails = async () => {
     try {
@@ -92,11 +116,100 @@ const OrderDetails = () => {
 
       setOrder(orderData);
       setOrderItems(itemsData || []);
+      
+      // Calculate weight data for Dito Advisor
+      await calculateWeightData(itemsData || []);
     } catch (error: any) {
       console.error('Error fetching order details:', error);
       toast.error('Failed to load order details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const calculateWeightData = async (items: OrderItem[]) => {
+    try {
+      // Consolidate items by product code
+      const consolidated = items.reduce((acc, item) => {
+        const existing = acc.find(i => i.product_code === item.product_code);
+        if (existing) {
+          existing.quantity += item.quantity;
+        } else {
+          acc.push({ ...item });
+        }
+        return acc;
+      }, [] as OrderItem[]);
+
+      // Fetch product details
+      const productCodes = [...new Set(consolidated.map(item => item.product_code))];
+      const { data: products } = await supabase
+        .from('products')
+        .select('code, name, price_usd_per_unit, gross_weight_per_unit, netto_weight_per_unit, pack_size, empty_case_weight, wholesale_price_xcg_per_unit, retail_price_xcg_per_unit, length_cm, width_cm, height_cm, volumetric_weight_kg')
+        .in('code', productCodes);
+
+      if (!products) return;
+
+      let totalActualWeight = 0;
+      let totalVolumetricWeight = 0;
+      let totalChargeableWeight = 0;
+
+      const weightData = consolidated.map(item => {
+        const product = products.find(p => p.code === item.product_code);
+        if (!product) return null;
+
+        const packSize = product.pack_size || 1;
+        const totalUnits = item.quantity * packSize;
+        const weightPerUnit = (product.gross_weight_per_unit || product.netto_weight_per_unit || 0) / 1000;
+        const volumetricWeightPerUnit = (product.volumetric_weight_kg || 
+          (product.length_cm && product.width_cm && product.height_cm 
+            ? (product.length_cm * product.width_cm * product.height_cm) / 6000
+            : 0));
+
+        const actualWeight = (totalUnits * weightPerUnit) + (item.quantity * (product.empty_case_weight || 0) / 1000);
+        const volumetricWeight = (totalUnits * volumetricWeightPerUnit);
+        const chargeableWeight = Math.max(actualWeight, volumetricWeight);
+
+        totalActualWeight += actualWeight;
+        totalVolumetricWeight += volumetricWeight;
+        totalChargeableWeight += chargeableWeight;
+
+        const wholesalePrice = product.wholesale_price_xcg_per_unit || 0;
+        const retailPrice = product.retail_price_xcg_per_unit || 0;
+        const costUSD = totalUnits * (product.price_usd_per_unit || 0);
+
+        return {
+          code: product.code,
+          name: product.name,
+          quantity: totalUnits,
+          actualWeight,
+          volumetricWeight,
+          chargeableWeight,
+          weightType: volumetricWeight > actualWeight ? 'volumetric' as const : 'actual' as const,
+          costUSD,
+          wholesalePriceXCG: wholesalePrice,
+          retailPriceXCG: retailPrice,
+          profitPerUnit: wholesalePrice - (costUSD * freightSettings.exchangeRate / totalUnits),
+        };
+      }).filter(Boolean);
+
+      setProductWeightData(weightData);
+
+      // Calculate pallet configuration
+      const estimatedPallets = Math.ceil(totalChargeableWeight / 500);
+      const limitingFactor = totalVolumetricWeight > totalActualWeight ? 'volumetric_weight' : 
+                             totalActualWeight > totalVolumetricWeight ? 'actual_weight' : 'balanced';
+      
+      setPalletConfig({
+        totalPallets: estimatedPallets,
+        totalActualWeight,
+        totalVolumetricWeight,
+        totalChargeableWeight,
+        limitingFactor,
+        utilizationPercentage: (totalChargeableWeight / (estimatedPallets * 500)) * 100,
+        heightUtilization: 75, // Estimated
+      });
+    } catch (error) {
+      console.error('Error calculating weight data:', error);
     }
   };
 
@@ -640,6 +753,20 @@ const OrderDetails = () => {
           orderItems={orderItems} 
           onRecommendation={setRecommendedCIFMethod}
         />
+        
+        {productWeightData.length > 0 && palletConfig && (
+          <DitoAdvisor
+            orderItems={productWeightData}
+            palletConfiguration={palletConfig}
+            freightCostPerKg={freightSettings.freightCostPerKg}
+            exchangeRate={freightSettings.exchangeRate}
+            onApplySuggestion={(productCode, quantity) => {
+              toast.success(`Suggestion: Add ${quantity} units of ${productCode} to order`, {
+                description: 'You can manually add this product to improve weight utilization',
+              });
+            }}
+          />
+        )}
         </div>
       </main>
 
