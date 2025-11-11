@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { PasswordChangeRequired } from "@/components/PasswordChangeRequired";
 import Dashboard from "./pages/Dashboard";
 import NewOrder from "./pages/NewOrder";
 import History from "./pages/History";
@@ -38,26 +39,26 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
-            <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/order/new" element={<ProtectedRoute><NewOrder /></ProtectedRoute>} />
-            <Route path="/order/edit/:orderId" element={<ProtectedRoute><NewOrder /></ProtectedRoute>} />
-            <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
-            <Route path="/order/:orderId" element={<ProtectedRoute><OrderDetails /></ProtectedRoute>} />
-            <Route path="/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
-            <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
-            <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
-            <Route path="/routes" element={<ProtectedRoute><RoutesPage /></ProtectedRoute>} />
-            <Route path="/driver-portal" element={<ProtectedRoute requiredRole="driver"><DriverPortal /></ProtectedRoute>} />
-            <Route path="/cif-calculator" element={<ProtectedRoute><CIFCalculator /></ProtectedRoute>} />
-            <Route path="/user-management" element={<ProtectedRoute requiredRole="admin"><UserManagement /></ProtectedRoute>} />
-            <Route path="/user-activity" element={<ProtectedRoute><UserActivity /></ProtectedRoute>} />
-            <Route path="/production" element={<ProtectedRoute><ProductionDashboard /></ProtectedRoute>} />
-            <Route path="/production-input" element={<ProtectedRoute><ProductionInput /></ProtectedRoute>} />
-            <Route path="/production-edit/:orderId" element={<ProtectedRoute><ProductionEdit /></ProtectedRoute>} />
-            <Route path="/deliveries" element={<ProtectedRoute><DeliveryManagement /></ProtectedRoute>} />
-            <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
-            <Route path="/analytics" element={<ProtectedRoute><PredictionsAnalytics /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute requiredRole="admin"><Settings /></ProtectedRoute>} />
+            <Route path="/" element={<ProtectedRoute><PasswordChangeRequired><Dashboard /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/order/new" element={<ProtectedRoute><PasswordChangeRequired><NewOrder /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/order/edit/:orderId" element={<ProtectedRoute><PasswordChangeRequired><NewOrder /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/history" element={<ProtectedRoute><PasswordChangeRequired><History /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/order/:orderId" element={<ProtectedRoute><PasswordChangeRequired><OrderDetails /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/suppliers" element={<ProtectedRoute><PasswordChangeRequired><Suppliers /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/products" element={<ProtectedRoute><PasswordChangeRequired><Products /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/customers" element={<ProtectedRoute><PasswordChangeRequired><Customers /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/routes" element={<ProtectedRoute><PasswordChangeRequired><RoutesPage /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/driver-portal" element={<ProtectedRoute requiredRole="driver"><PasswordChangeRequired><DriverPortal /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/cif-calculator" element={<ProtectedRoute><PasswordChangeRequired><CIFCalculator /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/user-management" element={<ProtectedRoute requiredRole="admin"><PasswordChangeRequired><UserManagement /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/user-activity" element={<ProtectedRoute><PasswordChangeRequired><UserActivity /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/production" element={<ProtectedRoute><PasswordChangeRequired><ProductionDashboard /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/production-input" element={<ProtectedRoute><PasswordChangeRequired><ProductionInput /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/production-edit/:orderId" element={<ProtectedRoute><PasswordChangeRequired><ProductionEdit /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/deliveries" element={<ProtectedRoute><PasswordChangeRequired><DeliveryManagement /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/invoices" element={<ProtectedRoute><PasswordChangeRequired><Invoices /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/analytics" element={<ProtectedRoute><PasswordChangeRequired><PredictionsAnalytics /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute requiredRole="admin"><PasswordChangeRequired><Settings /></PasswordChangeRequired></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

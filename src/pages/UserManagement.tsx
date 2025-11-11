@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { UserPlus, Trash2, Mail, Edit, RefreshCw } from 'lucide-react';
+import { UserPlus, Trash2, Mail, Edit, RefreshCw, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 
@@ -35,6 +35,7 @@ export default function UserManagement() {
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [createUserOpen, setCreateUserOpen] = useState(false);
   const [editRolesOpen, setEditRolesOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
@@ -43,6 +44,13 @@ export default function UserManagement() {
     fullName: '',
     role: 'driver' as const,
   });
+  const [createUserForm, setCreateUserForm] = useState({
+    email: '',
+    fullName: '',
+    role: 'driver' as const,
+  });
+  const [generatedPassword, setGeneratedPassword] = useState<string>('');
+  const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const availableRoles = ['admin', 'management', 'driver', 'production', 'logistics', 'accounting', 'manager'] as const;
@@ -142,6 +150,75 @@ export default function UserManagement() {
         variant: 'destructive',
       });
     }
+  };
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrors({});
+    setGeneratedPassword('');
+    setShowPassword(false);
+
+    const result = inviteSchema.safeParse(createUserForm);
+    if (!result.success) {
+      const newErrors: Record<string, string> = {};
+      result.error.errors.forEach((err) => {
+        if (err.path[0]) newErrors[err.path[0] as string] = err.message;
+      });
+      setErrors(newErrors);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('create-user-direct', {
+        body: {
+          email: createUserForm.email,
+          fullName: createUserForm.fullName,
+          role: createUserForm.role,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      setGeneratedPassword(data.password);
+      setShowPassword(true);
+      
+      toast({
+        title: 'Success',
+        description: `User created successfully`,
+      });
+
+      fetchUsers();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to create user',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleCopyPassword = async () => {
+    if (generatedPassword) {
+      await navigator.clipboard.writeText(generatedPassword);
+      toast({
+        title: 'Copied!',
+        description: 'Password copied to clipboard',
+      });
+    }
+  };
+
+  const handleCloseCreateUser = () => {
+    setCreateUserOpen(false);
+    setCreateUserForm({ email: '', fullName: '', role: 'driver' });
+    setGeneratedPassword('');
+    setShowPassword(false);
+    setErrors({});
   };
 
   const handleRemoveUser = async (userId: string, email: string) => {
@@ -303,76 +380,186 @@ export default function UserManagement() {
             <p className="text-muted-foreground">Manage users and their roles</p>
           </div>
 
-          <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <UserPlus className="mr-2 h-4 w-4" />
-                Invite User
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <form onSubmit={handleInvite}>
-                <DialogHeader>
-                  <DialogTitle>Invite New User</DialogTitle>
-                  <DialogDescription>
-                    Send an invitation email to a new user
-                  </DialogDescription>
-                </DialogHeader>
+          <div className="flex gap-2">
+            <Dialog open={createUserOpen} onOpenChange={setCreateUserOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Create User Directly
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                {!showPassword ? (
+                  <form onSubmit={handleCreateUser}>
+                    <DialogHeader>
+                      <DialogTitle>Create User Directly</DialogTitle>
+                      <DialogDescription>
+                        Create a new user with a generated password
+                      </DialogDescription>
+                    </DialogHeader>
 
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="fullName">Full Name</Label>
-                    <Input
-                      id="fullName"
-                      value={inviteForm.fullName}
-                      onChange={(e) => setInviteForm({ ...inviteForm, fullName: e.target.value })}
-                    />
-                    {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="createFullName">Full Name</Label>
+                        <Input
+                          id="createFullName"
+                          value={createUserForm.fullName}
+                          onChange={(e) => setCreateUserForm({ ...createUserForm, fullName: e.target.value })}
+                        />
+                        {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="createEmail">Email</Label>
+                        <Input
+                          id="createEmail"
+                          type="email"
+                          value={createUserForm.email}
+                          onChange={(e) => setCreateUserForm({ ...createUserForm, email: e.target.value })}
+                        />
+                        {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="createRole">Role</Label>
+                        <Select
+                          value={createUserForm.role}
+                          onValueChange={(value: any) => setCreateUserForm({ ...createUserForm, role: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="management">Management</SelectItem>
+                            <SelectItem value="driver">Driver</SelectItem>
+                            <SelectItem value="production">Production</SelectItem>
+                            <SelectItem value="logistics">Logistics</SelectItem>
+                            <SelectItem value="accounting">Accounting</SelectItem>
+                            <SelectItem value="manager">Manager</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {errors.role && <p className="text-sm text-destructive">{errors.role}</p>}
+                      </div>
+                    </div>
+
+                    <DialogFooter>
+                      <Button type="submit">Create User</Button>
+                    </DialogFooter>
+                  </form>
+                ) : (
+                  <>
+                    <DialogHeader>
+                      <DialogTitle>✅ User Created Successfully!</DialogTitle>
+                      <DialogDescription>
+                        Save this password and send it to the user manually
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label>Generated Password</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            value={generatedPassword}
+                            readOnly
+                            className="font-mono text-lg"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={handleCopyPassword}
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-md p-3">
+                        <p className="text-sm text-amber-900 dark:text-amber-100">
+                          ⚠️ <strong>IMPORTANT:</strong> Save this password! You won't see it again. 
+                          Send it to the user manually. They must change it on first login.
+                        </p>
+                      </div>
+                    </div>
+
+                    <DialogFooter>
+                      <Button onClick={handleCloseCreateUser}>Done</Button>
+                    </DialogFooter>
+                  </>
+                )}
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Mail className="mr-2 h-4 w-4" />
+                  Invite User
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <form onSubmit={handleInvite}>
+                  <DialogHeader>
+                    <DialogTitle>Invite New User</DialogTitle>
+                    <DialogDescription>
+                      Send an invitation email to a new user
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="fullName">Full Name</Label>
+                      <Input
+                        id="fullName"
+                        value={inviteForm.fullName}
+                        onChange={(e) => setInviteForm({ ...inviteForm, fullName: e.target.value })}
+                      />
+                      {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={inviteForm.email}
+                        onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+                      />
+                      {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="role">Role</Label>
+                      <Select
+                        value={inviteForm.role}
+                        onValueChange={(value: any) => setInviteForm({ ...inviteForm, role: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="management">Management</SelectItem>
+                          <SelectItem value="driver">Driver</SelectItem>
+                          <SelectItem value="production">Production</SelectItem>
+                          <SelectItem value="logistics">Logistics</SelectItem>
+                          <SelectItem value="accounting">Accounting</SelectItem>
+                          <SelectItem value="manager">Manager</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {errors.role && <p className="text-sm text-destructive">{errors.role}</p>}
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={inviteForm.email}
-                      onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
-                    />
-                    {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="role">Role</Label>
-                    <Select
-                      value={inviteForm.role}
-                      onValueChange={(value: any) => setInviteForm({ ...inviteForm, role: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="management">Management</SelectItem>
-                        <SelectItem value="driver">Driver</SelectItem>
-                        <SelectItem value="production">Production</SelectItem>
-                        <SelectItem value="logistics">Logistics</SelectItem>
-                        <SelectItem value="accounting">Accounting</SelectItem>
-                        <SelectItem value="manager">Manager</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {errors.role && <p className="text-sm text-destructive">{errors.role}</p>}
-                  </div>
-                </div>
-
-                <DialogFooter>
-                  <Button type="submit">
-                    <Mail className="mr-2 h-4 w-4" />
-                    Send Invitation
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+                  <DialogFooter>
+                    <Button type="submit">Send Invitation</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         <Card>
