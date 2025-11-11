@@ -22,6 +22,10 @@ import { CustomerReceipt } from '@/components/CustomerReceipt';
 import { OrderCIFTable } from '@/components/OrderCIFTable';
 import { CIFAnalytics } from '@/components/CIFAnalytics';
 import { DitoAdvisor } from '@/components/DitoAdvisor';
+import { ActualCIFForm } from '@/components/ActualCIFForm';
+import { CIFComparison } from '@/components/CIFComparison';
+import { CIFLearningInsights } from '@/components/CIFLearningInsights';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import html2pdf from 'html2pdf.js';
 import { 
   generateReceiptNumber, 
@@ -69,14 +73,28 @@ const OrderDetails = () => {
   const [productWeightData, setProductWeightData] = useState<any[]>([]);
   const [palletConfig, setPalletConfig] = useState<any>(null);
   const [freightSettings, setFreightSettings] = useState({ freightCostPerKg: 2.87, exchangeRate: 1.82 });
+  const [hasActualCosts, setHasActualCosts] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (orderId) {
       fetchOrderDetails();
       fetchFreightSettings();
+      checkActualCosts();
     }
   }, [orderId]);
+
+  const checkActualCosts = async () => {
+    if (!orderId) return;
+    const { data } = await supabase
+      .from("cif_estimates")
+      .select("id")
+      .eq("order_id", orderId)
+      .not("actual_total_freight_usd", "is", null)
+      .limit(1);
+    
+    setHasActualCosts(data && data.length > 0);
+  };
 
   const fetchFreightSettings = async () => {
     try {
@@ -745,28 +763,73 @@ const OrderDetails = () => {
             </CardContent>
           </Card>
 
-        <OrderCIFTable 
-          orderItems={orderItems} 
-          recommendedMethod={recommendedCIFMethod}
-        />
-        <CIFAnalytics 
-          orderItems={orderItems} 
-          onRecommendation={setRecommendedCIFMethod}
-        />
-        
-        {productWeightData.length > 0 && palletConfig && (
-          <DitoAdvisor
-            orderItems={productWeightData}
-            palletConfiguration={palletConfig}
-            freightCostPerKg={freightSettings.freightCostPerKg}
-            exchangeRate={freightSettings.exchangeRate}
-            onApplySuggestion={(productCode, quantity) => {
-              toast.success(`Suggestion: Add ${quantity} units of ${productCode} to order`, {
-                description: 'You can manually add this product to improve weight utilization',
-              });
-            }}
-          />
-        )}
+        <Tabs defaultValue="items" className="w-full">
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="items">Order Items</TabsTrigger>
+            <TabsTrigger value="cif-analytics">CIF Analytics</TabsTrigger>
+            <TabsTrigger value="advisor">Dito Advisor</TabsTrigger>
+            <TabsTrigger value="actual">Enter Actual Costs</TabsTrigger>
+            <TabsTrigger value="comparison">
+              Comparison
+              {hasActualCosts && <span className="ml-1 text-xs">✓</span>}
+            </TabsTrigger>
+            <TabsTrigger value="learning">AI Learning</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="items" className="space-y-4">
+            <OrderCIFTable 
+              orderItems={orderItems} 
+              recommendedMethod={recommendedCIFMethod}
+            />
+          </TabsContent>
+
+          <TabsContent value="cif-analytics" className="space-y-4">
+            <CIFAnalytics 
+              orderItems={orderItems} 
+              onRecommendation={setRecommendedCIFMethod}
+            />
+          </TabsContent>
+
+          <TabsContent value="advisor" className="space-y-4">
+            {productWeightData.length > 0 && palletConfig && (
+              <DitoAdvisor
+                orderItems={productWeightData}
+                palletConfiguration={palletConfig}
+                freightCostPerKg={freightSettings.freightCostPerKg}
+                exchangeRate={freightSettings.exchangeRate}
+                onApplySuggestion={(productCode, quantity) => {
+                  toast.success(`Suggestion: Add ${quantity} units of ${productCode} to order`, {
+                    description: 'You can manually add this product to improve weight utilization',
+                  });
+                }}
+              />
+            )}
+          </TabsContent>
+
+          <TabsContent value="actual" className="space-y-4">
+            <ActualCIFForm
+              orderId={orderId!}
+              orderItems={orderItems}
+              estimatedFreightExterior={palletConfig?.totalChargeableWeight * freightSettings.freightCostPerKg * 0.85 || 0}
+              estimatedFreightLocal={palletConfig?.totalChargeableWeight * freightSettings.freightCostPerKg * 0.15 || 0}
+              onSaved={() => {
+                checkActualCosts();
+                toast.success("Actual costs saved! Check the Comparison tab.");
+              }}
+            />
+          </TabsContent>
+
+          <TabsContent value="comparison" className="space-y-4">
+            <CIFComparison
+              orderId={orderId!}
+              orderItems={orderItems}
+            />
+          </TabsContent>
+
+          <TabsContent value="learning" className="space-y-4">
+            <CIFLearningInsights />
+          </TabsContent>
+        </Tabs>
         </div>
       </main>
 

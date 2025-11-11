@@ -6,6 +6,9 @@ verify_jwt = false
 [functions.volumetric-weight-advisor]
 verify_jwt = false
 
+[functions.cif-learning-engine]
+verify_jwt = false
+
 [functions.market-price-advisor]
 verify_jwt = false
 
