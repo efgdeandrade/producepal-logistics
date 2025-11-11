@@ -154,17 +154,22 @@ export function CIFLearningInsights() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {insights.product_adjustments.map((adj: any, index: number) => (
-                    <div key={index} className="border rounded-lg p-4 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-semibold">{adj.product_code}</h4>
-                        <Badge variant="outline">
-                          {adj.current_factor.toFixed(3)} → {adj.recommended_factor.toFixed(3)}
-                        </Badge>
+                  {insights.product_adjustments.map((adj: any, index: number) => {
+                    const currentFactor = typeof adj.current_factor === 'number' ? adj.current_factor : 1.0;
+                    const recommendedFactor = typeof adj.recommended_factor === 'number' ? adj.recommended_factor : 1.0;
+                    
+                    return (
+                      <div key={index} className="border rounded-lg p-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-semibold">{adj.product_code || 'Unknown Product'}</h4>
+                          <Badge variant="outline">
+                            {currentFactor.toFixed(3)} → {recommendedFactor.toFixed(3)}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{adj.reasoning || 'No reasoning provided'}</p>
                       </div>
-                      <p className="text-sm text-muted-foreground">{adj.reasoning}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -217,19 +222,31 @@ export function CIFLearningInsights() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
                       <span className="text-muted-foreground">Sample Size:</span>
-                      <div className="font-medium">{pattern.sample_size}</div>
+                      <div className="font-medium">{pattern.sample_size || 0}</div>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Avg Variance:</span>
-                      <div className="font-medium">{pattern.avg_variance_percentage.toFixed(2)}%</div>
+                      <div className="font-medium">
+                        {typeof pattern.avg_variance_percentage === 'number' 
+                          ? pattern.avg_variance_percentage.toFixed(2) 
+                          : '0.00'}%
+                      </div>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Std Deviation:</span>
-                      <div className="font-medium">{pattern.std_deviation.toFixed(2)}%</div>
+                      <div className="font-medium">
+                        {typeof pattern.std_deviation === 'number' 
+                          ? pattern.std_deviation.toFixed(2) 
+                          : '0.00'}%
+                      </div>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Adjustment Factor:</span>
-                      <div className="font-medium">{pattern.adjustment_factor.toFixed(3)}x</div>
+                      <div className="font-medium">
+                        {typeof pattern.adjustment_factor === 'number' 
+                          ? pattern.adjustment_factor.toFixed(3) 
+                          : '1.000'}x
+                      </div>
                     </div>
                   </div>
                 </div>
