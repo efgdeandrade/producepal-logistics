@@ -63,10 +63,7 @@ export function FreightDocumentUpload({ type, onDataExtracted }: FreightDocument
     } catch (error: any) {
       console.error("Error parsing freight document:", error);
       const errorMessage = error.message || "Failed to parse document";
-      toast.error(errorMessage.includes("PDF") 
-        ? "PDF not supported yet. Please upload a JPG or PNG screenshot instead." 
-        : `Upload failed: ${errorMessage}`
-      );
+      toast.error(`Upload failed: ${errorMessage}`);
     } finally {
       setUploading(false);
     }
@@ -90,17 +87,17 @@ export function FreightDocumentUpload({ type, onDataExtracted }: FreightDocument
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor={`${type}-doc`} className="text-sm">Invoice (Image)</Label>
+          <Label htmlFor={`${type}-doc`} className="text-sm">Invoice</Label>
           <Input
             id={`${type}-doc`}
             type="file"
-            accept=".jpg,.jpeg,.png,.webp"
+            accept=".jpg,.jpeg,.png,.webp,.pdf"
             onChange={handleFileChange}
             disabled={uploading}
             className="text-sm"
           />
           <p className="text-xs text-muted-foreground mt-1">
-            📸 Upload clear photos or screenshots (JPG, PNG). PDF support coming soon!
+            📄 Upload PDF, JPG, PNG, or WEBP files
           </p>
           {file && (
             <div className="text-xs text-muted-foreground">

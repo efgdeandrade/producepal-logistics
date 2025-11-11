@@ -119,35 +119,51 @@ Return the amount as a number in USD.`;
       };
     }
 
-    // Validate file type - only images supported
+    // Validate file type - images and PDFs supported
     const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     const isPDF = mimeType === 'application/pdf';
 
-    if (isPDF) {
-      console.log('PDF upload attempted - not yet supported');
-      throw new Error('PDF support coming soon! Please upload a clear photo or screenshot (JPG/PNG) of your document instead.');
-    }
-
-    if (!allowedImageTypes.includes(mimeType)) {
+    if (!allowedImageTypes.includes(mimeType) && !isPDF) {
       console.log('Unsupported file type:', mimeType);
-      throw new Error(`Unsupported file type. Please upload JPG, PNG, or WEBP images only.`);
+      throw new Error(`Unsupported file type. Please upload JPG, PNG, WEBP, or PDF files.`);
     }
 
-    console.log('Processing image with AI - type:', documentType, 'mime:', mimeType, 'size:', base64.length);
+    console.log('Processing document with AI - type:', documentType, 'mime:', mimeType, 'size:', base64.length);
 
-    // Build the content for AI vision analysis
-    const userContent = [
-      {
-        type: 'text',
-        text: 'Please analyze this document image and extract the requested information accurately.'
-      },
-      {
-        type: 'image_url',
-        image_url: {
-          url: `data:${mimeType};base64,${base64}`
+    // Build the content for AI analysis
+    let userContent: any[];
+    
+    if (isPDF) {
+      // For PDFs, send as document with inline data
+      console.log('Processing PDF document');
+      userContent = [
+        {
+          type: 'text',
+          text: 'Please analyze this PDF document and extract the requested information accurately.'
+        },
+        {
+          type: 'image_url',
+          image_url: {
+            url: `data:${mimeType};base64,${base64}`
+          }
         }
-      }
-    ];
+      ];
+    } else {
+      // For images, use the standard approach
+      console.log('Processing image document');
+      userContent = [
+        {
+          type: 'text',
+          text: 'Please analyze this document image and extract the requested information accurately.'
+        },
+        {
+          type: 'image_url',
+          image_url: {
+            url: `data:${mimeType};base64,${base64}`
+          }
+        }
+      ];
+    }
 
     // Call Lovable AI with vision capabilities
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
