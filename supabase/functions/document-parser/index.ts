@@ -26,9 +26,18 @@ serve(async (req) => {
 
     console.log(`Processing ${documentType} document: ${file.name}`);
 
-    // Convert file to base64 for AI processing
+    // Convert file to base64 for AI processing (chunked to avoid stack overflow)
     const bytes = await file.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(bytes)));
+    const uint8Array = new Uint8Array(bytes);
+    
+    // Convert to base64 in chunks to avoid stack overflow
+    let binary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < uint8Array.length; i += chunkSize) {
+      const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
+      binary += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+    const base64 = btoa(binary);
     const mimeType = file.type || 'application/pdf';
 
     // Determine the prompt based on document type
