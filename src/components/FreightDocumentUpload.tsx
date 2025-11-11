@@ -97,7 +97,7 @@ export function FreightDocumentUpload({ type, onDataExtracted }: FreightDocument
             className="text-sm"
           />
           <p className="text-xs text-muted-foreground mt-1">
-            📄 Upload PDF, JPG, PNG, or WEBP files
+            📄 Upload PDF, JPG, PNG, or WEBP (PDFs auto-converted)
           </p>
           {file && (
             <div className="text-xs text-muted-foreground">

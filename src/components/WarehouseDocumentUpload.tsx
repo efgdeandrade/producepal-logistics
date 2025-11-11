@@ -104,7 +104,7 @@ export function WarehouseDocumentUpload({ onDataExtracted }: WarehouseDocumentUp
             disabled={uploading}
           />
           <p className="text-xs text-muted-foreground mt-1">
-            📄 Upload PDF, JPG, PNG, or WEBP files
+            📄 Upload PDF, JPG, PNG, or WEBP files (PDFs are automatically converted)
           </p>
           {file && (
             <div className="text-sm text-muted-foreground">
@@ -137,7 +137,7 @@ export function WarehouseDocumentUpload({ onDataExtracted }: WarehouseDocumentUp
             <li>AI extracts product codes, actual weights, and volumetric weights</li>
             <li>Automatically fills the form below with extracted data</li>
             <li>You can review and adjust before saving</li>
-            <li>Supports PDF, JPG, PNG, and WEBP formats</li>
+            <li>Supports PDF, JPG, PNG, and WEBP formats (PDFs auto-converted)</li>
           </ul>
         </div>
       </CardContent>

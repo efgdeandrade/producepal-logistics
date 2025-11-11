@@ -26,19 +26,65 @@ serve(async (req) => {
 
     console.log(`Processing ${documentType} document: ${file.name}`);
 
-    // Convert file to base64 for AI processing (chunked to avoid stack overflow)
-    const bytes = await file.arrayBuffer();
-    const uint8Array = new Uint8Array(bytes);
+    const mimeType = file.type || 'application/octet-stream';
+    const isPDF = mimeType === 'application/pdf';
     
-    // Convert to base64 in chunks to avoid stack overflow
-    let binary = '';
-    const chunkSize = 8192;
-    for (let i = 0; i < uint8Array.length; i += chunkSize) {
-      const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
-      binary += String.fromCharCode.apply(null, Array.from(chunk));
+    let base64: string;
+    let processedMimeType: string;
+
+    if (isPDF) {
+      console.log('PDF detected - converting to image using external API...');
+      try {
+        // Use Cloudmersive API for PDF to image conversion
+        const pdfBytes = await file.arrayBuffer();
+        const pdfBlob = new Blob([pdfBytes], { type: 'application/pdf' });
+        
+        const convertResponse = await fetch('https://api.cloudmersive.com/convert/pdf/to/png/single', {
+          method: 'POST',
+          headers: {
+            'Apikey': Deno.env.get('CLOUDMERSIVE_API_KEY') || 'demo',
+            'Content-Type': 'application/pdf',
+          },
+          body: pdfBlob,
+        });
+        
+        if (!convertResponse.ok) {
+          throw new Error(`Conversion service returned: ${convertResponse.status}`);
+        }
+        
+        const imageBytes = await convertResponse.arrayBuffer();
+        const uint8Array = new Uint8Array(imageBytes);
+        
+        // Convert to base64
+        let binary = '';
+        const chunkSize = 8192;
+        for (let i = 0; i < uint8Array.length; i += chunkSize) {
+          const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
+          binary += String.fromCharCode.apply(null, Array.from(chunk));
+        }
+        base64 = btoa(binary);
+        processedMimeType = 'image/png';
+        
+        console.log('PDF successfully converted to PNG');
+      } catch (pdfError) {
+        console.error('PDF conversion error:', pdfError);
+        throw new Error('PDF processing is temporarily unavailable. Please convert your PDF to JPG or PNG using pdf2png.com or by taking screenshots, then upload the image instead.');
+      }
+    } else {
+      // Process images directly
+      const bytes = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(bytes);
+      
+      // Convert to base64 in chunks to avoid stack overflow
+      let binary = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < uint8Array.length; i += chunkSize) {
+        const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
+        binary += String.fromCharCode.apply(null, Array.from(chunk));
+      }
+      base64 = btoa(binary);
+      processedMimeType = mimeType;
     }
-    const base64 = btoa(binary);
-    const mimeType = file.type || 'application/pdf';
 
     // Determine the prompt based on document type
     let systemPrompt = '';
@@ -119,51 +165,30 @@ Return the amount as a number in USD.`;
       };
     }
 
-    // Validate file type - images and PDFs supported
+    // Validate file type
     const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    const isPDF = mimeType === 'application/pdf';
+    const allowedTypes = [...allowedImageTypes, 'application/pdf'];
 
-    if (!allowedImageTypes.includes(mimeType) && !isPDF) {
+    if (!allowedTypes.includes(mimeType)) {
       console.log('Unsupported file type:', mimeType);
-      throw new Error(`Unsupported file type. Please upload JPG, PNG, WEBP, or PDF files.`);
+      throw new Error(`Unsupported file type: ${mimeType}. Please upload JPG, PNG, WEBP, or PDF files.`);
     }
 
-    console.log('Processing document with AI - type:', documentType, 'mime:', mimeType, 'size:', base64.length);
+    console.log('Sending to AI - type:', documentType, 'mime:', processedMimeType, 'size:', base64.length);
 
-    // Build the content for AI analysis
-    let userContent: any[];
-    
-    if (isPDF) {
-      // For PDFs, send as document with inline data
-      console.log('Processing PDF document');
-      userContent = [
-        {
-          type: 'text',
-          text: 'Please analyze this PDF document and extract the requested information accurately.'
-        },
-        {
-          type: 'image_url',
-          image_url: {
-            url: `data:${mimeType};base64,${base64}`
-          }
+    // Build the content for AI vision analysis
+    const userContent = [
+      {
+        type: 'text',
+        text: 'Please analyze this document image and extract the requested information accurately.'
+      },
+      {
+        type: 'image_url',
+        image_url: {
+          url: `data:${processedMimeType};base64,${base64}`
         }
-      ];
-    } else {
-      // For images, use the standard approach
-      console.log('Processing image document');
-      userContent = [
-        {
-          type: 'text',
-          text: 'Please analyze this document image and extract the requested information accurately.'
-        },
-        {
-          type: 'image_url',
-          image_url: {
-            url: `data:${mimeType};base64,${base64}`
-          }
-        }
-      ];
-    }
+      }
+    ];
 
     // Call Lovable AI with vision capabilities
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
