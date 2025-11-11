@@ -29,15 +29,36 @@ export function FreightDocumentUpload({ type, onDataExtracted }: FreightDocument
 
     setUploading(true);
     try {
-      // Simulate processing time
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Simulated extraction - in production, this would use AI to extract invoice amounts
-      const mockAmount = type === "exterior" ? 2500.75 : 450.50;
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', type === "exterior" ? "exterior_agent" : "local_agent");
 
-      toast.success(`✓ ${type === "exterior" ? "Exterior" : "Local"} freight cost extracted: $${mockAmount.toFixed(2)}`);
-      onDataExtracted(mockAmount);
-      setFile(null); // Reset file after extraction
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/document-parser`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to parse document');
+      }
+
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to extract data');
+      }
+
+      const extractedAmount = result.data.totalAmount;
+
+      toast.success(`✓ ${type === "exterior" ? "Exterior" : "Local"} freight cost extracted: $${extractedAmount.toFixed(2)}`);
+      onDataExtracted(extractedAmount);
+      setFile(null);
       
     } catch (error: any) {
       console.error("Error parsing freight document:", error);

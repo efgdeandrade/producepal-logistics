@@ -36,24 +36,42 @@ export function WarehouseDocumentUpload({ onDataExtracted }: WarehouseDocumentUp
 
     setUploading(true);
     try {
-      // Simulate processing time
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Simulated data structure for demonstration
-      // In production, this would call an edge function with AI document parsing
-      const mockData: ParsedWeightData[] = [
-        {
-          productCode: "EXAMPLE001",
-          actualWeightKg: 150.5,
-          volumetricWeightKg: 180.2,
-          palletsUsed: 2,
-          weightTypeUsed: "volumetric"
-        }
-      ];
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', 'warehouse');
 
-      toast.success("✓ Warehouse data extracted successfully! Check the table below.");
-      onDataExtracted(mockData);
-      setFile(null); // Reset file after extraction
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/document-parser`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to parse document');
+      }
+
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to extract data');
+      }
+
+      const extractedProducts: ParsedWeightData[] = result.data.products.map((p: any) => ({
+        productCode: p.productCode,
+        actualWeightKg: p.actualWeightKg,
+        volumetricWeightKg: p.volumetricWeightKg,
+        palletsUsed: p.palletsUsed,
+        weightTypeUsed: p.weightTypeUsed
+      }));
+
+      toast.success(`✓ Extracted data for ${extractedProducts.length} products! Check the table below.`);
+      onDataExtracted(extractedProducts);
+      setFile(null);
       
     } catch (error: any) {
       console.error("Error parsing warehouse document:", error);

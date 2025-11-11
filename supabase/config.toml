@@ -15,6 +15,9 @@ verify_jwt = false
 [functions.pricing-optimizer]
 verify_jwt = false
 
+[functions.document-parser]
+verify_jwt = false
+
 [functions.create-user-direct]
 verify_jwt = false
 
