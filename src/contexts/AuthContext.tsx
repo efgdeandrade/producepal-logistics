@@ -8,11 +8,13 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   roles: string[];
+  mustChangePassword: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   hasRole: (role: string) => boolean;
   isAdmin: () => boolean;
+  clearMustChangePassword: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [roles, setRoles] = useState<string[]>([]);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
   const { toast } = useToast();
 
   const fetchUserRoles = async (userId: string) => {
@@ -38,6 +41,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data?.map((r) => r.role) || [];
   };
 
+  const fetchMustChangePassword = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('must_change_password')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching password change requirement:', error);
+      return false;
+    }
+
+    return (data as any)?.must_change_password ?? false;
+  };
+
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -45,13 +63,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
 
-        // Fetch roles after state is set
+        // Fetch roles and password change requirement after state is set
         if (currentSession?.user) {
           setTimeout(() => {
             fetchUserRoles(currentSession.user.id).then(setRoles);
+            fetchMustChangePassword(currentSession.user.id).then(setMustChangePassword);
           }, 0);
         } else {
           setRoles([]);
+          setMustChangePassword(false);
         }
       }
     );
@@ -62,9 +82,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(currentSession?.user ?? null);
 
       if (currentSession?.user) {
-        fetchUserRoles(currentSession.user.id).then(setRoles);
+        Promise.all([
+          fetchUserRoles(currentSession.user.id),
+          fetchMustChangePassword(currentSession.user.id)
+        ]).then(([rolesData, mustChangePass]) => {
+          setRoles(rolesData);
+          setMustChangePassword(mustChangePass);
+          setLoading(false);
+        });
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -141,6 +169,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hasRole = (role: string) => roles.includes(role);
   const isAdmin = () => hasRole('admin');
 
+  const clearMustChangePassword = () => {
+    setMustChangePassword(false);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -148,11 +180,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         loading,
         roles,
+        mustChangePassword,
         signIn,
         signUp,
         signOut,
         hasRole,
         isAdmin,
+        clearMustChangePassword,
       }}
     >
       {children}

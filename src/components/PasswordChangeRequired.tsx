@@ -1,4 +1,4 @@
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -22,10 +22,8 @@ interface PasswordChangeRequiredProps {
 }
 
 export function PasswordChangeRequired({ children }: PasswordChangeRequiredProps) {
-  const { user } = useAuth();
+  const { user, mustChangePassword, clearMustChangePassword } = useAuth();
   const { toast } = useToast();
-  const [mustChangePassword, setMustChangePassword] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     currentPassword: '',
@@ -33,32 +31,6 @@ export function PasswordChangeRequired({ children }: PasswordChangeRequiredProps
     confirmPassword: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    const checkPasswordChangeRequired = async () => {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('must_change_password')
-        .eq('id', user.id)
-        .single();
-
-      if (error) {
-        console.error('Error checking password change requirement:', error);
-        setLoading(false);
-        return;
-      }
-
-      setMustChangePassword((data as any)?.must_change_password ?? false);
-      setLoading(false);
-    };
-
-    checkPasswordChangeRequired();
-  }, [user]);
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,7 +83,7 @@ export function PasswordChangeRequired({ children }: PasswordChangeRequiredProps
         description: 'Your password has been changed successfully',
       });
 
-      setMustChangePassword(false);
+      clearMustChangePassword();
       setFormData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (error: any) {
       toast({
@@ -123,14 +95,6 @@ export function PasswordChangeRequired({ children }: PasswordChangeRequiredProps
       setIsSubmitting(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
 
   if (!mustChangePassword) {
     return <>{children}</>;
