@@ -18,7 +18,7 @@ export function usePermissions() {
         setPermissions({
           dashboard: { can_view: true },
           orders: { can_view: true },
-          others: { can_view: true },
+          data: { can_view: true },
           logistics: { can_view: true },
           production: { can_view: true },
           analytics: { can_view: true },

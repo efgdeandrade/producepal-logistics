@@ -102,11 +102,11 @@ export const Header = () => {
             </DropdownMenu>
           )}
 
-          {canView('others') && (
+          {canView('data') && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm">
-                  Others
+                  Data
                   <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>

@@ -34,7 +34,7 @@ export default function Settings() {
 
   const [rolePermissions, setRolePermissions] = useState<any[]>([]);
   const roles = ['admin', 'manager', 'management', 'driver', 'production', 'accounting'];
-  const resources = ['dashboard', 'orders', 'others', 'logistics', 'production', 'analytics', 'settings', 'users'];
+  const resources = ['dashboard', 'orders', 'data', 'logistics', 'production', 'analytics', 'settings', 'users'];
 
   useEffect(() => {
     if (!isAdmin()) {
