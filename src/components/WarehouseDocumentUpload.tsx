@@ -16,9 +16,10 @@ interface ParsedWeightData {
 
 interface WarehouseDocumentUploadProps {
   onDataExtracted: (data: ParsedWeightData[]) => void;
+  uploadKey?: number;
 }
 
-export function WarehouseDocumentUpload({ onDataExtracted }: WarehouseDocumentUploadProps) {
+export function WarehouseDocumentUpload({ onDataExtracted, uploadKey }: WarehouseDocumentUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -69,9 +70,12 @@ export function WarehouseDocumentUpload({ onDataExtracted }: WarehouseDocumentUp
         weightTypeUsed: p.weightTypeUsed
       }));
 
-      toast.success(`✓ Extracted data for ${extractedProducts.length} products! Check the table below.`);
+      toast.success(`✓ Data replaced! Extracted ${extractedProducts.length} products from new document.`);
       onDataExtracted(extractedProducts);
       setFile(null);
+      // Reset file input
+      const fileInput = document.getElementById('warehouse-doc') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
       
     } catch (error: any) {
       console.error("Error parsing warehouse document:", error);
@@ -102,6 +106,7 @@ export function WarehouseDocumentUpload({ onDataExtracted }: WarehouseDocumentUp
             accept=".jpg,.jpeg,.png,.webp,.pdf"
             onChange={handleFileChange}
             disabled={uploading}
+            key={uploadKey}
           />
           <p className="text-xs text-muted-foreground mt-1">
             📄 Upload PDF, JPG, PNG, or WEBP files

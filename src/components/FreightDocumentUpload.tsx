@@ -9,9 +9,10 @@ import { Upload, FileText, Loader2 } from "lucide-react";
 interface FreightDocumentUploadProps {
   type: "exterior" | "local";
   onDataExtracted: (amount: number) => void;
+  uploadKey?: number;
 }
 
-export function FreightDocumentUpload({ type, onDataExtracted }: FreightDocumentUploadProps) {
+export function FreightDocumentUpload({ type, onDataExtracted, uploadKey }: FreightDocumentUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -59,6 +60,9 @@ export function FreightDocumentUpload({ type, onDataExtracted }: FreightDocument
       toast.success(`✓ ${type === "exterior" ? "Exterior" : "Local"} freight cost extracted: $${extractedAmount.toFixed(2)}`);
       onDataExtracted(extractedAmount);
       setFile(null);
+      // Reset file input
+      const fileInput = document.getElementById(`${type}-doc`) as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
       
     } catch (error: any) {
       console.error("Error parsing freight document:", error);
@@ -95,6 +99,7 @@ export function FreightDocumentUpload({ type, onDataExtracted }: FreightDocument
             onChange={handleFileChange}
             disabled={uploading}
             className="text-sm"
+            key={uploadKey}
           />
           <p className="text-xs text-muted-foreground mt-1">
             📄 Upload PDF, JPG, PNG, or WEBP

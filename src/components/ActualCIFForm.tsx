@@ -8,11 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Package, Upload, DollarSign, TrendingUp } from "lucide-react";
+import { Loader2, Package, Upload, DollarSign, TrendingUp, Calculator } from "lucide-react";
 import { WarehouseDocumentUpload } from "./WarehouseDocumentUpload";
 import { FreightDocumentUpload } from "./FreightDocumentUpload";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DitoAdvisor } from "./DitoAdvisor";
 
 interface SupplierWeightData {
   supplierId: string;
@@ -29,6 +30,26 @@ interface SupplierWeightData {
     weightPerUnit: number;
     volumetricWeightPerUnit: number;
   }[];
+}
+
+interface CIFResult {
+  productCode: string;
+  productName: string;
+  quantity: number;
+  actualWeight: number;
+  volumetricWeight: number;
+  chargeableWeight: number;
+  weightType: 'actual' | 'volumetric';
+  costUSD: number;
+  freightCost: number;
+  cifUSD: number;
+  cifXCG: number;
+  cifPerUnit: number;
+  wholesalePrice: number;
+  retailPrice: number;
+  wholesaleMargin: number;
+  retailMargin: number;
+  suppliers: string;
 }
 
 interface ActualCIFFormProps {
@@ -52,11 +73,16 @@ export function ActualCIFForm({
   const [actualOtherCosts, setActualOtherCosts] = useState("");
   const [supplierWeights, setSupplierWeights] = useState<SupplierWeightData[]>([]);
   const [exchangeRate, setExchangeRate] = useState(1.82);
+  const [demandPatterns, setDemandPatterns] = useState<Map<string, { frequency: number; wasteRate: number }>>(new Map());
+  
+  // Upload keys to force remount on document upload
+  const [warehouseUploadKeys, setWarehouseUploadKeys] = useState<Map<string, number>>(new Map());
+  const [freightUploadKey, setFreightUploadKey] = useState(0);
 
   // Initialize supplier data grouped by supplier
   useEffect(() => {
     const initializeData = async () => {
-      // Fetch suppliers and settings
+      // Fetch suppliers, settings, products, and demand patterns
       const [suppliersRes, settingsRes, productsRes] = await Promise.all([
         supabase.from("suppliers").select("*"),
         supabase.from("settings").select("*").eq("key", "usd_to_xcg_rate"),
@@ -66,6 +92,21 @@ export function ActualCIFForm({
       const suppliersData = suppliersRes.data || [];
       const rate = (settingsRes.data?.[0]?.value as any)?.rate || 1.82;
       setExchangeRate(rate);
+
+      // Fetch demand patterns for strategic calculations
+      const productCodes = [...new Set(orderItems.map(item => item.product_code))];
+      const { data: demandData } = await supabase
+        .from('demand_patterns')
+        .select('product_code, order_frequency, avg_waste_rate')
+        .in('product_code', productCodes);
+
+      const demandMap = new Map(
+        demandData?.map(d => [d.product_code, {
+          frequency: d.order_frequency || 1,
+          wasteRate: d.avg_waste_rate || 0
+        }]) || []
+      );
+      setDemandPatterns(demandMap);
 
       // Group products by supplier
       const supplierGroups = new Map<string, any[]>();
@@ -118,16 +159,14 @@ export function ActualCIFForm({
   };
 
   const handleWarehouseDocumentExtraction = (supplierId: string) => (extractedData: any[]) => {
-    // Extract per-supplier totals (not per product)
-    // The warehouse document provides total weight for entire supplier shipment
+    // Extract per-supplier totals
     const totalActualWeight = extractedData.reduce((sum, item) => sum + (item.actualWeightKg || 0), 0);
     const totalVolumetricWeight = extractedData.reduce((sum, item) => sum + (item.volumetricWeightKg || 0), 0);
     const totalPallets = extractedData.reduce((sum, item) => sum + (item.palletsUsed || 0), 0);
     
-    // Determine which weight type was charged
     const weightTypeUsed = totalVolumetricWeight > totalActualWeight ? "volumetric" : "actual";
     
-    // REPLACE (not append) the supplier's weight data when new document is uploaded
+    // REPLACE supplier's weight data
     setSupplierWeights(prev => prev.map(sw => 
       sw.supplierId === supplierId 
         ? {
@@ -140,17 +179,39 @@ export function ActualCIFForm({
         : sw
     ));
     
-    const supplier = supplierWeights.find(s => s.supplierId === supplierId);
-    toast.success(`Warehouse data updated for ${supplier?.supplierName || 'supplier'}`);
+    // Force remount of upload component
+    setWarehouseUploadKeys(prev => new Map(prev).set(supplierId, (prev.get(supplierId) || 0) + 1));
   };
 
-  const calculateActualCIF = () => {
+  const handleFreightExtraction = (type: 'exterior' | 'local') => (amount: number) => {
+    if (type === 'exterior') {
+      setActualFreightExterior(amount.toString());
+    } else {
+      setActualFreightLocal(amount.toString());
+    }
+    setFreightUploadKey(prev => prev + 1);
+  };
+
+  // Reactive calculation with useMemo
+  const cifCalculations = useMemo(() => {
     const totalActualFreightExterior = parseFloat(actualFreightExterior || "0");
     const totalActualFreightLocal = parseFloat(actualFreightLocal || "0");
     const totalActualFreight = totalActualFreightExterior + totalActualFreightLocal;
     const totalOtherCosts = parseFloat(actualOtherCosts || "0");
 
-    // Step 1: Consolidate products by unique product code across all suppliers
+    if (totalActualFreight === 0 && !supplierWeights.some(sw => parseFloat(sw.actualWeightKg || "0") > 0)) {
+      return {
+        byWeight: [],
+        byCost: [],
+        equally: [],
+        hybrid: [],
+        strategic: [],
+        volumeOptimized: [],
+        customerTier: []
+      };
+    }
+
+    // Consolidate products by unique product code
     const consolidatedProducts = new Map<string, {
       productCode: string;
       productName: string;
@@ -159,12 +220,14 @@ export function ActualCIFForm({
       totalVolumetricWeight: number;
       totalCostUSD: number;
       suppliers: string[];
+      orderFrequency: number;
+      wasteRate: number;
     }>();
 
-    // Step 2: Accumulate product data across all suppliers
     supplierWeights.forEach(supplier => {
       supplier.products.forEach(product => {
         if (!consolidatedProducts.has(product.productCode)) {
+          const demand = demandPatterns.get(product.productCode);
           consolidatedProducts.set(product.productCode, {
             productCode: product.productCode,
             productName: product.productName,
@@ -172,7 +235,9 @@ export function ActualCIFForm({
             totalActualWeight: 0,
             totalVolumetricWeight: 0,
             totalCostUSD: 0,
-            suppliers: []
+            suppliers: [],
+            orderFrequency: demand?.frequency || 1,
+            wasteRate: demand?.wasteRate || 0
           });
         }
         
@@ -188,50 +253,109 @@ export function ActualCIFForm({
       });
     });
 
-    // Step 3: Calculate total chargeable weight across all consolidated products
-    const totalChargeableWeight = Array.from(consolidatedProducts.values()).reduce((sum, product) => {
-      return sum + Math.max(product.totalActualWeight, product.totalVolumetricWeight);
-    }, 0);
+    const productsArray = Array.from(consolidatedProducts.values());
+    const totalWeight = productsArray.reduce((sum, p) => sum + Math.max(p.totalActualWeight, p.totalVolumetricWeight), 0);
+    const totalCost = productsArray.reduce((sum, p) => sum + p.totalCostUSD, 0);
 
-    // Step 4: Calculate CIF for each unique product
-    const allProducts = Array.from(consolidatedProducts.values()).map(product => {
-      const chargeableWeight = Math.max(product.totalActualWeight, product.totalVolumetricWeight);
-      
-      // Allocate freight to this product based on its chargeable weight contribution
-      const freightAllocation = totalChargeableWeight > 0 
-        ? (chargeableWeight / totalChargeableWeight) * totalActualFreight 
-        : 0;
-      
-      const cifUSD = product.totalCostUSD + freightAllocation;
-      const cifXCG = cifUSD * exchangeRate;
-      const cifPerUnit = product.totalQuantity > 0 ? cifXCG / product.totalQuantity : 0;
-      
-      // Calculate margins
-      const wholesalePrice = cifPerUnit * 1.25;
-      const retailPrice = cifPerUnit * 1.786;
-      
-      return {
-        productCode: product.productCode,
-        productName: product.productName,
-        quantity: product.totalQuantity,
-        actualWeight: product.totalActualWeight,
-        volumetricWeight: product.totalVolumetricWeight,
-        weightType: product.totalVolumetricWeight > product.totalActualWeight ? 'volumetric' : 'actual',
-        costUSD: product.totalCostUSD,
-        freightCost: freightAllocation,
-        cifUSD,
-        cifXCG,
-        cifPerUnit,
-        wholesalePrice,
-        retailPrice,
-        wholesaleMargin: wholesalePrice - cifPerUnit,
-        retailMargin: retailPrice - cifPerUnit,
-        suppliers: product.suppliers.join(', ')
-      };
-    });
+    const WHOLESALE_MULTIPLIER = 1.25;
+    const RETAIL_MULTIPLIER = 1.786;
 
-    return allProducts;
-  };
+    const calculateResults = (
+      distributionMethod: 'weight' | 'cost' | 'equal' | 'hybrid' | 'strategic' | 'volumeOptimized' | 'customerTier'
+    ): CIFResult[] => {
+      return productsArray.map(product => {
+        const chargeableWeight = Math.max(product.totalActualWeight, product.totalVolumetricWeight);
+        const productCost = product.totalCostUSD;
+
+        let freightShare = 0;
+        
+        switch (distributionMethod) {
+          case 'weight':
+            freightShare = totalWeight > 0 ? (chargeableWeight / totalWeight) * totalActualFreight : 0;
+            break;
+            
+          case 'cost':
+            freightShare = totalCost > 0 ? (productCost / totalCost) * totalActualFreight : 0;
+            break;
+            
+          case 'equal':
+            freightShare = totalActualFreight / productsArray.length;
+            break;
+            
+          case 'hybrid':
+            const weightShare = totalWeight > 0 ? (chargeableWeight / totalWeight) * totalActualFreight : 0;
+            const costShare = totalCost > 0 ? (productCost / totalCost) * totalActualFreight : 0;
+            freightShare = (weightShare + costShare) / 2;
+            break;
+            
+          case 'volumeOptimized':
+            const totalFrequency = productsArray.reduce((sum, p) => sum + p.orderFrequency, 0);
+            const frequencyWeight = totalFrequency > 0 ? (product.orderFrequency / totalFrequency) : 1 / productsArray.length;
+            const invertedWeight = 1 - (frequencyWeight / 2);
+            freightShare = invertedWeight * (totalActualFreight / productsArray.length);
+            break;
+            
+          case 'strategic':
+            const riskFactor = 1 + (product.wasteRate / 100);
+            const velocityFactor = 1 / Math.sqrt(product.orderFrequency || 1);
+            const strategicWeight = riskFactor * velocityFactor;
+            const totalStrategicWeight = productsArray.reduce((sum, p) => {
+              const rf = 1 + (p.wasteRate / 100);
+              const vf = 1 / Math.sqrt(p.orderFrequency || 1);
+              return sum + (rf * vf);
+            }, 0);
+            freightShare = totalStrategicWeight > 0 ? (strategicWeight / totalStrategicWeight) * totalActualFreight : totalActualFreight / productsArray.length;
+            break;
+            
+          case 'customerTier':
+            const isWholesaleHeavy = product.orderFrequency > 5;
+            const tierMultiplier = isWholesaleHeavy ? 0.85 : 1.15;
+            const baseShare = totalActualFreight / productsArray.length;
+            freightShare = baseShare * tierMultiplier;
+            break;
+        }
+
+        const cifUSD = productCost + freightShare;
+        const cifXCG = cifUSD * exchangeRate;
+        const cifPerUnit = product.totalQuantity > 0 ? cifXCG / product.totalQuantity : 0;
+
+        const wholesalePrice = cifPerUnit * WHOLESALE_MULTIPLIER;
+        const retailPrice = cifPerUnit * RETAIL_MULTIPLIER;
+        const wholesaleMargin = wholesalePrice - cifPerUnit;
+        const retailMargin = retailPrice - cifPerUnit;
+
+        return {
+          productCode: product.productCode,
+          productName: product.productName,
+          quantity: product.totalQuantity,
+          actualWeight: product.totalActualWeight,
+          volumetricWeight: product.totalVolumetricWeight,
+          chargeableWeight,
+          weightType: product.totalVolumetricWeight > product.totalActualWeight ? 'volumetric' : 'actual',
+          costUSD: productCost,
+          freightCost: freightShare,
+          cifUSD,
+          cifXCG,
+          cifPerUnit,
+          wholesalePrice,
+          retailPrice,
+          wholesaleMargin,
+          retailMargin,
+          suppliers: product.suppliers.join(', ')
+        };
+      });
+    };
+
+    return {
+      byWeight: calculateResults('weight'),
+      byCost: calculateResults('cost'),
+      equally: calculateResults('equal'),
+      hybrid: calculateResults('hybrid'),
+      strategic: calculateResults('strategic'),
+      volumeOptimized: calculateResults('volumeOptimized'),
+      customerTier: calculateResults('customerTier')
+    };
+  }, [actualFreightExterior, actualFreightLocal, actualOtherCosts, supplierWeights, exchangeRate, demandPatterns]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -240,7 +364,7 @@ export function ActualCIFForm({
         parseFloat(actualFreightExterior || "0") + 
         parseFloat(actualFreightLocal || "0");
       const totalEstimatedFreight = estimatedFreightExterior + estimatedFreightLocal;
-      const calculations = calculateActualCIF();
+      const calculations = cifCalculations.byWeight; // Save "by weight" as default
 
       // Save each product's actual CIF data
       for (const calc of calculations) {
@@ -257,7 +381,7 @@ export function ActualCIFForm({
           actual_other_costs_usd: parseFloat(actualOtherCosts || "0"),
           actual_weight_kg: calc.actualWeight,
           volumetric_weight_kg: calc.volumetricWeight,
-          chargeable_weight_kg: calc.weightType === "actual" ? calc.actualWeight : calc.volumetricWeight,
+          chargeable_weight_kg: calc.chargeableWeight,
           weight_type_used: calc.weightType,
           variance_amount_usd: totalActualFreight - totalEstimatedFreight,
           variance_percentage: totalEstimatedFreight > 0 
@@ -279,8 +403,96 @@ export function ActualCIFForm({
     }
   };
 
+  const renderTable = (results: CIFResult[], title: string, description?: string) => {
+    if (!results || results.length === 0) return null;
+
+    return (
+      <div>
+        <div className="mb-3">
+          <h3 className="text-sm font-semibold">{title}</h3>
+          {description && <p className="text-xs text-muted-foreground mt-1">{description}</p>}
+        </div>
+        <ScrollArea className="w-full">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Product</TableHead>
+                <TableHead>Suppliers</TableHead>
+                <TableHead className="text-right">Units</TableHead>
+                <TableHead className="text-right">Actual (kg)</TableHead>
+                <TableHead className="text-right">Vol. (kg)</TableHead>
+                <TableHead className="text-right">Chargeable</TableHead>
+                <TableHead className="text-right">Cost USD</TableHead>
+                <TableHead className="text-right">Freight</TableHead>
+                <TableHead className="text-right">CIF USD</TableHead>
+                <TableHead className="text-right">CIF Cg</TableHead>
+                <TableHead className="text-right">CIF/Unit</TableHead>
+                <TableHead className="text-right">Wholesale</TableHead>
+                <TableHead className="text-right">W. Margin</TableHead>
+                <TableHead className="text-right">W. %</TableHead>
+                <TableHead className="text-right">Retail</TableHead>
+                <TableHead className="text-right">R. Margin</TableHead>
+                <TableHead className="text-right">R. %</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {results.map((result) => {
+                const wholesaleMarginPercent = result.cifPerUnit > 0 
+                  ? ((result.wholesalePrice - result.cifPerUnit) / result.cifPerUnit * 100)
+                  : 0;
+                const retailMarginPercent = result.cifPerUnit > 0
+                  ? ((result.retailPrice - result.cifPerUnit) / result.cifPerUnit * 100)
+                  : 0;
+
+                return (
+                  <TableRow key={result.productCode}>
+                    <TableCell className="font-medium">
+                      {result.productName}
+                      <div className="text-xs text-muted-foreground">{result.productCode}</div>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground max-w-[150px]">
+                      {result.suppliers}
+                    </TableCell>
+                    <TableCell className="text-right">{result.quantity}</TableCell>
+                    <TableCell className="text-right">{result.actualWeight.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">{result.volumetricWeight.toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-semibold">
+                      {result.chargeableWeight.toFixed(2)}
+                      {result.weightType === 'volumetric' && <span className="text-xs text-orange-600 ml-1">V</span>}
+                    </TableCell>
+                    <TableCell className="text-right">${result.costUSD.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">${result.freightCost.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">${result.cifUSD.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">Cg {result.cifXCG.toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-bold">
+                      Cg {result.cifPerUnit.toFixed(2)}
+                    </TableCell>
+                    <TableCell className="text-right">Cg {result.wholesalePrice.toFixed(2)}</TableCell>
+                    <TableCell className="text-right text-green-600">
+                      Cg {result.wholesaleMargin.toFixed(2)}
+                    </TableCell>
+                    <TableCell className="text-right text-green-600 font-semibold">
+                      {wholesaleMarginPercent.toFixed(1)}%
+                    </TableCell>
+                    <TableCell className="text-right">Cg {result.retailPrice.toFixed(2)}</TableCell>
+                    <TableCell className="text-right text-green-600">
+                      Cg {result.retailMargin.toFixed(2)}
+                    </TableCell>
+                    <TableCell className="text-right text-green-600 font-semibold">
+                      {retailMarginPercent.toFixed(1)}%
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+      </div>
+    );
+  };
+
   const hasData = actualFreightExterior || actualFreightLocal || supplierWeights.some(sw => sw.actualWeightKg);
-  const cifCalculations = hasData ? calculateActualCIF() : [];
 
   if (supplierWeights.length === 0) {
     return (
@@ -309,11 +521,13 @@ export function ActualCIFForm({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FreightDocumentUpload 
               type="exterior" 
-              onDataExtracted={(amount) => setActualFreightExterior(amount.toString())} 
+              onDataExtracted={handleFreightExtraction('exterior')}
+              uploadKey={freightUploadKey}
             />
             <FreightDocumentUpload 
               type="local" 
-              onDataExtracted={(amount) => setActualFreightLocal(amount.toString())} 
+              onDataExtracted={handleFreightExtraction('local')}
+              uploadKey={freightUploadKey}
             />
           </div>
 
@@ -371,7 +585,8 @@ export function ActualCIFForm({
         {supplierWeights.map(supplier => (
           <TabsContent key={supplier.supplierId} value={supplier.supplierId} className="space-y-4">
             <WarehouseDocumentUpload 
-              onDataExtracted={handleWarehouseDocumentExtraction(supplier.supplierId)} 
+              onDataExtracted={handleWarehouseDocumentExtraction(supplier.supplierId)}
+              uploadKey={warehouseUploadKeys.get(supplier.supplierId) || 0}
             />
             
             <Card>
@@ -447,15 +662,29 @@ export function ActualCIFForm({
         ))}
       </Tabs>
 
-      {/* Actual CIF Calculations */}
-      {hasData && cifCalculations.length > 0 && (
+      {/* Actual CIF Calculations with 7 Methods */}
+      {hasData && cifCalculations.byWeight.length > 0 && (
         <Card className="border-primary/20">
           <CardHeader>
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              <CardTitle>Actual CIF Results</CardTitle>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Calculator className="h-5 w-5" />
+                  <CardTitle>Actual CIF Results - 7 Allocation Methods</CardTitle>
+                </div>
+                <CardDescription>Compare different freight allocation strategies using actual costs</CardDescription>
+              </div>
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Actual CIF'
+                )}
+              </Button>
             </div>
-            <CardDescription>Calculated using actual freight costs and supplier weight data</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Summary Stats */}
@@ -479,7 +708,7 @@ export function ActualCIFForm({
                 </div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">Total CIF</div>
+                <div className="text-xs text-muted-foreground">Total Freight</div>
                 <div className="text-lg font-bold text-primary">
                   ${(parseFloat(actualFreightExterior || "0") + parseFloat(actualFreightLocal || "0") + parseFloat(actualOtherCosts || "0")).toFixed(2)}
                 </div>
@@ -488,98 +717,79 @@ export function ActualCIFForm({
 
             <Separator />
 
-            {/* CIF Table */}
-            <ScrollArea className="w-full">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Suppliers</TableHead>
-                    <TableHead className="text-right">Units</TableHead>
-                    <TableHead className="text-right">Actual (kg)</TableHead>
-                    <TableHead className="text-right">Vol. (kg)</TableHead>
-                    <TableHead className="text-right">Type</TableHead>
-                    <TableHead className="text-right">Cost USD</TableHead>
-                    <TableHead className="text-right">Freight</TableHead>
-                    <TableHead className="text-right">CIF USD</TableHead>
-                    <TableHead className="text-right">CIF Cg</TableHead>
-                    <TableHead className="text-right">CIF/Unit</TableHead>
-                    <TableHead className="text-right">Wholesale</TableHead>
-                    <TableHead className="text-right">W. Margin</TableHead>
-                    <TableHead className="text-right">W. %</TableHead>
-                    <TableHead className="text-right">Retail</TableHead>
-                    <TableHead className="text-right">R. Margin</TableHead>
-                    <TableHead className="text-right">R. %</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {cifCalculations.map((calc) => {
-                    const wholesaleMarginPercent = calc.cifPerUnit > 0 
-                      ? ((calc.wholesalePrice - calc.cifPerUnit) / calc.cifPerUnit * 100)
-                      : 0;
-                    const retailMarginPercent = calc.cifPerUnit > 0
-                      ? ((calc.retailPrice - calc.cifPerUnit) / calc.cifPerUnit * 100)
-                      : 0;
+            {/* 7 Allocation Methods Tabs */}
+            <Tabs defaultValue="byWeight">
+              <TabsList className="grid w-full grid-cols-7">
+                <TabsTrigger value="byWeight">By Weight</TabsTrigger>
+                <TabsTrigger value="byCost">By Cost</TabsTrigger>
+                <TabsTrigger value="equally">Equally</TabsTrigger>
+                <TabsTrigger value="hybrid">Hybrid</TabsTrigger>
+                <TabsTrigger value="strategic">Strategic</TabsTrigger>
+                <TabsTrigger value="volumeOptimized">Volume Opt.</TabsTrigger>
+                <TabsTrigger value="customerTier">Cust. Tier</TabsTrigger>
+              </TabsList>
 
-                    return (
-                      <TableRow key={calc.productCode}>
-                        <TableCell className="font-medium">
-                          {calc.productName}
-                          <div className="text-xs text-muted-foreground">{calc.productCode}</div>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground max-w-[150px]">
-                          {calc.suppliers}
-                        </TableCell>
-                        <TableCell className="text-right">{calc.quantity}</TableCell>
-                        <TableCell className="text-right">{calc.actualWeight.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">{calc.volumetricWeight.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">
-                          <Badge variant={calc.weightType === 'volumetric' ? 'default' : 'secondary'}>
-                            {calc.weightType === 'volumetric' ? 'Vol' : 'Act'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">${calc.costUSD.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">${calc.freightCost.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">${calc.cifUSD.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">Cg {calc.cifXCG.toFixed(2)}</TableCell>
-                        <TableCell className="text-right font-bold">
-                          Cg {calc.cifPerUnit.toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-right">Cg {calc.wholesalePrice.toFixed(2)}</TableCell>
-                        <TableCell className="text-right text-green-600">
-                          Cg {calc.wholesaleMargin.toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-right text-green-600 font-semibold">
-                          {wholesaleMarginPercent.toFixed(1)}%
-                        </TableCell>
-                        <TableCell className="text-right">Cg {calc.retailPrice.toFixed(2)}</TableCell>
-                        <TableCell className="text-right text-green-600">
-                          Cg {calc.retailMargin.toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-right text-green-600 font-semibold">
-                          {retailMarginPercent.toFixed(1)}%
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-              <ScrollBar orientation="horizontal" />
-            </ScrollArea>
+              <TabsContent value="byWeight">
+                {renderTable(cifCalculations.byWeight, "By Weight", "Freight allocated proportional to chargeable weight")}
+              </TabsContent>
+
+              <TabsContent value="byCost">
+                {renderTable(cifCalculations.byCost, "By Cost", "Freight allocated proportional to product cost")}
+              </TabsContent>
+
+              <TabsContent value="equally">
+                {renderTable(cifCalculations.equally, "Equally", "Freight split equally among all products")}
+              </TabsContent>
+
+              <TabsContent value="hybrid">
+                {renderTable(cifCalculations.hybrid, "Hybrid", "50% weight-based + 50% cost-based allocation")}
+              </TabsContent>
+
+              <TabsContent value="strategic">
+                {renderTable(cifCalculations.strategic, "Strategic", "AI-driven: considers waste rates and order velocity")}
+              </TabsContent>
+
+              <TabsContent value="volumeOptimized">
+                {renderTable(cifCalculations.volumeOptimized, "Volume Optimized", "Favors high-frequency products with lower freight allocation")}
+              </TabsContent>
+
+              <TabsContent value="customerTier">
+                {renderTable(cifCalculations.customerTier, "Customer Tier", "Wholesale products get preferential freight rates")}
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       )}
 
-      <Button onClick={handleSave} disabled={saving || !hasData} className="w-full" size="lg">
-        {saving ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Saving Actual CIF Data...
-          </>
-        ) : (
-          "Save Actual CIF Costs"
-        )}
-      </Button>
+      {/* Dito Advisor Integration */}
+      {hasData && cifCalculations.byWeight.length > 0 && (
+        <DitoAdvisor
+          orderItems={cifCalculations.byWeight.map(calc => ({
+            code: calc.productCode,
+            name: calc.productName,
+            quantity: calc.quantity,
+            actualWeight: calc.actualWeight,
+            volumetricWeight: calc.volumetricWeight,
+            chargeableWeight: calc.chargeableWeight,
+            weightType: calc.weightType,
+            costUSD: calc.costUSD,
+            wholesalePriceXCG: calc.wholesalePrice,
+            retailPriceXCG: calc.retailPrice,
+            profitPerUnit: calc.wholesaleMargin
+          }))}
+          palletConfiguration={{
+            totalPallets: supplierWeights.reduce((sum, sw) => sum + parseFloat(sw.palletsUsed || "0"), 0),
+            totalActualWeight: cifCalculations.byWeight.reduce((sum, c) => sum + c.actualWeight, 0),
+            totalVolumetricWeight: cifCalculations.byWeight.reduce((sum, c) => sum + c.volumetricWeight, 0),
+            totalChargeableWeight: cifCalculations.byWeight.reduce((sum, c) => sum + c.chargeableWeight, 0),
+            limitingFactor: cifCalculations.byWeight.some(c => c.weightType === 'volumetric') ? 'volumetric_weight' : 'actual_weight',
+            utilizationPercentage: 85,
+            heightUtilization: 90
+          }}
+          freightCostPerKg={(parseFloat(actualFreightExterior || "0") + parseFloat(actualFreightLocal || "0")) / cifCalculations.byWeight.reduce((sum, c) => sum + c.chargeableWeight, 0)}
+          exchangeRate={exchangeRate}
+        />
+      )}
     </div>
   );
 }
