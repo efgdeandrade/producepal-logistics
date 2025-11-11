@@ -134,54 +134,72 @@ export function CIFComparison({ orderId, orderItems }: CIFComparisonProps) {
       {/* Detailed Comparison Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Product-Level Breakdown</CardTitle>
+          <CardTitle>Product-Level CIF Breakdown</CardTitle>
+          <CardDescription>Complete cost breakdown with estimated vs actual comparison</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Product</TableHead>
-                <TableHead>Weight Type</TableHead>
-                <TableHead>Pallets</TableHead>
-                <TableHead className="text-right">Est. Freight</TableHead>
-                <TableHead className="text-right">Act. Freight</TableHead>
-                <TableHead className="text-right">Variance</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {estimates.map((estimate) => {
-                const product = orderItems.find(item => item.product_code === estimate.product_code);
-                return (
-                  <TableRow key={estimate.product_code}>
-                    <TableCell>
-                      <div className="font-medium">{product?.products?.name || estimate.product_code}</div>
-                      <div className="text-xs text-muted-foreground">{estimate.product_code}</div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {estimate.weight_type_used === "volumetric" ? "Volumetric" : "Actual"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{estimate.pallets_used || 0}</TableCell>
-                    <TableCell className="text-right font-mono">
-                      ${estimate.estimated_total_freight_usd?.toFixed(2) || "0.00"}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      ${estimate.actual_total_freight_usd?.toFixed(2) || "0.00"}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {estimate.variance_amount_usd > 0 ? "+" : ""}
-                      ${estimate.variance_amount_usd?.toFixed(2) || "0.00"}
-                    </TableCell>
-                    <TableCell>
-                      {getVarianceBadge(estimate.variance_percentage || 0)}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Qty</TableHead>
+                  <TableHead className="text-right">Ext. Est.</TableHead>
+                  <TableHead className="text-right">Ext. Act.</TableHead>
+                  <TableHead className="text-right">Local Est.</TableHead>
+                  <TableHead className="text-right">Local Act.</TableHead>
+                  <TableHead className="text-right">Total Est.</TableHead>
+                  <TableHead className="text-right">Total Act.</TableHead>
+                  <TableHead className="text-right">Variance</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {estimates.map((estimate) => {
+                  const product = orderItems.find(item => item.product_code === estimate.product_code);
+                  return (
+                    <TableRow key={estimate.product_code}>
+                      <TableCell>
+                        <div className="font-medium">{product?.products?.name || estimate.product_code}</div>
+                        <div className="text-xs text-muted-foreground">{estimate.product_code}</div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {estimate.weight_type_used === "volumetric" ? "🔵 Vol" : "🟢 Act"} • {estimate.pallets_used || 0} pallets
+                        </div>
+                      </TableCell>
+                      <TableCell>{product?.quantity || 0}</TableCell>
+                      <TableCell className="text-right font-mono text-sm">
+                        ${estimate.estimated_freight_exterior_usd?.toFixed(2) || "0.00"}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm font-semibold">
+                        ${estimate.actual_freight_exterior_usd?.toFixed(2) || "0.00"}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm">
+                        ${estimate.estimated_freight_local_usd?.toFixed(2) || "0.00"}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm font-semibold">
+                        ${estimate.actual_freight_local_usd?.toFixed(2) || "0.00"}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        ${estimate.estimated_total_freight_usd?.toFixed(2) || "0.00"}
+                      </TableCell>
+                      <TableCell className="text-right font-mono font-bold">
+                        ${estimate.actual_total_freight_usd?.toFixed(2) || "0.00"}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        <span className={estimate.variance_amount_usd > 0 ? "text-destructive" : "text-green-600"}>
+                          {estimate.variance_amount_usd > 0 ? "+" : ""}
+                          ${estimate.variance_amount_usd?.toFixed(2) || "0.00"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {getVarianceBadge(estimate.variance_percentage || 0)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { WarehouseDocumentUpload } from "./WarehouseDocumentUpload";
 
 interface ProductWeightInput {
   productCode: string;
@@ -108,15 +109,31 @@ export function ActualCIFForm({
     }
   };
 
+  const handleDocumentExtraction = (extractedData: any[]) => {
+    // Map extracted data to product weights
+    extractedData.forEach(extracted => {
+      const index = productWeights.findIndex(pw => pw.productCode === extracted.productCode);
+      if (index !== -1) {
+        updateProductWeight(index, "actualWeightKg", extracted.actualWeightKg.toString());
+        updateProductWeight(index, "palletsUsed", extracted.palletsUsed.toString());
+        updateProductWeight(index, "weightTypeUsed", extracted.weightTypeUsed);
+      }
+    });
+    toast.success("Warehouse data extracted successfully");
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Enter Actual CIF Costs</CardTitle>
-        <CardDescription>
-          Record the actual costs incurred for this order to improve future estimates
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <div className="space-y-6">
+      <WarehouseDocumentUpload onDataExtracted={handleDocumentExtraction} />
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>Enter Actual CIF Costs</CardTitle>
+          <CardDescription>
+            Record the actual costs incurred for this order to improve future estimates
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
         {/* Freight Costs */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
@@ -226,5 +243,6 @@ export function ActualCIFForm({
         </Button>
       </CardContent>
     </Card>
+    </div>
   );
 }

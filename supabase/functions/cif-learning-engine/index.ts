@@ -139,19 +139,19 @@ Format your response as JSON with this structure:
   ]
 }`;
 
-    const aiResponse = await fetch('https://api.lovable.app/v1/ai/completions', {
+    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${lovableApiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-exp',
+        model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'user', content: aiPrompt }
         ],
-        temperature: 0.3,
-        max_tokens: 2000
+        response_format: { type: 'json_object' },
+        temperature: 0.3
       })
     });
 
@@ -160,7 +160,16 @@ Format your response as JSON with this structure:
     }
 
     const aiResult = await aiResponse.json();
-    const aiInsights = JSON.parse(aiResult.choices[0].message.content);
+    let content = aiResult.choices[0].message.content;
+    
+    // Strip markdown code blocks if present
+    if (content.includes('```json')) {
+      content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    } else if (content.includes('```')) {
+      content = content.replace(/```\n?/g, '').trim();
+    }
+    
+    const aiInsights = JSON.parse(content);
 
     console.log('AI Insights generated:', aiInsights);
 

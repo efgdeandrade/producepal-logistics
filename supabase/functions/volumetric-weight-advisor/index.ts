@@ -228,15 +228,23 @@ Return your analysis in the following JSON format:
     }
 
     const aiData = await aiResponse.json();
-    const content = aiData.choices[0].message.content;
+    let content = aiData.choices[0].message.content;
     
     console.log('AI response received:', content);
+    
+    // Strip markdown code blocks if present
+    if (content.includes('```json')) {
+      content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    } else if (content.includes('```')) {
+      content = content.replace(/```\n?/g, '').trim();
+    }
     
     let recommendation;
     try {
       recommendation = JSON.parse(content);
     } catch (parseError) {
       console.error('Failed to parse AI response as JSON:', parseError);
+      console.error('Content was:', content);
       throw new Error('Invalid AI response format');
     }
 
