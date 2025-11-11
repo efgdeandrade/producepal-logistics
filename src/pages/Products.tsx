@@ -32,6 +32,9 @@ const productSchema = z.object({
   retail_price_usd_per_unit: z.number().min(0, 'Retail price cannot be negative').optional().nullable(),
   retail_price_xcg_per_unit: z.number().min(0, 'Retail price cannot be negative').optional().nullable(),
   unit: z.string().trim().max(20, 'Unit too long').optional().nullable(),
+  length_cm: z.number().min(0, 'Length cannot be negative').optional().nullable(),
+  width_cm: z.number().min(0, 'Width cannot be negative').optional().nullable(),
+  height_cm: z.number().min(0, 'Height cannot be negative').optional().nullable(),
 });
 
 interface Product {
@@ -51,6 +54,10 @@ interface Product {
   retail_price_usd_per_unit?: number | null;
   retail_price_xcg_per_unit?: number | null;
   unit?: string | null;
+  length_cm?: number | null;
+  width_cm?: number | null;
+  height_cm?: number | null;
+  volumetric_weight_kg?: number | null;
 }
 
 
@@ -84,7 +91,15 @@ const Products = () => {
     retail_price_usd_per_unit: '',
     retail_price_xcg_per_unit: '',
     unit: '',
+    length_cm: '',
+    width_cm: '',
+    height_cm: '',
   });
+
+  // Calculate volumetric weight when dimensions change
+  const volumetricWeight = formData.length_cm && formData.width_cm && formData.height_cm
+    ? (parseFloat(formData.length_cm) * parseFloat(formData.width_cm) * parseFloat(formData.height_cm)) / 5000
+    : 0;
 
   // Fetch currency conversion rate from settings
   useQuery({
@@ -133,6 +148,13 @@ const Products = () => {
 
   const createMutation = useMutation({
     mutationFn: async (values: typeof formData) => {
+      const lengthCm = values.length_cm ? parseFloat(values.length_cm) : null;
+      const widthCm = values.width_cm ? parseFloat(values.width_cm) : null;
+      const heightCm = values.height_cm ? parseFloat(values.height_cm) : null;
+      const volumetricWeightKg = lengthCm && widthCm && heightCm
+        ? (lengthCm * widthCm * heightCm) / 5000
+        : null;
+
       const parsed = {
         code: values.code,
         name: values.name,
@@ -149,6 +171,9 @@ const Products = () => {
         retail_price_usd_per_unit: values.retail_price_usd_per_unit ? parseFloat(values.retail_price_usd_per_unit) : null,
         retail_price_xcg_per_unit: values.retail_price_xcg_per_unit ? parseFloat(values.retail_price_xcg_per_unit) : null,
         unit: values.unit || null,
+        length_cm: lengthCm,
+        width_cm: widthCm,
+        height_cm: heightCm,
       };
       
       const validated = productSchema.parse(parsed);
@@ -169,6 +194,10 @@ const Products = () => {
         retail_price_usd_per_unit: validated.retail_price_usd_per_unit,
         retail_price_xcg_per_unit: validated.retail_price_xcg_per_unit,
         unit: validated.unit,
+        length_cm: validated.length_cm,
+        width_cm: validated.width_cm,
+        height_cm: validated.height_cm,
+        volumetric_weight_kg: volumetricWeightKg,
       }]).select().single();
       if (error) {
         console.error('Product creation error:', error);
@@ -190,7 +219,8 @@ const Products = () => {
         netto_weight_per_unit: '', gross_weight_per_unit: '', empty_case_weight: '',
         price_usd_per_unit: '', price_usd_per_case: '', price_xcg_per_unit: '', price_xcg_per_case: '',
         wholesale_price_usd_per_unit: '', wholesale_price_xcg_per_unit: '',
-        retail_price_usd_per_unit: '', retail_price_xcg_per_unit: '', unit: '' 
+        retail_price_usd_per_unit: '', retail_price_xcg_per_unit: '', unit: '',
+        length_cm: '', width_cm: '', height_cm: ''
       });
     },
     onError: (error: Error) => {
@@ -201,6 +231,13 @@ const Products = () => {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...values }: { id: string } & typeof formData) => {
+      const lengthCm = values.length_cm ? parseFloat(values.length_cm) : null;
+      const widthCm = values.width_cm ? parseFloat(values.width_cm) : null;
+      const heightCm = values.height_cm ? parseFloat(values.height_cm) : null;
+      const volumetricWeightKg = lengthCm && widthCm && heightCm
+        ? (lengthCm * widthCm * heightCm) / 5000
+        : null;
+
       const parsed = {
         code: values.code,
         name: values.name,
@@ -217,6 +254,9 @@ const Products = () => {
         retail_price_usd_per_unit: values.retail_price_usd_per_unit ? parseFloat(values.retail_price_usd_per_unit) : null,
         retail_price_xcg_per_unit: values.retail_price_xcg_per_unit ? parseFloat(values.retail_price_xcg_per_unit) : null,
         unit: values.unit || null,
+        length_cm: lengthCm,
+        width_cm: widthCm,
+        height_cm: heightCm,
       };
       
       const validated = productSchema.parse(parsed);
@@ -239,6 +279,10 @@ const Products = () => {
           retail_price_usd_per_unit: validated.retail_price_usd_per_unit,
           retail_price_xcg_per_unit: validated.retail_price_xcg_per_unit,
           unit: validated.unit,
+          length_cm: validated.length_cm,
+          width_cm: validated.width_cm,
+          height_cm: validated.height_cm,
+          volumetric_weight_kg: volumetricWeightKg,
         })
         .eq('id', id);
       if (error) {
@@ -302,6 +346,9 @@ const Products = () => {
         retail_price_usd_per_unit: product.retail_price_usd_per_unit?.toString() || '',
         retail_price_xcg_per_unit: product.retail_price_xcg_per_unit?.toString() || '',
         unit: product.unit || '',
+        length_cm: product.length_cm?.toString() || '',
+        width_cm: product.width_cm?.toString() || '',
+        height_cm: product.height_cm?.toString() || '',
       });
     } else {
       setEditingProduct(null);
@@ -310,7 +357,8 @@ const Products = () => {
         netto_weight_per_unit: '', gross_weight_per_unit: '', empty_case_weight: '',
         price_usd_per_unit: '', price_usd_per_case: '', price_xcg_per_unit: '', price_xcg_per_case: '',
         wholesale_price_usd_per_unit: '', wholesale_price_xcg_per_unit: '',
-        retail_price_usd_per_unit: '', retail_price_xcg_per_unit: '', unit: '' 
+        retail_price_usd_per_unit: '', retail_price_xcg_per_unit: '', unit: '',
+        length_cm: '', width_cm: '', height_cm: ''
       });
     }
     setIsDialogOpen(true);
@@ -489,7 +537,69 @@ const Products = () => {
                     </div>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-3 border-t pt-4">
+                    <h4 className="text-sm font-medium">Product Dimensions (cm) - For Volumetric Weight Calculation</h4>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="length_cm">Length (cm)</Label>
+                        <Input
+                          id="length_cm"
+                          type="number"
+                          step="0.1"
+                          value={formData.length_cm}
+                          onChange={(e) => setFormData({ ...formData, length_cm: e.target.value })}
+                          placeholder="40"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="width_cm">Width (cm)</Label>
+                        <Input
+                          id="width_cm"
+                          type="number"
+                          step="0.1"
+                          value={formData.width_cm}
+                          onChange={(e) => setFormData({ ...formData, width_cm: e.target.value })}
+                          placeholder="30"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="height_cm">Height (cm)</Label>
+                        <Input
+                          id="height_cm"
+                          type="number"
+                          step="0.1"
+                          value={formData.height_cm}
+                          onChange={(e) => setFormData({ ...formData, height_cm: e.target.value })}
+                          placeholder="20"
+                        />
+                      </div>
+                    </div>
+                    {volumetricWeight > 0 && (
+                      <div className="p-3 bg-muted rounded-lg">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium">Volumetric Weight:</span>
+                          <span className="font-bold">{volumetricWeight.toFixed(2)} kg</span>
+                        </div>
+                        {formData.gross_weight_per_unit && (
+                          <div className="flex items-center justify-between text-sm mt-2">
+                            <span className="font-medium">Actual Weight:</span>
+                            <span>{parseFloat(formData.gross_weight_per_unit).toFixed(2)} kg</span>
+                          </div>
+                        )}
+                        {formData.gross_weight_per_unit && (
+                          <div className="flex items-center justify-between text-sm mt-2 pt-2 border-t">
+                            <span className="font-medium">Chargeable Weight:</span>
+                            <span className="font-bold text-primary">
+                              {Math.max(volumetricWeight, parseFloat(formData.gross_weight_per_unit)).toFixed(2)} kg
+                              {volumetricWeight > parseFloat(formData.gross_weight_per_unit) ? ' (Volumetric)' : ' (Actual)'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-3 border-t pt-4">
                     <h4 className="text-sm font-medium">Cost Price USD (from supplier)</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">

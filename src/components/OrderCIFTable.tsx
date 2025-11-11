@@ -295,34 +295,51 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
                 <TableHead className="text-right">CIF Cg</TableHead>
                 <TableHead className="text-right">CIF/Unit</TableHead>
                 <TableHead className="text-right">Wholesale</TableHead>
-                <TableHead className="text-right">Retail</TableHead>
                 <TableHead className="text-right">W. Margin</TableHead>
+                <TableHead className="text-right">W. %</TableHead>
+                <TableHead className="text-right">Retail</TableHead>
                 <TableHead className="text-right">R. Margin</TableHead>
+                <TableHead className="text-right">R. %</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {results.map((result, idx) => (
-                <TableRow key={idx}>
-                  <TableCell className="font-medium">{result.productName}</TableCell>
-                  <TableCell className="text-right">{result.quantity}</TableCell>
-                  <TableCell className="text-right">{result.totalWeight.toFixed(2)}</TableCell>
-                  <TableCell className="text-right">${result.costUSD.toFixed(2)}</TableCell>
-                  <TableCell className="text-right">${result.freightCost.toFixed(2)}</TableCell>
-                  <TableCell className="text-right">${result.cifUSD.toFixed(2)}</TableCell>
-                  <TableCell className="text-right">Cg {result.cifXCG.toFixed(2)}</TableCell>
-                  <TableCell className="text-right font-bold">
-                    Cg {result.cifPerUnit.toFixed(2)}
-                  </TableCell>
-                  <TableCell className="text-right">Cg {result.wholesalePrice.toFixed(2)}</TableCell>
-                  <TableCell className="text-right">Cg {result.retailPrice.toFixed(2)}</TableCell>
-                  <TableCell className="text-right text-green-600">
-                    Cg {result.wholesaleMargin.toFixed(2)}
-                  </TableCell>
-                  <TableCell className="text-right text-green-600">
-                    Cg {result.retailMargin.toFixed(2)}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {results.map((result, idx) => {
+                const wholesaleMarginPercent = result.cifPerUnit > 0 
+                  ? ((result.wholesalePrice - result.cifPerUnit) / result.cifPerUnit * 100)
+                  : 0;
+                const retailMarginPercent = result.cifPerUnit > 0
+                  ? ((result.retailPrice - result.cifPerUnit) / result.cifPerUnit * 100)
+                  : 0;
+                
+                return (
+                  <TableRow key={idx}>
+                    <TableCell className="font-medium">{result.productName}</TableCell>
+                    <TableCell className="text-right">{result.quantity}</TableCell>
+                    <TableCell className="text-right">{result.totalWeight.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">${result.costUSD.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">${result.freightCost.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">${result.cifUSD.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">Cg {result.cifXCG.toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-bold">
+                      Cg {result.cifPerUnit.toFixed(2)}
+                    </TableCell>
+                    <TableCell className="text-right">Cg {result.wholesalePrice.toFixed(2)}</TableCell>
+                    <TableCell className="text-right text-green-600">
+                      Cg {result.wholesaleMargin.toFixed(2)}
+                    </TableCell>
+                    <TableCell className="text-right text-green-600 font-semibold">
+                      {wholesaleMarginPercent.toFixed(1)}%
+                    </TableCell>
+                    <TableCell className="text-right">Cg {result.retailPrice.toFixed(2)}</TableCell>
+                    <TableCell className="text-right text-green-600">
+                      Cg {result.retailMargin.toFixed(2)}
+                    </TableCell>
+                    <TableCell className="text-right text-green-600 font-semibold">
+                      {retailMarginPercent.toFixed(1)}%
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
           <ScrollBar orientation="horizontal" />

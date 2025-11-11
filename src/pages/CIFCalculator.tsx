@@ -204,23 +204,37 @@ export default function CIFCalculator() {
                   <th className="text-right p-2">Qty</th>
                   <th className="text-right p-2">CIF/Unit</th>
                   <th className="text-right p-2">Wholesale</th>
-                  <th className="text-right p-2">Retail</th>
                   <th className="text-right p-2">W. Margin</th>
+                  <th className="text-right p-2">W. %</th>
+                  <th className="text-right p-2">Retail</th>
                   <th className="text-right p-2">R. Margin</th>
+                  <th className="text-right p-2">R. %</th>
                 </tr>
               </thead>
               <tbody>
-                {results.map((result, idx) => (
-                  <tr key={idx} className="border-b">
-                    <td className="p-2">{result.productName}</td>
-                    <td className="text-right p-2">{result.quantity}</td>
-                    <td className="text-right p-2">cg {(result.cifXCG / result.quantity).toFixed(2)}</td>
-                    <td className="text-right p-2">cg {result.wholesalePrice.toFixed(2)}</td>
-                    <td className="text-right p-2">cg {result.retailPrice.toFixed(2)}</td>
-                    <td className="text-right p-2">cg {result.wholesaleMargin.toFixed(2)}</td>
-                    <td className="text-right p-2">cg {result.retailMargin.toFixed(2)}</td>
-                  </tr>
-                ))}
+                {results.map((result, idx) => {
+                  const cifPerUnit = result.quantity > 0 ? result.cifXCG / result.quantity : 0;
+                  const wholesaleMarginPercent = cifPerUnit > 0 
+                    ? ((result.wholesalePrice - cifPerUnit) / cifPerUnit * 100)
+                    : 0;
+                  const retailMarginPercent = cifPerUnit > 0
+                    ? ((result.retailPrice - cifPerUnit) / cifPerUnit * 100)
+                    : 0;
+                  
+                  return (
+                    <tr key={idx} className="border-b">
+                      <td className="p-2">{result.productName}</td>
+                      <td className="text-right p-2">{result.quantity}</td>
+                      <td className="text-right p-2">cg {cifPerUnit.toFixed(2)}</td>
+                      <td className="text-right p-2">cg {result.wholesalePrice.toFixed(2)}</td>
+                      <td className="text-right p-2 text-green-600">cg {result.wholesaleMargin.toFixed(2)}</td>
+                      <td className="text-right p-2 text-green-600 font-semibold">{wholesaleMarginPercent.toFixed(1)}%</td>
+                      <td className="text-right p-2">cg {result.retailPrice.toFixed(2)}</td>
+                      <td className="text-right p-2 text-green-600">cg {result.retailMargin.toFixed(2)}</td>
+                      <td className="text-right p-2 text-green-600 font-semibold">{retailMarginPercent.toFixed(1)}%</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

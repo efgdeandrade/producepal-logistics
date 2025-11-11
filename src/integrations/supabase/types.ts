@@ -236,6 +236,134 @@ export type Database = {
           },
         ]
       }
+      cif_estimates: {
+        Row: {
+          actual_cif_xcg: number | null
+          actual_freight_exterior_usd: number | null
+          actual_freight_local_usd: number | null
+          actual_other_costs_usd: number | null
+          actual_total_freight_usd: number | null
+          actual_weight_kg: number
+          chargeable_weight_kg: number
+          created_at: string | null
+          estimated_cif_xcg: number | null
+          estimated_date: string | null
+          estimated_freight_exterior_usd: number | null
+          estimated_freight_local_usd: number | null
+          estimated_other_costs_usd: number | null
+          estimated_total_freight_usd: number | null
+          id: string
+          order_id: string | null
+          pallet_utilization_percentage: number | null
+          pallets_used: number | null
+          product_code: string
+          updated_at: string | null
+          variance_amount_usd: number | null
+          variance_percentage: number | null
+          volumetric_weight_kg: number
+          weight_type_used: string | null
+        }
+        Insert: {
+          actual_cif_xcg?: number | null
+          actual_freight_exterior_usd?: number | null
+          actual_freight_local_usd?: number | null
+          actual_other_costs_usd?: number | null
+          actual_total_freight_usd?: number | null
+          actual_weight_kg: number
+          chargeable_weight_kg: number
+          created_at?: string | null
+          estimated_cif_xcg?: number | null
+          estimated_date?: string | null
+          estimated_freight_exterior_usd?: number | null
+          estimated_freight_local_usd?: number | null
+          estimated_other_costs_usd?: number | null
+          estimated_total_freight_usd?: number | null
+          id?: string
+          order_id?: string | null
+          pallet_utilization_percentage?: number | null
+          pallets_used?: number | null
+          product_code: string
+          updated_at?: string | null
+          variance_amount_usd?: number | null
+          variance_percentage?: number | null
+          volumetric_weight_kg: number
+          weight_type_used?: string | null
+        }
+        Update: {
+          actual_cif_xcg?: number | null
+          actual_freight_exterior_usd?: number | null
+          actual_freight_local_usd?: number | null
+          actual_other_costs_usd?: number | null
+          actual_total_freight_usd?: number | null
+          actual_weight_kg?: number
+          chargeable_weight_kg?: number
+          created_at?: string | null
+          estimated_cif_xcg?: number | null
+          estimated_date?: string | null
+          estimated_freight_exterior_usd?: number | null
+          estimated_freight_local_usd?: number | null
+          estimated_other_costs_usd?: number | null
+          estimated_total_freight_usd?: number | null
+          id?: string
+          order_id?: string | null
+          pallet_utilization_percentage?: number | null
+          pallets_used?: number | null
+          product_code?: string
+          updated_at?: string | null
+          variance_amount_usd?: number | null
+          variance_percentage?: number | null
+          volumetric_weight_kg?: number
+          weight_type_used?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cif_estimates_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cif_learning_patterns: {
+        Row: {
+          adjustment_factor: number | null
+          avg_variance_percentage: number | null
+          confidence_score: number | null
+          created_at: string | null
+          id: string
+          last_calculated: string | null
+          pattern_key: string
+          pattern_type: string
+          sample_size: number | null
+          std_deviation: number | null
+        }
+        Insert: {
+          adjustment_factor?: number | null
+          avg_variance_percentage?: number | null
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          last_calculated?: string | null
+          pattern_key: string
+          pattern_type: string
+          sample_size?: number | null
+          std_deviation?: number | null
+        }
+        Update: {
+          adjustment_factor?: number | null
+          avg_variance_percentage?: number | null
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          last_calculated?: string | null
+          pattern_key?: string
+          pattern_type?: string
+          sample_size?: number | null
+          std_deviation?: number | null
+        }
+        Relationships: []
+      }
       cif_product_performance: {
         Row: {
           actual_margin_xcg: number | null
@@ -722,6 +850,68 @@ export type Database = {
         }
         Relationships: []
       }
+      pallet_configurations: {
+        Row: {
+          configuration_date: string | null
+          created_at: string | null
+          id: string
+          limiting_factor: string | null
+          max_height_cm: number | null
+          order_id: string | null
+          pallet_length_cm: number | null
+          pallet_weight_kg: number | null
+          pallet_width_cm: number | null
+          recommendations: Json | null
+          total_actual_weight_kg: number | null
+          total_chargeable_weight_kg: number | null
+          total_pallets: number
+          total_volumetric_weight_kg: number | null
+          utilization_percentage: number | null
+        }
+        Insert: {
+          configuration_date?: string | null
+          created_at?: string | null
+          id?: string
+          limiting_factor?: string | null
+          max_height_cm?: number | null
+          order_id?: string | null
+          pallet_length_cm?: number | null
+          pallet_weight_kg?: number | null
+          pallet_width_cm?: number | null
+          recommendations?: Json | null
+          total_actual_weight_kg?: number | null
+          total_chargeable_weight_kg?: number | null
+          total_pallets: number
+          total_volumetric_weight_kg?: number | null
+          utilization_percentage?: number | null
+        }
+        Update: {
+          configuration_date?: string | null
+          created_at?: string | null
+          id?: string
+          limiting_factor?: string | null
+          max_height_cm?: number | null
+          order_id?: string | null
+          pallet_length_cm?: number | null
+          pallet_weight_kg?: number | null
+          pallet_width_cm?: number | null
+          recommendations?: Json | null
+          total_actual_weight_kg?: number | null
+          total_chargeable_weight_kg?: number | null
+          total_pallets?: number
+          total_volumetric_weight_kg?: number | null
+          utilization_percentage?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pallet_configurations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       predictions: {
         Row: {
           accuracy_score: number | null
@@ -973,7 +1163,9 @@ export type Database = {
           created_at: string
           empty_case_weight: number | null
           gross_weight_per_unit: number | null
+          height_cm: number | null
           id: string
+          length_cm: number | null
           name: string
           netto_weight_per_unit: number | null
           pack_size: number
@@ -986,9 +1178,11 @@ export type Database = {
           supplier_id: string | null
           unit: string | null
           updated_at: string
+          volumetric_weight_kg: number | null
           weight: number | null
           wholesale_price_usd_per_unit: number | null
           wholesale_price_xcg_per_unit: number | null
+          width_cm: number | null
         }
         Insert: {
           case_size?: string | null
@@ -996,7 +1190,9 @@ export type Database = {
           created_at?: string
           empty_case_weight?: number | null
           gross_weight_per_unit?: number | null
+          height_cm?: number | null
           id?: string
+          length_cm?: number | null
           name: string
           netto_weight_per_unit?: number | null
           pack_size: number
@@ -1009,9 +1205,11 @@ export type Database = {
           supplier_id?: string | null
           unit?: string | null
           updated_at?: string
+          volumetric_weight_kg?: number | null
           weight?: number | null
           wholesale_price_usd_per_unit?: number | null
           wholesale_price_xcg_per_unit?: number | null
+          width_cm?: number | null
         }
         Update: {
           case_size?: string | null
@@ -1019,7 +1217,9 @@ export type Database = {
           created_at?: string
           empty_case_weight?: number | null
           gross_weight_per_unit?: number | null
+          height_cm?: number | null
           id?: string
+          length_cm?: number | null
           name?: string
           netto_weight_per_unit?: number | null
           pack_size?: number
@@ -1032,9 +1232,11 @@ export type Database = {
           supplier_id?: string | null
           unit?: string | null
           updated_at?: string
+          volumetric_weight_kg?: number | null
           weight?: number | null
           wholesale_price_usd_per_unit?: number | null
           wholesale_price_xcg_per_unit?: number | null
+          width_cm?: number | null
         }
         Relationships: [
           {
@@ -1052,6 +1254,7 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          must_change_password: boolean | null
           updated_at: string
         }
         Insert: {
@@ -1059,6 +1262,7 @@ export type Database = {
           email: string
           full_name?: string | null
           id: string
+          must_change_password?: boolean | null
           updated_at?: string
         }
         Update: {
@@ -1066,6 +1270,7 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          must_change_password?: boolean | null
           updated_at?: string
         }
         Relationships: []
