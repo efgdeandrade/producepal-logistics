@@ -127,12 +127,21 @@ export function ActualCIFForm({
     // Determine which weight type was charged
     const weightTypeUsed = totalVolumetricWeight > totalActualWeight ? "volumetric" : "actual";
     
-    updateSupplierWeight(supplierId, "actualWeightKg", totalActualWeight.toString());
-    updateSupplierWeight(supplierId, "volumetricWeightKg", totalVolumetricWeight.toString());
-    updateSupplierWeight(supplierId, "palletsUsed", totalPallets.toString());
-    updateSupplierWeight(supplierId, "weightTypeUsed", weightTypeUsed);
+    // REPLACE (not append) the supplier's weight data when new document is uploaded
+    setSupplierWeights(prev => prev.map(sw => 
+      sw.supplierId === supplierId 
+        ? {
+            ...sw,
+            actualWeightKg: totalActualWeight.toString(),
+            volumetricWeightKg: totalVolumetricWeight.toString(),
+            palletsUsed: totalPallets.toString(),
+            weightTypeUsed
+          }
+        : sw
+    ));
     
-    toast.success(`Warehouse data extracted for supplier`);
+    const supplier = supplierWeights.find(s => s.supplierId === supplierId);
+    toast.success(`Warehouse data updated for ${supplier?.supplierName || 'supplier'}`);
   };
 
   const calculateActualCIF = () => {
@@ -141,69 +150,84 @@ export function ActualCIFForm({
     const totalActualFreight = totalActualFreightExterior + totalActualFreightLocal;
     const totalOtherCosts = parseFloat(actualOtherCosts || "0");
 
-    // Calculate total chargeable weight across all suppliers
-    const totalChargeableWeight = supplierWeights.reduce((sum, sw) => {
-      const actualWt = parseFloat(sw.actualWeightKg || "0");
-      const volWt = parseFloat(sw.volumetricWeightKg || "0");
-      return sum + (sw.weightTypeUsed === "actual" ? actualWt : volWt);
+    // Step 1: Consolidate products by unique product code across all suppliers
+    const consolidatedProducts = new Map<string, {
+      productCode: string;
+      productName: string;
+      totalQuantity: number;
+      totalActualWeight: number;
+      totalVolumetricWeight: number;
+      totalCostUSD: number;
+      suppliers: string[];
+    }>();
+
+    // Step 2: Accumulate product data across all suppliers
+    supplierWeights.forEach(supplier => {
+      supplier.products.forEach(product => {
+        if (!consolidatedProducts.has(product.productCode)) {
+          consolidatedProducts.set(product.productCode, {
+            productCode: product.productCode,
+            productName: product.productName,
+            totalQuantity: 0,
+            totalActualWeight: 0,
+            totalVolumetricWeight: 0,
+            totalCostUSD: 0,
+            suppliers: []
+          });
+        }
+        
+        const consolidated = consolidatedProducts.get(product.productCode)!;
+        consolidated.totalQuantity += product.quantity;
+        consolidated.totalActualWeight += (product.quantity * product.weightPerUnit / 1000);
+        consolidated.totalVolumetricWeight += (product.quantity * product.volumetricWeightPerUnit / 1000);
+        consolidated.totalCostUSD += (product.quantity * product.costPerUnit);
+        
+        if (!consolidated.suppliers.includes(supplier.supplierName)) {
+          consolidated.suppliers.push(supplier.supplierName);
+        }
+      });
+    });
+
+    // Step 3: Calculate total chargeable weight across all consolidated products
+    const totalChargeableWeight = Array.from(consolidatedProducts.values()).reduce((sum, product) => {
+      return sum + Math.max(product.totalActualWeight, product.totalVolumetricWeight);
     }, 0);
 
-    // Calculate CIF for each product
-    const allProducts: any[] = [];
-    
-    supplierWeights.forEach(supplier => {
-      const supplierActualWt = parseFloat(supplier.actualWeightKg || "0");
-      const supplierVolWt = parseFloat(supplier.volumetricWeightKg || "0");
-      const supplierChargeableWt = supplier.weightTypeUsed === "actual" ? supplierActualWt : supplierVolWt;
+    // Step 4: Calculate CIF for each unique product
+    const allProducts = Array.from(consolidatedProducts.values()).map(product => {
+      const chargeableWeight = Math.max(product.totalActualWeight, product.totalVolumetricWeight);
       
-      // Allocate freight to this supplier based on weight
-      const supplierFreightShare = totalChargeableWeight > 0 
-        ? (supplierChargeableWt / totalChargeableWeight) * totalActualFreight 
+      // Allocate freight to this product based on its chargeable weight contribution
+      const freightAllocation = totalChargeableWeight > 0 
+        ? (chargeableWeight / totalChargeableWeight) * totalActualFreight 
         : 0;
-
-      // Calculate total product weight for this supplier
-      const supplierProductWeight = supplier.products.reduce((sum, p) => 
-        sum + (p.quantity * p.weightPerUnit / 1000), 0
-      );
-
-      supplier.products.forEach(product => {
-        const productActualWeight = product.quantity * product.weightPerUnit / 1000;
-        const productVolWeight = product.quantity * product.volumetricWeightPerUnit / 1000;
-        const productCost = product.quantity * product.costPerUnit;
-        
-        // Distribute supplier's freight to products by weight
-        const productWeightRatio = supplierProductWeight > 0 
-          ? productActualWeight / supplierProductWeight 
-          : 1 / supplier.products.length;
-        const productFreight = supplierFreightShare * productWeightRatio;
-        
-        const cifUSD = productCost + productFreight;
-        const cifXCG = cifUSD * exchangeRate;
-        const cifPerUnit = product.quantity > 0 ? cifXCG / product.quantity : 0;
-
-        // Calculate wholesale and retail prices
-        const wholesalePrice = cifPerUnit * 1.25;
-        const retailPrice = cifPerUnit * 1.786;
-
-        allProducts.push({
-          productCode: product.productCode,
-          productName: product.productName,
-          quantity: product.quantity,
-          actualWeight: productActualWeight,
-          volumetricWeight: productVolWeight,
-          weightType: productVolWeight > productActualWeight ? 'volumetric' : 'actual',
-          costUSD: productCost,
-          freightCost: productFreight,
-          cifUSD,
-          cifXCG,
-          cifPerUnit,
-          wholesalePrice,
-          retailPrice,
-          wholesaleMargin: wholesalePrice - cifPerUnit,
-          retailMargin: retailPrice - cifPerUnit,
-          supplierName: supplier.supplierName
-        });
-      });
+      
+      const cifUSD = product.totalCostUSD + freightAllocation;
+      const cifXCG = cifUSD * exchangeRate;
+      const cifPerUnit = product.totalQuantity > 0 ? cifXCG / product.totalQuantity : 0;
+      
+      // Calculate margins
+      const wholesalePrice = cifPerUnit * 1.25;
+      const retailPrice = cifPerUnit * 1.786;
+      
+      return {
+        productCode: product.productCode,
+        productName: product.productName,
+        quantity: product.totalQuantity,
+        actualWeight: product.totalActualWeight,
+        volumetricWeight: product.totalVolumetricWeight,
+        weightType: product.totalVolumetricWeight > product.totalActualWeight ? 'volumetric' : 'actual',
+        costUSD: product.totalCostUSD,
+        freightCost: freightAllocation,
+        cifUSD,
+        cifXCG,
+        cifPerUnit,
+        wholesalePrice,
+        retailPrice,
+        wholesaleMargin: wholesalePrice - cifPerUnit,
+        retailMargin: retailPrice - cifPerUnit,
+        suppliers: product.suppliers.join(', ')
+      };
     });
 
     return allProducts;
@@ -470,6 +494,7 @@ export function ActualCIFForm({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Product</TableHead>
+                    <TableHead>Suppliers</TableHead>
                     <TableHead className="text-right">Units</TableHead>
                     <TableHead className="text-right">Actual (kg)</TableHead>
                     <TableHead className="text-right">Vol. (kg)</TableHead>
@@ -501,6 +526,9 @@ export function ActualCIFForm({
                         <TableCell className="font-medium">
                           {calc.productName}
                           <div className="text-xs text-muted-foreground">{calc.productCode}</div>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground max-w-[150px]">
+                          {calc.suppliers}
                         </TableCell>
                         <TableCell className="text-right">{calc.quantity}</TableCell>
                         <TableCell className="text-right">{calc.actualWeight.toFixed(2)}</TableCell>
