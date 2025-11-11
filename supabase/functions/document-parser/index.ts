@@ -119,6 +119,35 @@ Return the amount as a number in USD.`;
       };
     }
 
+    console.log('Calling AI with document type:', documentType, 'mime:', mimeType, 'size:', base64.length);
+
+    // Build the content array for the user message
+    const userContent: any[] = [
+      {
+        type: 'text',
+        text: 'Please analyze this document and extract the requested information.'
+      }
+    ];
+
+    // Add the document/image based on type
+    if (mimeType === 'application/pdf') {
+      // For PDFs, some models may not support them - try image_url format
+      userContent.push({
+        type: 'image_url',
+        image_url: {
+          url: `data:${mimeType};base64,${base64}`
+        }
+      });
+    } else {
+      // For images
+      userContent.push({
+        type: 'image_url',
+        image_url: {
+          url: `data:${mimeType};base64,${base64}`
+        }
+      });
+    }
+
     // Call Lovable AI with vision capabilities
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -135,18 +164,7 @@ Return the amount as a number in USD.`;
           },
           {
             role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: 'Please analyze this document and extract the requested information.'
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:${mimeType};base64,${base64}`
-                }
-              }
-            ]
+            content: userContent
           }
         ],
         tools: [toolDefinition],
@@ -156,8 +174,15 @@ Return the amount as a number in USD.`;
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error('AI API error:', aiResponse.status, errorText);
-      throw new Error(`AI processing failed: ${aiResponse.status}`);
+      console.error('AI API error details:', {
+        status: aiResponse.status,
+        statusText: aiResponse.statusText,
+        error: errorText,
+        documentType,
+        mimeType,
+        fileSize: file.size
+      });
+      throw new Error(`AI processing failed: ${aiResponse.status} - ${errorText}`);
     }
 
     const aiData = await aiResponse.json();
