@@ -428,6 +428,10 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
           empty_case_weight,
           wholesale_price_xcg_per_unit,
           supplier_id,
+          length_cm,
+          width_cm,
+          height_cm,
+          volumetric_weight_kg,
           suppliers (name)
         `)
         .in('code', productCodes);
@@ -458,7 +462,16 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
           : (p.netto_weight_per_unit || 0);
         const emptyCaseWeight = p.empty_case_weight || 0;
         
-        const productWeight = (totalUnits * weightPerUnit / 1000) + 
+        // Calculate volumetric weight per unit if dimensions exist
+        const volumetricWeightPerUnit = p.volumetric_weight_kg || 
+          (p.length_cm && p.width_cm && p.height_cm 
+            ? (p.length_cm * p.width_cm * p.height_cm) / 6000
+            : 0);
+        
+        // Chargeable weight is the greater of actual or volumetric
+        const chargeableWeightPerUnit = Math.max(weightPerUnit, volumetricWeightPerUnit);
+        
+        const productWeight = (totalUnits * chargeableWeightPerUnit / 1000) + 
                               (item.quantity * emptyCaseWeight / 1000);
         totalWeight += productWeight;
         
@@ -481,6 +494,12 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
       let totalWholesaleRevenue = 0;
       let totalCostXCG = 0;
       const productMargins: ProductMargin[] = [];
+      
+      // Europallet constraints
+      const PALLET_WEIGHT_KG = 26;
+      const estimatedPalletsNeeded = Math.ceil(totalWeight / 500);
+      const palletWeightTotal = estimatedPalletsNeeded * PALLET_WEIGHT_KG;
+      const adjustedTotalFreight = LOCAL_LOGISTICS_USD + totalFreightCost + (palletWeightTotal * combinedTariffPerKg);
 
       products.forEach(product => {
         const item = consolidatedItems.find(i => i.product_code === product.code);
@@ -494,12 +513,21 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
           : (product.netto_weight_per_unit || 0);
         const emptyCaseWeight = product.empty_case_weight || 0;
         
-        const productWeight = (totalUnits * weightPerUnit / 1000) + 
+        // Calculate volumetric weight per unit
+        const volumetricWeightPerUnit = product.volumetric_weight_kg || 
+          (product.length_cm && product.width_cm && product.height_cm 
+            ? (product.length_cm * product.width_cm * product.height_cm) / 6000
+            : 0);
+        
+        // Chargeable weight is the greater of actual or volumetric
+        const chargeableWeightPerUnit = Math.max(weightPerUnit, volumetricWeightPerUnit);
+        
+        const productWeight = (totalUnits * chargeableWeightPerUnit / 1000) + 
                               (item.quantity * emptyCaseWeight / 1000);
         const productCostUSD = totalUnits * (product.price_usd_per_unit || 0);
         
         // Calculate freight share by weight
-        const freightShare = totalWeight > 0 ? (productWeight / totalWeight) * totalFreight : 0;
+        const freightShare = totalWeight > 0 ? (productWeight / totalWeight) * adjustedTotalFreight : 0;
         
         // Calculate CIF in Cg
         const cifUSD = productCostUSD + freightShare;

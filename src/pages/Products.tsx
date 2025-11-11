@@ -98,7 +98,7 @@ const Products = () => {
 
   // Calculate volumetric weight when dimensions change
   const volumetricWeight = formData.length_cm && formData.width_cm && formData.height_cm
-    ? (parseFloat(formData.length_cm) * parseFloat(formData.width_cm) * parseFloat(formData.height_cm)) / 5000
+    ? (parseFloat(formData.length_cm) * parseFloat(formData.width_cm) * parseFloat(formData.height_cm)) / 6000
     : 0;
 
   // Fetch currency conversion rate from settings
@@ -152,7 +152,7 @@ const Products = () => {
       const widthCm = values.width_cm ? parseFloat(values.width_cm) : null;
       const heightCm = values.height_cm ? parseFloat(values.height_cm) : null;
       const volumetricWeightKg = lengthCm && widthCm && heightCm
-        ? (lengthCm * widthCm * heightCm) / 5000
+        ? (lengthCm * widthCm * heightCm) / 6000
         : null;
 
       const parsed = {
@@ -235,7 +235,7 @@ const Products = () => {
       const widthCm = values.width_cm ? parseFloat(values.width_cm) : null;
       const heightCm = values.height_cm ? parseFloat(values.height_cm) : null;
       const volumetricWeightKg = lengthCm && widthCm && heightCm
-        ? (lengthCm * widthCm * heightCm) / 5000
+        ? (lengthCm * widthCm * heightCm) / 6000
         : null;
 
       const parsed = {

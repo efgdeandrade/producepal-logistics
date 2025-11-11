@@ -54,6 +54,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
     customerTier: CIFResult[];
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [productsWeightData, setProductsWeightData] = useState<any[]>([]);
 
   useEffect(() => {
     calculateCIF();
@@ -91,7 +92,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
       const productCodes = [...new Set(consolidatedItems.map(item => item.product_code))];
       const { data: products, error } = await supabase
         .from('products')
-        .select('code, name, price_usd_per_unit, netto_weight_per_unit, gross_weight_per_unit, pack_size, empty_case_weight, wholesale_price_xcg_per_unit')
+        .select('code, name, price_usd_per_unit, netto_weight_per_unit, gross_weight_per_unit, pack_size, empty_case_weight, wholesale_price_xcg_per_unit, length_cm, width_cm, height_cm, volumetric_weight_kg')
         .in('code', productCodes);
 
       if (error) throw error;
@@ -117,12 +118,23 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
             : (p.netto_weight_per_unit || 0);
           const emptyCaseWeight = p.empty_case_weight || 0;
           
+          // Calculate volumetric weight per unit if dimensions exist
+          const volumetricWeightPerUnit = p.volumetric_weight_kg || 
+            (p.length_cm && p.width_cm && p.height_cm 
+              ? (p.length_cm * p.width_cm * p.height_cm) / 6000
+              : 0);
+          
+          // Chargeable weight is the greater of actual or volumetric
+          const chargeableWeightPerUnit = Math.max(weightPerUnit, volumetricWeightPerUnit);
+          
           return [
             p.code,
             {
               name: p.name,
               costPerUnit: p.price_usd_per_unit || 0,
               weightPerUnit: weightPerUnit,
+              volumetricWeightPerUnit: volumetricWeightPerUnit,
+              chargeableWeightPerUnit: chargeableWeightPerUnit,
               packSize: packSize,
               emptyCaseWeight: emptyCaseWeight,
               wholesalePriceXCG: p.wholesale_price_xcg_per_unit || 0,
@@ -151,6 +163,8 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
           totalUnits: totalUnits,
           costPerUnit: productData?.costPerUnit || 0,
           weightPerUnit: productData?.weightPerUnit || 0,
+          volumetricWeightPerUnit: productData?.volumetricWeightPerUnit || 0,
+          chargeableWeightPerUnit: productData?.chargeableWeightPerUnit || 0,
           emptyCaseWeight: productData?.emptyCaseWeight || 0,
           wholesalePriceXCG: productData?.wholesalePriceXCG || 0,
           orderFrequency: demand?.frequency || 1,
@@ -158,17 +172,39 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
         };
       });
 
+      // Calculate weights using chargeable weight (max of actual vs volumetric)
       const productsWithWeight = productsWithData.map(p => {
-        const productWeight = (p.totalUnits * p.weightPerUnit / 1000) + 
-                              (p.numberOfCases * p.emptyCaseWeight / 1000);
-        return { ...p, totalWeight: productWeight };
+        const actualProductWeight = (p.totalUnits * p.weightPerUnit / 1000);
+        const volumetricProductWeight = (p.totalUnits * p.volumetricWeightPerUnit / 1000);
+        const caseWeight = (p.numberOfCases * p.emptyCaseWeight / 1000);
+        
+        // Total weight is chargeable weight of products + case weight
+        const productWeight = Math.max(actualProductWeight, volumetricProductWeight) + caseWeight;
+        
+        return { 
+          ...p, 
+          totalWeight: productWeight,
+          actualWeight: actualProductWeight + caseWeight,
+          volumetricWeight: volumetricProductWeight + caseWeight,
+          weightType: volumetricProductWeight > actualProductWeight ? 'volumetric' : 'actual'
+        };
       });
 
       const totalWeight = productsWithWeight.reduce((sum, p) => sum + p.totalWeight, 0);
       const totalCost = productsWithWeight.reduce((sum, p) => sum + (p.totalUnits * p.costPerUnit), 0);
       const combinedTariffPerKg = freightExteriorPerKg + freightLocalPerKg;
       const totalFreightCost = totalWeight * combinedTariffPerKg;
-      const totalFreight = LOCAL_LOGISTICS_USD + totalFreightCost;
+      
+      // Europallet constraints
+      const PALLET_WEIGHT_KG = 26;
+      const PALLET_LENGTH_CM = 120;
+      const PALLET_WIDTH_CM = 80;
+      const MAX_HEIGHT_CM = 155;
+      
+      // Calculate total pallets needed (simple estimation based on weight)
+      const estimatedPalletsNeeded = Math.ceil(totalWeight / 500); // ~500kg per pallet typical
+      const palletWeightTotal = estimatedPalletsNeeded * PALLET_WEIGHT_KG;
+      const totalFreight = LOCAL_LOGISTICS_USD + totalFreightCost + (palletWeightTotal * combinedTariffPerKg);
 
       const calculateResults = (
         distributionMethod: 'weight' | 'cost' | 'equal' | 'hybrid' | 'strategic' | 'volumeOptimized' | 'customerTier'
@@ -266,6 +302,9 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
         volumeOptimized: calculateResults('volumeOptimized'),
         customerTier: calculateResults('customerTier'),
       });
+      
+      // Store weight data for display
+      setProductsWeightData(productsWithWeight);
     } catch (error: any) {
       console.error('Error calculating CIF:', error);
     } finally {
@@ -288,7 +327,9 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
               <TableRow>
                 <TableHead>Product</TableHead>
                 <TableHead className="text-right">Units</TableHead>
-                <TableHead className="text-right">Weight (kg)</TableHead>
+                <TableHead className="text-right">Actual (kg)</TableHead>
+                <TableHead className="text-right">Vol. (kg)</TableHead>
+                <TableHead className="text-right">Chargeable</TableHead>
                 <TableHead className="text-right">Cost USD</TableHead>
                 <TableHead className="text-right">Freight</TableHead>
                 <TableHead className="text-right">CIF USD</TableHead>
@@ -311,11 +352,19 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
                   ? ((result.retailPrice - result.cifPerUnit) / result.cifPerUnit * 100)
                   : 0;
                 
+                // Find the product weight data
+                const productData = productsWeightData.find(p => p.code === result.productCode);
+                
                 return (
                   <TableRow key={idx}>
                     <TableCell className="font-medium">{result.productName}</TableCell>
                     <TableCell className="text-right">{result.quantity}</TableCell>
-                    <TableCell className="text-right">{result.totalWeight.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">{productData?.actualWeight.toFixed(2) || result.totalWeight.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">{productData?.volumetricWeight.toFixed(2) || '-'}</TableCell>
+                    <TableCell className="text-right font-semibold">
+                      {result.totalWeight.toFixed(2)}
+                      {productData?.weightType === 'volumetric' && <span className="text-xs text-orange-600 ml-1">V</span>}
+                    </TableCell>
                     <TableCell className="text-right">${result.costUSD.toFixed(2)}</TableCell>
                     <TableCell className="text-right">${result.freightCost.toFixed(2)}</TableCell>
                     <TableCell className="text-right">${result.cifUSD.toFixed(2)}</TableCell>
