@@ -1,22 +1,27 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Package } from "lucide-react";
 import { WarehouseDocumentUpload } from "./WarehouseDocumentUpload";
+import { FreightDocumentUpload } from "./FreightDocumentUpload";
 
 interface ProductWeightInput {
   productCode: string;
   productName: string;
+  supplierId: string;
+  supplierName: string;
   quantity: number;
   estimatedWeight: number;
   estimatedVolWeight: number;
   actualWeightKg: string;
+  volumetricWeightKg: string;
   palletsUsed: string;
   weightTypeUsed: "actual" | "volumetric";
 }
@@ -40,23 +45,120 @@ export function ActualCIFForm({
   const [actualFreightExterior, setActualFreightExterior] = useState("");
   const [actualFreightLocal, setActualFreightLocal] = useState("");
   const [actualOtherCosts, setActualOtherCosts] = useState("");
-  const [productWeights, setProductWeights] = useState<ProductWeightInput[]>(
-    orderItems.map(item => ({
-      productCode: item.product_code,
-      productName: item.products?.name || item.product_code,
-      quantity: item.quantity,
-      estimatedWeight: (item.products?.gross_weight_per_unit || 0) * item.quantity,
-      estimatedVolWeight: (item.products?.volumetric_weight_kg || 0) * item.quantity,
-      actualWeightKg: "",
-      palletsUsed: "",
-      weightTypeUsed: "actual" as const
-    }))
-  );
+  const [productWeights, setProductWeights] = useState<ProductWeightInput[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
 
-  const updateProductWeight = (index: number, field: keyof ProductWeightInput, value: any) => {
-    const updated = [...productWeights];
-    updated[index] = { ...updated[index], [field]: value };
-    setProductWeights(updated);
+  // Fetch suppliers and initialize product weights
+  useEffect(() => {
+    const initializeData = async () => {
+      // Fetch suppliers
+      const { data: suppliersData } = await supabase
+        .from("suppliers")
+        .select("*");
+      
+      setSuppliers(suppliersData || []);
+
+      // Initialize product weights with supplier info
+      const weights: ProductWeightInput[] = orderItems.map(item => {
+        const supplierName = suppliersData?.find(s => s.id === item.products?.supplier_id)?.name || "Unknown Supplier";
+        return {
+          productCode: item.product_code,
+          productName: item.products?.name || item.product_code,
+          supplierId: item.products?.supplier_id || "",
+          supplierName,
+          quantity: item.quantity,
+          estimatedWeight: (item.products?.gross_weight_per_unit || 0) * item.quantity,
+          estimatedVolWeight: (item.products?.volumetric_weight_kg || 0) * item.quantity,
+          actualWeightKg: "",
+          volumetricWeightKg: "",
+          palletsUsed: "",
+          weightTypeUsed: "actual" as const
+        };
+      });
+      
+      setProductWeights(weights);
+    };
+
+    initializeData();
+  }, [orderItems]);
+
+  // Group products by supplier
+  const productsBySupplier = useMemo(() => {
+    const grouped = new Map<string, ProductWeightInput[]>();
+    
+    productWeights.forEach(product => {
+      const key = product.supplierId || "unknown";
+      if (!grouped.has(key)) {
+        grouped.set(key, []);
+      }
+      grouped.get(key)!.push(product);
+    });
+    
+    return Array.from(grouped.entries()).map(([supplierId, products]) => ({
+      supplierId,
+      supplierName: products[0]?.supplierName || "Unknown Supplier",
+      products
+    }));
+  }, [productWeights]);
+
+  const updateProductWeight = (productCode: string, field: keyof ProductWeightInput, value: any) => {
+    setProductWeights(prev => prev.map(pw => 
+      pw.productCode === productCode ? { ...pw, [field]: value } : pw
+    ));
+  };
+
+  const handleWarehouseDocumentExtraction = (supplierId: string) => (extractedData: any[]) => {
+    extractedData.forEach(extracted => {
+      const product = productWeights.find(pw => 
+        pw.productCode === extracted.productCode && pw.supplierId === supplierId
+      );
+      if (product) {
+        updateProductWeight(product.productCode, "actualWeightKg", extracted.actualWeightKg.toString());
+        updateProductWeight(product.productCode, "volumetricWeightKg", extracted.volumetricWeightKg.toString());
+        updateProductWeight(product.productCode, "palletsUsed", extracted.palletsUsed.toString());
+        updateProductWeight(product.productCode, "weightTypeUsed", extracted.weightTypeUsed);
+      }
+    });
+  };
+
+  const calculateActualCIF = () => {
+    const totalActualFreight = parseFloat(actualFreightExterior || "0") + parseFloat(actualFreightLocal || "0");
+    const totalOtherCosts = parseFloat(actualOtherCosts || "0");
+    const totalCosts = totalActualFreight + totalOtherCosts;
+
+    const productCalculations = productWeights.map(pw => {
+      const actualWeight = parseFloat(pw.actualWeightKg || "0");
+      const volWeight = parseFloat(pw.volumetricWeightKg || pw.estimatedVolWeight.toString());
+      const chargeableWeight = pw.weightTypeUsed === "actual" ? actualWeight : volWeight;
+      
+      return {
+        ...pw,
+        actualWeight,
+        volWeight,
+        chargeableWeight
+      };
+    });
+
+    const totalChargeableWeight = productCalculations.reduce((sum, p) => sum + p.chargeableWeight, 0);
+
+    return productCalculations.map(product => {
+      const weightRatio = totalChargeableWeight > 0 ? product.chargeableWeight / totalChargeableWeight : 0;
+      const allocatedFreight = totalActualFreight * weightRatio;
+      const allocatedOther = totalOtherCosts * weightRatio;
+      const totalAllocated = allocatedFreight + allocatedOther;
+      const cifPerUnit = product.quantity > 0 ? totalAllocated / product.quantity : 0;
+
+      return {
+        productCode: product.productCode,
+        productName: product.productName,
+        quantity: product.quantity,
+        chargeableWeight: product.chargeableWeight,
+        allocatedFreight,
+        allocatedOther,
+        totalAllocated,
+        cifPerUnit
+      };
+    });
   };
 
   const handleSave = async () => {
@@ -71,8 +173,8 @@ export function ActualCIFForm({
       // Save each product's actual CIF data
       for (const pw of productWeights) {
         const actualWeight = parseFloat(pw.actualWeightKg || "0");
-        const volumetricWeight = pw.estimatedVolWeight;
-        const chargeableWeight = Math.max(actualWeight, volumetricWeight);
+        const volumetricWeight = parseFloat(pw.volumetricWeightKg || pw.estimatedVolWeight.toString());
+        const chargeableWeight = pw.weightTypeUsed === "actual" ? actualWeight : volumetricWeight;
         
         const { error } = await supabase.from("cif_estimates").insert({
           order_id: orderId,
@@ -109,140 +211,232 @@ export function ActualCIFForm({
     }
   };
 
-  const handleDocumentExtraction = (extractedData: any[]) => {
-    // Map extracted data to product weights
-    extractedData.forEach(extracted => {
-      const index = productWeights.findIndex(pw => pw.productCode === extracted.productCode);
-      if (index !== -1) {
-        updateProductWeight(index, "actualWeightKg", extracted.actualWeightKg.toString());
-        updateProductWeight(index, "palletsUsed", extracted.palletsUsed.toString());
-        updateProductWeight(index, "weightTypeUsed", extracted.weightTypeUsed);
-      }
-    });
-    toast.success("Warehouse data extracted successfully");
-  };
+  const hasData = actualFreightExterior || actualFreightLocal || productWeights.some(pw => pw.actualWeightKg);
+  const cifCalculations = hasData ? calculateActualCIF() : [];
 
   return (
     <div className="space-y-6">
-      <WarehouseDocumentUpload onDataExtracted={handleDocumentExtraction} />
-      
+      {/* Document Uploads */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FreightDocumentUpload 
+          type="exterior" 
+          onDataExtracted={(amount) => setActualFreightExterior(amount.toString())} 
+        />
+        <FreightDocumentUpload 
+          type="local" 
+          onDataExtracted={(amount) => setActualFreightLocal(amount.toString())} 
+        />
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>Enter Actual CIF Costs</CardTitle>
-          <CardDescription>
-            Record the actual costs incurred for this order to improve future estimates
-          </CardDescription>
+          <CardTitle>Freight Costs</CardTitle>
+          <CardDescription>Enter or upload actual freight charges</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-        {/* Freight Costs */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="actualFreightExterior">Actual Freight Exterior (USD)</Label>
-            <Input
-              id="actualFreightExterior"
-              type="number"
-              step="0.01"
-              placeholder={`Est: $${estimatedFreightExterior.toFixed(2)}`}
-              value={actualFreightExterior}
-              onChange={(e) => setActualFreightExterior(e.target.value)}
-            />
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="actualFreightExterior">Actual Freight Exterior (USD)</Label>
+              <Input
+                id="actualFreightExterior"
+                type="number"
+                step="0.01"
+                placeholder={`Est: $${estimatedFreightExterior.toFixed(2)}`}
+                value={actualFreightExterior}
+                onChange={(e) => setActualFreightExterior(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="actualFreightLocal">Actual Freight Local (USD)</Label>
+              <Input
+                id="actualFreightLocal"
+                type="number"
+                step="0.01"
+                placeholder={`Est: $${estimatedFreightLocal.toFixed(2)}`}
+                value={actualFreightLocal}
+                onChange={(e) => setActualFreightLocal(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="actualOtherCosts">Other Costs (USD)</Label>
+              <Input
+                id="actualOtherCosts"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={actualOtherCosts}
+                onChange={(e) => setActualOtherCosts(e.target.value)}
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="actualFreightLocal">Actual Freight Local (USD)</Label>
-            <Input
-              id="actualFreightLocal"
-              type="number"
-              step="0.01"
-              placeholder={`Est: $${estimatedFreightLocal.toFixed(2)}`}
-              value={actualFreightLocal}
-              onChange={(e) => setActualFreightLocal(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="actualOtherCosts">Actual Other Costs (USD)</Label>
-            <Input
-              id="actualOtherCosts"
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              value={actualOtherCosts}
-              onChange={(e) => setActualOtherCosts(e.target.value)}
-            />
-          </div>
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* Product Weight Details */}
-        <div className="space-y-2">
-          <Label>Product Weight Details</Label>
-          <div className="border rounded-lg overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Qty</TableHead>
-                  <TableHead>Est. Actual (kg)</TableHead>
-                  <TableHead>Est. Vol. (kg)</TableHead>
-                  <TableHead>Actual Weight (kg)</TableHead>
-                  <TableHead>Pallets Used</TableHead>
-                  <TableHead>Weight Type</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {productWeights.map((pw, index) => (
-                  <TableRow key={pw.productCode}>
-                    <TableCell className="font-medium">
-                      {pw.productName}
-                      <div className="text-xs text-muted-foreground">{pw.productCode}</div>
-                    </TableCell>
-                    <TableCell>{pw.quantity}</TableCell>
-                    <TableCell>{pw.estimatedWeight.toFixed(2)}</TableCell>
-                    <TableCell>{pw.estimatedVolWeight.toFixed(2)}</TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        className="w-24"
-                        value={pw.actualWeightKg}
-                        onChange={(e) => updateProductWeight(index, "actualWeightKg", e.target.value)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        className="w-20"
-                        value={pw.palletsUsed}
-                        onChange={(e) => updateProductWeight(index, "palletsUsed", e.target.value)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <select
-                        className="border rounded px-2 py-1 text-sm"
-                        value={pw.weightTypeUsed}
-                        onChange={(e) => updateProductWeight(index, "weightTypeUsed", e.target.value as "actual" | "volumetric")}
-                      >
-                        <option value="actual">Actual</option>
-                        <option value="volumetric">Volumetric</option>
-                      </select>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+      {/* Warehouse Weight Data by Supplier */}
+      {productsBySupplier.map(({ supplierId, supplierName, products }) => (
+        <div key={supplierId} className="space-y-4">
+          <WarehouseDocumentUpload 
+            onDataExtracted={handleWarehouseDocumentExtraction(supplierId)} 
+          />
+          
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                {supplierName}
+              </CardTitle>
+              <CardDescription>Enter actual weight data for products from this supplier</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Qty</TableHead>
+                      <TableHead>Est. Weight (kg)</TableHead>
+                      <TableHead>Actual Weight (kg)</TableHead>
+                      <TableHead>Vol. Weight (kg)</TableHead>
+                      <TableHead>Pallets</TableHead>
+                      <TableHead>Type</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {products.map((pw) => (
+                      <TableRow key={pw.productCode}>
+                        <TableCell className="font-medium">
+                          {pw.productName}
+                          <div className="text-xs text-muted-foreground">{pw.productCode}</div>
+                        </TableCell>
+                        <TableCell>{pw.quantity}</TableCell>
+                        <TableCell>{pw.estimatedWeight.toFixed(2)}</TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            className="w-24"
+                            value={pw.actualWeightKg}
+                            onChange={(e) => updateProductWeight(pw.productCode, "actualWeightKg", e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            className="w-24"
+                            placeholder={pw.estimatedVolWeight.toFixed(2)}
+                            value={pw.volumetricWeightKg}
+                            onChange={(e) => updateProductWeight(pw.productCode, "volumetricWeightKg", e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            className="w-20"
+                            value={pw.palletsUsed}
+                            onChange={(e) => updateProductWeight(pw.productCode, "palletsUsed", e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <select
+                            className="border rounded px-2 py-1 text-sm"
+                            value={pw.weightTypeUsed}
+                            onChange={(e) => updateProductWeight(pw.productCode, "weightTypeUsed", e.target.value as "actual" | "volumetric")}
+                          >
+                            <option value="actual">Actual</option>
+                            <option value="volumetric">Volumetric</option>
+                          </select>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
         </div>
+      ))}
 
-        <Button onClick={handleSave} disabled={saving} className="w-full">
-          {saving ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            "Save Actual Costs"
-          )}
-        </Button>
-      </CardContent>
-    </Card>
+      {/* Actual CIF Calculations */}
+      {hasData && cifCalculations.length > 0 && (
+        <Card className="border-primary/20">
+          <CardHeader>
+            <CardTitle>Actual CIF Calculations</CardTitle>
+            <CardDescription>Based on entered actual costs and weights</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
+                <div>
+                  <div className="text-sm text-muted-foreground">Total Freight</div>
+                  <div className="text-2xl font-bold">
+                    ${(parseFloat(actualFreightExterior || "0") + parseFloat(actualFreightLocal || "0")).toFixed(2)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Other Costs</div>
+                  <div className="text-2xl font-bold">
+                    ${parseFloat(actualOtherCosts || "0").toFixed(2)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Total CIF</div>
+                  <div className="text-2xl font-bold text-primary">
+                    ${(parseFloat(actualFreightExterior || "0") + parseFloat(actualFreightLocal || "0") + parseFloat(actualOtherCosts || "0")).toFixed(2)}
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Qty</TableHead>
+                      <TableHead>Chargeable Weight</TableHead>
+                      <TableHead>Allocated Freight</TableHead>
+                      <TableHead>Allocated Other</TableHead>
+                      <TableHead>Total CIF</TableHead>
+                      <TableHead>CIF per Unit</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {cifCalculations.map((calc) => (
+                      <TableRow key={calc.productCode}>
+                        <TableCell className="font-medium">
+                          {calc.productName}
+                          <div className="text-xs text-muted-foreground">{calc.productCode}</div>
+                        </TableCell>
+                        <TableCell>{calc.quantity}</TableCell>
+                        <TableCell>{calc.chargeableWeight.toFixed(2)} kg</TableCell>
+                        <TableCell>${calc.allocatedFreight.toFixed(2)}</TableCell>
+                        <TableCell>${calc.allocatedOther.toFixed(2)}</TableCell>
+                        <TableCell className="font-semibold">${calc.totalAllocated.toFixed(2)}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">${calc.cifPerUnit.toFixed(2)}</Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Button onClick={handleSave} disabled={saving || !hasData} className="w-full" size="lg">
+        {saving ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Saving Actual CIF Data...
+          </>
+        ) : (
+          "Save Actual CIF Costs"
+        )}
+      </Button>
     </div>
   );
 }
