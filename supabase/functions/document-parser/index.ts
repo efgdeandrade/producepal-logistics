@@ -47,45 +47,46 @@ serve(async (req) => {
     let toolDefinition: any = null;
 
     if (documentType === 'warehouse') {
-      systemPrompt = `You are an expert at extracting data from warehouse receipts and shipping documents. 
-Extract the following information for each product/item listed in the document:
-- Product code or SKU
-- Actual weight in kilograms (the real measured weight)
-- Volumetric weight in kilograms (calculated weight based on dimensions: L×W×H/6000)
-- Number of pallets used for THIS product
+      systemPrompt = `You are an expert at extracting data from warehouse receipts and shipping documents.
+
+This is a CONSOLIDATED warehouse receipt showing MULTIPLE suppliers/growers in one document.
+
+Extract the following for EACH supplier/grower listed:
+- Supplier name (look in "Growers", "Cultivos", "Shipper", or similar column)
+- Total actual weight in kilograms for that supplier (from "Weight" or "Peso" column)
+- Total volumetric weight in kilograms for that supplier (calculate from dimensions: L×W×H/6000, or use provided volumetric weight)
+- Number of pallets/boxes for that supplier (from "Number of Boxes", "Full Equivalent", or "Pallets" column)
 - Which weight type was charged (actual or volumetric - typically whichever is HIGHER)
 
-IMPORTANT: This document shows ALL products from a SINGLE SUPPLIER shipment. 
-Extract each product separately, even if the document shows totals.
-Look for line items, product tables, or itemized lists.
-
-Return the data as a structured list with one entry per product.`;
+IMPORTANT: Look for table rows where each row represents a different supplier/grower.
+Sum up totals for each unique supplier if they appear in multiple rows.
+Return one entry per supplier with their aggregated data.`;
 
       toolDefinition = {
         type: "function",
         function: {
           name: "extract_warehouse_data",
-          description: "Extract weight and pallet data from warehouse receipt for all products in the shipment",
+          description: "Extract weight and pallet data for all suppliers from consolidated warehouse receipt",
           parameters: {
             type: "object",
             properties: {
-              products: {
+              suppliers: {
                 type: "array",
                 items: {
                   type: "object",
                   properties: {
-                    productCode: { type: "string", description: "Product code or SKU" },
-                    actualWeightKg: { type: "number", description: "Actual weight in kilograms" },
-                    volumetricWeightKg: { type: "number", description: "Volumetric weight in kilograms" },
-                    palletsUsed: { type: "number", description: "Number of pallets used for this product" },
+                    supplierName: { type: "string", description: "Supplier/grower name from the document" },
+                    actualWeightKg: { type: "number", description: "Total actual weight in kilograms for this supplier" },
+                    volumetricWeightKg: { type: "number", description: "Total volumetric weight in kilograms for this supplier" },
+                    palletsUsed: { type: "number", description: "Total number of pallets/boxes for this supplier" },
                     weightTypeUsed: { type: "string", enum: ["actual", "volumetric"], description: "Which weight was charged (usually the higher one)" }
                   },
-                  required: ["productCode", "actualWeightKg", "volumetricWeightKg", "palletsUsed", "weightTypeUsed"],
+                  required: ["supplierName", "actualWeightKg", "volumetricWeightKg", "palletsUsed", "weightTypeUsed"],
                   additionalProperties: false
                 }
               }
             },
-            required: ["products"],
+            required: ["suppliers"],
             additionalProperties: false
           }
         }

@@ -76,7 +76,7 @@ export function ActualCIFForm({
   const [demandPatterns, setDemandPatterns] = useState<Map<string, { frequency: number; wasteRate: number }>>(new Map());
   
   // Upload keys to force remount on document upload
-  const [warehouseUploadKeys, setWarehouseUploadKeys] = useState<Map<string, number>>(new Map());
+  const [consolidatedUploadKey, setConsolidatedUploadKey] = useState(0);
   const [freightUploadKey, setFreightUploadKey] = useState(0);
 
   // Initialize supplier data grouped by supplier
@@ -158,29 +158,43 @@ export function ActualCIFForm({
     ));
   };
 
-  const handleWarehouseDocumentExtraction = (supplierId: string) => (extractedData: any[]) => {
-    // Extract per-supplier totals
-    const totalActualWeight = extractedData.reduce((sum, item) => sum + (item.actualWeightKg || 0), 0);
-    const totalVolumetricWeight = extractedData.reduce((sum, item) => sum + (item.volumetricWeightKg || 0), 0);
-    const totalPallets = extractedData.reduce((sum, item) => sum + (item.palletsUsed || 0), 0);
+  const handleConsolidatedWarehouseExtraction = (extractedData: any[]) => {
+    // extractedData now contains array of suppliers with their weights
+    let updatedCount = 0;
     
-    const weightTypeUsed = totalVolumetricWeight > totalActualWeight ? "volumetric" : "actual";
+    setSupplierWeights(prev => prev.map(sw => {
+      // Fuzzy match supplier names - find matching supplier in extracted data
+      const matchedSupplier = extractedData.find(extracted => {
+        const extractedLower = extracted.supplierName.toLowerCase();
+        const supplierLower = sw.supplierName.toLowerCase();
+        
+        // Try exact match first
+        if (extractedLower === supplierLower) return true;
+        
+        // Try partial match - either contains the other
+        if (extractedLower.includes(supplierLower) || supplierLower.includes(extractedLower)) return true;
+        
+        // Try matching first 3 words
+        const extractedWords = extractedLower.split(/\s+/).slice(0, 3).join(' ');
+        const supplierWords = supplierLower.split(/\s+/).slice(0, 3).join(' ');
+        return extractedWords === supplierWords;
+      });
+      
+      if (matchedSupplier) {
+        updatedCount++;
+        return {
+          ...sw,
+          actualWeightKg: matchedSupplier.actualWeightKg.toString(),
+          volumetricWeightKg: matchedSupplier.volumetricWeightKg.toString(),
+          palletsUsed: matchedSupplier.palletsUsed.toString(),
+          weightTypeUsed: matchedSupplier.weightTypeUsed
+        };
+      }
+      return sw;
+    }));
     
-    // REPLACE supplier's weight data
-    setSupplierWeights(prev => prev.map(sw => 
-      sw.supplierId === supplierId 
-        ? {
-            ...sw,
-            actualWeightKg: totalActualWeight.toString(),
-            volumetricWeightKg: totalVolumetricWeight.toString(),
-            palletsUsed: totalPallets.toString(),
-            weightTypeUsed
-          }
-        : sw
-    ));
-    
-    // Force remount of upload component
-    setWarehouseUploadKeys(prev => new Map(prev).set(supplierId, (prev.get(supplierId) || 0) + 1));
+    toast.success(`✓ Data replaced! Updated ${updatedCount} of ${supplierWeights.length} suppliers from warehouse receipt.`);
+    setConsolidatedUploadKey(prev => prev + 1);
   };
 
   const handleFreightExtraction = (type: 'exterior' | 'local') => (amount: number) => {
@@ -366,29 +380,35 @@ export function ActualCIFForm({
       const totalEstimatedFreight = estimatedFreightExterior + estimatedFreightLocal;
       const calculations = cifCalculations.byWeight; // Save "by weight" as default
 
-      // Save each product's actual CIF data
+      // Save each product's actual CIF data using UPSERT
       for (const calc of calculations) {
-        const { error } = await supabase.from("cif_estimates").insert({
-          order_id: orderId,
-          product_code: calc.productCode,
-          estimated_freight_exterior_usd: estimatedFreightExterior,
-          estimated_freight_local_usd: estimatedFreightLocal,
-          estimated_total_freight_usd: totalEstimatedFreight,
-          estimated_other_costs_usd: 0,
-          actual_freight_exterior_usd: parseFloat(actualFreightExterior || "0"),
-          actual_freight_local_usd: parseFloat(actualFreightLocal || "0"),
-          actual_total_freight_usd: totalActualFreight,
-          actual_other_costs_usd: parseFloat(actualOtherCosts || "0"),
-          actual_weight_kg: calc.actualWeight,
-          volumetric_weight_kg: calc.volumetricWeight,
-          chargeable_weight_kg: calc.chargeableWeight,
-          weight_type_used: calc.weightType,
-          variance_amount_usd: totalActualFreight - totalEstimatedFreight,
-          variance_percentage: totalEstimatedFreight > 0 
-            ? ((totalActualFreight - totalEstimatedFreight) / totalEstimatedFreight) * 100 
-            : 0,
-          actual_cif_xcg: calc.cifXCG
-        });
+        const { error } = await supabase.from("cif_estimates").upsert(
+          {
+            order_id: orderId,
+            product_code: calc.productCode,
+            estimated_freight_exterior_usd: estimatedFreightExterior,
+            estimated_freight_local_usd: estimatedFreightLocal,
+            estimated_total_freight_usd: totalEstimatedFreight,
+            estimated_other_costs_usd: 0,
+            actual_freight_exterior_usd: parseFloat(actualFreightExterior || "0"),
+            actual_freight_local_usd: parseFloat(actualFreightLocal || "0"),
+            actual_total_freight_usd: totalActualFreight,
+            actual_other_costs_usd: parseFloat(actualOtherCosts || "0"),
+            actual_weight_kg: calc.actualWeight,
+            volumetric_weight_kg: calc.volumetricWeight,
+            chargeable_weight_kg: calc.chargeableWeight,
+            weight_type_used: calc.weightType,
+            variance_amount_usd: totalActualFreight - totalEstimatedFreight,
+            variance_percentage: totalEstimatedFreight > 0 
+              ? ((totalActualFreight - totalEstimatedFreight) / totalEstimatedFreight) * 100 
+              : 0,
+            actual_cif_xcg: calc.cifXCG
+          },
+          {
+            onConflict: 'order_id,product_code',
+            ignoreDuplicates: false
+          }
+        );
 
         if (error) throw error;
       }
@@ -572,34 +592,49 @@ export function ActualCIFForm({
         </CardContent>
       </Card>
 
-      {/* Supplier Weight Data */}
-      <Tabs defaultValue={supplierWeights[0]?.supplierId} className="w-full">
-        <TabsList className="w-full justify-start">
-          {supplierWeights.map(sw => (
-            <TabsTrigger key={sw.supplierId} value={sw.supplierId}>
-              {sw.supplierName}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+      {/* Consolidated Warehouse Document Upload */}
+      <Card className="border-dashed">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Upload className="h-5 w-5" />
+            <CardTitle>Upload Consolidated Warehouse Receipt</CardTitle>
+          </div>
+          <CardDescription>
+            Upload the consolidated warehouse receipt containing all suppliers to automatically populate weight data
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <WarehouseDocumentUpload
+            onDataExtracted={handleConsolidatedWarehouseExtraction}
+            uploadKey={consolidatedUploadKey}
+            consolidated={true}
+          />
+        </CardContent>
+      </Card>
 
-        {supplierWeights.map(supplier => (
-          <TabsContent key={supplier.supplierId} value={supplier.supplierId} className="space-y-4">
-            <WarehouseDocumentUpload 
-              onDataExtracted={handleWarehouseDocumentExtraction(supplier.supplierId)}
-              uploadKey={warehouseUploadKeys.get(supplier.supplierId) || 0}
-            />
-            
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Upload className="h-5 w-5" />
-                  <CardTitle>{supplier.supplierName} - Weight Data</CardTitle>
-                </div>
-                <CardDescription>
-                  Enter total weight data from warehouse receipt for all products from this supplier
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+      {/* Supplier Weight Data - Manual Entry */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            <CardTitle>Supplier Weight Data</CardTitle>
+          </div>
+          <CardDescription>
+            Review and adjust weight data for each supplier (auto-populated from document upload)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue={supplierWeights[0]?.supplierId} className="w-full">
+            <TabsList className="w-full justify-start flex-wrap">
+              {supplierWeights.map(sw => (
+                <TabsTrigger key={sw.supplierId} value={sw.supplierId}>
+                  {sw.supplierName}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            {supplierWeights.map(supplier => (
+              <TabsContent key={supplier.supplierId} value={supplier.supplierId} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="space-y-2">
                     <Label>Actual Weight (kg)</Label>
@@ -656,11 +691,11 @@ export function ActualCIFForm({
                     ))}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        ))}
-      </Tabs>
+              </TabsContent>
+            ))}
+          </Tabs>
+        </CardContent>
+      </Card>
 
       {/* Actual CIF Calculations with 7 Methods */}
       {hasData && cifCalculations.byWeight.length > 0 && (

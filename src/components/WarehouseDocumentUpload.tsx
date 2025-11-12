@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Upload, FileText, Loader2 } from "lucide-react";
 
 interface ParsedWeightData {
-  productCode: string;
+  supplierName: string;
   actualWeightKg: number;
   volumetricWeightKg: number;
   palletsUsed: number;
@@ -17,9 +17,10 @@ interface ParsedWeightData {
 interface WarehouseDocumentUploadProps {
   onDataExtracted: (data: ParsedWeightData[]) => void;
   uploadKey?: number;
+  consolidated?: boolean;
 }
 
-export function WarehouseDocumentUpload({ onDataExtracted, uploadKey }: WarehouseDocumentUploadProps) {
+export function WarehouseDocumentUpload({ onDataExtracted, uploadKey, consolidated = false }: WarehouseDocumentUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -62,16 +63,25 @@ export function WarehouseDocumentUpload({ onDataExtracted, uploadKey }: Warehous
         throw new Error(result.error || 'Failed to extract data');
       }
 
-      const extractedProducts: ParsedWeightData[] = result.data.products.map((p: any) => ({
-        productCode: p.productCode,
-        actualWeightKg: p.actualWeightKg,
-        volumetricWeightKg: p.volumetricWeightKg,
-        palletsUsed: p.palletsUsed,
-        weightTypeUsed: p.weightTypeUsed
-      }));
+      const extractedData: ParsedWeightData[] = consolidated 
+        ? result.data.suppliers.map((s: any) => ({
+            supplierName: s.supplierName,
+            actualWeightKg: s.actualWeightKg,
+            volumetricWeightKg: s.volumetricWeightKg,
+            palletsUsed: s.palletsUsed,
+            weightTypeUsed: s.weightTypeUsed
+          }))
+        : result.data.products?.map((p: any) => ({
+            supplierName: p.productCode, // Legacy support
+            actualWeightKg: p.actualWeightKg,
+            volumetricWeightKg: p.volumetricWeightKg,
+            palletsUsed: p.palletsUsed,
+            weightTypeUsed: p.weightTypeUsed
+          })) || [];
 
-      toast.success(`✓ Data replaced! Extracted ${extractedProducts.length} products from new document.`);
-      onDataExtracted(extractedProducts);
+      const countLabel = consolidated ? 'suppliers' : 'products';
+      toast.success(`✓ Data replaced! Extracted ${extractedData.length} ${countLabel} from new document.`);
+      onDataExtracted(extractedData);
       setFile(null);
       // Reset file input
       const fileInput = document.getElementById('warehouse-doc') as HTMLInputElement;
@@ -94,7 +104,10 @@ export function WarehouseDocumentUpload({ onDataExtracted, uploadKey }: Warehous
           Upload Warehouse Document
         </CardTitle>
         <CardDescription>
-          Upload the warehouse receipt for this supplier to automatically extract weight and pallet data
+          {consolidated 
+            ? "Upload the consolidated warehouse receipt containing all suppliers to automatically extract weight and pallet data"
+            : "Upload the warehouse receipt for this supplier to automatically extract weight and pallet data"
+          }
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -139,9 +152,20 @@ export function WarehouseDocumentUpload({ onDataExtracted, uploadKey }: Warehous
         <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
           <p className="font-medium">💡 How it works:</p>
           <ul className="list-disc list-inside space-y-1 ml-2">
-            <li>AI extracts all products with their weights from the supplier's warehouse receipt</li>
-            <li>Totals are calculated automatically for this supplier</li>
-            <li>Both actual and volumetric weights are captured</li>
+            {consolidated ? (
+              <>
+                <li>AI extracts ALL suppliers with their weights from the consolidated warehouse receipt</li>
+                <li>All supplier weights are populated automatically in one upload</li>
+                <li>Fuzzy matching links document data to your order suppliers</li>
+                <li>Both actual and volumetric weights are captured per supplier</li>
+              </>
+            ) : (
+              <>
+                <li>AI extracts all products with their weights from the supplier's warehouse receipt</li>
+                <li>Totals are calculated automatically for this supplier</li>
+                <li>Both actual and volumetric weights are captured</li>
+              </>
+            )}
             <li>Supports PDF, JPG, PNG, and WEBP formats</li>
           </ul>
         </div>
