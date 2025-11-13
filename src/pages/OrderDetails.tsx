@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Printer, Ban, Edit, Eye, Download, Receipt } from 'lucide-react';
+import { ArrowLeft, Printer, Ban, Edit, Eye, Download, Receipt, ChevronDown } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import LoadingBox from '@/components/LoadingBox';
@@ -74,6 +75,7 @@ const OrderDetails = () => {
   const [palletConfig, setPalletConfig] = useState<any>(null);
   const [freightSettings, setFreightSettings] = useState({ freightCostPerKg: 2.87, exchangeRate: 1.82 });
   const [hasActualCosts, setHasActualCosts] = useState(false);
+  const [orderItemsExpanded, setOrderItemsExpanded] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -732,36 +734,52 @@ const OrderDetails = () => {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Order Items ({orderItems.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {Object.entries(
-                  orderItems.reduce((acc, item) => {
-                    if (!acc[item.customer_name]) {
-                      acc[item.customer_name] = [];
-                    }
-                    acc[item.customer_name].push(item);
-                    return acc;
-                  }, {} as Record<string, OrderItem[]>)
-                ).map(([customerName, items]) => (
-                  <div key={customerName} className="border rounded-lg p-4">
-                    <h3 className="font-semibold mb-3">{customerName}</h3>
-                    <div className="space-y-2">
-                      {items.map((item) => (
-                        <div key={item.id} className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">{item.product_code}</span>
-                          <span className="font-medium">{item.quantity} trays</span>
-                        </div>
-                      ))}
-                    </div>
+          <Collapsible
+            open={orderItemsExpanded}
+            onOpenChange={setOrderItemsExpanded}
+          >
+            <Card>
+              <CollapsibleTrigger asChild>
+                <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Order Items ({orderItems.length})</CardTitle>
+                    <ChevronDown 
+                      className={`h-5 w-5 transition-transform duration-200 ${
+                        orderItemsExpanded ? 'transform rotate-180' : ''
+                      }`}
+                    />
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="pt-0">
+                  <div className="space-y-4">
+                    {Object.entries(
+                      orderItems.reduce((acc, item) => {
+                        if (!acc[item.customer_name]) {
+                          acc[item.customer_name] = [];
+                        }
+                        acc[item.customer_name].push(item);
+                        return acc;
+                      }, {} as Record<string, OrderItem[]>)
+                    ).map(([customerName, items]) => (
+                      <div key={customerName} className="border rounded-lg p-4">
+                        <h3 className="font-semibold mb-3">{customerName}</h3>
+                        <div className="space-y-2">
+                          {items.map((item) => (
+                            <div key={item.id} className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">{item.product_code}</span>
+                              <span className="font-medium">{item.quantity} trays</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
 
         <Tabs defaultValue="items" className="w-full">
           <TabsList className="grid w-full grid-cols-6">
