@@ -29,13 +29,16 @@ interface SupplierWeightData {
     costPerUnit: number;
     weightPerUnit: number;
     volumetricWeightPerUnit: number;
+    packSize: number;
+    wholesalePriceXCG?: number;
   }[];
 }
 
 interface CIFResult {
   productCode: string;
   productName: string;
-  quantity: number;
+  quantity: number; // Units
+  trays: number;
   actualWeight: number;
   volumetricWeight: number;
   chargeableWeight: number;
@@ -44,7 +47,7 @@ interface CIFResult {
   freightCost: number;
   cifUSD: number;
   cifXCG: number;
-  cifPerUnit: number;
+  cifPerUnit: number; // Per unit
   wholesalePrice: number;
   retailPrice: number;
   wholesaleMargin: number;
@@ -86,7 +89,7 @@ export function ActualCIFForm({
       const [suppliersRes, settingsRes, productsRes] = await Promise.all([
         supabase.from("suppliers").select("*"),
         supabase.from("settings").select("*").eq("key", "usd_to_xcg_rate"),
-        supabase.from("products").select("*")
+        supabase.from("products").select("code, name, price_usd_per_unit, gross_weight_per_unit, netto_weight_per_unit, volumetric_weight_kg, supplier_id, pack_size, wholesale_price_xcg_per_unit")
       ]);
 
       const suppliersData = suppliersRes.data || [];
@@ -129,6 +132,8 @@ export function ActualCIFForm({
           costPerUnit: product?.price_usd_per_unit || 0,
           weightPerUnit: product?.gross_weight_per_unit || product?.netto_weight_per_unit || 0,
           volumetricWeightPerUnit: product?.volumetric_weight_kg || 0,
+          packSize: product?.pack_size || 1,
+          wholesalePriceXCG: product?.wholesale_price_xcg_per_unit,
         });
       });
 
@@ -229,13 +234,16 @@ export function ActualCIFForm({
     const consolidatedProducts = new Map<string, {
       productCode: string;
       productName: string;
-      totalQuantity: number;
+      totalTrays: number;
+      totalUnits: number;
+      packSize: number;
       totalActualWeight: number;
       totalVolumetricWeight: number;
       totalCostUSD: number;
       suppliers: string[];
       orderFrequency: number;
       wasteRate: number;
+      wholesalePriceXCG?: number;
     }>();
 
     supplierWeights.forEach(supplier => {
@@ -245,18 +253,22 @@ export function ActualCIFForm({
           consolidatedProducts.set(product.productCode, {
             productCode: product.productCode,
             productName: product.productName,
-            totalQuantity: 0,
+            totalTrays: 0,
+            totalUnits: 0,
+            packSize: product.packSize || 1,
             totalActualWeight: 0,
             totalVolumetricWeight: 0,
             totalCostUSD: 0,
             suppliers: [],
             orderFrequency: demand?.frequency || 1,
-            wasteRate: demand?.wasteRate || 0
+            wasteRate: demand?.wasteRate || 0,
+            wholesalePriceXCG: product.wholesalePriceXCG
           });
         }
         
         const consolidated = consolidatedProducts.get(product.productCode)!;
-        consolidated.totalQuantity += product.quantity;
+        consolidated.totalTrays += product.quantity;
+        consolidated.totalUnits += product.quantity * product.packSize;
         consolidated.totalActualWeight += (product.quantity * product.weightPerUnit / 1000);
         consolidated.totalVolumetricWeight += (product.quantity * product.volumetricWeightPerUnit / 1000);
         consolidated.totalCostUSD += (product.quantity * product.costPerUnit);
@@ -331,17 +343,18 @@ export function ActualCIFForm({
 
         const cifUSD = productCost + freightShare;
         const cifXCG = cifUSD * exchangeRate;
-        const cifPerUnit = product.totalQuantity > 0 ? cifXCG / product.totalQuantity : 0;
+        const cifPerUnit = product.totalUnits > 0 ? cifXCG / product.totalUnits : 0;
 
-        const wholesalePrice = cifPerUnit * WHOLESALE_MULTIPLIER;
+        const wholesalePrice = product.wholesalePriceXCG || (cifPerUnit * WHOLESALE_MULTIPLIER);
         const retailPrice = cifPerUnit * RETAIL_MULTIPLIER;
-        const wholesaleMargin = wholesalePrice - cifPerUnit;
-        const retailMargin = retailPrice - cifPerUnit;
+        const wholesaleMargin = cifPerUnit > 0 ? ((wholesalePrice - cifPerUnit) / cifPerUnit * 100) : 0;
+        const retailMargin = cifPerUnit > 0 ? ((retailPrice - cifPerUnit) / cifPerUnit * 100) : 0;
 
         return {
           productCode: product.productCode,
           productName: product.productName,
-          quantity: product.totalQuantity,
+          quantity: product.totalUnits,
+          trays: product.totalTrays,
           actualWeight: product.totalActualWeight,
           volumetricWeight: product.totalVolumetricWeight,
           chargeableWeight,
@@ -457,13 +470,6 @@ export function ActualCIFForm({
             </TableHeader>
             <TableBody>
               {results.map((result) => {
-                const wholesaleMarginPercent = result.cifPerUnit > 0 
-                  ? ((result.wholesalePrice - result.cifPerUnit) / result.cifPerUnit * 100)
-                  : 0;
-                const retailMarginPercent = result.cifPerUnit > 0
-                  ? ((result.retailPrice - result.cifPerUnit) / result.cifPerUnit * 100)
-                  : 0;
-
                 return (
                   <TableRow key={result.productCode}>
                     <TableCell className="font-medium">
@@ -473,7 +479,10 @@ export function ActualCIFForm({
                     <TableCell className="text-xs text-muted-foreground max-w-[150px]">
                       {result.suppliers}
                     </TableCell>
-                    <TableCell className="text-right">{result.quantity}</TableCell>
+                    <TableCell className="text-right">
+                      {result.quantity}
+                      <div className="text-xs text-muted-foreground">{result.trays} trays</div>
+                    </TableCell>
                     <TableCell className="text-right">{result.actualWeight.toFixed(2)}</TableCell>
                     <TableCell className="text-right">{result.volumetricWeight.toFixed(2)}</TableCell>
                     <TableCell className="text-right font-semibold">
@@ -489,17 +498,17 @@ export function ActualCIFForm({
                     </TableCell>
                     <TableCell className="text-right">Cg {result.wholesalePrice.toFixed(2)}</TableCell>
                     <TableCell className="text-right text-green-600">
-                      Cg {result.wholesaleMargin.toFixed(2)}
+                      Cg {(result.wholesalePrice - result.cifPerUnit).toFixed(2)}
                     </TableCell>
                     <TableCell className="text-right text-green-600 font-semibold">
-                      {wholesaleMarginPercent.toFixed(1)}%
+                      {result.wholesaleMargin.toFixed(1)}%
                     </TableCell>
                     <TableCell className="text-right">Cg {result.retailPrice.toFixed(2)}</TableCell>
                     <TableCell className="text-right text-green-600">
-                      Cg {result.retailMargin.toFixed(2)}
+                      Cg {(result.retailPrice - result.cifPerUnit).toFixed(2)}
                     </TableCell>
                     <TableCell className="text-right text-green-600 font-semibold">
-                      {retailMarginPercent.toFixed(1)}%
+                      {result.retailMargin.toFixed(1)}%
                     </TableCell>
                   </TableRow>
                 );
