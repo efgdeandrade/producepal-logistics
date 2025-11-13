@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { Calculator, Award } from 'lucide-react';
+import { Calculator, Award, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface OrderItem {
   product_code: string;
@@ -23,7 +24,11 @@ interface CIFResult {
   productCode: string;
   productName: string;
   quantity: number;
+  trays: number;
+  actualWeight: number;
+  volumetricWeight: number;
   totalWeight: number;
+  weightType: 'actual' | 'volumetric';
   costUSD: number;
   freightCost: number;
   cifUSD: number;
@@ -33,6 +38,7 @@ interface CIFResult {
   retailPrice: number;
   wholesaleMargin: number;
   retailMargin: number;
+  supplier: string;
 }
 
 interface OrderCIFTableProps {
@@ -55,6 +61,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [productsWeightData, setProductsWeightData] = useState<any[]>([]);
+  const [expandedSuppliers, setExpandedSuppliers] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     calculateCIF();
@@ -88,11 +95,11 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
       const freightExteriorPerKg = (settingsMap.get('freight_exterior_tariff') as any)?.rate || 2.46;
       const freightLocalPerKg = (settingsMap.get('freight_local_tariff') as any)?.rate || 0.41;
 
-      // Fetch product data
+      // Fetch product data with supplier information
       const productCodes = [...new Set(consolidatedItems.map(item => item.product_code))];
       const { data: products, error } = await supabase
         .from('products')
-        .select('code, name, price_usd_per_unit, netto_weight_per_unit, gross_weight_per_unit, pack_size, empty_case_weight, wholesale_price_xcg_per_unit, length_cm, width_cm, height_cm, volumetric_weight_kg')
+        .select('code, name, price_usd_per_unit, netto_weight_per_unit, gross_weight_per_unit, pack_size, empty_case_weight, wholesale_price_xcg_per_unit, length_cm, width_cm, height_cm, volumetric_weight_kg, supplier_id, suppliers(name)')
         .in('code', productCodes);
 
       if (error) throw error;
@@ -138,6 +145,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
               packSize: packSize,
               emptyCaseWeight: emptyCaseWeight,
               wholesalePriceXCG: p.wholesale_price_xcg_per_unit || 0,
+              supplier: (p.suppliers as any)?.name || 'Unknown Supplier',
             },
           ];
         }) || []
@@ -169,6 +177,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
           wholesalePriceXCG: productData?.wholesalePriceXCG || 0,
           orderFrequency: demand?.frequency || 1,
           wasteRate: demand?.wasteRate || 0,
+          supplier: productData?.supplier || 'Unknown Supplier',
         };
       });
 
@@ -279,7 +288,11 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
             productCode: product.code,
             productName: product.name,
             quantity: product.totalUnits,
+            trays: product.numberOfCases,
+            actualWeight: product.actualWeight,
+            volumetricWeight: product.volumetricWeight,
             totalWeight: product.totalWeight,
+            weightType: product.weightType as 'actual' | 'volumetric',
             costUSD: productCost,
             freightCost: freightShare,
             cifUSD,
@@ -289,6 +302,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
             retailPrice,
             wholesaleMargin,
             retailMargin,
+            supplier: product.supplier,
           };
         });
       };
@@ -314,6 +328,34 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
 
   const renderTable = (results: CIFResult[], title: string, description?: string) => {
     if (!results || results.length === 0) return null;
+
+    // Group results by supplier
+    const groupedBySupplier = results.reduce((acc, result) => {
+      const supplier = result.supplier || 'Unknown Supplier';
+      if (!acc[supplier]) {
+        acc[supplier] = [];
+      }
+      acc[supplier].push(result);
+      return acc;
+    }, {} as Record<string, CIFResult[]>);
+
+    // Calculate subtotals per supplier
+    const supplierSubtotals = Object.entries(groupedBySupplier).map(([supplier, products]) => ({
+      supplier,
+      totalUnits: products.reduce((sum, p) => sum + p.quantity, 0),
+      totalTrays: products.reduce((sum, p) => sum + p.trays, 0),
+      totalCostUSD: products.reduce((sum, p) => sum + p.costUSD, 0),
+      totalFreight: products.reduce((sum, p) => sum + p.freightCost, 0),
+      totalCIFUSD: products.reduce((sum, p) => sum + p.cifUSD, 0),
+      totalCIFXCG: products.reduce((sum, p) => sum + p.cifXCG, 0)
+    }));
+
+    const toggleSupplier = (supplier: string) => {
+      setExpandedSuppliers(prev => ({
+        ...prev,
+        [supplier]: !prev[supplier]
+      }));
+    };
 
     return (
       <div>
@@ -344,51 +386,143 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
               </TableRow>
             </TableHeader>
             <TableBody>
-              {results.map((result, idx) => {
-                const wholesaleMarginPercent = result.cifPerUnit > 0 
-                  ? ((result.wholesalePrice - result.cifPerUnit) / result.cifPerUnit * 100)
-                  : 0;
-                const retailMarginPercent = result.cifPerUnit > 0
-                  ? ((result.retailPrice - result.cifPerUnit) / result.cifPerUnit * 100)
-                  : 0;
-                
-                // Find the product weight data
-                const productData = productsWeightData.find(p => p.code === result.productCode);
+              {Object.entries(groupedBySupplier).map(([supplier, products]) => {
+                const isExpanded = expandedSuppliers[supplier] ?? true;
+                const subtotal = supplierSubtotals.find(s => s.supplier === supplier);
                 
                 return (
-                  <TableRow key={idx}>
-                    <TableCell className="font-medium">{result.productName}</TableCell>
-                    <TableCell className="text-right">{result.quantity}</TableCell>
-                    <TableCell className="text-right">{productData?.actualWeight.toFixed(2) || result.totalWeight.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">{productData?.volumetricWeight.toFixed(2) || '-'}</TableCell>
-                    <TableCell className="text-right font-semibold">
-                      {result.totalWeight.toFixed(2)}
-                      {productData?.weightType === 'volumetric' && <span className="text-xs text-orange-600 ml-1">V</span>}
-                    </TableCell>
-                    <TableCell className="text-right">${result.costUSD.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">${result.freightCost.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">${result.cifUSD.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">Cg {result.cifXCG.toFixed(2)}</TableCell>
-                    <TableCell className="text-right font-bold">
-                      Cg {result.cifPerUnit.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right">Cg {result.wholesalePrice.toFixed(2)}</TableCell>
-                    <TableCell className="text-right text-green-600">
-                      Cg {result.wholesaleMargin.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right text-green-600 font-semibold">
-                      {wholesaleMarginPercent.toFixed(1)}%
-                    </TableCell>
-                    <TableCell className="text-right">Cg {result.retailPrice.toFixed(2)}</TableCell>
-                    <TableCell className="text-right text-green-600">
-                      Cg {result.retailMargin.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right text-green-600 font-semibold">
-                      {retailMarginPercent.toFixed(1)}%
-                    </TableCell>
-                  </TableRow>
+                  <>
+                    {/* Supplier Header Row */}
+                    <TableRow 
+                      key={`${supplier}-header`}
+                      className="bg-muted/50 hover:bg-muted cursor-pointer border-t-2 border-b"
+                      onClick={() => toggleSupplier(supplier)}
+                    >
+                      <TableCell colSpan={16} className="font-semibold">
+                        <div className="flex items-center gap-2">
+                          <ChevronDown 
+                            className={`h-4 w-4 transition-transform duration-200 ${
+                              isExpanded ? 'transform rotate-0' : 'transform -rotate-90'
+                            }`}
+                          />
+                          <span>{supplier}</span>
+                          <span className="text-muted-foreground text-sm ml-2">
+                            ({products.length} {products.length === 1 ? 'product' : 'products'})
+                          </span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    
+                    {/* Product Rows */}
+                    {isExpanded && products.map((result, idx) => {
+                      const wholesaleMarginPercent = result.cifPerUnit > 0 
+                        ? ((result.wholesalePrice - result.cifPerUnit) / result.cifPerUnit * 100)
+                        : 0;
+                      const retailMarginPercent = result.cifPerUnit > 0
+                        ? ((result.retailPrice - result.cifPerUnit) / result.cifPerUnit * 100)
+                        : 0;
+
+                      return (
+                        <TableRow key={`${supplier}-${result.productCode}-${idx}`}>
+                          <TableCell className="font-medium">
+                            <div>{result.productName}</div>
+                            <div className="text-xs text-muted-foreground">{result.productCode}</div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="font-medium">{result.quantity}</div>
+                            <div className="text-xs text-muted-foreground">{result.trays} trays</div>
+                          </TableCell>
+                          <TableCell className="text-right">{result.actualWeight.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">{result.volumetricWeight.toFixed(2)}</TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {result.totalWeight.toFixed(2)}
+                            {result.weightType === 'volumetric' && <span className="text-xs text-orange-600 ml-1">V</span>}
+                          </TableCell>
+                          <TableCell className="text-right">${result.costUSD.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">${result.freightCost.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">${result.cifUSD.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">Cg {result.cifXCG.toFixed(2)}</TableCell>
+                          <TableCell className="text-right font-bold">
+                            Cg {result.cifPerUnit.toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-right">Cg {result.wholesalePrice.toFixed(2)}</TableCell>
+                          <TableCell className="text-right text-green-600">
+                            Cg {result.wholesaleMargin.toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-right text-green-600 font-semibold">
+                            {wholesaleMarginPercent.toFixed(1)}%
+                          </TableCell>
+                          <TableCell className="text-right">Cg {result.retailPrice.toFixed(2)}</TableCell>
+                          <TableCell className="text-right text-green-600">
+                            Cg {result.retailMargin.toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-right text-green-600 font-semibold">
+                            {retailMarginPercent.toFixed(1)}%
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    
+                    {/* Supplier Subtotal Row */}
+                    {isExpanded && subtotal && (
+                      <TableRow key={`${supplier}-subtotal`} className="bg-muted/30 font-semibold border-b-2">
+                        <TableCell className="text-right">
+                          Subtotal: {supplier}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div>{subtotal.totalUnits}</div>
+                          <div className="text-xs text-muted-foreground font-normal">
+                            {subtotal.totalTrays} trays
+                          </div>
+                        </TableCell>
+                        <TableCell></TableCell>
+                        <TableCell></TableCell>
+                        <TableCell></TableCell>
+                        <TableCell className="text-right">
+                          ${subtotal.totalCostUSD.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          ${subtotal.totalFreight.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          ${subtotal.totalCIFUSD.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          Cg {subtotal.totalCIFXCG.toFixed(2)}
+                        </TableCell>
+                        <TableCell colSpan={7}></TableCell>
+                      </TableRow>
+                    )}
+                  </>
                 );
               })}
+              
+              {/* Grand Total Row */}
+              <TableRow className="bg-primary/10 font-bold border-t-4">
+                <TableCell className="text-right">GRAND TOTAL</TableCell>
+                <TableCell className="text-right">
+                  <div>{results.reduce((sum, r) => sum + r.quantity, 0)}</div>
+                  <div className="text-xs text-muted-foreground font-normal">
+                    {results.reduce((sum, r) => sum + r.trays, 0)} trays
+                  </div>
+                </TableCell>
+                <TableCell></TableCell>
+                <TableCell></TableCell>
+                <TableCell></TableCell>
+                <TableCell className="text-right">
+                  ${results.reduce((sum, r) => sum + r.costUSD, 0).toFixed(2)}
+                </TableCell>
+                <TableCell className="text-right">
+                  ${results.reduce((sum, r) => sum + r.freightCost, 0).toFixed(2)}
+                </TableCell>
+                <TableCell className="text-right">
+                  ${results.reduce((sum, r) => sum + r.cifUSD, 0).toFixed(2)}
+                </TableCell>
+                <TableCell className="text-right">
+                  Cg {results.reduce((sum, r) => sum + r.cifXCG, 0).toFixed(2)}
+                </TableCell>
+                <TableCell colSpan={7}></TableCell>
+              </TableRow>
             </TableBody>
           </Table>
           <ScrollBar orientation="horizontal" />
