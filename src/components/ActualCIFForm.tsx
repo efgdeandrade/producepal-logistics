@@ -55,6 +55,13 @@ interface CIFResult {
   wholesaleMargin: number;
   retailMargin: number;
   suppliers: string;
+  priceHistory?: {
+    previousWholesale?: number;
+    previousRetail?: number;
+    wholesaleChange?: number;
+    retailChange?: number;
+    lastChangeDate?: string;
+  };
 }
 
 interface ActualCIFFormProps {
@@ -80,6 +87,7 @@ export function ActualCIFForm({
   const [exchangeRate, setExchangeRate] = useState(1.82);
   const [demandPatterns, setDemandPatterns] = useState<Map<string, { frequency: number; wasteRate: number }>>(new Map());
   const [expandedSuppliers, setExpandedSuppliers] = useState<Record<string, boolean>>({});
+  const [priceHistory, setPriceHistory] = useState<Map<string, any>>(new Map());
   
   // Upload keys to force remount on document upload
   const [consolidatedUploadKey, setConsolidatedUploadKey] = useState(0);
@@ -101,18 +109,36 @@ export function ActualCIFForm({
 
       // Fetch demand patterns for strategic calculations
       const productCodes = [...new Set(orderItems.map(item => item.product_code))];
-      const { data: demandData } = await supabase
-        .from('demand_patterns')
-        .select('product_code, order_frequency, avg_waste_rate')
-        .in('product_code', productCodes);
+      const [demandRes, priceHistoryRes] = await Promise.all([
+        supabase.from('demand_patterns')
+          .select('product_code, order_frequency, avg_waste_rate')
+          .in('product_code', productCodes),
+        supabase.from('product_price_history')
+          .select('product_code, old_price_xcg_per_unit, new_price_xcg_per_unit, created_at')
+          .in('product_code', productCodes)
+          .order('created_at', { ascending: false })
+      ]);
 
       const demandMap = new Map(
-        demandData?.map(d => [d.product_code, {
+        demandRes.data?.map(d => [d.product_code, {
           frequency: d.order_frequency || 1,
           wasteRate: d.avg_waste_rate || 0
         }]) || []
       );
       setDemandPatterns(demandMap);
+
+      // Group price history by product (get latest change for each product)
+      const historyMap = new Map();
+      priceHistoryRes.data?.forEach(h => {
+        if (!historyMap.has(h.product_code)) {
+          historyMap.set(h.product_code, {
+            previousPrice: h.old_price_xcg_per_unit,
+            currentPrice: h.new_price_xcg_per_unit,
+            changeDate: h.created_at
+          });
+        }
+      });
+      setPriceHistory(historyMap);
 
       // Group products by supplier
       const supplierGroups = new Map<string, any[]>();
@@ -356,6 +382,16 @@ export function ActualCIFForm({
         const wholesaleMargin = cifPerUnit > 0 ? ((wholesalePrice - cifPerUnit) / cifPerUnit * 100) : 0;
         const retailMargin = cifPerUnit > 0 ? ((retailPrice - cifPerUnit) / cifPerUnit * 100) : 0;
 
+        // Get price history for this product
+        const history = priceHistory.get(product.productCode);
+        const priceHistoryData = history ? {
+          previousWholesale: history.previousPrice,
+          previousRetail: history.previousPrice ? history.previousPrice * 1.429 : undefined, // Approximate retail from old wholesale
+          wholesaleChange: history.previousPrice ? ((wholesalePrice - history.previousPrice) / history.previousPrice * 100) : undefined,
+          retailChange: history.previousPrice ? ((retailPrice - (history.previousPrice * 1.429)) / (history.previousPrice * 1.429) * 100) : undefined,
+          lastChangeDate: history.changeDate
+        } : undefined;
+
         return {
           productCode: product.productCode,
           productName: product.productName,
@@ -374,7 +410,8 @@ export function ActualCIFForm({
           retailPrice,
           wholesaleMargin,
           retailMargin,
-          suppliers: product.suppliers.join(', ')
+          suppliers: product.suppliers.join(', '),
+          priceHistory: priceHistoryData
         };
       });
     };
@@ -570,7 +607,22 @@ export function ActualCIFForm({
                           <TableCell className="text-right text-green-600 font-semibold">
                             {wholesaleMarginPercent.toFixed(1)}%
                           </TableCell>
-                          <TableCell className="text-right">Cg {result.retailPrice.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <span>Cg {result.retailPrice.toFixed(2)}</span>
+                              {result.priceHistory?.retailChange && (
+                                <span className={`text-xs ${result.priceHistory.retailChange > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                  {result.priceHistory.retailChange > 0 ? '↑' : '↓'}
+                                  {Math.abs(result.priceHistory.retailChange).toFixed(1)}%
+                                </span>
+                              )}
+                            </div>
+                            {result.priceHistory?.previousRetail && (
+                              <div className="text-xs text-muted-foreground">
+                                Was: Cg {result.priceHistory.previousRetail.toFixed(2)}
+                              </div>
+                            )}
+                          </TableCell>
                           <TableCell className="text-right text-green-600">
                             Cg {result.retailMargin.toFixed(2)}
                           </TableCell>
