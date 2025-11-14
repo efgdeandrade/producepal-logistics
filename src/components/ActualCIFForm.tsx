@@ -32,6 +32,7 @@ interface SupplierWeightData {
     volumetricWeightPerUnit: number;
     packSize: number;
     wholesalePriceXCG?: number;
+    retailPriceXCG?: number;
   }[];
 }
 
@@ -91,7 +92,7 @@ export function ActualCIFForm({
       const [suppliersRes, settingsRes, productsRes] = await Promise.all([
         supabase.from("suppliers").select("*"),
         supabase.from("settings").select("*").eq("key", "usd_to_xcg_rate"),
-        supabase.from("products").select("code, name, price_usd_per_unit, gross_weight_per_unit, netto_weight_per_unit, volumetric_weight_kg, supplier_id, pack_size, wholesale_price_xcg_per_unit")
+        supabase.from("products").select("code, name, price_usd_per_unit, gross_weight_per_unit, netto_weight_per_unit, volumetric_weight_kg, supplier_id, pack_size, wholesale_price_xcg_per_unit, retail_price_xcg_per_unit")
       ]);
 
       const suppliersData = suppliersRes.data || [];
@@ -136,6 +137,7 @@ export function ActualCIFForm({
           volumetricWeightPerUnit: product?.volumetric_weight_kg || 0,
           packSize: product?.pack_size || 1,
           wholesalePriceXCG: product?.wholesale_price_xcg_per_unit,
+          retailPriceXCG: product?.retail_price_xcg_per_unit,
         });
       });
 
@@ -246,6 +248,7 @@ export function ActualCIFForm({
       orderFrequency: number;
       wasteRate: number;
       wholesalePriceXCG?: number;
+      retailPriceXCG?: number;
     }>();
 
     supplierWeights.forEach(supplier => {
@@ -264,7 +267,8 @@ export function ActualCIFForm({
             suppliers: [],
             orderFrequency: demand?.frequency || 1,
             wasteRate: demand?.wasteRate || 0,
-            wholesalePriceXCG: product.wholesalePriceXCG
+            wholesalePriceXCG: product.wholesalePriceXCG,
+            retailPriceXCG: product.retailPriceXCG
           });
         }
         
@@ -348,7 +352,7 @@ export function ActualCIFForm({
         const cifPerUnit = product.totalUnits > 0 ? cifXCG / product.totalUnits : 0;
 
         const wholesalePrice = product.wholesalePriceXCG || (cifPerUnit * WHOLESALE_MULTIPLIER);
-        const retailPrice = cifPerUnit * RETAIL_MULTIPLIER;
+        const retailPrice = product.retailPriceXCG || (cifPerUnit * RETAIL_MULTIPLIER);
         const wholesaleMargin = cifPerUnit > 0 ? ((wholesalePrice - cifPerUnit) / cifPerUnit * 100) : 0;
         const retailMargin = cifPerUnit > 0 ? ((retailPrice - cifPerUnit) / cifPerUnit * 100) : 0;
 

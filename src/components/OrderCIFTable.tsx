@@ -99,7 +99,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
       const productCodes = [...new Set(consolidatedItems.map(item => item.product_code))];
       const { data: products, error } = await supabase
         .from('products')
-        .select('code, name, price_usd_per_unit, netto_weight_per_unit, gross_weight_per_unit, pack_size, empty_case_weight, wholesale_price_xcg_per_unit, length_cm, width_cm, height_cm, volumetric_weight_kg, supplier_id, suppliers(name)')
+        .select('code, name, price_usd_per_unit, netto_weight_per_unit, gross_weight_per_unit, pack_size, empty_case_weight, wholesale_price_xcg_per_unit, retail_price_xcg_per_unit, length_cm, width_cm, height_cm, volumetric_weight_kg, supplier_id, suppliers(name)')
         .in('code', productCodes);
 
       if (error) throw error;
@@ -145,6 +145,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
               packSize: packSize,
               emptyCaseWeight: emptyCaseWeight,
               wholesalePriceXCG: p.wholesale_price_xcg_per_unit || 0,
+              retailPriceXCG: p.retail_price_xcg_per_unit || 0,
               supplier: (p.suppliers as any)?.name || 'Unknown Supplier',
             },
           ];
@@ -175,6 +176,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
           chargeableWeightPerUnit: productData?.chargeableWeightPerUnit || 0,
           emptyCaseWeight: productData?.emptyCaseWeight || 0,
           wholesalePriceXCG: productData?.wholesalePriceXCG || 0,
+          retailPriceXCG: productData?.retailPriceXCG || 0,
           orderFrequency: demand?.frequency || 1,
           wasteRate: demand?.wasteRate || 0,
           supplier: productData?.supplier || 'Unknown Supplier',
@@ -280,7 +282,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
           const cifPerUnit = product.totalUnits > 0 ? cifXCG / product.totalUnits : 0;
 
           const wholesalePrice = product.wholesalePriceXCG || (cifPerUnit * WHOLESALE_MULTIPLIER);
-          const retailPrice = cifPerUnit * RETAIL_MULTIPLIER;
+          const retailPrice = product.retailPriceXCG || (cifPerUnit * RETAIL_MULTIPLIER);
           const wholesaleMargin = wholesalePrice - cifPerUnit;
           const retailMargin = retailPrice - cifPerUnit;
 
