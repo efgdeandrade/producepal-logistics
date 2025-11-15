@@ -15,6 +15,7 @@ import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { ProductPriceHistory } from '@/components/ProductPriceHistory';
+import { ProductFormDialog } from '@/components/ProductFormDialog';
 
 const productSchema = z.object({
   code: z.string().trim().min(1, 'Product code is required').max(50, 'Code too long'),
@@ -96,10 +97,59 @@ const Products = () => {
     height_cm: '',
   });
 
-  // Calculate volumetric weight when dimensions change
-  const volumetricWeight = formData.length_cm && formData.width_cm && formData.height_cm
-    ? (parseFloat(formData.length_cm) * parseFloat(formData.width_cm) * parseFloat(formData.height_cm)) / 6000
-    : 0;
+  const handleOpenDialog = (product: Product | null = null) => {
+    if (product) {
+      setEditingProduct(product);
+      setFormData({
+        code: product.code,
+        name: product.name,
+        pack_size: product.pack_size.toString(),
+        supplier_id: product.supplier_id || '',
+        case_size: product.case_size || '',
+        netto_weight_per_unit: product.netto_weight_per_unit?.toString() || '',
+        gross_weight_per_unit: product.gross_weight_per_unit?.toString() || '',
+        empty_case_weight: product.empty_case_weight?.toString() || '',
+        price_usd_per_unit: product.price_usd_per_unit?.toString() || '',
+        price_usd_per_case: '',
+        price_xcg_per_unit: product.price_xcg_per_unit?.toString() || '',
+        price_xcg_per_case: '',
+        wholesale_price_usd_per_unit: product.wholesale_price_usd_per_unit?.toString() || '',
+        wholesale_price_xcg_per_unit: product.wholesale_price_xcg_per_unit?.toString() || '',
+        retail_price_usd_per_unit: product.retail_price_usd_per_unit?.toString() || '',
+        retail_price_xcg_per_unit: product.retail_price_xcg_per_unit?.toString() || '',
+        unit: product.unit || '',
+        length_cm: product.length_cm?.toString() || '',
+        width_cm: product.width_cm?.toString() || '',
+        height_cm: product.height_cm?.toString() || '',
+      });
+    } else {
+      setEditingProduct(null);
+      setFormData({
+        code: '',
+        name: '',
+        pack_size: '',
+        supplier_id: '',
+        case_size: '',
+        netto_weight_per_unit: '',
+        gross_weight_per_unit: '',
+        empty_case_weight: '',
+        price_usd_per_unit: '',
+        price_usd_per_case: '',
+        price_xcg_per_unit: '',
+        price_xcg_per_case: '',
+        wholesale_price_usd_per_unit: '',
+        wholesale_price_xcg_per_unit: '',
+        retail_price_usd_per_unit: '',
+        retail_price_xcg_per_unit: '',
+        unit: '',
+        length_cm: '',
+        width_cm: '',
+        height_cm: '',
+      });
+    }
+    setIsDialogOpen(true);
+  };
+
 
   // Fetch currency conversion rate from settings
   useQuery({
@@ -324,45 +374,6 @@ const Products = () => {
   });
 
 
-  const handleOpenDialog = (product?: Product) => {
-    if (product) {
-      setEditingProduct(product);
-      const packSize = product.pack_size || 1;
-      setFormData({
-        code: product.code,
-        name: product.name,
-        pack_size: product.pack_size.toString(),
-        supplier_id: product.supplier_id || '',
-        case_size: product.case_size || '',
-        netto_weight_per_unit: product.netto_weight_per_unit?.toString() || '',
-        gross_weight_per_unit: product.gross_weight_per_unit?.toString() || '',
-        empty_case_weight: product.empty_case_weight?.toString() || '',
-        price_usd_per_unit: product.price_usd_per_unit?.toString() || '',
-        price_usd_per_case: product.price_usd_per_unit ? (product.price_usd_per_unit * packSize).toFixed(2) : '',
-        price_xcg_per_unit: product.price_xcg_per_unit?.toString() || '',
-        price_xcg_per_case: product.price_xcg_per_unit ? (product.price_xcg_per_unit * packSize).toFixed(2) : '',
-        wholesale_price_usd_per_unit: product.wholesale_price_usd_per_unit?.toString() || '',
-        wholesale_price_xcg_per_unit: product.wholesale_price_xcg_per_unit?.toString() || '',
-        retail_price_usd_per_unit: product.retail_price_usd_per_unit?.toString() || '',
-        retail_price_xcg_per_unit: product.retail_price_xcg_per_unit?.toString() || '',
-        unit: product.unit || '',
-        length_cm: product.length_cm?.toString() || '',
-        width_cm: product.width_cm?.toString() || '',
-        height_cm: product.height_cm?.toString() || '',
-      });
-    } else {
-      setEditingProduct(null);
-      setFormData({ 
-        code: '', name: '', pack_size: '', supplier_id: '', case_size: '',
-        netto_weight_per_unit: '', gross_weight_per_unit: '', empty_case_weight: '',
-        price_usd_per_unit: '', price_usd_per_case: '', price_xcg_per_unit: '', price_xcg_per_case: '',
-        wholesale_price_usd_per_unit: '', wholesale_price_xcg_per_unit: '',
-        retail_price_usd_per_unit: '', retail_price_xcg_per_unit: '', unit: '',
-        length_cm: '', width_cm: '', height_cm: ''
-      });
-    }
-    setIsDialogOpen(true);
-  };
 
   const handleSave = () => {
     try {
@@ -406,374 +417,29 @@ const Products = () => {
             <p className="text-muted-foreground">Manage your product catalog, pricing, and supplier information</p>
           </div>
           {canManage && (
-            <div className="ml-auto">
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={() => handleOpenDialog()}>
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Product
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="code">Product Code *</Label>
-                      <Input
-                        id="code"
-                        value={formData.code}
-                        onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                        placeholder="e.g., BLB_125"
-                        disabled={!!editingProduct}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="name">Product Name *</Label>
-                      <Input
-                        id="name"
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        placeholder="e.g., Blueberries 125g"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="pack_size">Units/Case *</Label>
-                      <Input
-                        id="pack_size"
-                        type="number"
-                        value={formData.pack_size}
-                        onChange={(e) => {
-                          const newPackSize = e.target.value;
-                          const packSizeNum = parseFloat(newPackSize) || 1;
-                          const pricePerUnit = parseFloat(formData.price_usd_per_unit) || 0;
-                          const pricePerUnitXcg = parseFloat(formData.price_xcg_per_unit) || 0;
-                          setFormData({ 
-                            ...formData, 
-                            pack_size: newPackSize,
-                            price_usd_per_case: pricePerUnit ? (pricePerUnit * packSizeNum).toFixed(2) : '',
-                            price_xcg_per_case: pricePerUnitXcg ? (pricePerUnitXcg * packSizeNum).toFixed(2) : ''
-                          });
-                        }}
-                        placeholder="12"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="case_size">Case Size</Label>
-                      <Input
-                        id="case_size"
-                        value={formData.case_size}
-                        onChange={(e) => setFormData({ ...formData, case_size: e.target.value })}
-                        placeholder="e.g., 40x30x20cm"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="supplier">Supplier</Label>
-                      <Select
-                        value={formData.supplier_id}
-                        onValueChange={(value) => setFormData({ ...formData, supplier_id: value })}
-                      >
-                        <SelectTrigger id="supplier">
-                          <SelectValue placeholder="Select supplier" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {suppliers?.map((supplier) => (
-                            <SelectItem key={supplier.id} value={supplier.id}>
-                              {supplier.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-4 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="netto_weight_per_unit">Netto Weight/Unit</Label>
-                      <Input
-                        id="netto_weight_per_unit"
-                        type="number"
-                        step="0.01"
-                        value={formData.netto_weight_per_unit}
-                        onChange={(e) => setFormData({ ...formData, netto_weight_per_unit: e.target.value })}
-                        placeholder="125"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="gross_weight_per_unit">Gross Weight/Unit</Label>
-                      <Input
-                        id="gross_weight_per_unit"
-                        type="number"
-                        step="0.01"
-                        value={formData.gross_weight_per_unit}
-                        onChange={(e) => setFormData({ ...formData, gross_weight_per_unit: e.target.value })}
-                        placeholder="130"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="empty_case_weight">Empty Case Weight</Label>
-                      <Input
-                        id="empty_case_weight"
-                        type="number"
-                        step="0.01"
-                        value={formData.empty_case_weight}
-                        onChange={(e) => setFormData({ ...formData, empty_case_weight: e.target.value })}
-                        placeholder="500"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="unit">Unit</Label>
-                      <Input
-                        id="unit"
-                        value={formData.unit}
-                        onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                        placeholder="g, kg, lb"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 border-t pt-4">
-                    <h4 className="text-sm font-medium">Product Dimensions (cm) - For Volumetric Weight Calculation</h4>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="length_cm">Length (cm)</Label>
-                        <Input
-                          id="length_cm"
-                          type="number"
-                          step="0.1"
-                          value={formData.length_cm}
-                          onChange={(e) => setFormData({ ...formData, length_cm: e.target.value })}
-                          placeholder="40"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="width_cm">Width (cm)</Label>
-                        <Input
-                          id="width_cm"
-                          type="number"
-                          step="0.1"
-                          value={formData.width_cm}
-                          onChange={(e) => setFormData({ ...formData, width_cm: e.target.value })}
-                          placeholder="30"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="height_cm">Height (cm)</Label>
-                        <Input
-                          id="height_cm"
-                          type="number"
-                          step="0.1"
-                          value={formData.height_cm}
-                          onChange={(e) => setFormData({ ...formData, height_cm: e.target.value })}
-                          placeholder="20"
-                        />
-                      </div>
-                    </div>
-                    {volumetricWeight > 0 && (
-                      <div className="p-3 bg-muted rounded-lg">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="font-medium">Volumetric Weight:</span>
-                          <span className="font-bold">{volumetricWeight.toFixed(2)} kg</span>
-                        </div>
-                        {formData.gross_weight_per_unit && (
-                          <div className="flex items-center justify-between text-sm mt-2">
-                            <span className="font-medium">Actual Weight:</span>
-                            <span>{parseFloat(formData.gross_weight_per_unit).toFixed(2)} kg</span>
-                          </div>
-                        )}
-                        {formData.gross_weight_per_unit && (
-                          <div className="flex items-center justify-between text-sm mt-2 pt-2 border-t">
-                            <span className="font-medium">Chargeable Weight:</span>
-                            <span className="font-bold text-primary">
-                              {Math.max(volumetricWeight, parseFloat(formData.gross_weight_per_unit)).toFixed(2)} kg
-                              {volumetricWeight > parseFloat(formData.gross_weight_per_unit) ? ' (Volumetric)' : ' (Actual)'}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-3 border-t pt-4">
-                    <h4 className="text-sm font-medium">Cost Price USD (from supplier)</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="price_usd_per_unit">Per Unit</Label>
-                        <Input
-                          id="price_usd_per_unit"
-                          type="number"
-                          step="0.01"
-                          value={formData.price_usd_per_unit}
-                          onChange={(e) => {
-                            const pricePerUnit = parseFloat(e.target.value) || 0;
-                            const pricePerCase = pricePerUnit * (formData.pack_size ? parseFloat(formData.pack_size) : 1);
-                            const xcgPerUnit = pricePerUnit * currencyRate;
-                            const xcgPerCase = pricePerCase * currencyRate;
-                            setFormData({
-                              ...formData,
-                              price_usd_per_unit: e.target.value,
-                              price_usd_per_case: pricePerCase.toFixed(2),
-                              price_xcg_per_unit: xcgPerUnit.toFixed(2),
-                              price_xcg_per_case: xcgPerCase.toFixed(2),
-                            });
-                          }}
-                          placeholder="0.00"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="price_usd_per_case">Per Case</Label>
-                        <Input
-                          id="price_usd_per_case"
-                          type="number"
-                          step="0.01"
-                          value={formData.price_usd_per_case}
-                          onChange={(e) => {
-                            const pricePerCase = parseFloat(e.target.value) || 0;
-                            const packSize = parseFloat(formData.pack_size) || 1;
-                            const pricePerUnit = pricePerCase / packSize;
-                            const xcgPerUnit = pricePerUnit * currencyRate;
-                            const xcgPerCase = pricePerCase * currencyRate;
-                            setFormData({
-                              ...formData,
-                              price_usd_per_case: e.target.value,
-                              price_usd_per_unit: pricePerUnit.toFixed(4),
-                              price_xcg_per_unit: xcgPerUnit.toFixed(2),
-                              price_xcg_per_case: xcgPerCase.toFixed(2),
-                            });
-                          }}
-                          placeholder="0.00"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <h4 className="text-sm font-medium">Cost Price Cg (from supplier)</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="price_xcg_per_unit">Per Unit</Label>
-                        <Input
-                          id="price_xcg_per_unit"
-                          type="number"
-                          step="0.01"
-                          value={formData.price_xcg_per_unit}
-                          onChange={(e) => {
-                            const pricePerUnit = parseFloat(e.target.value) || 0;
-                            const packSize = parseFloat(formData.pack_size) || 1;
-                            const pricePerCase = pricePerUnit * packSize;
-                            const usdPerUnit = pricePerUnit / currencyRate;
-                            const usdPerCase = pricePerCase / currencyRate;
-                            setFormData({
-                              ...formData,
-                              price_xcg_per_unit: e.target.value,
-                              price_xcg_per_case: pricePerCase.toFixed(2),
-                              price_usd_per_unit: usdPerUnit.toFixed(4),
-                              price_usd_per_case: usdPerCase.toFixed(4),
-                            });
-                          }}
-                          placeholder="0.00"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="price_xcg_per_case">Per Case</Label>
-                        <Input
-                          id="price_xcg_per_case"
-                          type="number"
-                          step="0.01"
-                          value={formData.price_xcg_per_case}
-                          onChange={(e) => {
-                            const pricePerCase = parseFloat(e.target.value) || 0;
-                            const packSize = parseFloat(formData.pack_size) || 1;
-                            const pricePerUnit = pricePerCase / packSize;
-                            const usdPerUnit = pricePerUnit / currencyRate;
-                            const usdPerCase = pricePerCase / currencyRate;
-                            setFormData({
-                              ...formData,
-                              price_xcg_per_case: e.target.value,
-                              price_xcg_per_unit: pricePerUnit.toFixed(4),
-                              price_usd_per_unit: usdPerUnit.toFixed(4),
-                              price_usd_per_case: usdPerCase.toFixed(4),
-                            });
-                          }}
-                          placeholder="0.00"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <h4 className="text-sm font-medium">Wholesale Price</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="wholesale_price_usd_per_unit">USD Per Unit</Label>
-                        <Input
-                          id="wholesale_price_usd_per_unit"
-                          type="number"
-                          step="0.01"
-                          value={formData.wholesale_price_usd_per_unit}
-                          onChange={(e) => setFormData({ ...formData, wholesale_price_usd_per_unit: e.target.value })}
-                          placeholder="0.00"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="wholesale_price_xcg_per_unit">Cg Per Unit</Label>
-                        <Input
-                          id="wholesale_price_xcg_per_unit"
-                          type="number"
-                          step="0.01"
-                          value={formData.wholesale_price_xcg_per_unit}
-                          onChange={(e) => setFormData({ ...formData, wholesale_price_xcg_per_unit: e.target.value })}
-                          placeholder="0.00"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <h4 className="text-sm font-medium">Retail Price</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="retail_price_usd_per_unit">USD Per Unit</Label>
-                        <Input
-                          id="retail_price_usd_per_unit"
-                          type="number"
-                          step="0.01"
-                          value={formData.retail_price_usd_per_unit}
-                          onChange={(e) => setFormData({ ...formData, retail_price_usd_per_unit: e.target.value })}
-                          placeholder="0.00"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="retail_price_xcg_per_unit">Cg Per Unit</Label>
-                        <Input
-                          id="retail_price_xcg_per_unit"
-                          type="number"
-                          step="0.01"
-                          value={formData.retail_price_xcg_per_unit}
-                          onChange={(e) => setFormData({ ...formData, retail_price_xcg_per_unit: e.target.value })}
-                          placeholder="0.00"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleSave}>
-                    {editingProduct ? 'Update' : 'Add'} Product
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <div className="ml-auto flex gap-2">
+              <Button onClick={() => handleOpenDialog()}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add Product
+              </Button>
             </div>
           )}
+        </div>
+
+        <ProductFormDialog
+          isOpen={isDialogOpen}
+          onOpenChange={setIsDialogOpen}
+          editingProduct={editingProduct}
+          formData={formData}
+          setFormData={setFormData}
+          suppliers={suppliers || []}
+          currencyRate={currencyRate}
+          setCurrencyRate={setCurrencyRate}
+          onSave={handleSave}
+          canManage={canManage}
+        />
+
+        <div className="flex items-center mb-6">
         </div>
 
         <div className="mb-6">
