@@ -37,6 +37,7 @@ import {
   downloadBlob,
   ReceiptData 
 } from '@/utils/receiptGenerator';
+import { calculateOrderPalletConfig, ProductWeightInfo } from '@/lib/weightCalculations';
 
 interface OrderItem {
   id: string;
@@ -161,15 +162,50 @@ const OrderDetails = () => {
         return acc;
       }, [] as OrderItem[]);
 
-      // Fetch product details
+      // Fetch product details including supplier
       const productCodes = [...new Set(consolidated.map(item => item.product_code))];
       const { data: products } = await supabase
         .from('products')
-        .select('code, name, price_usd_per_unit, gross_weight_per_unit, netto_weight_per_unit, pack_size, empty_case_weight, wholesale_price_xcg_per_unit, retail_price_xcg_per_unit, length_cm, width_cm, height_cm, volumetric_weight_kg')
+        .select(`
+          code, name, price_usd_per_unit, gross_weight_per_unit, netto_weight_per_unit, 
+          pack_size, empty_case_weight, wholesale_price_xcg_per_unit, retail_price_xcg_per_unit, 
+          length_cm, width_cm, height_cm, volumetric_weight_kg, supplier_id,
+          suppliers:supplier_id (id, name)
+        `)
         .in('code', productCodes);
 
       if (!products) return;
 
+      // Build product weight info for pallet calculation
+      const productsWithWeight: Array<ProductWeightInfo & { supplierId: string; supplierName: string }> = consolidated
+        .map(item => {
+          const product = products.find(p => p.code === item.product_code);
+          if (!product) return null;
+
+          const supplier = product.suppliers as any;
+          
+          return {
+            code: product.code,
+            name: product.name,
+            nettoWeightPerUnit: (product.netto_weight_per_unit || 0) / 1000, // Convert to kg
+            grossWeightPerUnit: (product.gross_weight_per_unit || 0) / 1000, // Convert to kg
+            packSize: product.pack_size || 1,
+            emptyCaseWeight: (product.empty_case_weight || 0) / 1000, // Convert to kg
+            lengthCm: product.length_cm || 0,
+            widthCm: product.width_cm || 0,
+            heightCm: product.height_cm || 0,
+            quantity: item.quantity * (product.pack_size || 1), // Total units
+            supplierId: product.supplier_id || 'unknown',
+            supplierName: supplier?.name || 'Unknown Supplier',
+          };
+        })
+        .filter(Boolean) as Array<ProductWeightInfo & { supplierId: string; supplierName: string }>;
+
+      // Calculate proper pallet configuration
+      const palletConfiguration = calculateOrderPalletConfig(productsWithWeight);
+      setPalletConfig(palletConfiguration);
+
+      // Build weight data for display
       let totalActualWeight = 0;
       let totalVolumetricWeight = 0;
       let totalChargeableWeight = 0;
@@ -214,21 +250,6 @@ const OrderDetails = () => {
       }).filter(Boolean);
 
       setProductWeightData(weightData);
-
-      // Calculate pallet configuration
-      const estimatedPallets = Math.ceil(totalChargeableWeight / 500);
-      const limitingFactor = totalVolumetricWeight > totalActualWeight ? 'volumetric_weight' : 
-                             totalActualWeight > totalVolumetricWeight ? 'actual_weight' : 'balanced';
-      
-      setPalletConfig({
-        totalPallets: estimatedPallets,
-        totalActualWeight,
-        totalVolumetricWeight,
-        totalChargeableWeight,
-        limitingFactor,
-        utilizationPercentage: (totalChargeableWeight / (estimatedPallets * 500)) * 100,
-        heightUtilization: 75, // Estimated
-      });
     } catch (error) {
       console.error('Error calculating weight data:', error);
     }
