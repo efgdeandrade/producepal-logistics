@@ -26,6 +26,7 @@ import { DitoAdvisor } from '@/components/DitoAdvisor';
 import { ActualCIFForm } from '@/components/ActualCIFForm';
 import { CIFComparison } from '@/components/CIFComparison';
 import { CIFLearningInsights } from '@/components/CIFLearningInsights';
+import { PalletVisualization } from '@/components/PalletVisualization';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import html2pdf from 'html2pdf.js';
 import { 
@@ -782,8 +783,9 @@ const OrderDetails = () => {
           </Collapsible>
 
         <Tabs defaultValue="items" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="items">Order Items</TabsTrigger>
+            <TabsTrigger value="pallets">Pallets</TabsTrigger>
             <TabsTrigger value="cif-analytics">CIF Analytics</TabsTrigger>
             <TabsTrigger value="advisor">Dito Advisor</TabsTrigger>
             <TabsTrigger value="actual">Enter Actual Costs</TabsTrigger>
@@ -799,6 +801,10 @@ const OrderDetails = () => {
               orderItems={orderItems} 
               recommendedMethod={recommendedCIFMethod}
             />
+          </TabsContent>
+
+          <TabsContent value="pallets" className="space-y-4">
+            <PalletVisualization palletConfig={palletConfig} />
           </TabsContent>
 
           <TabsContent value="cif-analytics" className="space-y-4">
