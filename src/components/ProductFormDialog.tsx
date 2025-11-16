@@ -386,7 +386,10 @@ export const ProductFormDialog = ({
           </div>
 
           <div className="space-y-3">
-            <h4 className="text-sm font-medium">Product Dimensions</h4>
+            <div className="flex items-center gap-2">
+              <h4 className="text-sm font-medium">Case/Tray Dimensions</h4>
+              <span className="text-xs text-muted-foreground">(Full case/tray, not individual units)</span>
+            </div>
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="length_cm">Length (cm)</Label>
@@ -422,12 +425,19 @@ export const ProductFormDialog = ({
                 />
               </div>
             </div>
-            {volumetricWeight > 0 && (
-              <div className="text-sm text-muted-foreground bg-muted p-2 rounded">
-                Volumetric Weight: {volumetricWeight.toFixed(2)} kg
-                <span className="text-xs block mt-1">
-                  (Length × Width × Height ÷ 6000)
-                </span>
+            {volumetricWeight > 0 && formData.pack_size && (
+              <div className="space-y-2 rounded-md bg-muted p-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Volumetric Weight (per case):</span>
+                  <span className="font-medium">{volumetricWeight.toFixed(3)} kg</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Volumetric Weight (per unit):</span>
+                  <span className="font-medium">{(volumetricWeight / parseInt(formData.pack_size || '1')).toFixed(4)} kg</span>
+                </div>
+                <div className="text-xs text-muted-foreground mt-2">
+                  Formula: (L × W × H) ÷ 6000 for airfreight
+                </div>
               </div>
             )}
           </div>

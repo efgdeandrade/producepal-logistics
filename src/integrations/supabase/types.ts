@@ -850,6 +850,66 @@ export type Database = {
         }
         Relationships: []
       }
+      pallet_configuration_history: {
+        Row: {
+          actual_pallets: number | null
+          actual_utilization_pct: number | null
+          ai_recommendations: Json | null
+          configuration_data: Json | null
+          created_at: string | null
+          estimated_pallets: number
+          estimated_utilization_pct: number
+          id: string
+          limiting_factor: string | null
+          order_id: string | null
+          recommendation_accuracy: number | null
+          supplier_id: string | null
+        }
+        Insert: {
+          actual_pallets?: number | null
+          actual_utilization_pct?: number | null
+          ai_recommendations?: Json | null
+          configuration_data?: Json | null
+          created_at?: string | null
+          estimated_pallets: number
+          estimated_utilization_pct: number
+          id?: string
+          limiting_factor?: string | null
+          order_id?: string | null
+          recommendation_accuracy?: number | null
+          supplier_id?: string | null
+        }
+        Update: {
+          actual_pallets?: number | null
+          actual_utilization_pct?: number | null
+          ai_recommendations?: Json | null
+          configuration_data?: Json | null
+          created_at?: string | null
+          estimated_pallets?: number
+          estimated_utilization_pct?: number
+          id?: string
+          limiting_factor?: string | null
+          order_id?: string | null
+          recommendation_accuracy?: number | null
+          supplier_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pallet_configuration_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pallet_configuration_history_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pallet_configurations: {
         Row: {
           configuration_date: string | null
@@ -1804,6 +1864,101 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      weight_estimation_accuracy: {
+        Row: {
+          actual_actual_weight_kg: number | null
+          actual_chargeable_weight_kg: number | null
+          actual_volumetric_weight_kg: number | null
+          created_at: string | null
+          estimated_actual_weight_kg: number
+          estimated_chargeable_weight_kg: number
+          estimated_volumetric_weight_kg: number
+          id: string
+          order_id: string | null
+          product_code: string
+          variance_percentage: number | null
+          variance_reason: string | null
+        }
+        Insert: {
+          actual_actual_weight_kg?: number | null
+          actual_chargeable_weight_kg?: number | null
+          actual_volumetric_weight_kg?: number | null
+          created_at?: string | null
+          estimated_actual_weight_kg: number
+          estimated_chargeable_weight_kg: number
+          estimated_volumetric_weight_kg: number
+          id?: string
+          order_id?: string | null
+          product_code: string
+          variance_percentage?: number | null
+          variance_reason?: string | null
+        }
+        Update: {
+          actual_actual_weight_kg?: number | null
+          actual_chargeable_weight_kg?: number | null
+          actual_volumetric_weight_kg?: number | null
+          created_at?: string | null
+          estimated_actual_weight_kg?: number
+          estimated_chargeable_weight_kg?: number
+          estimated_volumetric_weight_kg?: number
+          id?: string
+          order_id?: string | null
+          product_code?: string
+          variance_percentage?: number | null
+          variance_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weight_estimation_accuracy_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      weight_learning_patterns: {
+        Row: {
+          adjustment_factor: number | null
+          avg_variance_percentage: number | null
+          confidence_score: number | null
+          created_at: string | null
+          id: string
+          last_calculated: string | null
+          metadata: Json | null
+          pattern_key: string
+          pattern_type: string
+          sample_size: number | null
+          std_deviation: number | null
+        }
+        Insert: {
+          adjustment_factor?: number | null
+          avg_variance_percentage?: number | null
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          last_calculated?: string | null
+          metadata?: Json | null
+          pattern_key: string
+          pattern_type: string
+          sample_size?: number | null
+          std_deviation?: number | null
+        }
+        Update: {
+          adjustment_factor?: number | null
+          avg_variance_percentage?: number | null
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          last_calculated?: string | null
+          metadata?: Json | null
+          pattern_key?: string
+          pattern_type?: string
+          sample_size?: number | null
+          std_deviation?: number | null
+        }
+        Relationships: []
       }
     }
     Views: {
