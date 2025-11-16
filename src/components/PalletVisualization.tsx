@@ -358,7 +358,7 @@ export const PalletVisualization = ({ palletConfig }: PalletVisualizationProps) 
               ))}
             </TabsList>
 
-            <TabsContent value="overview">
+            <TabsContent value="overview" key="overview-content">
               <div className="border border-border rounded-lg overflow-hidden bg-card">
                 <canvas
                   ref={(el) => (canvasRefs.current['overview'] = el)}
@@ -368,7 +368,7 @@ export const PalletVisualization = ({ palletConfig }: PalletVisualizationProps) 
             </TabsContent>
 
             {palletConfig.supplierConfigs.map((config) => (
-              <TabsContent key={config.supplierId} value={config.supplierId}>
+              <TabsContent key={`${config.supplierId}-content`} value={config.supplierId}>
                 <div className="border border-border rounded-lg overflow-hidden bg-card">
                   <canvas
                     ref={(el) => (canvasRefs.current[config.supplierId] = el)}
