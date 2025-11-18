@@ -94,7 +94,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
       const { data: settings, error: settingsError } = await supabase
         .from('settings')
         .select('*')
-        .in('key', ['freight_exterior_tariff', 'freight_local_tariff', 'usd_to_xcg_rate']);
+        .in('key', ['freight_exterior_tariff', 'freight_local_tariff', 'usd_to_xcg_rate', 'local_logistics_usd', 'labor_xcg']);
 
       if (settingsError) throw settingsError;
 
@@ -102,6 +102,8 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
       const exchangeRate = (settingsMap.get('usd_to_xcg_rate') as any)?.rate || DEFAULT_EXCHANGE_RATE;
       const freightExteriorPerKg = (settingsMap.get('freight_exterior_tariff') as any)?.rate || 2.46;
       const freightLocalPerKg = (settingsMap.get('freight_local_tariff') as any)?.rate || 0.41;
+      const localLogisticsUsd = Number(settingsMap.get('local_logistics_usd')) || 91;
+      const laborXcg = Number(settingsMap.get('labor_xcg')) || 50;
 
       // Fetch product data with supplier information
       const productCodes = [...new Set(consolidatedItems.map(item => item.product_code))];
@@ -242,7 +244,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
       // Calculate total pallets needed (simple estimation based on weight)
       const estimatedPalletsNeeded = Math.ceil(totalWeight / 500); // ~500kg per pallet typical
       const palletWeightTotal = estimatedPalletsNeeded * PALLET_WEIGHT_KG;
-      const totalFreight = LOCAL_LOGISTICS_USD + totalFreightCost + (palletWeightTotal * combinedTariffPerKg);
+      const totalFreight = localLogisticsUsd + totalFreightCost + (palletWeightTotal * combinedTariffPerKg);
 
       const calculateResults = (
         distributionMethod: 'weight' | 'cost' | 'equal' | 'hybrid' | 'strategic' | 'volumeOptimized' | 'customerTier'
@@ -305,7 +307,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
           }
 
           const cifUSD = productCost + freightShare;
-          const cifXCG = cifUSD * exchangeRate + LABOR_XCG / productsWithWeight.length;
+          const cifXCG = cifUSD * exchangeRate + laborXcg / productsWithWeight.length;
           const cifPerUnit = product.totalUnits > 0 ? cifXCG / product.totalUnits : 0;
 
           const wholesalePrice = product.wholesalePriceXCG || (cifPerUnit * WHOLESALE_MULTIPLIER);
