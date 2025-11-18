@@ -19,13 +19,13 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.create-user-direct]
-verify_jwt = false
+verify_jwt = true
 
 [functions.delete-user]
-verify_jwt = false
+verify_jwt = true
 
 [functions.invite-user]
-verify_jwt = false
+verify_jwt = true
 
 [functions.resend-invitation]
-verify_jwt = false
+verify_jwt = true

@@ -1,10 +1,20 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Input validation schema
+const inviteUserSchema = z.object({
+  email: z.string().email("Invalid email format").max(255, "Email too long"),
+  fullName: z.string().min(2, "Name too short").max(100, "Name too long"),
+  role: z.enum(['admin', 'management', 'driver', 'production', 'logistics', 'accounting', 'manager'], {
+    errorMap: () => ({ message: "Invalid role" })
+  }),
+});
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -23,7 +33,38 @@ serve(async (req) => {
       }
     );
 
-    const { email, fullName, role } = await req.json();
+    // Get and verify the JWT token
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      throw new Error("Unauthorized: No authorization header");
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+    
+    if (userError || !user) {
+      throw new Error("Unauthorized: Invalid token");
+    }
+
+    // Check if user has admin role
+    const { data: roles, error: rolesError } = await supabaseAdmin
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id);
+
+    if (rolesError) {
+      throw new Error("Error checking user roles");
+    }
+
+    if (!roles?.some(r => r.role === 'admin')) {
+      throw new Error("Forbidden: Admin access required");
+    }
+
+    // Validate input
+    const body = await req.json();
+    const { email, fullName, role } = inviteUserSchema.parse(body);
+
+    console.log(`Admin ${user.id} inviting user: ${email}`);
 
     // Try to create user with admin API
     let createResult = await supabaseAdmin.auth.admin.createUser({
@@ -182,11 +223,16 @@ serve(async (req) => {
     );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    const status = errorMessage.includes('Unauthorized') ? 401 
+                 : errorMessage.includes('Forbidden') ? 403
+                 : 400;
+    
+    console.error("Error in invite-user function:", errorMessage);
     return new Response(
       JSON.stringify({ error: errorMessage }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400,
+        status,
       }
     );
   }
