@@ -128,12 +128,14 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
       const { data: settings } = await supabase
         .from('settings')
         .select('*')
-        .in('key', ['freight_exterior_tariff', 'freight_local_tariff', 'usd_to_xcg_rate']);
+        .in('key', ['freight_exterior_tariff', 'freight_local_tariff', 'usd_to_xcg_rate', 'local_logistics_usd', 'labor_xcg']);
 
       const settingsMap = new Map(settings?.map(s => [s.key, s.value]) || []);
       const exchangeRate = (settingsMap.get('usd_to_xcg_rate') as any)?.rate || 1.82;
       const freightExteriorPerKg = (settingsMap.get('freight_exterior_tariff') as any)?.rate || 2.46;
       const freightLocalPerKg = (settingsMap.get('freight_local_tariff') as any)?.rate || 0.41;
+      const localLogisticsUsd = Number(settingsMap.get('local_logistics_usd')) || 91;
+      const laborXcg = Number(settingsMap.get('labor_xcg')) || 50;
 
       const productCodes = [...new Set(consolidatedItems.map(item => item.product_code))];
       
@@ -205,8 +207,8 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
         }) || []
       );
 
-      const LOCAL_LOGISTICS_USD = 91;
-      const LABOR_XCG = 50;
+      const LOCAL_LOGISTICS_USD = localLogisticsUsd;
+      const LABOR_XCG = laborXcg;
 
       const productsWithData = consolidatedItems.map(item => {
         const productData = productMap.get(item.product_code);

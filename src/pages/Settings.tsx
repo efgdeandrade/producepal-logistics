@@ -19,6 +19,8 @@ export default function Settings() {
   const [exteriorRate, setExteriorRate] = useState('0');
   const [localRate, setLocalRate] = useState('0');
   const [currencyRate, setCurrencyRate] = useState('1.82');
+  const [localLogistics, setLocalLogistics] = useState('91');
+  const [laborCost, setLaborCost] = useState('50');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -51,7 +53,7 @@ export default function Settings() {
       const { data, error } = await supabase
         .from('settings')
         .select('*')
-        .in('key', ['freight_exterior_tariff', 'freight_local_tariff', 'usd_to_xcg_rate', 'company_info']);
+        .in('key', ['freight_exterior_tariff', 'freight_local_tariff', 'usd_to_xcg_rate', 'company_info', 'local_logistics_usd', 'labor_xcg']);
 
       if (error) throw error;
 
@@ -63,6 +65,10 @@ export default function Settings() {
           setLocalRate(value?.rate?.toString() || '0');
         } else if (setting.key === 'usd_to_xcg_rate') {
           setCurrencyRate(value?.rate?.toString() || '1.82');
+        } else if (setting.key === 'local_logistics_usd') {
+          setLocalLogistics(value?.toString() || '91');
+        } else if (setting.key === 'labor_xcg') {
+          setLaborCost(value?.toString() || '50');
         }
       });
     } catch (error: any) {
@@ -132,6 +138,16 @@ export default function Settings() {
           key: 'usd_to_xcg_rate',
           value: { rate: parseFloat(currencyRate) },
           description: 'USD to XCG currency conversion rate'
+        },
+        {
+          key: 'local_logistics_usd',
+          value: parseFloat(localLogistics),
+          description: 'Local logistics cost per shipment in USD (trucking, warehousing, handling)'
+        },
+        {
+          key: 'labor_xcg',
+          value: parseFloat(laborCost),
+          description: 'Labor cost per shipment in XCG (packing, handling, distributed equally across products)'
         }
       ];
 
@@ -293,6 +309,30 @@ export default function Settings() {
                       onChange={(e) => setLocalRate(e.target.value)}
                       placeholder="0.00"
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="localLogistics">Local Logistics Cost (USD)</Label>
+                    <Input
+                      id="localLogistics"
+                      type="number"
+                      step="0.01"
+                      value={localLogistics}
+                      onChange={(e) => setLocalLogistics(e.target.value)}
+                      placeholder="91.00"
+                    />
+                    <p className="text-sm text-muted-foreground">Per shipment (trucking, warehousing, handling)</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="laborCost">Labor Cost (XCG)</Label>
+                    <Input
+                      id="laborCost"
+                      type="number"
+                      step="0.01"
+                      value={laborCost}
+                      onChange={(e) => setLaborCost(e.target.value)}
+                      placeholder="50.00"
+                    />
+                    <p className="text-sm text-muted-foreground">Per shipment (packing, handling, distributed equally)</p>
                   </div>
                 </div>
                 <Button onClick={handleSaveTariffs} disabled={saving}>
