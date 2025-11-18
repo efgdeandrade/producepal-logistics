@@ -24,7 +24,13 @@ serve(async (req) => {
       throw new Error('No file provided');
     }
 
-    console.log(`Processing ${documentType} document: ${file.name}`);
+    // Validate file size (10MB limit)
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    if (file.size > MAX_FILE_SIZE) {
+      throw new Error('File too large. Maximum size is 10MB');
+    }
+
+    console.log(`Processing ${documentType} document: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
 
     const mimeType = file.type || 'application/octet-stream';
     const isPDF = mimeType === 'application/pdf';
