@@ -69,6 +69,8 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
   const [productsWeightData, setProductsWeightData] = useState<any[]>([]);
   const [expandedSuppliers, setExpandedSuppliers] = useState<Record<string, boolean>>({});
   const [priceHistory, setPriceHistory] = useState<Map<string, any>>(new Map());
+  const [targetWholesaleMargin, setTargetWholesaleMargin] = useState(10);
+  const [targetRetailMargin, setTargetRetailMargin] = useState(44);
 
   useEffect(() => {
     calculateCIF();
@@ -93,7 +95,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
       const { data: settings, error: settingsError } = await supabase
         .from('settings')
         .select('*')
-        .in('key', ['freight_exterior_tariff', 'freight_local_tariff', 'usd_to_xcg_rate', 'local_logistics_usd', 'labor_xcg']);
+        .in('key', ['freight_exterior_tariff', 'freight_local_tariff', 'usd_to_xcg_rate', 'local_logistics_usd', 'labor_xcg', 'target_wholesale_margin_percent', 'target_retail_margin_percent']);
 
       if (settingsError) throw settingsError;
 
@@ -103,6 +105,12 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
       const freightLocalPerKg = (settingsMap.get('freight_local_tariff') as any)?.rate || 0.41;
       const localLogisticsUsd = Number(settingsMap.get('local_logistics_usd')) || 91;
       const laborXcg = Number(settingsMap.get('labor_xcg')) || 50;
+      const targetWholesale = Number(settingsMap.get('target_wholesale_margin_percent')) || 10;
+      const targetRetail = Number(settingsMap.get('target_retail_margin_percent')) || 44;
+      
+      // Set target margins in state for use in renderTable
+      setTargetWholesaleMargin(targetWholesale);
+      setTargetRetailMargin(targetRetail);
 
       // Fetch product data with supplier information
       const productCodes = [...new Set(consolidatedItems.map(item => item.product_code))];
@@ -398,6 +406,25 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
       }));
     };
 
+    const getRowHighlightClass = (
+      wholesaleMarginPercent: number, 
+      retailMarginPercent: number, 
+      targetWholesale: number, 
+      targetRetail: number
+    ) => {
+      // Check for loss (negative margins)
+      if (wholesaleMarginPercent < 0 || retailMarginPercent < 0) {
+        return 'bg-red-100 hover:bg-red-200';
+      }
+      
+      // Check if margins don't meet targets
+      if (wholesaleMarginPercent < targetWholesale || retailMarginPercent < targetRetail) {
+        return 'bg-orange-100 hover:bg-orange-200';
+      }
+      
+      return ''; // Default styling for products meeting targets
+    };
+
     return (
       <div>
         <div className="mb-3">
@@ -462,9 +489,16 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
                       const retailMarginPercent = result.cifPerUnit > 0
                         ? ((result.retailPrice - result.cifPerUnit) / result.cifPerUnit * 100)
                         : 0;
+                      
+                      const rowHighlight = getRowHighlightClass(
+                        wholesaleMarginPercent,
+                        retailMarginPercent,
+                        targetWholesaleMargin,
+                        targetRetailMargin
+                      );
 
                       return (
-                        <TableRow key={`${supplier}-${result.productCode}-${idx}`}>
+                        <TableRow key={`${supplier}-${result.productCode}-${idx}`} className={rowHighlight}>
                           <TableCell className="font-medium">
                             <div>{result.productName}</div>
                             <div className="text-xs text-muted-foreground">{result.productCode}</div>
