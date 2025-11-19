@@ -12,7 +12,7 @@ import { Calculator, ArrowLeft, Package, AlertTriangle } from 'lucide-react';
 import { PRODUCTS, ProductCode } from '@/types/order';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { calculateOrderPalletConfig, ProductWeightInfo } from '@/lib/weightCalculations';
+import { calculateOrderPalletConfig, ProductWeightInfo, SupplierPalletData, createPalletConfig } from '@/lib/weightCalculations';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface DatabaseProduct {
@@ -31,6 +31,11 @@ interface DatabaseProduct {
   suppliers: {
     name: string;
     cases_per_pallet: number | null;
+    pallet_length_cm: number | null;
+    pallet_width_cm: number | null;
+    pallet_height_cm: number | null;
+    pallet_weight_kg: number | null;
+    pallet_max_height_cm: number | null;
   } | null;
 }
 
@@ -50,6 +55,7 @@ interface ProductInput {
   supplierId?: string;
   supplierName?: string;
   supplierCasesPerPallet?: number;
+  supplierPalletConfig?: SupplierPalletData;
   wholesalePriceXCG?: number;
   retailPriceXCG?: number;
 }
@@ -199,7 +205,15 @@ export default function CIFCalculator() {
         code, name, price_usd_per_unit, netto_weight_per_unit, gross_weight_per_unit, 
         pack_size, empty_case_weight, length_cm, width_cm, height_cm, volumetric_weight_kg,
         wholesale_price_xcg_per_unit, retail_price_xcg_per_unit,
-        supplier_id, suppliers(name, cases_per_pallet)
+        supplier_id, suppliers(
+          name, 
+          cases_per_pallet,
+          pallet_length_cm,
+          pallet_width_cm,
+          pallet_height_cm,
+          pallet_weight_kg,
+          pallet_max_height_cm
+        )
       `)
       .eq('code', productCode)
       .single();
@@ -211,23 +225,30 @@ export default function CIFCalculator() {
           ? (product.length_cm * product.width_cm * product.height_cm) / 6000
           : 0);
       
-      return {
-        name: product.name,
-        lengthCm: product.length_cm,
-        widthCm: product.width_cm,
-        heightCm: product.height_cm,
-        volumetricWeightPerUnit,
-        chargeableWeightPerUnit: Math.max(weightPerUnit, volumetricWeightPerUnit),
-        emptyCaseWeight: product.empty_case_weight ? product.empty_case_weight / 1000 : 0,
-        packSize: product.pack_size,
-        supplierId: product.supplier_id,
-        supplierName: product.suppliers?.name,
-        supplierCasesPerPallet: product.suppliers?.cases_per_pallet,
-        costPerUnit: product.price_usd_per_unit,
-        weightPerUnit,
-        wholesalePriceXCG: product.wholesale_price_xcg_per_unit,
-        retailPriceXCG: product.retail_price_xcg_per_unit,
-      };
+    return {
+      name: product.name,
+      lengthCm: product.length_cm,
+      widthCm: product.width_cm,
+      heightCm: product.height_cm,
+      volumetricWeightPerUnit,
+      chargeableWeightPerUnit: Math.max(weightPerUnit, volumetricWeightPerUnit),
+      emptyCaseWeight: product.empty_case_weight ? product.empty_case_weight / 1000 : 0,
+      packSize: product.pack_size,
+      supplierId: product.supplier_id,
+      supplierName: product.suppliers?.name,
+      supplierCasesPerPallet: product.suppliers?.cases_per_pallet,
+      supplierPalletConfig: product.suppliers ? {
+        pallet_length_cm: product.suppliers.pallet_length_cm,
+        pallet_width_cm: product.suppliers.pallet_width_cm,
+        pallet_height_cm: product.suppliers.pallet_height_cm,
+        pallet_weight_kg: product.suppliers.pallet_weight_kg,
+        pallet_max_height_cm: product.suppliers.pallet_max_height_cm
+      } : undefined,
+      costPerUnit: product.price_usd_per_unit,
+      weightPerUnit,
+      wholesalePriceXCG: product.wholesale_price_xcg_per_unit,
+      retailPriceXCG: product.retail_price_xcg_per_unit,
+    };
     }
     return null;
   };
@@ -316,6 +337,7 @@ export default function CIFCalculator() {
       supplierId: p.supplierId || 'unknown',
       supplierName: p.supplierName || 'Unknown',
       supplierCasesPerPallet: p.supplierCasesPerPallet,
+      supplierPalletConfig: p.supplierPalletConfig,
       packSize: p.packSize || 1,
     }));
 

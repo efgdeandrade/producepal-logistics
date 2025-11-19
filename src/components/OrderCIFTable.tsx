@@ -132,7 +132,20 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
       const productCodes = [...new Set(consolidatedItems.map(item => item.product_code))];
       const [productsRes, demandRes, priceHistoryRes] = await Promise.all([
         supabase.from('products')
-          .select('code, name, price_usd_per_unit, netto_weight_per_unit, gross_weight_per_unit, pack_size, empty_case_weight, wholesale_price_xcg_per_unit, retail_price_xcg_per_unit, length_cm, width_cm, height_cm, volumetric_weight_kg, supplier_id, suppliers(name)')
+          .select(`
+            code, name, price_usd_per_unit, netto_weight_per_unit, gross_weight_per_unit, 
+            pack_size, empty_case_weight, wholesale_price_xcg_per_unit, retail_price_xcg_per_unit, 
+            length_cm, width_cm, height_cm, volumetric_weight_kg, supplier_id, 
+            suppliers(
+              name, 
+              cases_per_pallet,
+              pallet_length_cm,
+              pallet_width_cm,
+              pallet_height_cm,
+              pallet_weight_kg,
+              pallet_max_height_cm
+            )
+          `)
           .in('code', productCodes),
         supabase.from('demand_patterns')
           .select('product_code, order_frequency, avg_waste_rate')
@@ -200,6 +213,14 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
               retailPriceXCG: p.retail_price_xcg_per_unit || 0,
               supplier: (p.suppliers as any)?.name || 'Unknown Supplier',
               supplierId: p.supplier_id || '',
+              supplierCasesPerPallet: (p.suppliers as any)?.cases_per_pallet,
+              supplierPalletConfig: p.suppliers ? {
+                pallet_length_cm: (p.suppliers as any).pallet_length_cm,
+                pallet_width_cm: (p.suppliers as any).pallet_width_cm,
+                pallet_height_cm: (p.suppliers as any).pallet_height_cm,
+                pallet_weight_kg: (p.suppliers as any).pallet_weight_kg,
+                pallet_max_height_cm: (p.suppliers as any).pallet_max_height_cm
+              } : undefined,
               lengthCm: p.length_cm || 0,
               widthCm: p.width_cm || 0,
               heightCm: p.height_cm || 0,
@@ -261,7 +282,8 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
           volumetricWeight: volumetricProductWeight + caseWeight,
           supplierId: productInfo?.supplierId || '',
           supplierName: p.supplier,
-          supplierCasesPerPallet: supplierPalletMap.get(productInfo?.supplierId || ''),
+          supplierCasesPerPallet: productInfo?.supplierCasesPerPallet || supplierPalletMap.get(productInfo?.supplierId || ''),
+          supplierPalletConfig: productInfo?.supplierPalletConfig,
           lengthCm: productInfo?.lengthCm,
           widthCm: productInfo?.widthCm,
           heightCm: productInfo?.heightCm,

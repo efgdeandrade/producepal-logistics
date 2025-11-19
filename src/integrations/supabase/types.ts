@@ -1723,7 +1723,12 @@ export type Database = {
           id: string
           name: string
           notes_pallet_config: string | null
+          pallet_height_cm: number | null
+          pallet_length_cm: number | null
+          pallet_max_height_cm: number | null
           pallet_stacking_pattern: string | null
+          pallet_weight_kg: number | null
+          pallet_width_cm: number | null
           phone: string | null
           updated_at: string
         }
@@ -1735,7 +1740,12 @@ export type Database = {
           id?: string
           name: string
           notes_pallet_config?: string | null
+          pallet_height_cm?: number | null
+          pallet_length_cm?: number | null
+          pallet_max_height_cm?: number | null
           pallet_stacking_pattern?: string | null
+          pallet_weight_kg?: number | null
+          pallet_width_cm?: number | null
           phone?: string | null
           updated_at?: string
         }
@@ -1747,7 +1757,12 @@ export type Database = {
           id?: string
           name?: string
           notes_pallet_config?: string | null
+          pallet_height_cm?: number | null
+          pallet_length_cm?: number | null
+          pallet_max_height_cm?: number | null
           pallet_stacking_pattern?: string | null
+          pallet_weight_kg?: number | null
+          pallet_width_cm?: number | null
           phone?: string | null
           updated_at?: string
         }
