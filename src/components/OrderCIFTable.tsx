@@ -199,6 +199,10 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
               wholesalePriceXCG: p.wholesale_price_xcg_per_unit || 0,
               retailPriceXCG: p.retail_price_xcg_per_unit || 0,
               supplier: (p.suppliers as any)?.name || 'Unknown Supplier',
+              supplierId: p.supplier_id || '',
+              lengthCm: p.length_cm || 0,
+              widthCm: p.width_cm || 0,
+              heightCm: p.height_cm || 0,
             },
           ];
         }) || []
@@ -235,8 +239,18 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
         };
       });
 
-      // Calculate weights - keep actual and volumetric separate per product
+      // Fetch supplier pallet configurations
+      const { data: suppliersData } = await supabase
+        .from('suppliers')
+        .select('id, name, cases_per_pallet');
+
+      const supplierPalletMap = new Map(
+        suppliersData?.map(s => [s.id, s.cases_per_pallet]) || []
+      );
+
+      // Calculate weights with proper product info including supplier config
       const productsWithWeight = productsWithData.map(p => {
+        const productInfo = productMap.get(p.code);
         const actualProductWeight = (p.totalUnits * p.weightPerUnit / 1000);
         const volumetricProductWeight = (p.totalUnits * p.volumetricWeightPerUnit / 1000);
         const caseWeight = (p.numberOfCases * p.emptyCaseWeight / 1000);
@@ -245,16 +259,30 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
           ...p, 
           actualWeight: actualProductWeight + caseWeight,
           volumetricWeight: volumetricProductWeight + caseWeight,
+          supplierId: productInfo?.supplierId || '',
+          supplierName: p.supplier,
+          supplierCasesPerPallet: supplierPalletMap.get(productInfo?.supplierId || ''),
+          lengthCm: productInfo?.lengthCm,
+          widthCm: productInfo?.widthCm,
+          heightCm: productInfo?.heightCm,
+          packSize: p.numberOfCases > 0 ? Math.ceil(p.totalUnits / p.numberOfCases) : 1,
+          quantity: p.totalUnits,
+          netWeightPerUnit: p.weightPerUnit,
+          grossWeightPerUnit: p.weightPerUnit,
+          emptyCaseWeight: p.emptyCaseWeight,
         };
       });
 
-      // Calculate ORDER-LEVEL weights (consolidate first, then determine chargeable)
-      const totalActualWeight = productsWithWeight.reduce((sum, p) => sum + p.actualWeight, 0);
-      const totalVolumetricWeight = productsWithWeight.reduce((sum, p) => sum + p.volumetricWeight, 0);
-      
-      // Determine chargeable weight at ORDER level
-      const totalChargeableWeight = Math.max(totalActualWeight, totalVolumetricWeight);
-      const limitingFactor = totalVolumetricWeight > totalActualWeight ? 'volumetric' : 'actual';
+      // Calculate ORDER-LEVEL pallet configuration (includes pallet weights)
+      const { calculateOrderPalletConfig } = await import('@/lib/weightCalculations');
+      const orderPalletConfig = calculateOrderPalletConfig(productsWithWeight as any);
+
+      // Extract order-level totals (these INCLUDE pallet weights now)
+      const totalActualWeight = orderPalletConfig.totalActualWeight;
+      const totalVolumetricWeight = orderPalletConfig.totalVolumetricWeight;
+      const totalChargeableWeight = orderPalletConfig.totalChargeableWeight;
+      const totalPallets = orderPalletConfig.totalPallets;
+      const limitingFactor = totalChargeableWeight === totalVolumetricWeight ? 'volumetric' : 'actual';
       
       // Calculate if we're being charged by volumetric (this triggers the alert)
       const isChargedByVolumetric = limitingFactor === 'volumetric';
@@ -265,6 +293,8 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
 
       const totalCost = productsWithWeight.reduce((sum, p) => sum + (p.totalUnits * p.costPerUnit), 0);
       const combinedTariffPerKg = freightExteriorPerKg + freightLocalPerKg;
+      
+      // Calculate freight based on ORDER-LEVEL chargeable weight (includes pallets)
       const totalFreightCost = totalChargeableWeight * combinedTariffPerKg;
       
       // Set alert data for volumetric weight component
@@ -277,16 +307,8 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
         totalChargeableWeight
       });
       
-      // Europallet constraints
-      const PALLET_WEIGHT_KG = 26;
-      const PALLET_LENGTH_CM = 120;
-      const PALLET_WIDTH_CM = 80;
-      const MAX_HEIGHT_CM = 155;
-      
-      // Calculate total pallets needed (simple estimation based on weight)
-      const estimatedPalletsNeeded = Math.ceil(totalChargeableWeight / 500); // ~500kg per pallet typical
-      const palletWeightTotal = estimatedPalletsNeeded * PALLET_WEIGHT_KG;
-      const totalFreight = localLogisticsUsd + totalFreightCost + (palletWeightTotal * combinedTariffPerKg);
+      // Total freight is now just freight cost (pallets already included in totalChargeableWeight)
+      const totalFreight = localLogisticsUsd + totalFreightCost;
 
       const calculateResults = (
         distributionMethod: 'weight' | 'cost' | 'equal' | 'hybrid' | 'strategic' | 'volumeOptimized' | 'customerTier'

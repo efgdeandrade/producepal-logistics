@@ -100,11 +100,11 @@ export function VolumetricWeightAlert({
             </p>
             <div className="grid grid-cols-3 gap-4 text-sm mt-3">
               <div className="bg-white/50 p-2 rounded">
-                <p className="text-gray-600">Actual Weight</p>
+                <p className="text-gray-600">Actual Weight (incl. pallets)</p>
                 <p className="font-bold">{totalActualWeight.toFixed(2)} kg</p>
               </div>
               <div className="bg-white/50 p-2 rounded">
-                <p className="text-gray-600">Volumetric Weight</p>
+                <p className="text-gray-600">Volumetric Weight (incl. pallets)</p>
                 <p className="font-bold text-orange-600">{totalVolumetricWeight.toFixed(2)} kg</p>
               </div>
               <div className="bg-white/50 p-2 rounded">

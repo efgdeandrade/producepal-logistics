@@ -1716,29 +1716,38 @@ export type Database = {
       }
       suppliers: {
         Row: {
+          cases_per_pallet: number | null
           contact: string | null
           created_at: string
           email: string | null
           id: string
           name: string
+          notes_pallet_config: string | null
+          pallet_stacking_pattern: string | null
           phone: string | null
           updated_at: string
         }
         Insert: {
+          cases_per_pallet?: number | null
           contact?: string | null
           created_at?: string
           email?: string | null
           id?: string
           name: string
+          notes_pallet_config?: string | null
+          pallet_stacking_pattern?: string | null
           phone?: string | null
           updated_at?: string
         }
         Update: {
+          cases_per_pallet?: number | null
           contact?: string | null
           created_at?: string
           email?: string | null
           id?: string
           name?: string
+          notes_pallet_config?: string | null
+          pallet_stacking_pattern?: string | null
           phone?: string | null
           updated_at?: string
         }
