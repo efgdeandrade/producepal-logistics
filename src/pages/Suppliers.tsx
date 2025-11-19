@@ -109,11 +109,18 @@ const Suppliers = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [viewingSupplier, setViewingSupplier] = useState<Supplier | null>(null);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
-  const [formData, setFormData] = useState<Omit<Supplier, 'id'>>({
+  const [formData, setFormData] = useState<Omit<Supplier, 'id'> & { 
+    cases_per_pallet?: number | null;
+    pallet_stacking_pattern?: string;
+    notes_pallet_config?: string;
+  }>({
     name: '',
     contact: '',
     email: '',
     phone: '',
+    cases_per_pallet: null,
+    pallet_stacking_pattern: '',
+    notes_pallet_config: '',
   });
   
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
@@ -451,10 +458,21 @@ const Suppliers = () => {
         contact: supplier.contact || '',
         email: supplier.email || '',
         phone: supplier.phone || '',
+        cases_per_pallet: (supplier as any).cases_per_pallet || null,
+        pallet_stacking_pattern: (supplier as any).pallet_stacking_pattern || '',
+        notes_pallet_config: (supplier as any).notes_pallet_config || '',
       });
     } else {
       setEditingSupplier(null);
-      setFormData({ name: '', contact: '', email: '', phone: '' });
+      setFormData({ 
+        name: '', 
+        contact: '', 
+        email: '', 
+        phone: '',
+        cases_per_pallet: null,
+        pallet_stacking_pattern: '',
+        notes_pallet_config: '',
+      });
     }
     setIsDialogOpen(true);
   };
@@ -634,6 +652,44 @@ const Suppliers = () => {
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       placeholder="Enter phone number"
                     />
+                  </div>
+                  
+                  <div className="border-t pt-4 mt-4">
+                    <h4 className="text-sm font-semibold mb-3">Pallet Configuration (Optional)</h4>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="cases_per_pallet">Cases Per Pallet</Label>
+                      <Input
+                        id="cases_per_pallet"
+                        type="number"
+                        value={formData.cases_per_pallet || ''}
+                        onChange={(e) => setFormData({ ...formData, cases_per_pallet: e.target.value ? parseInt(e.target.value) : null })}
+                        placeholder="e.g., 24 for Hortifresco, 80 for Steffanis"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        If specified, this overrides automatic calculation
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="pallet_stacking_pattern">Stacking Pattern</Label>
+                      <Input
+                        id="pallet_stacking_pattern"
+                        value={formData.pallet_stacking_pattern || ''}
+                        onChange={(e) => setFormData({ ...formData, pallet_stacking_pattern: e.target.value })}
+                        placeholder="e.g., 4x6 grid, 2 layers"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="notes_pallet_config">Pallet Notes</Label>
+                      <Input
+                        id="notes_pallet_config"
+                        value={formData.notes_pallet_config || ''}
+                        onChange={(e) => setFormData({ ...formData, notes_pallet_config: e.target.value })}
+                        placeholder="Any special pallet handling instructions"
+                      />
+                    </div>
                   </div>
                 </div>
                 <DialogFooter>
