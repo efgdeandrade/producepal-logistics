@@ -406,25 +406,25 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
           {description && <p className="text-xs text-muted-foreground mt-1">{description}</p>}
         </div>
         <div className="w-full max-h-[600px] overflow-auto border rounded-md">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-background">
-                <TableHead className="sticky top-0 z-10 bg-background">Product</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-background text-right">Units</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-background text-right">Actual (kg)</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-background text-right">Vol. (kg)</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-background text-right">Chargeable</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-background text-right">Cost USD</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-background text-right">Freight</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-background text-right">CIF USD</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-background text-right">CIF Cg</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-background text-right">CIF/Unit</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-background text-right">Wholesale</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-background text-right">W. Margin</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-background text-right">W. %</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-background text-right">Retail</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-background text-right">R. Margin</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-background text-right">R. %</TableHead>
+          <Table className="relative">
+            <TableHeader className="sticky top-0 z-10 bg-background">
+              <TableRow>
+                <TableHead>Product</TableHead>
+                <TableHead className="text-right">Units</TableHead>
+                <TableHead className="text-right">Actual (kg)</TableHead>
+                <TableHead className="text-right">Vol. (kg)</TableHead>
+                <TableHead className="text-right">Chargeable</TableHead>
+                <TableHead className="text-right">Cost USD</TableHead>
+                <TableHead className="text-right">Freight</TableHead>
+                <TableHead className="text-right">CIF USD</TableHead>
+                <TableHead className="text-right">CIF Cg</TableHead>
+                <TableHead className="text-right">CIF/Unit</TableHead>
+                <TableHead className="text-right">Wholesale</TableHead>
+                <TableHead className="text-right">W. Margin</TableHead>
+                <TableHead className="text-right">W. %</TableHead>
+                <TableHead className="text-right">Retail</TableHead>
+                <TableHead className="text-right">R. Margin</TableHead>
+                <TableHead className="text-right">R. %</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
