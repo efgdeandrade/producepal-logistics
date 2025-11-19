@@ -4,7 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Calculator, Award, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -406,7 +405,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
           {description && <p className="text-xs text-muted-foreground mt-1">{description}</p>}
         </div>
         <div className="w-full max-h-[600px] overflow-auto border rounded-md">
-          <Table>
+          <table className="w-full caption-bottom text-sm relative">
             <TableHeader>
               <TableRow className="bg-background">
                 <TableHead className="sticky top-0 z-10 bg-background">Product</TableHead>
@@ -581,7 +580,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
                 <TableCell colSpan={7}></TableCell>
               </TableRow>
             </TableBody>
-          </Table>
+          </table>
         </div>
       </div>
     );
