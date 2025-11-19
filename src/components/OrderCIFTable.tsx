@@ -425,6 +425,21 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
       return ''; // Default styling for products meeting targets
     };
 
+    const getMarginTextColor = (marginPercent: number, targetPercent: number) => {
+      // Red text for negative margins (loss)
+      if (marginPercent < 0) {
+        return 'text-red-600';
+      }
+      
+      // Orange text for margins below target
+      if (marginPercent < targetPercent) {
+        return 'text-orange-600';
+      }
+      
+      // Green text for margins meeting or exceeding target
+      return 'text-green-600';
+    };
+
     return (
       <div>
         <div className="mb-3">
@@ -497,6 +512,9 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
                         targetRetailMargin
                       );
 
+                      const wholesaleMarginColor = getMarginTextColor(wholesaleMarginPercent, targetWholesaleMargin);
+                      const retailMarginColor = getMarginTextColor(retailMarginPercent, targetRetailMargin);
+
                       return (
                         <TableRow key={`${supplier}-${result.productCode}-${idx}`} className={rowHighlight}>
                           <TableCell className="font-medium">
@@ -521,10 +539,10 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
                             Cg {result.cifPerUnit.toFixed(2)}
                           </TableCell>
                           <TableCell className="text-right">Cg {result.wholesalePrice.toFixed(2)}</TableCell>
-                          <TableCell className="text-right text-green-600">
+                          <TableCell className={`text-right ${wholesaleMarginColor}`}>
                             Cg {result.wholesaleMargin.toFixed(2)}
                           </TableCell>
-                          <TableCell className="text-right text-green-600 font-semibold">
+                          <TableCell className={`text-right ${wholesaleMarginColor} font-semibold`}>
                             {wholesaleMarginPercent.toFixed(1)}%
                           </TableCell>
                           <TableCell className="text-right">
@@ -543,10 +561,10 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
                               </div>
                             )}
                           </TableCell>
-                          <TableCell className="text-right text-green-600">
+                          <TableCell className={`text-right ${retailMarginColor}`}>
                             Cg {result.retailMargin.toFixed(2)}
                           </TableCell>
-                          <TableCell className="text-right text-green-600 font-semibold">
+                          <TableCell className={`text-right ${retailMarginColor} font-semibold`}>
                             {retailMarginPercent.toFixed(1)}%
                           </TableCell>
                         </TableRow>
