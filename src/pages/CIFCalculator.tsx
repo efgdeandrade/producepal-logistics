@@ -7,11 +7,31 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calculator, ArrowLeft, Package, AlertTriangle } from 'lucide-react';
 import { PRODUCTS, ProductCode } from '@/types/order';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { calculateOrderPalletConfig, ProductWeightInfo } from '@/lib/weightCalculations';
+
+interface DatabaseProduct {
+  code: string;
+  name: string;
+  price_usd_per_unit: number | null;
+  netto_weight_per_unit: number | null;
+  gross_weight_per_unit: number | null;
+  pack_size: number;
+  empty_case_weight: number | null;
+  length_cm: number | null;
+  width_cm: number | null;
+  height_cm: number | null;
+  volumetric_weight_kg: number | null;
+  supplier_id: string | null;
+  suppliers: {
+    name: string;
+    cases_per_pallet: number | null;
+  } | null;
+}
 
 interface ProductInput {
   code: ProductCode;
@@ -54,6 +74,7 @@ export default function CIFCalculator() {
   const [freightExteriorPerKg, setFreightExteriorPerKg] = useState(2.46);
   const [freightLocalPerKg, setFreightLocalPerKg] = useState(0.41);
   const [loading, setLoading] = useState(true);
+  const [allProducts, setAllProducts] = useState<DatabaseProduct[]>([]);
 
   // Estimate version inputs
   const [estimateProducts, setEstimateProducts] = useState<ProductInput[]>([
@@ -88,15 +109,38 @@ export default function CIFCalculator() {
     loadSettings();
   }, []);
 
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        const { data: products } = await supabase
+          .from('products')
+          .select(`
+            code, name, price_usd_per_unit, netto_weight_per_unit, gross_weight_per_unit,
+            pack_size, empty_case_weight, length_cm, width_cm, height_cm, volumetric_weight_kg,
+            supplier_id, suppliers(name, cases_per_pallet)
+          `)
+          .order('name');
+
+        if (products) {
+          setAllProducts(products as DatabaseProduct[]);
+        }
+      } catch (error) {
+        console.error('Error loading products:', error);
+      }
+    };
+    loadProducts();
+  }, []);
+
   const handleExchangeRateChange = (value: string) => {
     const rate = parseFloat(value) || DEFAULT_EXCHANGE_RATE;
     setExchangeRate(rate);
   };
 
   const addProduct = (isActual: boolean) => {
+    const firstProduct = allProducts[0];
     const newProduct: ProductInput = {
-      code: 'STB_500',
-      name: 'Strawberries 500g',
+      code: firstProduct?.code as ProductCode || 'STB_500',
+      name: firstProduct?.name || 'Select Product',
       quantity: 0,
       costPerUnit: 0,
       weightPerUnit: 0
@@ -127,6 +171,7 @@ export default function CIFCalculator() {
           : 0);
       
       return {
+        name: product.name,
         lengthCm: product.length_cm,
         widthCm: product.width_cm,
         heightCm: product.height_cm,
@@ -150,13 +195,12 @@ export default function CIFCalculator() {
     
     const updated = [...products];
     if (field === 'code') {
-      const product = PRODUCTS.find(p => p.code === value);
-      if (product) {
-        const dbData = await fetchProductData(value);
+      const dbData = await fetchProductData(value);
+      if (dbData) {
         updated[index] = {
           ...updated[index],
-          code: product.code,
-          name: product.name,
+          code: value as ProductCode,
+          name: dbData.name || value,
           ...(dbData || {}),
         };
       }
@@ -402,15 +446,21 @@ export default function CIFCalculator() {
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div>
                   <Label>Product</Label>
-                  <select
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  <Select
                     value={product.code}
-                    onChange={(e) => updateProduct(index, 'code', e.target.value as ProductCode, isActual)}
+                    onValueChange={(value) => updateProduct(index, 'code', value as ProductCode, isActual)}
                   >
-                    {PRODUCTS.map(p => (
-                      <option key={p.code} value={p.code}>{p.name}</option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="w-full bg-background">
+                      <SelectValue placeholder="Select product" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover max-h-[300px] z-50">
+                      {allProducts.map(p => (
+                        <SelectItem key={p.code} value={p.code} className="cursor-pointer">
+                          {p.name} ({p.code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label>Quantity</Label>
