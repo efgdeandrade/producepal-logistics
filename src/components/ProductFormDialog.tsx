@@ -102,7 +102,7 @@ export const ProductFormDialog = ({
                 value={formData.code}
                 onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                 placeholder="e.g., BLB_125"
-                disabled={!!editingProduct}
+                required
               />
             </div>
             <div className="space-y-2">
@@ -117,6 +117,21 @@ export const ProductFormDialog = ({
           </div>
           
           <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="unit">Unit Type *</Label>
+              <Select value={formData.unit} onValueChange={(value) => setFormData({ ...formData, unit: value })}>
+                <SelectTrigger id="unit">
+                  <SelectValue placeholder="Select unit type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="kg">Kilogram (kg)</SelectItem>
+                  <SelectItem value="g">Gram (g)</SelectItem>
+                  <SelectItem value="pcs">Pieces (pcs)</SelectItem>
+                  <SelectItem value="oz">Ounce (oz)</SelectItem>
+                  <SelectItem value="lb">Pound (lb)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="pack_size">Units/Case *</Label>
               <Input
@@ -139,15 +154,6 @@ export const ProductFormDialog = ({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="case_size">Case Size</Label>
-              <Input
-                id="case_size"
-                value={formData.case_size}
-                onChange={(e) => setFormData({ ...formData, case_size: e.target.value })}
-                placeholder="e.g., 40x30x20cm"
-              />
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="supplier">Supplier</Label>
               <Select
                 value={formData.supplier_id}
@@ -167,47 +173,48 @@ export const ProductFormDialog = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="netto_weight_per_unit">Netto Weight/Unit</Label>
+              <Label htmlFor="netto_weight_per_unit">
+                Net Weight/Unit (g)
+                <span className="text-xs text-muted-foreground ml-2">
+                  (used if Gross Weight is empty)
+                </span>
+              </Label>
               <Input
                 id="netto_weight_per_unit"
                 type="number"
-                step="0.001"
+                step="0.01"
                 value={formData.netto_weight_per_unit}
                 onChange={(e) => setFormData({ ...formData, netto_weight_per_unit: e.target.value })}
-                placeholder="kg"
+                placeholder="Net weight in grams"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="gross_weight_per_unit">Gross Weight/Unit</Label>
+              <Label htmlFor="gross_weight_per_unit">
+                Gross Weight/Unit (g)
+                <span className="text-xs text-muted-foreground ml-2">
+                  (overrides Net Weight when filled)
+                </span>
+              </Label>
               <Input
                 id="gross_weight_per_unit"
                 type="number"
-                step="0.001"
+                step="0.01"
                 value={formData.gross_weight_per_unit}
                 onChange={(e) => setFormData({ ...formData, gross_weight_per_unit: e.target.value })}
-                placeholder="kg"
+                placeholder="Gross weight in grams"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="empty_case_weight">Empty Case Weight</Label>
+              <Label htmlFor="empty_case_weight">Empty Case Weight (g)</Label>
               <Input
                 id="empty_case_weight"
                 type="number"
-                step="0.001"
+                step="0.01"
                 value={formData.empty_case_weight}
                 onChange={(e) => setFormData({ ...formData, empty_case_weight: e.target.value })}
-                placeholder="kg"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="unit">Unit</Label>
-              <Input
-                id="unit"
-                value={formData.unit}
-                onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                placeholder="kg, g, pcs"
+                placeholder="Empty case weight in grams"
               />
             </div>
           </div>

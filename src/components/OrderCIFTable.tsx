@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { supabase } from '@/integrations/supabase/client';
 import { Calculator, Award, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { VolumetricWeightAlert } from './VolumetricWeightAlert';
 import {
   TableBody,
   TableCell,
@@ -71,6 +72,16 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
   const [priceHistory, setPriceHistory] = useState<Map<string, any>>(new Map());
   const [targetWholesaleMargin, setTargetWholesaleMargin] = useState(10);
   const [targetRetailMargin, setTargetRetailMargin] = useState(44);
+  const [exchangeRate, setExchangeRate] = useState(DEFAULT_EXCHANGE_RATE);
+  const [combinedTariffPerKg, setCombinedTariffPerKg] = useState(0);
+  const [volumetricAlertData, setVolumetricAlertData] = useState<{
+    isChargedByVolumetric: boolean;
+    weightGapKg: number;
+    weightGapPercent: number;
+    totalActualWeight: number;
+    totalVolumetricWeight: number;
+    totalChargeableWeight: number;
+  } | null>(null);
 
   useEffect(() => {
     calculateCIF();
@@ -100,13 +111,18 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
       if (settingsError) throw settingsError;
 
       const settingsMap = new Map(settings?.map(s => [s.key, s.value]) || []);
-      const exchangeRate = (settingsMap.get('usd_to_xcg_rate') as any)?.rate || DEFAULT_EXCHANGE_RATE;
+      const exchangeRateValue = (settingsMap.get('usd_to_xcg_rate') as any)?.rate || DEFAULT_EXCHANGE_RATE;
       const freightExteriorPerKg = (settingsMap.get('freight_exterior_tariff') as any)?.rate || 2.46;
       const freightLocalPerKg = (settingsMap.get('freight_local_tariff') as any)?.rate || 0.41;
       const localLogisticsUsd = Number(settingsMap.get('local_logistics_usd')) || 91;
       const laborXcg = Number(settingsMap.get('labor_xcg')) || 50;
       const targetWholesale = Number(settingsMap.get('target_wholesale_margin_percent')) || 10;
       const targetRetail = Number(settingsMap.get('target_retail_margin_percent')) || 44;
+
+      // Set state values for use in component
+      setExchangeRate(exchangeRateValue);
+      const combinedTariff = freightExteriorPerKg + freightLocalPerKg;
+      setCombinedTariffPerKg(combinedTariff);
       
       // Set target margins in state for use in renderTable
       setTargetWholesaleMargin(targetWholesale);
@@ -219,28 +235,47 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
         };
       });
 
-      // Calculate weights using chargeable weight (max of actual vs volumetric)
+      // Calculate weights - keep actual and volumetric separate per product
       const productsWithWeight = productsWithData.map(p => {
         const actualProductWeight = (p.totalUnits * p.weightPerUnit / 1000);
         const volumetricProductWeight = (p.totalUnits * p.volumetricWeightPerUnit / 1000);
         const caseWeight = (p.numberOfCases * p.emptyCaseWeight / 1000);
         
-        // Total weight is chargeable weight of products + case weight
-        const productWeight = Math.max(actualProductWeight, volumetricProductWeight) + caseWeight;
-        
         return { 
           ...p, 
-          totalWeight: productWeight,
           actualWeight: actualProductWeight + caseWeight,
           volumetricWeight: volumetricProductWeight + caseWeight,
-          weightType: volumetricProductWeight > actualProductWeight ? 'volumetric' : 'actual'
         };
       });
 
-      const totalWeight = productsWithWeight.reduce((sum, p) => sum + p.totalWeight, 0);
+      // Calculate ORDER-LEVEL weights (consolidate first, then determine chargeable)
+      const totalActualWeight = productsWithWeight.reduce((sum, p) => sum + p.actualWeight, 0);
+      const totalVolumetricWeight = productsWithWeight.reduce((sum, p) => sum + p.volumetricWeight, 0);
+      
+      // Determine chargeable weight at ORDER level
+      const totalChargeableWeight = Math.max(totalActualWeight, totalVolumetricWeight);
+      const limitingFactor = totalVolumetricWeight > totalActualWeight ? 'volumetric' : 'actual';
+      
+      // Calculate if we're being charged by volumetric (this triggers the alert)
+      const isChargedByVolumetric = limitingFactor === 'volumetric';
+      const weightGapKg = totalVolumetricWeight - totalActualWeight;
+      const weightGapPercent = totalActualWeight > 0 
+        ? ((weightGapKg / totalActualWeight) * 100) 
+        : 0;
+
       const totalCost = productsWithWeight.reduce((sum, p) => sum + (p.totalUnits * p.costPerUnit), 0);
       const combinedTariffPerKg = freightExteriorPerKg + freightLocalPerKg;
-      const totalFreightCost = totalWeight * combinedTariffPerKg;
+      const totalFreightCost = totalChargeableWeight * combinedTariffPerKg;
+      
+      // Set alert data for volumetric weight component
+      setVolumetricAlertData({
+        isChargedByVolumetric,
+        weightGapKg,
+        weightGapPercent,
+        totalActualWeight,
+        totalVolumetricWeight,
+        totalChargeableWeight
+      });
       
       // Europallet constraints
       const PALLET_WEIGHT_KG = 26;
@@ -249,7 +284,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
       const MAX_HEIGHT_CM = 155;
       
       // Calculate total pallets needed (simple estimation based on weight)
-      const estimatedPalletsNeeded = Math.ceil(totalWeight / 500); // ~500kg per pallet typical
+      const estimatedPalletsNeeded = Math.ceil(totalChargeableWeight / 500); // ~500kg per pallet typical
       const palletWeightTotal = estimatedPalletsNeeded * PALLET_WEIGHT_KG;
       const totalFreight = localLogisticsUsd + totalFreightCost + (palletWeightTotal * combinedTariffPerKg);
 
@@ -263,7 +298,13 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
           
           switch (distributionMethod) {
             case 'weight':
-              freightShare = totalWeight > 0 ? (product.totalWeight / totalWeight) * totalFreight : 0;
+              // Allocate freight based on contribution to LIMITING factor
+              const productContribution = limitingFactor === 'volumetric' 
+                ? product.volumetricWeight 
+                : product.actualWeight;
+              freightShare = totalChargeableWeight > 0 
+                ? (productContribution / totalChargeableWeight) * totalFreight 
+                : 0;
               break;
               
             case 'cost':
@@ -276,7 +317,10 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
               
             case 'hybrid':
               // 50% by weight + 50% by cost
-              const weightShare = totalWeight > 0 ? (product.totalWeight / totalWeight) * totalFreight : 0;
+              const productContrib = limitingFactor === 'volumetric' 
+                ? product.volumetricWeight 
+                : product.actualWeight;
+              const weightShare = totalChargeableWeight > 0 ? (productContrib / totalChargeableWeight) * totalFreight : 0;
               const costShare = totalCost > 0 ? (productCost / totalCost) * totalFreight : 0;
               freightShare = (weightShare + costShare) / 2;
               break;
@@ -314,7 +358,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
           }
 
           const cifUSD = productCost + freightShare;
-          const cifXCG = cifUSD * exchangeRate + laborXcg / productsWithWeight.length;
+          const cifXCG = cifUSD * exchangeRateValue + laborXcg / productsWithWeight.length;
           const cifPerUnit = product.totalUnits > 0 ? cifXCG / product.totalUnits : 0;
 
           const wholesalePrice = product.wholesalePriceXCG || (cifPerUnit * WHOLESALE_MULTIPLIER);
@@ -332,6 +376,10 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
             lastChangeDate: history.changeDate
           } : undefined;
 
+          // Calculate per-product totalWeight and weightType for result object
+          const productTotalWeight = Math.max(product.actualWeight, product.volumetricWeight);
+          const productWeightType = product.volumetricWeight > product.actualWeight ? 'volumetric' : 'actual';
+
           return {
             productCode: product.code,
             productName: product.name,
@@ -339,8 +387,8 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
             trays: product.numberOfCases,
             actualWeight: product.actualWeight,
             volumetricWeight: product.volumetricWeight,
-            totalWeight: product.totalWeight,
-            weightType: product.weightType as 'actual' | 'volumetric',
+            totalWeight: productTotalWeight,
+            weightType: productWeightType as 'actual' | 'volumetric',
             costUSD: productCost,
             freightCost: freightShare,
             cifUSD,
@@ -700,6 +748,16 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
               ))}
             </div>
           </div>
+        )}
+
+        {/* Volumetric Weight Alert - Shows when charged by volumetric */}
+        {volumetricAlertData && (
+          <VolumetricWeightAlert
+            {...volumetricAlertData}
+            orderItems={productsWeightData}
+            freightCostPerKg={combinedTariffPerKg}
+            exchangeRate={exchangeRate}
+          />
         )}
 
         <Tabs defaultValue="weight" className="w-full">
