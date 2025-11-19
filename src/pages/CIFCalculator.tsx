@@ -98,12 +98,12 @@ export default function CIFCalculator() {
 
   // Estimate version inputs
   const [estimateProducts, setEstimateProducts] = useState<ProductInput[]>([
-    { code: 'STB_500', name: 'Strawberries 500g', quantity: 0, quantityInputMode: 'cases', costPerUnit: 0, weightPerUnit: 0 }
+    { code: '' as ProductCode, name: '', quantity: 0, quantityInputMode: 'cases', costPerUnit: 0, weightPerUnit: 0 }
   ]);
 
   // Actual version inputs
   const [actualProducts, setActualProducts] = useState<ProductInput[]>([
-    { code: 'STB_500', name: 'Strawberries 500g', quantity: 0, quantityInputMode: 'cases', costPerUnit: 0, weightPerUnit: 0 }
+    { code: '' as ProductCode, name: '', quantity: 0, quantityInputMode: 'cases', costPerUnit: 0, weightPerUnit: 0 }
   ]);
   const [actualFreightChampion, setActualFreightChampion] = useState(0);
   const [actualSwissport, setActualSwissport] = useState(0);
@@ -149,37 +149,11 @@ export default function CIFCalculator() {
     loadProducts();
   }, []);
 
-  // Initialize default products with full database data
+  // Initialize loading state
   useEffect(() => {
-    const initializeDefaultProducts = async () => {
-      if (allProducts.length > 0) {
-        // Initialize estimate products
-        const estimateData = await fetchProductData('STB_500');
-        if (estimateData) {
-          setEstimateProducts([{
-            code: 'STB_500' as ProductCode,
-            ...estimateData,
-            quantity: 0,
-            quantityInputMode: 'cases',
-          }]);
-        }
-        
-        // Initialize actual products
-        const actualData = await fetchProductData('STB_500');
-        if (actualData) {
-          setActualProducts([{
-            code: 'STB_500' as ProductCode,
-            ...actualData,
-            quantity: 0,
-            quantityInputMode: 'cases',
-          }]);
-        }
-        
-        setLoading(false);
-      }
-    };
-    
-    initializeDefaultProducts();
+    if (allProducts.length > 0) {
+      setLoading(false);
+    }
   }, [allProducts]);
 
   const handleExchangeRateChange = (value: string) => {
@@ -188,14 +162,18 @@ export default function CIFCalculator() {
   };
 
   const addProduct = (isActual: boolean) => {
-    const firstProduct = allProducts[0];
     const newProduct: ProductInput = {
-      code: firstProduct?.code as ProductCode || 'STB_500',
-      name: firstProduct?.name || 'Select Product',
+      code: '' as ProductCode,
+      name: '',
       quantity: 0,
       quantityInputMode: 'cases',
       costPerUnit: 0,
-      weightPerUnit: 0
+      weightPerUnit: 0,
+      packSize: undefined,
+      supplierId: undefined,
+      supplierName: undefined,
+      supplierCasesPerPallet: undefined,
+      supplierPalletConfig: undefined,
     };
     if (isActual) {
       setActualProducts([...actualProducts, newProduct]);
@@ -670,6 +648,11 @@ export default function CIFCalculator() {
                       Loading product data...
                     </div>
                   )}
+                  {!product.code && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Please select a product
+                    </div>
+                  )}
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-1">
@@ -680,6 +663,7 @@ export default function CIFCalculator() {
                         size="sm"
                         className="h-6 px-2 text-xs"
                         onClick={() => updateProduct(index, 'quantityInputMode', 'units', isActual)}
+                        disabled={!product.code || !product.weightPerUnit}
                       >
                         Units
                       </Button>
@@ -688,6 +672,7 @@ export default function CIFCalculator() {
                         size="sm"
                         className="h-6 px-2 text-xs"
                         onClick={() => updateProduct(index, 'quantityInputMode', 'cases', isActual)}
+                        disabled={!product.code || !product.packSize}
                       >
                         Cases
                       </Button>
@@ -700,7 +685,8 @@ export default function CIFCalculator() {
                         type="number"
                         value={product.quantity || ''}
                         onChange={(e) => updateProduct(index, 'quantity', parseFloat(e.target.value) || 0, isActual)}
-                        placeholder="Enter units"
+                        placeholder={product.weightPerUnit ? "Enter units" : "Select product first"}
+                        disabled={!product.weightPerUnit}
                       />
                       {product.packSize && product.quantity > 0 && (
                         <p className="text-xs text-muted-foreground">
@@ -714,11 +700,15 @@ export default function CIFCalculator() {
                         type="number"
                         value={product.packSize && product.quantity > 0 ? (product.quantity / product.packSize).toFixed(2) : ''}
                         onChange={(e) => {
+                          if (!product.packSize) {
+                            return;
+                          }
                           const cases = parseFloat(e.target.value) || 0;
-                          const units = cases * (product.packSize || 1);
+                          const units = cases * product.packSize;
                           updateProduct(index, 'quantity', units, isActual);
                         }}
-                        placeholder="Enter cases"
+                        placeholder={product.packSize ? "Enter cases" : "Select product first"}
+                        disabled={!product.packSize}
                       />
                       {product.packSize && product.quantity > 0 && (
                         <p className="text-xs text-muted-foreground">
