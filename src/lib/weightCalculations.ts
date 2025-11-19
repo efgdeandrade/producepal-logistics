@@ -158,19 +158,23 @@ export function calculateCasesPerPallet(
   palletConfig: PalletConfig = STANDARD_EUROPALLET,
   supplierCasesPerPallet?: number
 ): number {
-  // STEP 1: Try dimensional calculation FIRST (prioritize physics-based calculation)
+  // STEP 1: Use manual supplier value FIRST (highest priority - real-world data)
+  if (supplierCasesPerPallet && supplierCasesPerPallet > 0) {
+    return supplierCasesPerPallet;
+  }
+
+  // STEP 2: Try dimensional calculation as fallback
   if (caseLengthCm > 0 && caseWidthCm > 0 && caseHeightCm > 0) {
     // Calculate available cargo height
-    const availableHeight = palletConfig.maxCargoHeightCm - palletConfig.heightCm; // 155 - 14.4 = 140.6cm
+    const availableHeight = palletConfig.maxCargoHeightCm - palletConfig.heightCm;
 
     // Calculate how many layers can fit vertically
     const maxLayers = Math.floor(availableHeight / caseHeightCm);
     
     if (maxLayers > 0) {
       // Calculate horizontal placement (try both orientations for best fit)
-      // Add 2cm overhang allowance for real-world pallet loading
-      const effectiveLengthCm = palletConfig.lengthCm + 2; // 120 + 2 = 122cm
-      const effectiveWidthCm = palletConfig.widthCm + 2;   // 80 + 2 = 82cm
+      const effectiveLengthCm = palletConfig.lengthCm + 2;
+      const effectiveWidthCm = palletConfig.widthCm + 2;
       
       // Pattern 1: Length along pallet length
       const casesAlongLength1 = Math.floor(effectiveLengthCm / caseLengthCm);
@@ -186,18 +190,12 @@ export function calculateCasesPerPallet(
       const casesPerLayer = Math.max(casesPerLayer1, casesPerLayer2);
       
       if (casesPerLayer > 0) {
-        // ✅ Successfully calculated from dimensions - return immediately
         return casesPerLayer * maxLayers;
       }
     }
   }
 
-  // STEP 2: Dimensions failed/missing → Fall back to manual supplier value
-  if (supplierCasesPerPallet && supplierCasesPerPallet > 0) {
-    return supplierCasesPerPallet;
-  }
-
-  // STEP 3: Neither dimensions nor manual value available → return 0
+  // STEP 3: No data available → return 0
   // This will trigger weight-based estimation in calculateSupplierPalletConfig
   return 0;
 }

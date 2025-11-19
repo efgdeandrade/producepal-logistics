@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { calculateOrderPalletConfig, ProductWeightInfo, SupplierPalletData, createPalletConfig } from '@/lib/weightCalculations';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useToast } from '@/hooks/use-toast';
 
 interface DatabaseProduct {
   code: string;
@@ -87,6 +88,7 @@ const DEFAULT_EXCHANGE_RATE = 1.82;
 
 export default function CIFCalculator() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [exchangeRate, setExchangeRate] = useState(DEFAULT_EXCHANGE_RATE);
   const [freightExteriorPerKg, setFreightExteriorPerKg] = useState(2.46);
   const [freightLocalPerKg, setFreightLocalPerKg] = useState(0.41);
@@ -199,7 +201,7 @@ export default function CIFCalculator() {
   };
 
   const fetchProductData = async (productCode: string) => {
-    const { data: product } = await supabase
+    const { data: product, error } = await supabase
       .from('products')
       .select(`
         code, name, price_usd_per_unit, netto_weight_per_unit, gross_weight_per_unit, 
@@ -216,7 +218,12 @@ export default function CIFCalculator() {
         )
       `)
       .eq('code', productCode)
-      .single();
+      .maybeSingle();
+    
+    if (error) {
+      console.error('Error fetching product:', error);
+      return null;
+    }
     
     if (product) {
       const weightPerUnit = (product.gross_weight_per_unit || product.netto_weight_per_unit || 0) / 1000;
@@ -267,6 +274,13 @@ export default function CIFCalculator() {
           name: dbData.name || value,
           ...(dbData || {}),
         };
+      } else {
+        toast({
+          title: "Product not found",
+          description: `Product code "${value}" does not exist in the database.`,
+          variant: "destructive",
+        });
+        return;
       }
     } else {
       updated[index] = { ...updated[index], [field]: value };
