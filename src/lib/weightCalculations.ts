@@ -74,27 +74,18 @@ export function calculateVolumetricWeightPerUnit(product: ProductWeightInfo): nu
 }
 
 /**
- * Calculate chargeable weight per case
- * Formula: MAX(Actual weight per case, Volumetric weight per case)
- */
-export function calculateChargeableWeightPerCase(product: ProductWeightInfo): number {
-  const actualWeight = calculateActualWeightPerCase(product);
-  const volumetricWeight = calculateVolumetricWeightPerCase(product);
-  return Math.max(actualWeight, volumetricWeight);
-}
-
-/**
- * Calculate total weights for an order
+ * Calculate total weights for an order - CORRECTED
+ * Consolidates all products first, then determines chargeable weight at ORDER level
  */
 export function calculateOrderWeights(products: ProductWeightInfo[]): {
   totalActualWeight: number;
   totalVolumetricWeight: number;
   totalChargeableWeight: number;
   totalCases: number;
+  limitingFactor: 'actual' | 'volumetric';
 } {
   let totalActualWeight = 0;
   let totalVolumetricWeight = 0;
-  let totalChargeableWeight = 0;
   let totalCases = 0;
 
   products.forEach(product => {
@@ -103,18 +94,22 @@ export function calculateOrderWeights(products: ProductWeightInfo[]): {
     
     const actualPerCase = calculateActualWeightPerCase(product);
     const volumetricPerCase = calculateVolumetricWeightPerCase(product);
-    const chargeablePerCase = Math.max(actualPerCase, volumetricPerCase);
     
+    // Sum actual and volumetric separately - DO NOT take max per product!
     totalActualWeight += actualPerCase * cases;
     totalVolumetricWeight += volumetricPerCase * cases;
-    totalChargeableWeight += chargeablePerCase * cases;
   });
+
+  // Calculate chargeable weight at ORDER level (after consolidation)
+  const totalChargeableWeight = Math.max(totalActualWeight, totalVolumetricWeight);
+  const limitingFactor = totalVolumetricWeight > totalActualWeight ? 'volumetric' : 'actual';
 
   return {
     totalActualWeight,
     totalVolumetricWeight,
     totalChargeableWeight,
-    totalCases
+    totalCases,
+    limitingFactor
   };
 }
 
