@@ -44,6 +44,7 @@ interface ProductInput {
   code: ProductCode;
   name: string;
   quantity: number;
+  quantityInputMode: 'units' | 'cases';
   costPerUnit: number;
   weightPerUnit: number;
   lengthCm?: number;
@@ -97,12 +98,12 @@ export default function CIFCalculator() {
 
   // Estimate version inputs
   const [estimateProducts, setEstimateProducts] = useState<ProductInput[]>([
-    { code: 'STB_500', name: 'Strawberries 500g', quantity: 0, costPerUnit: 0, weightPerUnit: 0 }
+    { code: 'STB_500', name: 'Strawberries 500g', quantity: 0, quantityInputMode: 'cases', costPerUnit: 0, weightPerUnit: 0 }
   ]);
 
   // Actual version inputs
   const [actualProducts, setActualProducts] = useState<ProductInput[]>([
-    { code: 'STB_500', name: 'Strawberries 500g', quantity: 0, costPerUnit: 0, weightPerUnit: 0 }
+    { code: 'STB_500', name: 'Strawberries 500g', quantity: 0, quantityInputMode: 'cases', costPerUnit: 0, weightPerUnit: 0 }
   ]);
   const [actualFreightChampion, setActualFreightChampion] = useState(0);
   const [actualSwissport, setActualSwissport] = useState(0);
@@ -159,6 +160,7 @@ export default function CIFCalculator() {
             code: 'STB_500' as ProductCode,
             ...estimateData,
             quantity: 0,
+            quantityInputMode: 'cases',
           }]);
         }
         
@@ -169,6 +171,7 @@ export default function CIFCalculator() {
             code: 'STB_500' as ProductCode,
             ...actualData,
             quantity: 0,
+            quantityInputMode: 'cases',
           }]);
         }
         
@@ -190,6 +193,7 @@ export default function CIFCalculator() {
       code: firstProduct?.code as ProductCode || 'STB_500',
       name: firstProduct?.name || 'Select Product',
       quantity: 0,
+      quantityInputMode: 'cases',
       costPerUnit: 0,
       weightPerUnit: 0
     };
@@ -341,7 +345,7 @@ export default function CIFCalculator() {
     const productsWithWeight: ProductWeightInfo[] = products.map(p => ({
       code: p.code,
       name: p.name,
-      quantity: p.quantity * (p.packSize || 1),
+      quantity: p.quantity,
       netWeightPerUnit: p.weightPerUnit * 1000,
       grossWeightPerUnit: p.weightPerUnit * 1000,
       emptyCaseWeight: (p.emptyCaseWeight || 0) * 1000,
@@ -668,12 +672,61 @@ export default function CIFCalculator() {
                   )}
                 </div>
                 <div>
-                  <Label>Quantity</Label>
-                  <Input
-                    type="number"
-                    value={product.quantity || ''}
-                    onChange={(e) => updateProduct(index, 'quantity', parseFloat(e.target.value) || 0, isActual)}
-                  />
+                  <div className="flex items-center justify-between mb-1">
+                    <Label>Quantity</Label>
+                    <div className="flex gap-1">
+                      <Button
+                        variant={product.quantityInputMode === 'units' ? 'default' : 'outline'}
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        onClick={() => updateProduct(index, 'quantityInputMode', 'units', isActual)}
+                      >
+                        Units
+                      </Button>
+                      <Button
+                        variant={product.quantityInputMode === 'cases' ? 'default' : 'outline'}
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        onClick={() => updateProduct(index, 'quantityInputMode', 'cases', isActual)}
+                      >
+                        Cases
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {product.quantityInputMode === 'units' ? (
+                    <div className="space-y-1">
+                      <Input
+                        type="number"
+                        value={product.quantity || ''}
+                        onChange={(e) => updateProduct(index, 'quantity', parseFloat(e.target.value) || 0, isActual)}
+                        placeholder="Enter units"
+                      />
+                      {product.packSize && product.quantity > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          = {(product.quantity / product.packSize).toFixed(2)} cases
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <Input
+                        type="number"
+                        value={product.packSize && product.quantity > 0 ? (product.quantity / product.packSize).toFixed(2) : ''}
+                        onChange={(e) => {
+                          const cases = parseFloat(e.target.value) || 0;
+                          const units = cases * (product.packSize || 1);
+                          updateProduct(index, 'quantity', units, isActual);
+                        }}
+                        placeholder="Enter cases"
+                      />
+                      {product.packSize && product.quantity > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          = {product.quantity} units
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <Label>Cost/Unit (USD)</Label>
