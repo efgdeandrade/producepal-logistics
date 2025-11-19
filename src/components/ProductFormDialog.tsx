@@ -177,9 +177,6 @@ export const ProductFormDialog = ({
             <div className="space-y-2">
               <Label htmlFor="netto_weight_per_unit">
                 Net Weight/Unit (g)
-                <span className="text-xs text-muted-foreground ml-2">
-                  (used if Gross Weight is empty)
-                </span>
               </Label>
               <Input
                 id="netto_weight_per_unit"
@@ -189,13 +186,13 @@ export const ProductFormDialog = ({
                 onChange={(e) => setFormData({ ...formData, netto_weight_per_unit: e.target.value })}
                 placeholder="Net weight in grams"
               />
+              <p className="text-xs text-muted-foreground">
+                Used if Gross Weight is empty
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="gross_weight_per_unit">
                 Gross Weight/Unit (g)
-                <span className="text-xs text-muted-foreground ml-2">
-                  (overrides Net Weight when filled)
-                </span>
               </Label>
               <Input
                 id="gross_weight_per_unit"
@@ -205,6 +202,9 @@ export const ProductFormDialog = ({
                 onChange={(e) => setFormData({ ...formData, gross_weight_per_unit: e.target.value })}
                 placeholder="Gross weight in grams"
               />
+              <p className="text-xs text-muted-foreground">
+                Overrides Net Weight when filled
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="empty_case_weight">Empty Case Weight (g)</Label>
@@ -216,6 +216,9 @@ export const ProductFormDialog = ({
                 onChange={(e) => setFormData({ ...formData, empty_case_weight: e.target.value })}
                 placeholder="Empty case weight in grams"
               />
+              <p className="text-xs text-muted-foreground">
+                Weight of empty case/tray only
+              </p>
             </div>
           </div>
 
