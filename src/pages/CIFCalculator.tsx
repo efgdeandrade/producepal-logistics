@@ -13,6 +13,7 @@ import { PRODUCTS, ProductCode } from '@/types/order';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { calculateOrderPalletConfig, ProductWeightInfo } from '@/lib/weightCalculations';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface DatabaseProduct {
   code: string;
@@ -49,6 +50,8 @@ interface ProductInput {
   supplierId?: string;
   supplierName?: string;
   supplierCasesPerPallet?: number;
+  wholesalePriceXCG?: number;
+  retailPriceXCG?: number;
 }
 
 interface CIFResult {
@@ -63,6 +66,14 @@ interface CIFResult {
   retailPrice: number;
   wholesaleMargin: number;
   retailMargin: number;
+  storedWholesalePrice?: number;
+  storedRetailPrice?: number;
+  calculatedWholesalePrice: number;
+  calculatedRetailPrice: number;
+  wholesalePriceDiff?: number;
+  wholesalePriceDiffPercent?: number;
+  retailPriceDiff?: number;
+  retailPriceDiffPercent?: number;
 }
 
 const EXCHANGE_RATE_KEY = 'cif_exchange_rate';
@@ -158,6 +169,7 @@ export default function CIFCalculator() {
       .select(`
         code, name, price_usd_per_unit, netto_weight_per_unit, gross_weight_per_unit, 
         pack_size, empty_case_weight, length_cm, width_cm, height_cm, volumetric_weight_kg,
+        wholesale_price_xcg_per_unit, retail_price_xcg_per_unit,
         supplier_id, suppliers(name, cases_per_pallet)
       `)
       .eq('code', productCode)
@@ -184,6 +196,8 @@ export default function CIFCalculator() {
         supplierCasesPerPallet: product.suppliers?.cases_per_pallet,
         costPerUnit: product.price_usd_per_unit,
         weightPerUnit,
+        wholesalePriceXCG: product.wholesale_price_xcg_per_unit,
+        retailPriceXCG: product.retail_price_xcg_per_unit,
       };
     }
     return null;
@@ -347,6 +361,23 @@ export default function CIFCalculator() {
         const wholesaleMargin = wholesalePrice - cifPerUnit;
         const retailMargin = retailPrice - cifPerUnit;
 
+        const storedWholesalePrice = product.wholesalePriceXCG;
+        const storedRetailPrice = product.retailPriceXCG;
+
+        const wholesalePriceDiff = storedWholesalePrice 
+          ? wholesalePrice - storedWholesalePrice 
+          : undefined;
+        const wholesalePriceDiffPercent = storedWholesalePrice && storedWholesalePrice !== 0
+          ? (wholesalePriceDiff! / storedWholesalePrice) * 100
+          : undefined;
+
+        const retailPriceDiff = storedRetailPrice 
+          ? retailPrice - storedRetailPrice 
+          : undefined;
+        const retailPriceDiffPercent = storedRetailPrice && storedRetailPrice !== 0
+          ? (retailPriceDiff! / storedRetailPrice) * 100
+          : undefined;
+
         return {
           productCode: product.code,
           productName: product.name,
@@ -358,7 +389,15 @@ export default function CIFCalculator() {
           wholesalePrice,
           retailPrice,
           wholesaleMargin,
-          retailMargin
+          retailMargin,
+          storedWholesalePrice,
+          storedRetailPrice,
+          calculatedWholesalePrice: wholesalePrice,
+          calculatedRetailPrice: retailPrice,
+          wholesalePriceDiff,
+          wholesalePriceDiffPercent,
+          retailPriceDiff,
+          retailPriceDiffPercent,
         };
       });
     };
@@ -461,10 +500,44 @@ export default function CIFCalculator() {
                       <td className="p-2">{result.productName}</td>
                       <td className="text-right p-2">{result.quantity}</td>
                       <td className="text-right p-2">cg {cifPerUnit.toFixed(2)}</td>
-                      <td className="text-right p-2">cg {result.wholesalePrice.toFixed(2)}</td>
+                      <td className="text-right p-2">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger className="cursor-help">
+                              cg {result.wholesalePrice.toFixed(2)}
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {renderPriceTooltip(
+                                result.wholesalePrice,
+                                result.storedWholesalePrice,
+                                result.wholesalePriceDiff,
+                                result.wholesalePriceDiffPercent,
+                                'Wholesale'
+                              )}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </td>
                       <td className="text-right p-2 text-green-600">cg {result.wholesaleMargin.toFixed(2)}</td>
                       <td className="text-right p-2 text-green-600 font-semibold">{wholesaleMarginPercent.toFixed(1)}%</td>
-                      <td className="text-right p-2">cg {result.retailPrice.toFixed(2)}</td>
+                      <td className="text-right p-2">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger className="cursor-help">
+                              cg {result.retailPrice.toFixed(2)}
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {renderPriceTooltip(
+                                result.retailPrice,
+                                result.storedRetailPrice,
+                                result.retailPriceDiff,
+                                result.retailPriceDiffPercent,
+                                'Retail'
+                              )}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </td>
                       <td className="text-right p-2 text-green-600">cg {result.retailMargin.toFixed(2)}</td>
                       <td className="text-right p-2 text-green-600 font-semibold">{retailMarginPercent.toFixed(1)}%</td>
                     </tr>
@@ -518,7 +591,14 @@ export default function CIFCalculator() {
                     step="0.01"
                     value={product.costPerUnit || ''}
                     onChange={(e) => updateProduct(index, 'costPerUnit', parseFloat(e.target.value) || 0, isActual)}
+                    placeholder="Auto-filled from DB"
+                    className={product.costPerUnit ? "font-medium" : ""}
                   />
+                  {product.costPerUnit && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      From database (editable)
+                    </div>
+                  )}
                 </div>
                 <div>
                   <Label>Weight/Unit (kg)</Label>
