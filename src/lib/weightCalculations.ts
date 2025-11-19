@@ -27,6 +27,14 @@ export interface PalletConfig {
   maxCargoHeightCm: number; // total height limit (pallet + cargo)
 }
 
+export interface SupplierPalletData {
+  pallet_length_cm?: number | null;
+  pallet_width_cm?: number | null;
+  pallet_height_cm?: number | null;
+  pallet_weight_kg?: number | null;
+  pallet_max_height_cm?: number | null;
+}
+
 // Standard Euro Pallet Configuration - FIXED: 26kg weight
 export const STANDARD_EUROPALLET: PalletConfig = {
   baseWeightKg: 26,  // Standardized pallet weight
@@ -40,6 +48,26 @@ export const STANDARD_EUROPALLET: PalletConfig = {
 export const PALLET_VOLUMETRIC_WEIGHT_KG = 
   (STANDARD_EUROPALLET.lengthCm * STANDARD_EUROPALLET.widthCm * STANDARD_EUROPALLET.heightCm) / 6000;
 // = 120 × 80 × 14.4 / 6000 = 2.304 kg
+
+/**
+ * Create a PalletConfig from supplier data, falling back to standard Euro pallet
+ */
+export function createPalletConfig(supplierData?: SupplierPalletData): PalletConfig {
+  if (!supplierData || 
+      !supplierData.pallet_length_cm || 
+      !supplierData.pallet_width_cm || 
+      !supplierData.pallet_weight_kg) {
+    return STANDARD_EUROPALLET;
+  }
+
+  return {
+    baseWeightKg: supplierData.pallet_weight_kg,
+    lengthCm: supplierData.pallet_length_cm,
+    widthCm: supplierData.pallet_width_cm,
+    heightCm: supplierData.pallet_height_cm || STANDARD_EUROPALLET.heightCm,
+    maxCargoHeightCm: supplierData.pallet_max_height_cm || STANDARD_EUROPALLET.maxCargoHeightCm
+  };
+}
 
 /**
  * Calculate actual weight per unit (preferring gross over net)
@@ -305,19 +333,28 @@ export interface OrderPalletConfig {
  * Now includes pallet weights in all calculations
  */
 export function calculateOrderPalletConfig(
-  products: Array<ProductWeightInfo & { supplierId: string; supplierName: string; supplierCasesPerPallet?: number }>
+  products: Array<ProductWeightInfo & { 
+    supplierId: string; 
+    supplierName: string; 
+    supplierCasesPerPallet?: number;
+    supplierPalletConfig?: SupplierPalletData;
+  }>
 ): OrderPalletConfig {
   // Group products by supplier
   const supplierGroups = new Map<string, ProductWeightInfo[]>();
   const supplierNames = new Map<string, string>();
   const supplierCasesPerPalletMap = new Map<string, number>();
-  
+  const supplierPalletConfigMap = new Map<string, SupplierPalletData>();
+
   products.forEach(product => {
     if (!supplierGroups.has(product.supplierId)) {
       supplierGroups.set(product.supplierId, []);
       supplierNames.set(product.supplierId, product.supplierName);
       if (product.supplierCasesPerPallet) {
         supplierCasesPerPalletMap.set(product.supplierId, product.supplierCasesPerPallet);
+      }
+      if (product.supplierPalletConfig) {
+        supplierPalletConfigMap.set(product.supplierId, product.supplierPalletConfig);
       }
     }
     supplierGroups.get(product.supplierId)!.push(product);
@@ -326,11 +363,15 @@ export function calculateOrderPalletConfig(
   // Calculate config for each supplier
   const supplierConfigs: SupplierPalletConfig[] = [];
   supplierGroups.forEach((supplierProducts, supplierId) => {
+    const palletConfig = createPalletConfig(
+      supplierPalletConfigMap.get(supplierId)
+    );
+    
     const config = calculateSupplierPalletConfig(
       supplierId,
       supplierNames.get(supplierId) || 'Unknown',
       supplierProducts,
-      STANDARD_EUROPALLET,
+      palletConfig,
       supplierCasesPerPalletMap.get(supplierId)
     );
     supplierConfigs.push(config);
