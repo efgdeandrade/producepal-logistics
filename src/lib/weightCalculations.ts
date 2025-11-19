@@ -149,14 +149,18 @@ export function calculateCasesPerPallet(
   if (maxLayers <= 0) return 0;
 
   // Calculate horizontal placement (try both orientations for best fit)
+  // Add 2cm overhang allowance for real-world pallet loading
+  const effectiveLengthCm = palletConfig.lengthCm + 2; // 120 + 2 = 122cm
+  const effectiveWidthCm = palletConfig.widthCm + 2;   // 80 + 2 = 82cm
+  
   // Pattern 1: Length along pallet length
-  const casesAlongLength1 = Math.floor(palletConfig.lengthCm / caseLengthCm);
-  const casesAlongWidth1 = Math.floor(palletConfig.widthCm / caseWidthCm);
+  const casesAlongLength1 = Math.floor(effectiveLengthCm / caseLengthCm);
+  const casesAlongWidth1 = Math.floor(effectiveWidthCm / caseWidthCm);
   const casesPerLayer1 = casesAlongLength1 * casesAlongWidth1;
 
   // Pattern 2: Length along pallet width (rotated)
-  const casesAlongLength2 = Math.floor(palletConfig.lengthCm / caseWidthCm);
-  const casesAlongWidth2 = Math.floor(palletConfig.widthCm / caseLengthCm);
+  const casesAlongLength2 = Math.floor(effectiveLengthCm / caseWidthCm);
+  const casesAlongWidth2 = Math.floor(effectiveWidthCm / caseLengthCm);
   const casesPerLayer2 = casesAlongLength2 * casesAlongWidth2;
 
   // Use the better orientation
