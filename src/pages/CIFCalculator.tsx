@@ -113,8 +113,6 @@ export default function CIFCalculator() {
         setFreightLocalPerKg((settingsMap.get('freight_local_tariff') as any)?.rate || 0.41);
       } catch (error) {
         console.error('Error loading settings:', error);
-      } finally {
-        setLoading(false);
       }
     };
     loadSettings();
@@ -141,6 +139,37 @@ export default function CIFCalculator() {
     };
     loadProducts();
   }, []);
+
+  // Initialize default products with full database data
+  useEffect(() => {
+    const initializeDefaultProducts = async () => {
+      if (allProducts.length > 0) {
+        // Initialize estimate products
+        const estimateData = await fetchProductData('STB_500');
+        if (estimateData) {
+          setEstimateProducts([{
+            code: 'STB_500' as ProductCode,
+            ...estimateData,
+            quantity: 0,
+          }]);
+        }
+        
+        // Initialize actual products
+        const actualData = await fetchProductData('STB_500');
+        if (actualData) {
+          setActualProducts([{
+            code: 'STB_500' as ProductCode,
+            ...actualData,
+            quantity: 0,
+          }]);
+        }
+        
+        setLoading(false);
+      }
+    };
+    
+    initializeDefaultProducts();
+  }, [allProducts]);
 
   const handleExchangeRateChange = (value: string) => {
     const rate = parseFloat(value) || DEFAULT_EXCHANGE_RATE;
@@ -248,6 +277,25 @@ export default function CIFCalculator() {
     totalVolumetricWeight: number,
     totalChargeableWeight: number
   } => {
+    // Return empty results if no products have quantity
+    const hasValidProducts = products.some(p => p.quantity > 0);
+    if (!hasValidProducts) {
+      return {
+        byWeight: [],
+        byCost: [],
+        equally: [],
+        hybrid: [],
+        strategic: [],
+        volumeOptimized: [],
+        customerTier: [],
+        limitingFactor: 'actual' as const,
+        totalPallets: 0,
+        totalActualWeight: 0,
+        totalVolumetricWeight: 0,
+        totalChargeableWeight: 0,
+      };
+    }
+
     const LOCAL_LOGISTICS_XCG = 50;
     const LOCAL_LOGISTICS_USD = 91;
     const LABOR_XCG = 50;
@@ -425,12 +473,12 @@ export default function CIFCalculator() {
     priceDiffPercent: number | undefined,
     priceType: 'Wholesale' | 'Retail'
   ) => {
-    if (!storedPrice) {
+    if (!storedPrice || storedPrice === 0) {
       return (
         <div className="text-sm">
-          <p className="font-semibold">{priceType} Price (Calculated)</p>
-          <p>Cg {currentPrice.toFixed(2)}</p>
-          <p className="text-muted-foreground mt-1">No stored price available</p>
+          <p className="font-semibold">{priceType} Price</p>
+          <p>Current (Calculated): <span className="font-medium">Cg {currentPrice.toFixed(2)}</span></p>
+          <p className="text-muted-foreground text-xs mt-1">No stored price in database</p>
         </div>
       );
     }
@@ -442,16 +490,16 @@ export default function CIFCalculator() {
       <div className="text-sm space-y-1">
         <p className="font-semibold">{priceType} Price Comparison</p>
         <div className="space-y-1">
-          <p>Current (Calculated): <span className="font-medium">Cg {currentPrice.toFixed(2)}</span></p>
-          <p>Stored (Database): <span className="font-medium">Cg {storedPrice.toFixed(2)}</span></p>
+          <p>Database Price: <span className="font-medium">Cg {storedPrice.toFixed(2)}</span></p>
+          <p>Calculated Price: <span className="font-medium">Cg {currentPrice.toFixed(2)}</span></p>
         </div>
         {priceDiff !== undefined && priceDiffPercent !== undefined && (
           <div className={`pt-1 border-t ${diffColor}`}>
             <p className="font-semibold">
-              Difference: Cg {Math.abs(priceDiff).toFixed(2)} ({isHigher ? '+' : ''}{priceDiffPercent.toFixed(2)}%)
+              Difference: {isHigher ? '+' : ''}{priceDiff.toFixed(2)} ({priceDiffPercent.toFixed(1)}%)
             </p>
-            <p className="text-xs text-muted-foreground">
-              {isHigher ? 'Calculated price is higher' : 'Calculated price is lower'}
+            <p className="text-xs">
+              {isHigher ? '⚠️ Calculated price is higher than database' : '✓ Calculated price is lower than database'}
             </p>
           </div>
         )}
@@ -565,16 +613,23 @@ export default function CIFCalculator() {
                     onValueChange={(value) => updateProduct(index, 'code', value as ProductCode, isActual)}
                   >
                     <SelectTrigger className="w-full bg-background">
-                      <SelectValue placeholder="Select product" />
+                      <SelectValue placeholder="Select product">
+                        {product.name} {product.code && `(${product.code})`}
+                      </SelectValue>
                     </SelectTrigger>
-                    <SelectContent className="bg-popover max-h-[300px] z-50">
+                    <SelectContent className="bg-popover max-h-[300px] z-50 overflow-y-auto">
                       {allProducts.map(p => (
-                        <SelectItem key={p.code} value={p.code} className="cursor-pointer">
+                        <SelectItem key={p.code} value={p.code} className="cursor-pointer hover:bg-accent">
                           {p.name} ({p.code})
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {product.code && !product.costPerUnit && !product.weightPerUnit && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Loading product data...
+                    </div>
+                  )}
                 </div>
                 <div>
                   <Label>Quantity</Label>
@@ -642,7 +697,8 @@ export default function CIFCalculator() {
   const actualResults = calculateCIF(actualProducts, actualFreightChampion, actualSwissport);
 
   const renderWeightInfo = (results: ReturnType<typeof calculateCIF>) => {
-    if (!results.totalChargeableWeight) return null;
+    // Don't show weight info if no products have quantity
+    if (!results.totalChargeableWeight || results.totalChargeableWeight === 0) return null;
 
     return (
       <Card className="mb-4">
