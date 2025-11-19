@@ -407,7 +407,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
         </div>
         <ScrollArea className="w-full">
           <Table>
-            <TableHeader>
+            <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
                 <TableHead>Product</TableHead>
                 <TableHead className="text-right">Units</TableHead>
