@@ -405,7 +405,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
           <h3 className="text-sm font-semibold">{title}</h3>
           {description && <p className="text-xs text-muted-foreground mt-1">{description}</p>}
         </div>
-        <ScrollArea className="w-full">
+        <div className="w-full max-h-[600px] overflow-auto border rounded-md">
           <Table>
             <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
@@ -582,8 +582,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
               </TableRow>
             </TableBody>
           </Table>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
+        </div>
       </div>
     );
   };
