@@ -545,7 +545,14 @@ const Suppliers = () => {
           empty_case_weight: productFormData.empty_case_weight ? parseFloat(productFormData.empty_case_weight) : null,
           price_usd_per_unit: productFormData.price_usd_per_unit ? parseFloat(productFormData.price_usd_per_unit) : null,
           price_xcg_per_unit: productFormData.price_xcg_per_unit ? parseFloat(productFormData.price_xcg_per_unit) : null,
+          wholesale_price_usd_per_unit: productFormData.wholesale_price_usd_per_unit ? parseFloat(productFormData.wholesale_price_usd_per_unit) : null,
+          wholesale_price_xcg_per_unit: productFormData.wholesale_price_xcg_per_unit ? parseFloat(productFormData.wholesale_price_xcg_per_unit) : null,
+          retail_price_usd_per_unit: productFormData.retail_price_usd_per_unit ? parseFloat(productFormData.retail_price_usd_per_unit) : null,
+          retail_price_xcg_per_unit: productFormData.retail_price_xcg_per_unit ? parseFloat(productFormData.retail_price_xcg_per_unit) : null,
           unit: productFormData.unit || null,
+          length_cm: productFormData.length_cm ? parseFloat(productFormData.length_cm) : null,
+          width_cm: productFormData.width_cm ? parseFloat(productFormData.width_cm) : null,
+          height_cm: productFormData.height_cm ? parseFloat(productFormData.height_cm) : null,
         });
       } else {
         createProductMutation.mutate(productFormData);
