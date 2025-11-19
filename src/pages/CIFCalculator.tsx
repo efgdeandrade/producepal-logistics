@@ -379,6 +379,47 @@ export default function CIFCalculator() {
     };
   };
 
+  const renderPriceTooltip = (
+    currentPrice: number,
+    storedPrice: number | undefined,
+    priceDiff: number | undefined,
+    priceDiffPercent: number | undefined,
+    priceType: 'Wholesale' | 'Retail'
+  ) => {
+    if (!storedPrice) {
+      return (
+        <div className="text-sm">
+          <p className="font-semibold">{priceType} Price (Calculated)</p>
+          <p>Cg {currentPrice.toFixed(2)}</p>
+          <p className="text-muted-foreground mt-1">No stored price available</p>
+        </div>
+      );
+    }
+
+    const isHigher = priceDiff && priceDiff > 0;
+    const diffColor = isHigher ? "text-red-500" : "text-green-500";
+
+    return (
+      <div className="text-sm space-y-1">
+        <p className="font-semibold">{priceType} Price Comparison</p>
+        <div className="space-y-1">
+          <p>Current (Calculated): <span className="font-medium">Cg {currentPrice.toFixed(2)}</span></p>
+          <p>Stored (Database): <span className="font-medium">Cg {storedPrice.toFixed(2)}</span></p>
+        </div>
+        {priceDiff !== undefined && priceDiffPercent !== undefined && (
+          <div className={`pt-1 border-t ${diffColor}`}>
+            <p className="font-semibold">
+              Difference: Cg {Math.abs(priceDiff).toFixed(2)} ({isHigher ? '+' : ''}{priceDiffPercent.toFixed(2)}%)
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {isHigher ? 'Calculated price is higher' : 'Calculated price is lower'}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderResults = (results: CIFResult[], title: string) => {
     if (results.length === 0 || results.every(r => r.quantity === 0)) {
       return null;
