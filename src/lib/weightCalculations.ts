@@ -130,45 +130,48 @@ export function calculateCasesPerPallet(
   palletConfig: PalletConfig = STANDARD_EUROPALLET,
   supplierCasesPerPallet?: number
 ): number {
-  // If supplier has manual configuration, use it
+  // STEP 1: Try dimensional calculation FIRST (prioritize physics-based calculation)
+  if (caseLengthCm > 0 && caseWidthCm > 0 && caseHeightCm > 0) {
+    // Calculate available cargo height
+    const availableHeight = palletConfig.maxCargoHeightCm - palletConfig.heightCm; // 155 - 14.4 = 140.6cm
+
+    // Calculate how many layers can fit vertically
+    const maxLayers = Math.floor(availableHeight / caseHeightCm);
+    
+    if (maxLayers > 0) {
+      // Calculate horizontal placement (try both orientations for best fit)
+      // Add 2cm overhang allowance for real-world pallet loading
+      const effectiveLengthCm = palletConfig.lengthCm + 2; // 120 + 2 = 122cm
+      const effectiveWidthCm = palletConfig.widthCm + 2;   // 80 + 2 = 82cm
+      
+      // Pattern 1: Length along pallet length
+      const casesAlongLength1 = Math.floor(effectiveLengthCm / caseLengthCm);
+      const casesAlongWidth1 = Math.floor(effectiveWidthCm / caseWidthCm);
+      const casesPerLayer1 = casesAlongLength1 * casesAlongWidth1;
+
+      // Pattern 2: Length along pallet width (rotated)
+      const casesAlongLength2 = Math.floor(effectiveLengthCm / caseWidthCm);
+      const casesAlongWidth2 = Math.floor(effectiveWidthCm / caseLengthCm);
+      const casesPerLayer2 = casesAlongLength2 * casesAlongWidth2;
+
+      // Use the better orientation
+      const casesPerLayer = Math.max(casesPerLayer1, casesPerLayer2);
+      
+      if (casesPerLayer > 0) {
+        // ✅ Successfully calculated from dimensions - return immediately
+        return casesPerLayer * maxLayers;
+      }
+    }
+  }
+
+  // STEP 2: Dimensions failed/missing → Fall back to manual supplier value
   if (supplierCasesPerPallet && supplierCasesPerPallet > 0) {
     return supplierCasesPerPallet;
   }
 
-  // Validate dimensions
-  if (!caseLengthCm || !caseWidthCm || !caseHeightCm || 
-      caseLengthCm <= 0 || caseWidthCm <= 0 || caseHeightCm <= 0) {
-    return 0;
-  }
-
-  // Calculate available cargo height
-  const availableHeight = palletConfig.maxCargoHeightCm - palletConfig.heightCm; // 155 - 14.4 = 140.6cm
-
-  // Calculate how many layers can fit vertically
-  const maxLayers = Math.floor(availableHeight / caseHeightCm);
-  if (maxLayers <= 0) return 0;
-
-  // Calculate horizontal placement (try both orientations for best fit)
-  // Add 2cm overhang allowance for real-world pallet loading
-  const effectiveLengthCm = palletConfig.lengthCm + 2; // 120 + 2 = 122cm
-  const effectiveWidthCm = palletConfig.widthCm + 2;   // 80 + 2 = 82cm
-  
-  // Pattern 1: Length along pallet length
-  const casesAlongLength1 = Math.floor(effectiveLengthCm / caseLengthCm);
-  const casesAlongWidth1 = Math.floor(effectiveWidthCm / caseWidthCm);
-  const casesPerLayer1 = casesAlongLength1 * casesAlongWidth1;
-
-  // Pattern 2: Length along pallet width (rotated)
-  const casesAlongLength2 = Math.floor(effectiveLengthCm / caseWidthCm);
-  const casesAlongWidth2 = Math.floor(effectiveWidthCm / caseLengthCm);
-  const casesPerLayer2 = casesAlongLength2 * casesAlongWidth2;
-
-  // Use the better orientation
-  const casesPerLayer = Math.max(casesPerLayer1, casesPerLayer2);
-  if (casesPerLayer <= 0) return 0;
-
-  // Total cases = cases per layer × number of layers
-  return casesPerLayer * maxLayers;
+  // STEP 3: Neither dimensions nor manual value available → return 0
+  // This will trigger weight-based estimation in calculateSupplierPalletConfig
+  return 0;
 }
 
 /**
