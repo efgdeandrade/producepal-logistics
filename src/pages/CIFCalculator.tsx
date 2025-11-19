@@ -5,10 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calculator, ArrowLeft } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Calculator, ArrowLeft, Package, AlertTriangle } from 'lucide-react';
 import { PRODUCTS, ProductCode } from '@/types/order';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { calculateOrderPalletConfig, ProductWeightInfo } from '@/lib/weightCalculations';
 
 interface ProductInput {
   code: ProductCode;
@@ -16,6 +19,16 @@ interface ProductInput {
   quantity: number;
   costPerUnit: number;
   weightPerUnit: number;
+  lengthCm?: number;
+  widthCm?: number;
+  heightCm?: number;
+  volumetricWeightPerUnit?: number;
+  chargeableWeightPerUnit?: number;
+  emptyCaseWeight?: number;
+  packSize?: number;
+  supplierId?: string;
+  supplierName?: string;
+  supplierCasesPerPallet?: number;
 }
 
 interface CIFResult {
@@ -95,7 +108,43 @@ export default function CIFCalculator() {
     }
   };
 
-  const updateProduct = (index: number, field: keyof ProductInput, value: any, isActual: boolean) => {
+  const fetchProductData = async (productCode: string) => {
+    const { data: product } = await supabase
+      .from('products')
+      .select(`
+        code, name, price_usd_per_unit, netto_weight_per_unit, gross_weight_per_unit, 
+        pack_size, empty_case_weight, length_cm, width_cm, height_cm, volumetric_weight_kg,
+        supplier_id, suppliers(name, cases_per_pallet)
+      `)
+      .eq('code', productCode)
+      .single();
+    
+    if (product) {
+      const weightPerUnit = (product.gross_weight_per_unit || product.netto_weight_per_unit || 0) / 1000;
+      const volumetricWeightPerUnit = product.volumetric_weight_kg || 
+        (product.length_cm && product.width_cm && product.height_cm 
+          ? (product.length_cm * product.width_cm * product.height_cm) / 6000
+          : 0);
+      
+      return {
+        lengthCm: product.length_cm,
+        widthCm: product.width_cm,
+        heightCm: product.height_cm,
+        volumetricWeightPerUnit,
+        chargeableWeightPerUnit: Math.max(weightPerUnit, volumetricWeightPerUnit),
+        emptyCaseWeight: product.empty_case_weight ? product.empty_case_weight / 1000 : 0,
+        packSize: product.pack_size,
+        supplierId: product.supplier_id,
+        supplierName: product.suppliers?.name,
+        supplierCasesPerPallet: product.suppliers?.cases_per_pallet,
+        costPerUnit: product.price_usd_per_unit,
+        weightPerUnit,
+      };
+    }
+    return null;
+  };
+
+  const updateProduct = async (index: number, field: keyof ProductInput, value: any, isActual: boolean) => {
     const products = isActual ? actualProducts : estimateProducts;
     const setProducts = isActual ? setActualProducts : setEstimateProducts;
     
@@ -103,10 +152,12 @@ export default function CIFCalculator() {
     if (field === 'code') {
       const product = PRODUCTS.find(p => p.code === value);
       if (product) {
+        const dbData = await fetchProductData(value);
         updated[index] = {
           ...updated[index],
           code: product.code,
-          name: product.name
+          name: product.name,
+          ...(dbData || {}),
         };
       }
     } else {
@@ -125,32 +176,122 @@ export default function CIFCalculator() {
     products: ProductInput[],
     freightChampionCost?: number,
     swissportCost?: number
-  ): { byWeight: CIFResult[], byCost: CIFResult[], equally: CIFResult[] } => {
+  ): { 
+    byWeight: CIFResult[], 
+    byCost: CIFResult[], 
+    equally: CIFResult[],
+    hybrid: CIFResult[],
+    strategic: CIFResult[],
+    volumeOptimized: CIFResult[],
+    customerTier: CIFResult[],
+    limitingFactor: string,
+    totalPallets: number,
+    totalActualWeight: number,
+    totalVolumetricWeight: number,
+    totalChargeableWeight: number
+  } => {
     const LOCAL_LOGISTICS_XCG = 50;
     const LOCAL_LOGISTICS_USD = 91;
     const LABOR_XCG = 50;
     const WHOLESALE_MULTIPLIER = 1.25;
     const RETAIL_MULTIPLIER = 1.786;
 
-    const totalWeight = products.reduce((sum, p) => sum + (p.quantity * p.weightPerUnit), 0);
+    // Convert products to weight info format
+    const productsWithWeight: ProductWeightInfo[] = products.map(p => ({
+      code: p.code,
+      name: p.name,
+      quantity: p.quantity * (p.packSize || 1),
+      netWeightPerUnit: p.weightPerUnit * 1000,
+      grossWeightPerUnit: p.weightPerUnit * 1000,
+      emptyCaseWeight: (p.emptyCaseWeight || 0) * 1000,
+      lengthCm: p.lengthCm,
+      widthCm: p.widthCm,
+      heightCm: p.heightCm,
+      supplierId: p.supplierId || 'unknown',
+      supplierName: p.supplierName || 'Unknown',
+      supplierCasesPerPallet: p.supplierCasesPerPallet,
+      packSize: p.packSize || 1,
+    }));
+
+    // Calculate order-level pallet configuration (includes pallet weights)
+    const orderPalletConfig = calculateOrderPalletConfig(productsWithWeight as any);
+    
+    const totalActualWeight = orderPalletConfig.totalActualWeight;
+    const totalVolumetricWeight = orderPalletConfig.totalVolumetricWeight;
+    const totalChargeableWeight = orderPalletConfig.totalChargeableWeight;
+    const totalPallets = orderPalletConfig.totalPallets;
+    const limitingFactor = totalChargeableWeight === totalVolumetricWeight ? 'volumetric' : 'actual';
+
     const totalCost = products.reduce((sum, p) => sum + (p.quantity * p.costPerUnit), 0);
 
-    const freightChampion = freightChampionCost ?? (totalWeight * freightExteriorPerKg);
-    const swissport = swissportCost ?? (totalWeight * freightLocalPerKg);
-    const totalFreight = LOCAL_LOGISTICS_USD + freightChampion + swissport;
+    const combinedTariffPerKg = freightExteriorPerKg + freightLocalPerKg;
+    const totalFreightCost = freightChampionCost && swissportCost 
+      ? (freightChampionCost + swissportCost + LOCAL_LOGISTICS_USD)
+      : (totalChargeableWeight * combinedTariffPerKg + LOCAL_LOGISTICS_USD);
 
-    const calculateResults = (distributionMethod: 'weight' | 'cost' | 'equal'): CIFResult[] => {
+    const calculateResults = (distributionMethod: 'weight' | 'cost' | 'equal' | 'hybrid' | 'strategic' | 'volumeOptimized' | 'customerTier'): CIFResult[] => {
       return products.map(product => {
-        const productWeight = product.quantity * product.weightPerUnit;
+        const productActualWeightKg = (product.quantity * product.weightPerUnit) + 
+          (product.quantity / (product.packSize || 1) * (product.emptyCaseWeight || 0));
+        const productVolumetricWeightKg = (product.quantity * (product.volumetricWeightPerUnit || 0)) + 
+          (product.quantity / (product.packSize || 1) * (product.emptyCaseWeight || 0));
+        
+        const productChargeableWeightKg = Math.max(productActualWeightKg, productVolumetricWeightKg);
         const productCost = product.quantity * product.costPerUnit;
 
         let freightShare = 0;
-        if (distributionMethod === 'weight') {
-          freightShare = totalWeight > 0 ? (productWeight / totalWeight) * totalFreight : 0;
-        } else if (distributionMethod === 'cost') {
-          freightShare = totalCost > 0 ? (productCost / totalCost) * totalFreight : 0;
-        } else {
-          freightShare = totalFreight / products.length;
+        
+        switch (distributionMethod) {
+          case 'weight':
+            const productContribution = limitingFactor === 'volumetric' 
+              ? productVolumetricWeightKg 
+              : productActualWeightKg;
+            freightShare = totalChargeableWeight > 0 
+              ? (productContribution / totalChargeableWeight) * totalFreightCost 
+              : 0;
+            break;
+            
+          case 'cost':
+            freightShare = totalCost > 0 ? (productCost / totalCost) * totalFreightCost : 0;
+            break;
+            
+          case 'equal':
+            freightShare = totalFreightCost / products.length;
+            break;
+            
+          case 'hybrid':
+            const weightShare = totalChargeableWeight > 0 
+              ? (productChargeableWeightKg / totalChargeableWeight) * totalFreightCost * 0.5
+              : 0;
+            const costShare = totalCost > 0 
+              ? (productCost / totalCost) * totalFreightCost * 0.5
+              : 0;
+            freightShare = weightShare + costShare;
+            break;
+            
+          case 'strategic':
+            const baseShare = totalChargeableWeight > 0 
+              ? (productChargeableWeightKg / totalChargeableWeight) * totalFreightCost
+              : 0;
+            freightShare = baseShare;
+            break;
+            
+          case 'volumeOptimized':
+            const volumeEfficiency = productActualWeightKg > 0 
+              ? productVolumetricWeightKg / productActualWeightKg 
+              : 1;
+            const penalty = volumeEfficiency > 1.2 ? volumeEfficiency : 1;
+            const baseVolumeShare = totalChargeableWeight > 0 
+              ? (productChargeableWeightKg / totalChargeableWeight) * totalFreightCost
+              : 0;
+            freightShare = baseVolumeShare * penalty;
+            break;
+            
+          case 'customerTier':
+            freightShare = totalChargeableWeight > 0 
+              ? (productChargeableWeightKg / totalChargeableWeight) * totalFreightCost
+              : 0;
+            break;
         }
 
         const cifUSD = productCost + freightShare;
@@ -181,7 +322,16 @@ export default function CIFCalculator() {
     return {
       byWeight: calculateResults('weight'),
       byCost: calculateResults('cost'),
-      equally: calculateResults('equal')
+      equally: calculateResults('equal'),
+      hybrid: calculateResults('hybrid'),
+      strategic: calculateResults('strategic'),
+      volumeOptimized: calculateResults('volumeOptimized'),
+      customerTier: calculateResults('customerTier'),
+      limitingFactor,
+      totalPallets,
+      totalActualWeight,
+      totalVolumetricWeight,
+      totalChargeableWeight
     };
   };
 
@@ -287,6 +437,14 @@ export default function CIFCalculator() {
                     value={product.weightPerUnit || ''}
                     onChange={(e) => updateProduct(index, 'weightPerUnit', parseFloat(e.target.value) || 0, isActual)}
                   />
+                  {product.lengthCm && product.widthCm && product.heightCm && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Dims: {product.lengthCm}×{product.widthCm}×{product.heightCm}cm
+                      {product.volumetricWeightPerUnit && (
+                        <span> | Vol: {product.volumetricWeightPerUnit.toFixed(3)}kg</span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-end">
                   <Button
@@ -311,6 +469,44 @@ export default function CIFCalculator() {
 
   const estimateResults = calculateCIF(estimateProducts);
   const actualResults = calculateCIF(actualProducts, actualFreightChampion, actualSwissport);
+
+  const renderWeightInfo = (results: ReturnType<typeof calculateCIF>) => {
+    if (!results.totalChargeableWeight) return null;
+
+    return (
+      <Card className="mb-4">
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+            <div>
+              <div className="text-muted-foreground">Actual Weight</div>
+              <div className="font-semibold">{results.totalActualWeight.toFixed(2)} kg</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">Volumetric Weight</div>
+              <div className="font-semibold">{results.totalVolumetricWeight.toFixed(2)} kg</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">Chargeable Weight</div>
+              <div className="font-semibold">{results.totalChargeableWeight.toFixed(2)} kg</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">Total Pallets</div>
+              <div className="font-semibold flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                {results.totalPallets}
+              </div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">Charged By</div>
+              <Badge variant={results.limitingFactor === 'volumetric' ? 'destructive' : 'default'}>
+                {results.limitingFactor === 'volumetric' ? 'Volumetric' : 'Actual'}
+              </Badge>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   if (loading) {
     return (
@@ -366,10 +562,54 @@ export default function CIFCalculator() {
             </Card>
 
             <div className="space-y-4">
-              <h2 className="text-2xl font-bold">Results</h2>
-              {renderResults(estimateResults.byWeight, 'Distribution by Weight')}
-              {renderResults(estimateResults.byCost, 'Distribution by Cost')}
-              {renderResults(estimateResults.equally, 'Equal Distribution')}
+              <h2 className="text-2xl font-bold mb-4">Results</h2>
+              
+              {renderWeightInfo(estimateResults)}
+              
+              {estimateResults.limitingFactor === 'volumetric' && (
+                <Alert variant="destructive" className="mb-4">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Charged by Volumetric Weight</AlertTitle>
+                  <AlertDescription>
+                    You're paying for {estimateResults.totalVolumetricWeight.toFixed(2)} kg but only shipping {estimateResults.totalActualWeight.toFixed(2)} kg.
+                    That's {(estimateResults.totalVolumetricWeight - estimateResults.totalActualWeight).toFixed(2)} kg ({((estimateResults.totalVolumetricWeight - estimateResults.totalActualWeight) / estimateResults.totalActualWeight * 100).toFixed(1)}%) of "air".
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <Tabs defaultValue="weight" className="w-full">
+                <TabsList className="grid w-full grid-cols-7 mb-4">
+                  <TabsTrigger value="weight">Weight</TabsTrigger>
+                  <TabsTrigger value="cost">Cost</TabsTrigger>
+                  <TabsTrigger value="equal">Equal</TabsTrigger>
+                  <TabsTrigger value="hybrid">Hybrid</TabsTrigger>
+                  <TabsTrigger value="strategic">Strategic</TabsTrigger>
+                  <TabsTrigger value="volumeOptimized">Vol-Opt</TabsTrigger>
+                  <TabsTrigger value="customerTier">Tier</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="weight">
+                  {renderResults(estimateResults.byWeight, 'Distribution by Weight')}
+                </TabsContent>
+                <TabsContent value="cost">
+                  {renderResults(estimateResults.byCost, 'Distribution by Cost')}
+                </TabsContent>
+                <TabsContent value="equal">
+                  {renderResults(estimateResults.equally, 'Equal Distribution')}
+                </TabsContent>
+                <TabsContent value="hybrid">
+                  {renderResults(estimateResults.hybrid, 'Hybrid Method (50% Weight + 50% Cost)')}
+                </TabsContent>
+                <TabsContent value="strategic">
+                  {renderResults(estimateResults.strategic, 'Strategic Method')}
+                </TabsContent>
+                <TabsContent value="volumeOptimized">
+                  {renderResults(estimateResults.volumeOptimized, 'Volume-Optimized (Penalizes Air Space)')}
+                </TabsContent>
+                <TabsContent value="customerTier">
+                  {renderResults(estimateResults.customerTier, 'Customer Tier Method')}
+                </TabsContent>
+              </Tabs>
             </div>
           </TabsContent>
 
@@ -410,10 +650,54 @@ export default function CIFCalculator() {
             </Card>
 
             <div className="space-y-4">
-              <h2 className="text-2xl font-bold">Results</h2>
-              {renderResults(actualResults.byWeight, 'Distribution by Weight')}
-              {renderResults(actualResults.byCost, 'Distribution by Cost')}
-              {renderResults(actualResults.equally, 'Equal Distribution')}
+              <h2 className="text-2xl font-bold mb-4">Results</h2>
+              
+              {renderWeightInfo(actualResults)}
+              
+              {actualResults.limitingFactor === 'volumetric' && (
+                <Alert variant="destructive" className="mb-4">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Charged by Volumetric Weight</AlertTitle>
+                  <AlertDescription>
+                    You're paying for {actualResults.totalVolumetricWeight.toFixed(2)} kg but only shipping {actualResults.totalActualWeight.toFixed(2)} kg.
+                    That's {(actualResults.totalVolumetricWeight - actualResults.totalActualWeight).toFixed(2)} kg ({((actualResults.totalVolumetricWeight - actualResults.totalActualWeight) / actualResults.totalActualWeight * 100).toFixed(1)}%) of "air".
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <Tabs defaultValue="weight" className="w-full">
+                <TabsList className="grid w-full grid-cols-7 mb-4">
+                  <TabsTrigger value="weight">Weight</TabsTrigger>
+                  <TabsTrigger value="cost">Cost</TabsTrigger>
+                  <TabsTrigger value="equal">Equal</TabsTrigger>
+                  <TabsTrigger value="hybrid">Hybrid</TabsTrigger>
+                  <TabsTrigger value="strategic">Strategic</TabsTrigger>
+                  <TabsTrigger value="volumeOptimized">Vol-Opt</TabsTrigger>
+                  <TabsTrigger value="customerTier">Tier</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="weight">
+                  {renderResults(actualResults.byWeight, 'Distribution by Weight')}
+                </TabsContent>
+                <TabsContent value="cost">
+                  {renderResults(actualResults.byCost, 'Distribution by Cost')}
+                </TabsContent>
+                <TabsContent value="equal">
+                  {renderResults(actualResults.equally, 'Equal Distribution')}
+                </TabsContent>
+                <TabsContent value="hybrid">
+                  {renderResults(actualResults.hybrid, 'Hybrid Method (50% Weight + 50% Cost)')}
+                </TabsContent>
+                <TabsContent value="strategic">
+                  {renderResults(actualResults.strategic, 'Strategic Method')}
+                </TabsContent>
+                <TabsContent value="volumeOptimized">
+                  {renderResults(actualResults.volumeOptimized, 'Volume-Optimized (Penalizes Air Space)')}
+                </TabsContent>
+                <TabsContent value="customerTier">
+                  {renderResults(actualResults.customerTier, 'Customer Tier Method')}
+                </TabsContent>
+              </Tabs>
             </div>
           </TabsContent>
         </Tabs>
