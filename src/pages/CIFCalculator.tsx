@@ -10,6 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Separator } from '@/components/ui/separator';
 import { Calculator, ArrowLeft, Package, AlertTriangle, Save, Printer, FileText, Download } from 'lucide-react';
 import { PRODUCTS, ProductCode } from '@/types/order';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
@@ -115,6 +116,16 @@ export default function CIFCalculator() {
   const [actualProducts, setActualProducts] = useState<ProductInput[]>([]);
   const [actualFreightChampion, setActualFreightChampion] = useState(0);
   const [actualSwissport, setActualSwissport] = useState(0);
+
+  // Configurable costs for Estimate
+  const [localLogisticsUSD, setLocalLogisticsUSD] = useState(91);
+  const [laborXCG, setLaborXCG] = useState(50);
+  const [bankChargesUSD, setBankChargesUSD] = useState(0);
+
+  // Configurable costs for Actual
+  const [actualLocalLogisticsUSD, setActualLocalLogisticsUSD] = useState(91);
+  const [actualLaborXCG, setActualLaborXCG] = useState(50);
+  const [actualBankChargesUSD, setActualBankChargesUSD] = useState(0);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -308,11 +319,17 @@ export default function CIFCalculator() {
       
       if (data.calculation_type === 'estimate') {
         setEstimateProducts(data.products as unknown as ProductInput[]);
+        if (data.local_logistics_usd !== undefined) setLocalLogisticsUSD(data.local_logistics_usd);
+        if (data.labor_xcg !== undefined) setLaborXCG(data.labor_xcg);
+        if (data.bank_charges_usd !== undefined) setBankChargesUSD(data.bank_charges_usd);
         setActiveTab('estimate');
       } else {
         setActualProducts(data.products as unknown as ProductInput[]);
         setActualFreightChampion(data.freight_champion_cost || 0);
         setActualSwissport(data.swissport_cost || 0);
+        if (data.local_logistics_usd !== undefined) setActualLocalLogisticsUSD(data.local_logistics_usd);
+        if (data.labor_xcg !== undefined) setActualLaborXCG(data.labor_xcg);
+        if (data.bank_charges_usd !== undefined) setActualBankChargesUSD(data.bank_charges_usd);
         setActiveTab('actual');
       }
       
@@ -372,6 +389,9 @@ export default function CIFCalculator() {
         freight_local_per_kg: freightLocalPerKg,
         freight_champion_cost: calculationType === 'actual' ? actualFreightChampion : null,
         swissport_cost: calculationType === 'actual' ? actualSwissport : null,
+        local_logistics_usd: calculationType === 'estimate' ? localLogisticsUSD : actualLocalLogisticsUSD,
+        labor_xcg: calculationType === 'estimate' ? laborXCG : actualLaborXCG,
+        bank_charges_usd: calculationType === 'estimate' ? bankChargesUSD : actualBankChargesUSD,
         products: products,
         results: results,
         total_pallets: results.totalPallets,
@@ -457,8 +477,11 @@ export default function CIFCalculator() {
   const calculateCIF = (
     products: ProductInput[],
     freightChampionCost?: number,
-    swissportCost?: number
-  ): { 
+    swissportCost?: number,
+    localLogisticsUSD?: number,
+    laborXCG?: number,
+    bankChargesUSD?: number
+  ): {
     byWeight: CIFResult[], 
     byCost: CIFResult[], 
     equally: CIFResult[],
@@ -491,9 +514,10 @@ export default function CIFCalculator() {
       };
     }
 
-    const LOCAL_LOGISTICS_XCG = 50;
-    const LOCAL_LOGISTICS_USD = 91;
-    const LABOR_XCG = 50;
+    // Use provided values or fall back to defaults
+    const LOCAL_LOGISTICS_USD = localLogisticsUSD ?? 91;
+    const LABOR_XCG = laborXCG ?? 50;
+    const BANK_CHARGES_USD = bankChargesUSD ?? 0;
     const WHOLESALE_MULTIPLIER = 1.25;
     const RETAIL_MULTIPLIER = 1.786;
 
@@ -528,8 +552,8 @@ export default function CIFCalculator() {
 
     const combinedTariffPerKg = freightExteriorPerKg + freightLocalPerKg;
     const totalFreightCost = freightChampionCost && swissportCost 
-      ? (freightChampionCost + swissportCost + LOCAL_LOGISTICS_USD)
-      : (totalChargeableWeight * combinedTariffPerKg + LOCAL_LOGISTICS_USD);
+      ? (freightChampionCost + swissportCost + LOCAL_LOGISTICS_USD + BANK_CHARGES_USD)
+      : (totalChargeableWeight * combinedTariffPerKg + LOCAL_LOGISTICS_USD + BANK_CHARGES_USD);
 
     const calculateResults = (distributionMethod: 'weight' | 'cost' | 'equal' | 'hybrid' | 'strategic' | 'volumeOptimized' | 'customerTier'): CIFResult[] => {
       return products.map(product => {
@@ -950,8 +974,8 @@ export default function CIFCalculator() {
     );
   };
 
-  const estimateResults = calculateCIF(estimateProducts);
-  const actualResults = calculateCIF(actualProducts, actualFreightChampion, actualSwissport);
+  const estimateResults = calculateCIF(estimateProducts, undefined, undefined, localLogisticsUSD, laborXCG, bankChargesUSD);
+  const actualResults = calculateCIF(actualProducts, actualFreightChampion, actualSwissport, actualLocalLogisticsUSD, actualLaborXCG, actualBankChargesUSD);
 
   const renderWeightInfo = (results: ReturnType<typeof calculateCIF>) => {
     // Don't show weight info if no products have quantity
@@ -1042,6 +1066,57 @@ export default function CIFCalculator() {
               </CardHeader>
               <CardContent>
                 {renderProductInputs(estimateProducts, false)}
+              </CardContent>
+            </Card>
+
+            {/* Additional Costs - Estimate */}
+            <Card className="mb-4">
+              <CardHeader>
+                <CardTitle>Additional Costs</CardTitle>
+                <CardDescription>Configure logistics, labor, and bank charges</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label>Local Logistics (USD)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={localLogisticsUSD}
+                      onChange={(e) => setLocalLogisticsUSD(parseFloat(e.target.value) || 0)}
+                      placeholder="Default: $91.00"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      If not applicable, use default $91.00
+                    </p>
+                  </div>
+                  <div>
+                    <Label>Labor Cost (XCG)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={laborXCG}
+                      onChange={(e) => setLaborXCG(parseFloat(e.target.value) || 0)}
+                      placeholder="Default: 50 XCG"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      If not applicable, use default 50 XCG
+                    </p>
+                  </div>
+                  <div>
+                    <Label>Bank Charges (USD)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={bankChargesUSD}
+                      onChange={(e) => setBankChargesUSD(parseFloat(e.target.value) || 0)}
+                      placeholder="Enter bank charges"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Optional: Enter if applicable
+                    </p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
@@ -1177,6 +1252,60 @@ export default function CIFCalculator() {
                 <TabsContent value="customerTier">
                   {renderResults(estimateResults.customerTier, 'Customer Tier Method')}
                 </TabsContent>
+                </div>
+
+                <Separator className="my-6" />
+
+                {/* Additional Costs - Actual */}
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold">Additional Costs</Label>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Configure logistics, labor, and bank charges
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="actualLocalLogistics">Local Logistics (USD)</Label>
+                      <Input
+                        id="actualLocalLogistics"
+                        type="number"
+                        step="0.01"
+                        placeholder="Default: $91.00"
+                        value={actualLocalLogisticsUSD}
+                        onChange={(e) => setActualLocalLogisticsUSD(parseFloat(e.target.value) || 0)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        If not applicable, use default $91.00
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="actualLaborCost">Labor Cost (XCG)</Label>
+                      <Input
+                        id="actualLaborCost"
+                        type="number"
+                        step="0.01"
+                        placeholder="Default: 50 XCG"
+                        value={actualLaborXCG}
+                        onChange={(e) => setActualLaborXCG(parseFloat(e.target.value) || 0)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        If not applicable, use default 50 XCG
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="actualBankCharges">Bank Charges (USD)</Label>
+                      <Input
+                        id="actualBankCharges"
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={actualBankChargesUSD}
+                        onChange={(e) => setActualBankChargesUSD(parseFloat(e.target.value) || 0)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Optional: Enter if applicable
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </Tabs>
             </div>
