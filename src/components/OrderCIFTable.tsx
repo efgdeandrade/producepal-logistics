@@ -229,9 +229,9 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
         }) || []
       );
 
-      const LOCAL_LOGISTICS_XCG = 50;
-      const LOCAL_LOGISTICS_USD = 91;
-      const LABOR_XCG = 50;
+      // Use fetched settings instead of hardcoded values
+      const LOCAL_LOGISTICS_USD = localLogisticsUsd;
+      const LABOR_XCG = laborXcg;
       const WHOLESALE_MULTIPLIER = 1.25;
       const RETAIL_MULTIPLIER = 1.786;
 

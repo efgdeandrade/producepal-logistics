@@ -89,6 +89,11 @@ export function ActualCIFForm({
   const [expandedSuppliers, setExpandedSuppliers] = useState<Record<string, boolean>>({});
   const [priceHistory, setPriceHistory] = useState<Map<string, any>>(new Map());
   
+  // Configurable costs
+  const [localLogisticsUSD, setLocalLogisticsUSD] = useState(91);
+  const [laborXCG, setLaborXCG] = useState(50);
+  const [bankChargesUSD, setBankChargesUSD] = useState(0);
+  
   // Upload keys to force remount on document upload
   const [consolidatedUploadKey, setConsolidatedUploadKey] = useState(0);
   const [freightUploadKey, setFreightUploadKey] = useState(0);
@@ -247,6 +252,14 @@ export function ActualCIFForm({
     const totalActualFreightLocal = parseFloat(actualFreightLocal || "0");
     const totalActualFreight = totalActualFreightExterior + totalActualFreightLocal;
     const totalOtherCosts = parseFloat(actualOtherCosts || "0");
+
+    // Use configurable values
+    const LOCAL_LOGISTICS_USD = localLogisticsUSD;
+    const LABOR_XCG = laborXCG;
+    const BANK_CHARGES_USD = bankChargesUSD;
+    
+    // Update freight calculation to include bank charges
+    const totalFreightWithAdditional = totalActualFreight + LOCAL_LOGISTICS_USD + BANK_CHARGES_USD;
 
     if (totalActualFreight === 0 && !supplierWeights.some(sw => parseFloat(sw.actualWeightKg || "0") > 0)) {
       return {

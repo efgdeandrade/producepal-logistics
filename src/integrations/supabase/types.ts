@@ -238,6 +238,7 @@ export type Database = {
       }
       cif_calculations: {
         Row: {
+          bank_charges_usd: number | null
           calculation_name: string
           calculation_type: string
           created_at: string
@@ -247,7 +248,9 @@ export type Database = {
           freight_exterior_per_kg: number
           freight_local_per_kg: number
           id: string
+          labor_xcg: number | null
           limiting_factor: string | null
+          local_logistics_usd: number | null
           notes: string | null
           products: Json
           results: Json
@@ -258,6 +261,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          bank_charges_usd?: number | null
           calculation_name: string
           calculation_type: string
           created_at?: string
@@ -267,7 +271,9 @@ export type Database = {
           freight_exterior_per_kg: number
           freight_local_per_kg: number
           id?: string
+          labor_xcg?: number | null
           limiting_factor?: string | null
+          local_logistics_usd?: number | null
           notes?: string | null
           products: Json
           results: Json
@@ -278,6 +284,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          bank_charges_usd?: number | null
           calculation_name?: string
           calculation_type?: string
           created_at?: string
@@ -287,7 +294,9 @@ export type Database = {
           freight_exterior_per_kg?: number
           freight_local_per_kg?: number
           id?: string
+          labor_xcg?: number | null
           limiting_factor?: string | null
+          local_logistics_usd?: number | null
           notes?: string | null
           products?: Json
           results?: Json
