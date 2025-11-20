@@ -236,6 +236,69 @@ export type Database = {
           },
         ]
       }
+      cif_calculations: {
+        Row: {
+          calculation_name: string
+          calculation_type: string
+          created_at: string
+          created_by: string
+          exchange_rate: number
+          freight_champion_cost: number | null
+          freight_exterior_per_kg: number
+          freight_local_per_kg: number
+          id: string
+          limiting_factor: string | null
+          notes: string | null
+          products: Json
+          results: Json
+          selected_distribution_method: string | null
+          swissport_cost: number | null
+          total_chargeable_weight: number | null
+          total_pallets: number | null
+          updated_at: string
+        }
+        Insert: {
+          calculation_name: string
+          calculation_type: string
+          created_at?: string
+          created_by: string
+          exchange_rate: number
+          freight_champion_cost?: number | null
+          freight_exterior_per_kg: number
+          freight_local_per_kg: number
+          id?: string
+          limiting_factor?: string | null
+          notes?: string | null
+          products: Json
+          results: Json
+          selected_distribution_method?: string | null
+          swissport_cost?: number | null
+          total_chargeable_weight?: number | null
+          total_pallets?: number | null
+          updated_at?: string
+        }
+        Update: {
+          calculation_name?: string
+          calculation_type?: string
+          created_at?: string
+          created_by?: string
+          exchange_rate?: number
+          freight_champion_cost?: number | null
+          freight_exterior_per_kg?: number
+          freight_local_per_kg?: number
+          id?: string
+          limiting_factor?: string | null
+          notes?: string | null
+          products?: Json
+          results?: Json
+          selected_distribution_method?: string | null
+          swissport_cost?: number | null
+          total_chargeable_weight?: number | null
+          total_pallets?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cif_estimates: {
         Row: {
           actual_cif_xcg: number | null

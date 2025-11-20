@@ -8,13 +8,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calculator, ArrowLeft, Package, AlertTriangle } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Calculator, ArrowLeft, Package, AlertTriangle, Save, Printer, FileText, Download } from 'lucide-react';
 import { PRODUCTS, ProductCode } from '@/types/order';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { calculateOrderPalletConfig, ProductWeightInfo, SupplierPalletData, createPalletConfig } from '@/lib/weightCalculations';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
+import { exportToExcel, exportToPDF, printCalculation } from '@/utils/cifExportUtils';
 
 interface DatabaseProduct {
   code: string;
@@ -89,22 +92,27 @@ const DEFAULT_EXCHANGE_RATE = 1.82;
 
 export default function CIFCalculator() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [exchangeRate, setExchangeRate] = useState(DEFAULT_EXCHANGE_RATE);
   const [freightExteriorPerKg, setFreightExteriorPerKg] = useState(2.46);
   const [freightLocalPerKg, setFreightLocalPerKg] = useState(0.41);
   const [loading, setLoading] = useState(true);
   const [allProducts, setAllProducts] = useState<DatabaseProduct[]>([]);
+  
+  // Save dialog state
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [calculationName, setCalculationName] = useState('');
+  const [notes, setNotes] = useState('');
+  const [selectedMethod, setSelectedMethod] = useState('weight');
+  const [activeTab, setActiveTab] = useState<'estimate' | 'actual'>('estimate');
 
   // Estimate version inputs
-  const [estimateProducts, setEstimateProducts] = useState<ProductInput[]>([
-    { code: '' as ProductCode, name: '', quantity: 0, quantityInputMode: 'cases', costPerUnit: 0, weightPerUnit: 0 }
-  ]);
+  const [estimateProducts, setEstimateProducts] = useState<ProductInput[]>([]);
 
   // Actual version inputs
-  const [actualProducts, setActualProducts] = useState<ProductInput[]>([
-    { code: '' as ProductCode, name: '', quantity: 0, quantityInputMode: 'cases', costPerUnit: 0, weightPerUnit: 0 }
-  ]);
+  const [actualProducts, setActualProducts] = useState<ProductInput[]>([]);
   const [actualFreightChampion, setActualFreightChampion] = useState(0);
   const [actualSwissport, setActualSwissport] = useState(0);
 
@@ -155,6 +163,14 @@ export default function CIFCalculator() {
       setLoading(false);
     }
   }, [allProducts]);
+
+  // Load calculation from URL parameter
+  useEffect(() => {
+    const loadId = searchParams.get('load');
+    if (loadId && allProducts.length > 0) {
+      loadCalculation(loadId);
+    }
+  }, [searchParams, allProducts]);
 
   const handleExchangeRateChange = (value: string) => {
     const rate = parseFloat(value) || DEFAULT_EXCHANGE_RATE;
@@ -274,6 +290,158 @@ export default function CIFCalculator() {
     const products = isActual ? actualProducts : estimateProducts;
     const setProducts = isActual ? setActualProducts : setEstimateProducts;
     setProducts(products.filter((_, i) => i !== index));
+  };
+
+  const loadCalculation = async (calculationId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('cif_calculations')
+        .select('*')
+        .eq('id', calculationId)
+        .single();
+      
+      if (error) throw error;
+      
+      setExchangeRate(data.exchange_rate);
+      setFreightExteriorPerKg(data.freight_exterior_per_kg);
+      setFreightLocalPerKg(data.freight_local_per_kg);
+      
+      if (data.calculation_type === 'estimate') {
+        setEstimateProducts(data.products as unknown as ProductInput[]);
+        setActiveTab('estimate');
+      } else {
+        setActualProducts(data.products as unknown as ProductInput[]);
+        setActualFreightChampion(data.freight_champion_cost || 0);
+        setActualSwissport(data.swissport_cost || 0);
+        setActiveTab('actual');
+      }
+      
+      toast({
+        title: "Loaded",
+        description: `Calculation "${data.calculation_name}" loaded successfully`
+      });
+    } catch (error) {
+      console.error('Error loading calculation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load calculation",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleSaveCalculation = async () => {
+    if (!calculationName.trim()) {
+      toast({
+        title: "Name Required",
+        description: "Please enter a name for this calculation",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const calculationType = activeTab;
+      const products = activeTab === 'estimate' ? estimateProducts : actualProducts;
+      const results = activeTab === 'estimate' ? estimateResults : actualResults;
+      
+      if (!products.length || !results) {
+        toast({
+          title: "No Data",
+          description: "Add products and calculate before saving",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const saveData: any = {
+        calculation_name: calculationName,
+        calculation_type: calculationType,
+        exchange_rate: exchangeRate,
+        freight_exterior_per_kg: freightExteriorPerKg,
+        freight_local_per_kg: freightLocalPerKg,
+        freight_champion_cost: calculationType === 'actual' ? actualFreightChampion : null,
+        swissport_cost: calculationType === 'actual' ? actualSwissport : null,
+        products: products,
+        results: results,
+        total_pallets: results.totalPallets,
+        total_chargeable_weight: results.totalChargeableWeight,
+        limiting_factor: results.limitingFactor,
+        selected_distribution_method: selectedMethod,
+        notes: notes,
+        created_by: (await supabase.auth.getUser()).data.user?.id
+      };
+      
+      const { error } = await supabase
+        .from('cif_calculations')
+        .insert([saveData]);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: "Calculation saved successfully"
+      });
+      
+      setShowSaveDialog(false);
+      setCalculationName('');
+      setNotes('');
+    } catch (error) {
+      console.error('Error saving calculation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save calculation",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleExportExcel = () => {
+    const results = activeTab === 'estimate' ? estimateResults : actualResults;
+    const method = selectedMethod as keyof typeof results;
+    const selectedResults = results[method] as CIFResult[];
+    
+    if (!selectedResults || selectedResults.length === 0) {
+      toast({
+        title: "No Data",
+        description: "Please calculate results before exporting",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const metadata = {
+      calculationType: activeTab,
+      exchangeRate,
+      freightExteriorPerKg,
+      freightLocalPerKg,
+      freightChampionCost: activeTab === 'actual' ? actualFreightChampion : undefined,
+      swissportCost: activeTab === 'actual' ? actualSwissport : undefined,
+      totalPallets: results.totalPallets,
+      totalChargeableWeight: results.totalChargeableWeight,
+      totalActualWeight: results.totalActualWeight,
+      totalVolumetricWeight: results.totalVolumetricWeight,
+      distributionMethod: selectedMethod,
+      limitingFactor: results.limitingFactor
+    };
+
+    const products = selectedResults.map(r => ({
+      code: r.productCode,
+      name: r.productName,
+      quantity: r.quantity,
+      weightPerUnit: r.costUSD / r.quantity || 0,
+      totalWeight: r.costUSD,
+      freightAllocated: r.freightCost,
+      cifPerUnit: r.cifXCG,
+      wholesalePrice: r.wholesalePrice,
+      margin: r.wholesaleMargin
+    }));
+
+    exportToExcel(metadata, products, `CIF_${activeTab}_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const handleExportPDF = () => {
+    exportToPDF('cif-results', `CIF_${activeTab}_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   const calculateCIF = (
@@ -883,7 +1051,89 @@ export default function CIFCalculator() {
                 </Alert>
               )}
 
-              <Tabs defaultValue="weight" className="w-full">
+              {estimateProducts.some(p => p.quantity > 0) && (
+                <Card className="mb-4">
+                  <CardContent className="pt-6">
+                    <div className="flex gap-2 justify-end flex-wrap">
+                      <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+                        <DialogTrigger asChild>
+                          <Button variant="default">
+                            <Save className="mr-2 h-4 w-4" />
+                            Save
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Save CIF Calculation</DialogTitle>
+                            <DialogDescription>
+                              Give this calculation a name to save it for later
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div>
+                              <Label htmlFor="calculation-name">Calculation Name</Label>
+                              <Input
+                                id="calculation-name"
+                                placeholder="e.g., Weekly Import - Dec 2024"
+                                value={calculationName}
+                                onChange={(e) => setCalculationName(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="notes">Notes (Optional)</Label>
+                              <Textarea
+                                id="notes"
+                                placeholder="Add any notes about this calculation..."
+                                value={notes}
+                                onChange={(e) => setNotes(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label>Distribution Method</Label>
+                              <Select value={selectedMethod} onValueChange={setSelectedMethod}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="weight">By Weight</SelectItem>
+                                  <SelectItem value="cost">By Cost</SelectItem>
+                                  <SelectItem value="equal">Equal Distribution</SelectItem>
+                                  <SelectItem value="hybrid">Hybrid</SelectItem>
+                                  <SelectItem value="strategic">Strategic</SelectItem>
+                                  <SelectItem value="volumeOptimized">Volume-Optimized</SelectItem>
+                                  <SelectItem value="customerTier">Customer Tier</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <DialogFooter>
+                            <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
+                              Cancel
+                            </Button>
+                            <Button onClick={handleSaveCalculation}>
+                              Save
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                      <Button variant="outline" onClick={printCalculation}>
+                        <Printer className="mr-2 h-4 w-4" />
+                        Print
+                      </Button>
+                      <Button variant="outline" onClick={handleExportPDF}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        PDF
+                      </Button>
+                      <Button variant="outline" onClick={handleExportExcel}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Excel
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Tabs defaultValue="weight" className="w-full" onValueChange={setSelectedMethod as any}>
                 <TabsList className="grid w-full grid-cols-7 mb-4">
                   <TabsTrigger value="weight">Weight</TabsTrigger>
                   <TabsTrigger value="cost">Cost</TabsTrigger>
@@ -893,6 +1143,8 @@ export default function CIFCalculator() {
                   <TabsTrigger value="volumeOptimized">Vol-Opt</TabsTrigger>
                   <TabsTrigger value="customerTier">Tier</TabsTrigger>
                 </TabsList>
+
+                <div id="cif-results">
 
                 <TabsContent value="weight">
                   {renderResults(estimateResults.byWeight, 'Distribution by Weight')}
@@ -915,6 +1167,7 @@ export default function CIFCalculator() {
                 <TabsContent value="customerTier">
                   {renderResults(estimateResults.customerTier, 'Customer Tier Method')}
                 </TabsContent>
+                </div>
               </Tabs>
             </div>
           </TabsContent>
@@ -971,7 +1224,89 @@ export default function CIFCalculator() {
                 </Alert>
               )}
 
-              <Tabs defaultValue="weight" className="w-full">
+              {actualProducts.some(p => p.quantity > 0) && (
+                <Card className="mb-4">
+                  <CardContent className="pt-6">
+                    <div className="flex gap-2 justify-end flex-wrap">
+                      <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+                        <DialogTrigger asChild>
+                          <Button variant="default">
+                            <Save className="mr-2 h-4 w-4" />
+                            Save
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Save CIF Calculation</DialogTitle>
+                            <DialogDescription>
+                              Give this calculation a name to save it for later
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div>
+                              <Label htmlFor="calculation-name-actual">Calculation Name</Label>
+                              <Input
+                                id="calculation-name-actual"
+                                placeholder="e.g., Weekly Import - Dec 2024"
+                                value={calculationName}
+                                onChange={(e) => setCalculationName(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="notes-actual">Notes (Optional)</Label>
+                              <Textarea
+                                id="notes-actual"
+                                placeholder="Add any notes about this calculation..."
+                                value={notes}
+                                onChange={(e) => setNotes(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label>Distribution Method</Label>
+                              <Select value={selectedMethod} onValueChange={setSelectedMethod}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="weight">By Weight</SelectItem>
+                                  <SelectItem value="cost">By Cost</SelectItem>
+                                  <SelectItem value="equal">Equal Distribution</SelectItem>
+                                  <SelectItem value="hybrid">Hybrid</SelectItem>
+                                  <SelectItem value="strategic">Strategic</SelectItem>
+                                  <SelectItem value="volumeOptimized">Volume-Optimized</SelectItem>
+                                  <SelectItem value="customerTier">Customer Tier</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <DialogFooter>
+                            <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
+                              Cancel
+                            </Button>
+                            <Button onClick={handleSaveCalculation}>
+                              Save
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                      <Button variant="outline" onClick={printCalculation}>
+                        <Printer className="mr-2 h-4 w-4" />
+                        Print
+                      </Button>
+                      <Button variant="outline" onClick={handleExportPDF}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        PDF
+                      </Button>
+                      <Button variant="outline" onClick={handleExportExcel}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Excel
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Tabs defaultValue="weight" className="w-full" onValueChange={setSelectedMethod as any}>
                 <TabsList className="grid w-full grid-cols-7 mb-4">
                   <TabsTrigger value="weight">Weight</TabsTrigger>
                   <TabsTrigger value="cost">Cost</TabsTrigger>
@@ -981,6 +1316,8 @@ export default function CIFCalculator() {
                   <TabsTrigger value="volumeOptimized">Vol-Opt</TabsTrigger>
                   <TabsTrigger value="customerTier">Tier</TabsTrigger>
                 </TabsList>
+
+                <div id="cif-results">
 
                 <TabsContent value="weight">
                   {renderResults(actualResults.byWeight, 'Distribution by Weight')}
@@ -1003,6 +1340,7 @@ export default function CIFCalculator() {
                 <TabsContent value="customerTier">
                   {renderResults(actualResults.customerTier, 'Customer Tier Method')}
                 </TabsContent>
+                </div>
               </Tabs>
             </div>
           </TabsContent>
