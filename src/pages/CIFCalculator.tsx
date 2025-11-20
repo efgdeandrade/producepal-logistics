@@ -345,7 +345,17 @@ export default function CIFCalculator() {
       const products = activeTab === 'estimate' ? estimateProducts : actualProducts;
       const results = activeTab === 'estimate' ? estimateResults : actualResults;
       
-      if (!products.length || !results) {
+      // Check if there are valid products with quantity > 0 and product code
+      const hasValidProducts = products.some(p => p.quantity > 0 && p.code);
+      
+      // Check if there are actual calculated results (not just an empty object)
+      const hasCalculatedResults = results && (
+        (results.byWeight && results.byWeight.length > 0) ||
+        (results.byCost && results.byCost.length > 0) ||
+        (results.totalChargeableWeight && results.totalChargeableWeight > 0)
+      );
+      
+      if (!hasValidProducts || !hasCalculatedResults) {
         toast({
           title: "No Data",
           description: "Add products and calculate before saving",
