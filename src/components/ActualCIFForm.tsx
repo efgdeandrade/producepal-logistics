@@ -342,20 +342,20 @@ export function ActualCIFForm({
         
         switch (distributionMethod) {
           case 'weight':
-            freightShare = totalWeight > 0 ? (chargeableWeight / totalWeight) * totalActualFreight : 0;
+            freightShare = totalWeight > 0 ? (chargeableWeight / totalWeight) * totalFreightWithAdditional : 0;
             break;
             
           case 'cost':
-            freightShare = totalCost > 0 ? (productCost / totalCost) * totalActualFreight : 0;
+            freightShare = totalCost > 0 ? (productCost / totalCost) * totalFreightWithAdditional : 0;
             break;
             
           case 'equal':
-            freightShare = totalActualFreight / productsArray.length;
+            freightShare = totalFreightWithAdditional / productsArray.length;
             break;
             
           case 'hybrid':
-            const weightShare = totalWeight > 0 ? (chargeableWeight / totalWeight) * totalActualFreight : 0;
-            const costShare = totalCost > 0 ? (productCost / totalCost) * totalActualFreight : 0;
+            const weightShare = totalWeight > 0 ? (chargeableWeight / totalWeight) * totalFreightWithAdditional : 0;
+            const costShare = totalCost > 0 ? (productCost / totalCost) * totalFreightWithAdditional : 0;
             freightShare = (weightShare + costShare) / 2;
             break;
             
@@ -363,7 +363,7 @@ export function ActualCIFForm({
             const totalFrequency = productsArray.reduce((sum, p) => sum + p.orderFrequency, 0);
             const frequencyWeight = totalFrequency > 0 ? (product.orderFrequency / totalFrequency) : 1 / productsArray.length;
             const invertedWeight = 1 - (frequencyWeight / 2);
-            freightShare = invertedWeight * (totalActualFreight / productsArray.length);
+            freightShare = invertedWeight * (totalFreightWithAdditional / productsArray.length);
             break;
             
           case 'strategic':
@@ -375,13 +375,13 @@ export function ActualCIFForm({
               const vf = 1 / Math.sqrt(p.orderFrequency || 1);
               return sum + (rf * vf);
             }, 0);
-            freightShare = totalStrategicWeight > 0 ? (strategicWeight / totalStrategicWeight) * totalActualFreight : totalActualFreight / productsArray.length;
+            freightShare = totalStrategicWeight > 0 ? (strategicWeight / totalStrategicWeight) * totalFreightWithAdditional : totalFreightWithAdditional / productsArray.length;
             break;
             
           case 'customerTier':
             const isWholesaleHeavy = product.orderFrequency > 5;
             const tierMultiplier = isWholesaleHeavy ? 0.85 : 1.15;
-            const baseShare = totalActualFreight / productsArray.length;
+            const baseShare = totalFreightWithAdditional / productsArray.length;
             freightShare = baseShare * tierMultiplier;
             break;
         }
@@ -438,7 +438,7 @@ export function ActualCIFForm({
       volumeOptimized: calculateResults('volumeOptimized'),
       customerTier: calculateResults('customerTier')
     };
-  }, [actualFreightExterior, actualFreightLocal, actualOtherCosts, supplierWeights, exchangeRate, demandPatterns]);
+  }, [actualFreightExterior, actualFreightLocal, actualOtherCosts, supplierWeights, exchangeRate, demandPatterns, localLogisticsUSD, laborXCG, bankChargesUSD]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -789,6 +789,58 @@ export function ActualCIFForm({
                 value={actualOtherCosts}
                 onChange={(e) => setActualOtherCosts(e.target.value)}
               />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Separator className="my-6" />
+
+      {/* Additional Costs Configuration */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Additional Costs</CardTitle>
+          <CardDescription>
+            Configure logistics, labor, and banking costs. These will be added to the total freight cost.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="localLogistics">Local Logistics (USD)</Label>
+              <Input
+                id="localLogistics"
+                type="number"
+                step="0.01"
+                placeholder="91.00"
+                value={localLogisticsUSD}
+                onChange={(e) => setLocalLogisticsUSD(parseFloat(e.target.value) || 0)}
+              />
+              <p className="text-xs text-muted-foreground">Default: $91.00</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="laborCost">Labor Cost (XCG)</Label>
+              <Input
+                id="laborCost"
+                type="number"
+                step="0.01"
+                placeholder="50"
+                value={laborXCG}
+                onChange={(e) => setLaborXCG(parseFloat(e.target.value) || 0)}
+              />
+              <p className="text-xs text-muted-foreground">Default: 50 XCG</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bankCharges">Bank Charges (USD)</Label>
+              <Input
+                id="bankCharges"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={bankChargesUSD}
+                onChange={(e) => setBankChargesUSD(parseFloat(e.target.value) || 0)}
+              />
+              <p className="text-xs text-muted-foreground">Default: $0.00</p>
             </div>
           </div>
         </CardContent>
