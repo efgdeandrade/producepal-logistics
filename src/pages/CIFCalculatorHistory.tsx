@@ -30,7 +30,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Eye, Edit, Trash2, FileDown, Search } from "lucide-react";
+import { Plus, Eye, Edit, Trash2, FileDown, Search, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 
 interface CIFCalculation {
@@ -136,13 +136,18 @@ const CIFCalculatorHistory = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-6 space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold">CIF Calculator History</h1>
-          <Button onClick={() => navigate('/cif-calculator')}>
-            <Plus className="mr-2 h-4 w-4" />
-            New Calculation
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+            <ArrowLeft className="h-4 w-4" />
           </Button>
+          <h1 className="text-3xl font-bold">CIF Calculator History</h1>
         </div>
+        <Button onClick={() => navigate('/cif-calculator')}>
+          <Plus className="mr-2 h-4 w-4" />
+          New Calculation
+        </Button>
+      </div>
 
         <Card>
           <CardContent className="pt-6">

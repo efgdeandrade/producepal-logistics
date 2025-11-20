@@ -11,9 +11,10 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { UserPlus, Trash2, Mail, Edit, RefreshCw, Copy } from 'lucide-react';
+import { UserPlus, Trash2, Mail, Edit, RefreshCw, Copy, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
+import { useNavigate } from 'react-router-dom';
 
 const inviteSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
@@ -32,6 +33,7 @@ interface Profile {
 export default function UserManagement() {
   const { isAdmin } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -375,9 +377,14 @@ export default function UserManagement() {
       <Header />
       <div className="container mx-auto p-8">
         <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold">User Management</h1>
-            <p className="text-muted-foreground">Manage users and their roles</p>
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold">User Management</h1>
+              <p className="text-muted-foreground">Manage users and their roles</p>
+            </div>
           </div>
 
           <div className="flex gap-2">

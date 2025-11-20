@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, Save, Printer, X } from 'lucide-react';
+import { Plus, Trash2, Save, Printer, X, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -485,9 +485,14 @@ const NewOrder = () => {
       
       <main className="container py-8">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">
-            {isEditMode ? 'Edit Order' : 'New Order'}
-          </h1>
+          <div className="flex items-center gap-4 mb-2">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/history')}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <h1 className="text-4xl font-bold text-foreground">
+              {isEditMode ? 'Edit Order' : 'New Order'}
+            </h1>
+          </div>
           <p className="text-muted-foreground">
             {isEditMode ? 'Update order details and items' : 'Create a new order from your customers'}
           </p>
