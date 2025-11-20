@@ -16,6 +16,7 @@ import Customers from "./pages/Customers";
 import RoutesPage from "./pages/Routes";
 import DriverPortal from "./pages/DriverPortal";
 import CIFCalculator from "./pages/CIFCalculator";
+import CIFCalculatorHistory from "./pages/CIFCalculatorHistory";
 import Auth from "./pages/Auth";
 import UserManagement from "./pages/UserManagement";
 import UserActivity from "./pages/UserActivity";
@@ -50,6 +51,7 @@ const App = () => (
             <Route path="/routes" element={<ProtectedRoute><PasswordChangeRequired><RoutesPage /></PasswordChangeRequired></ProtectedRoute>} />
             <Route path="/driver-portal" element={<ProtectedRoute requiredRole="driver"><PasswordChangeRequired><DriverPortal /></PasswordChangeRequired></ProtectedRoute>} />
             <Route path="/cif-calculator" element={<ProtectedRoute><PasswordChangeRequired><CIFCalculator /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/cif-calculator-history" element={<ProtectedRoute><PasswordChangeRequired><CIFCalculatorHistory /></PasswordChangeRequired></ProtectedRoute>} />
             <Route path="/user-management" element={<ProtectedRoute requiredRole="admin"><PasswordChangeRequired><UserManagement /></PasswordChangeRequired></ProtectedRoute>} />
             <Route path="/user-activity" element={<ProtectedRoute><PasswordChangeRequired><UserActivity /></PasswordChangeRequired></ProtectedRoute>} />
             <Route path="/production" element={<ProtectedRoute><PasswordChangeRequired><ProductionDashboard /></PasswordChangeRequired></ProtectedRoute>} />

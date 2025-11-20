@@ -98,6 +98,12 @@ export const Header = () => {
                     CIF Calculator
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/cif-calculator-history">
+                    <History className="mr-2 h-4 w-4" />
+                    CIF History
+                  </Link>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
