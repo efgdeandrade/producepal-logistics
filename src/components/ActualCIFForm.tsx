@@ -976,7 +976,7 @@ export function ActualCIFForm({
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Summary Stats */}
+            {/* Freight Summary Stats */}
             <div className="grid grid-cols-4 gap-4 p-4 bg-muted/50 rounded-lg">
               <div>
                 <div className="text-xs text-muted-foreground">Exterior Freight</div>
@@ -1003,6 +1003,56 @@ export function ActualCIFForm({
                 </div>
               </div>
             </div>
+
+            {/* Additional Costs Breakdown Table */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Additional Costs Breakdown</CardTitle>
+                <CardDescription>Configured logistics, labor, and banking costs</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Cost Type</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="text-right">Currency</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="font-medium">Local Logistics</TableCell>
+                      <TableCell className="text-right">${localLogisticsUSD.toFixed(2)}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">USD</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">Labor Cost</TableCell>
+                      <TableCell className="text-right">{laborXCG.toFixed(2)}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">XCG</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">Bank Charges</TableCell>
+                      <TableCell className="text-right">${bankChargesUSD.toFixed(2)}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">USD</TableCell>
+                    </TableRow>
+                    <TableRow className="border-t-2">
+                      <TableCell className="font-bold">Total Additional (USD)</TableCell>
+                      <TableCell className="text-right font-bold">
+                        ${(localLogisticsUSD + bankChargesUSD).toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">USD</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-bold">Grand Total Freight + Additional</TableCell>
+                      <TableCell className="text-right font-bold text-primary">
+                        ${(parseFloat(actualFreightExterior || "0") + parseFloat(actualFreightLocal || "0") + localLogisticsUSD + bankChargesUSD).toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">USD</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
 
             <Separator />
 
