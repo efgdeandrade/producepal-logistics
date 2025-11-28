@@ -402,7 +402,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
           }
 
           const cifUSD = productCost + freightShare;
-          const cifXCG = cifUSD * exchangeRateValue + laborXcg / productsWithWeight.length;
+          const cifXCG = cifUSD * exchangeRateValue;
           const cifPerUnit = product.totalUnits > 0 ? cifXCG / product.totalUnits : 0;
 
           const wholesalePrice = product.wholesalePriceXCG || (cifPerUnit * WHOLESALE_MULTIPLIER);
