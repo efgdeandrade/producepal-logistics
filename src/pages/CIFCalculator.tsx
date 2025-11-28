@@ -621,7 +621,7 @@ export default function CIFCalculator() {
         }
 
         const cifUSD = productCost + freightShare;
-        const cifXCG = (cifUSD * exchangeRate) + (LABOR_XCG / products.length);
+        const cifXCG = cifUSD * exchangeRate;
         const cifPerUnit = product.quantity > 0 ? cifXCG / product.quantity : 0;
         
         const wholesalePrice = cifPerUnit * WHOLESALE_MULTIPLIER;

@@ -258,8 +258,8 @@ export function ActualCIFForm({
     const LABOR_XCG = laborXCG;
     const BANK_CHARGES_USD = bankChargesUSD;
     
-    // Update freight calculation to include bank charges
-    const totalFreightWithAdditional = totalActualFreight + LOCAL_LOGISTICS_USD + BANK_CHARGES_USD;
+    // Update freight calculation to include bank charges and other costs
+    const totalFreightWithAdditional = totalActualFreight + LOCAL_LOGISTICS_USD + BANK_CHARGES_USD + totalOtherCosts;
 
     if (totalActualFreight === 0 && !supplierWeights.some(sw => parseFloat(sw.actualWeightKg || "0") > 0)) {
       return {
