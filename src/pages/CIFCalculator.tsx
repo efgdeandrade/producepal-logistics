@@ -1091,7 +1091,7 @@ export default function CIFCalculator() {
                     </p>
                   </div>
                   <div>
-                    <Label>Labor Cost (XCG)</Label>
+                    <Label>Labor Cost (XCG) <span className="text-muted-foreground font-normal">(Optional)</span></Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -1100,7 +1100,7 @@ export default function CIFCalculator() {
                       placeholder="Default: 50 XCG"
                     />
                     <p className="text-xs text-muted-foreground mt-1">
-                      If not applicable, use default 50 XCG
+                      Optional: Only for special cases. Usually included in Other Logistics.
                     </p>
                   </div>
                   <div>
@@ -1254,59 +1254,6 @@ export default function CIFCalculator() {
                 </TabsContent>
                 </div>
 
-                <Separator className="my-6" />
-
-                {/* Additional Costs - Actual */}
-                <div className="space-y-2">
-                  <Label className="text-base font-semibold">Additional Costs</Label>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Configure logistics, labor, and bank charges
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="actualLocalLogistics">Local Logistics (USD)</Label>
-                      <Input
-                        id="actualLocalLogistics"
-                        type="number"
-                        step="0.01"
-                        placeholder="Default: $91.00"
-                        value={actualLocalLogisticsUSD}
-                        onChange={(e) => setActualLocalLogisticsUSD(parseFloat(e.target.value) || 0)}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        If not applicable, use default $91.00
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="actualLaborCost">Labor Cost (XCG)</Label>
-                      <Input
-                        id="actualLaborCost"
-                        type="number"
-                        step="0.01"
-                        placeholder="Default: 50 XCG"
-                        value={actualLaborXCG}
-                        onChange={(e) => setActualLaborXCG(parseFloat(e.target.value) || 0)}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        If not applicable, use default 50 XCG
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="actualBankCharges">Bank Charges (USD)</Label>
-                      <Input
-                        id="actualBankCharges"
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        value={actualBankChargesUSD}
-                        onChange={(e) => setActualBankChargesUSD(parseFloat(e.target.value) || 0)}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Optional: Enter if applicable
-                      </p>
-                    </div>
-                  </div>
-                </div>
               </Tabs>
             </div>
           </TabsContent>
@@ -1342,6 +1289,49 @@ export default function CIFCalculator() {
                       onChange={(e) => setActualSwissport(parseFloat(e.target.value) || 0)}
                       placeholder="Enter actual cost from agent"
                     />
+                  </div>
+
+                  {/* Additional Costs - Actual */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-6 border-t">
+                    <div>
+                      <Label>Local Logistics (USD)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={actualLocalLogisticsUSD}
+                        onChange={(e) => setActualLocalLogisticsUSD(parseFloat(e.target.value) || 0)}
+                        placeholder="Default: $91.00"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        If not applicable, use default $91.00
+                      </p>
+                    </div>
+                    <div>
+                      <Label>Labor Cost (XCG) <span className="text-muted-foreground font-normal">(Optional)</span></Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={actualLaborXCG}
+                        onChange={(e) => setActualLaborXCG(parseFloat(e.target.value) || 0)}
+                        placeholder="Default: 50 XCG"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Optional: Only for special cases. Usually included in Other Logistics.
+                      </p>
+                    </div>
+                    <div>
+                      <Label>Bank Charges (USD)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={actualBankChargesUSD}
+                        onChange={(e) => setActualBankChargesUSD(parseFloat(e.target.value) || 0)}
+                        placeholder="Enter bank charges"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Optional: Enter if applicable
+                      </p>
+                    </div>
                   </div>
                 </div>
               </CardContent>
