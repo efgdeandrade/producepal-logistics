@@ -28,6 +28,13 @@ import Invoices from "./pages/Invoices";
 import PredictionsAnalytics from "./pages/PredictionsAnalytics";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+// F&B Pages
+import FnbDashboard from "./pages/fnb/FnbDashboard";
+import FnbProducts from "./pages/fnb/FnbProducts";
+import FnbCustomers from "./pages/fnb/FnbCustomers";
+import FnbOrders from "./pages/fnb/FnbOrders";
+import FnbPicker from "./pages/fnb/FnbPicker";
+import FnbSettings from "./pages/fnb/FnbSettings";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +68,13 @@ const App = () => (
             <Route path="/invoices" element={<ProtectedRoute><PasswordChangeRequired><Invoices /></PasswordChangeRequired></ProtectedRoute>} />
             <Route path="/analytics" element={<ProtectedRoute><PasswordChangeRequired><PredictionsAnalytics /></PasswordChangeRequired></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute requiredRole="admin"><PasswordChangeRequired><Settings /></PasswordChangeRequired></ProtectedRoute>} />
+            {/* F&B Routes */}
+            <Route path="/fnb" element={<ProtectedRoute><PasswordChangeRequired><FnbDashboard /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/fnb/products" element={<ProtectedRoute><PasswordChangeRequired><FnbProducts /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/fnb/customers" element={<ProtectedRoute><PasswordChangeRequired><FnbCustomers /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/fnb/orders" element={<ProtectedRoute><PasswordChangeRequired><FnbOrders /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/fnb/picker" element={<ProtectedRoute><PasswordChangeRequired><FnbPicker /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/fnb/settings" element={<ProtectedRoute><PasswordChangeRequired><FnbSettings /></PasswordChangeRequired></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

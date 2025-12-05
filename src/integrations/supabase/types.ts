@@ -713,6 +713,346 @@ export type Database = {
           },
         ]
       }
+      fnb_conversations: {
+        Row: {
+          created_at: string | null
+          customer_id: string | null
+          detected_language: string | null
+          direction: string
+          id: string
+          message_id: string | null
+          message_text: string
+          order_id: string | null
+          parsed_intent: string | null
+          parsed_items: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id?: string | null
+          detected_language?: string | null
+          direction: string
+          id?: string
+          message_id?: string | null
+          message_text: string
+          order_id?: string | null
+          parsed_intent?: string | null
+          parsed_items?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string | null
+          detected_language?: string | null
+          direction?: string
+          id?: string
+          message_id?: string | null
+          message_text?: string
+          order_id?: string | null
+          parsed_intent?: string | null
+          parsed_items?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_conversations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_conversations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fnb_customer_patterns: {
+        Row: {
+          avg_quantity: number | null
+          customer_id: string | null
+          day_of_week_preference: number[] | null
+          id: string
+          last_ordered_at: string | null
+          order_count: number | null
+          product_id: string | null
+          total_quantity: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          avg_quantity?: number | null
+          customer_id?: string | null
+          day_of_week_preference?: number[] | null
+          id?: string
+          last_ordered_at?: string | null
+          order_count?: number | null
+          product_id?: string | null
+          total_quantity?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          avg_quantity?: number | null
+          customer_id?: string | null
+          day_of_week_preference?: number[] | null
+          id?: string
+          last_ordered_at?: string | null
+          order_count?: number | null
+          product_id?: string | null
+          total_quantity?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_customer_patterns_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_customer_patterns_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fnb_customers: {
+        Row: {
+          address: string | null
+          created_at: string | null
+          id: string
+          name: string
+          notes: string | null
+          preferred_language: string | null
+          quickbooks_customer_id: string | null
+          updated_at: string | null
+          whatsapp_phone: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          preferred_language?: string | null
+          quickbooks_customer_id?: string | null
+          updated_at?: string | null
+          whatsapp_phone: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          preferred_language?: string | null
+          quickbooks_customer_id?: string | null
+          updated_at?: string | null
+          whatsapp_phone?: string
+        }
+        Relationships: []
+      }
+      fnb_order_items: {
+        Row: {
+          created_at: string | null
+          id: string
+          order_id: string | null
+          picked_at: string | null
+          picked_by: string | null
+          picked_quantity: number | null
+          product_id: string | null
+          quantity: number
+          total_xcg: number
+          unit_price_xcg: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          order_id?: string | null
+          picked_at?: string | null
+          picked_by?: string | null
+          picked_quantity?: number | null
+          product_id?: string | null
+          quantity: number
+          total_xcg: number
+          unit_price_xcg: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          order_id?: string | null
+          picked_at?: string | null
+          picked_by?: string | null
+          picked_quantity?: number | null
+          product_id?: string | null
+          quantity?: number
+          total_xcg?: number
+          unit_price_xcg?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fnb_orders: {
+        Row: {
+          created_at: string | null
+          customer_id: string | null
+          delivery_date: string | null
+          id: string
+          language_used: string | null
+          notes: string | null
+          order_date: string
+          order_number: string
+          quickbooks_invoice_id: string | null
+          quickbooks_invoice_number: string | null
+          status: string | null
+          total_xcg: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id?: string | null
+          delivery_date?: string | null
+          id?: string
+          language_used?: string | null
+          notes?: string | null
+          order_date?: string
+          order_number: string
+          quickbooks_invoice_id?: string | null
+          quickbooks_invoice_number?: string | null
+          status?: string | null
+          total_xcg?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string | null
+          delivery_date?: string | null
+          id?: string
+          language_used?: string | null
+          notes?: string | null
+          order_date?: string
+          order_number?: string
+          quickbooks_invoice_id?: string | null
+          quickbooks_invoice_number?: string | null
+          status?: string | null
+          total_xcg?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fnb_picker_queue: {
+        Row: {
+          claimed_at: string | null
+          claimed_by: string | null
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          order_id: string | null
+          priority: number | null
+          status: string | null
+        }
+        Insert: {
+          claimed_at?: string | null
+          claimed_by?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          order_id?: string | null
+          priority?: number | null
+          status?: string | null
+        }
+        Update: {
+          claimed_at?: string | null
+          claimed_by?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          order_id?: string | null
+          priority?: number | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_picker_queue_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fnb_products: {
+        Row: {
+          code: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          min_order_qty: number | null
+          name: string
+          name_es: string | null
+          name_nl: string | null
+          name_pap: string | null
+          price_xcg: number
+          quickbooks_item_id: string | null
+          unit: string
+          updated_at: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          min_order_qty?: number | null
+          name: string
+          name_es?: string | null
+          name_nl?: string | null
+          name_pap?: string | null
+          price_xcg: number
+          quickbooks_item_id?: string | null
+          unit: string
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          min_order_qty?: number | null
+          name?: string
+          name_es?: string | null
+          name_nl?: string | null
+          name_pap?: string | null
+          price_xcg?: number
+          quickbooks_item_id?: string | null
+          unit?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       invoices: {
         Row: {
           adjusted_total: number
