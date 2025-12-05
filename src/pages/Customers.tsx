@@ -21,8 +21,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { MapPin, Plus, Edit, Trash2, ArrowLeft, Search } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { MapPin, Plus, Edit, Trash2, ArrowLeft, Search, Store, ShoppingBag } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { useActivityLogger } from '@/hooks/useActivityLogger';
 
@@ -37,6 +45,7 @@ interface Customer {
   latitude?: number;
   longitude?: number;
   notes?: string;
+  pricing_tier: 'wholesale' | 'retail';
 }
 
 export default function Customers() {
@@ -64,7 +73,7 @@ export default function Customers() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (values: { name: string; address: string; city?: string; postal_code?: string; phone?: string; email?: string; notes?: string }) => {
+    mutationFn: async (values: { name: string; address: string; city?: string; postal_code?: string; phone?: string; email?: string; notes?: string; pricing_tier: 'wholesale' | 'retail' }) => {
       // Convert empty strings to null for optional fields
       const cleanedValues = {
         name: values.name,
@@ -74,6 +83,7 @@ export default function Customers() {
         phone: values.phone || null,
         email: values.email || null,
         notes: values.notes || null,
+        pricing_tier: values.pricing_tier,
       };
       
       const { data, error } = await supabase.from('customers').insert([cleanedValues]).select().single();
@@ -106,6 +116,7 @@ export default function Customers() {
         phone: values.phone || null,
         email: values.email || null,
         notes: values.notes || null,
+        pricing_tier: values.pricing_tier,
       };
       
       const { error } = await supabase
@@ -146,6 +157,8 @@ export default function Customers() {
     },
   });
 
+  const [selectedPricingTier, setSelectedPricingTier] = useState<'wholesale' | 'retail'>('wholesale');
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -157,6 +170,7 @@ export default function Customers() {
       phone: formData.get('phone') as string,
       email: formData.get('email') as string,
       notes: formData.get('notes') as string,
+      pricing_tier: selectedPricingTier,
     };
 
     if (editingCustomer) {
@@ -174,9 +188,17 @@ export default function Customers() {
         </Button>
         <h1 className="text-3xl font-bold flex-1">Customers</h1>
         {canManage && (
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={dialogOpen} onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) {
+              setSelectedPricingTier('wholesale');
+            }
+          }}>
             <DialogTrigger asChild>
-              <Button onClick={() => setEditingCustomer(null)}>
+              <Button onClick={() => {
+                setEditingCustomer(null);
+                setSelectedPricingTier('wholesale');
+              }}>
                 <Plus className="mr-2 h-4 w-4" /> Add Customer
               </Button>
             </DialogTrigger>
@@ -244,6 +266,34 @@ export default function Customers() {
                   />
                 </div>
                 <div>
+                  <Label htmlFor="pricing_tier">Pricing Tier</Label>
+                  <Select 
+                    value={selectedPricingTier} 
+                    onValueChange={(value: 'wholesale' | 'retail') => setSelectedPricingTier(value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select pricing tier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="wholesale">
+                        <div className="flex items-center gap-2">
+                          <Store className="h-4 w-4" />
+                          <span>Wholesale</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="retail">
+                        <div className="flex items-center gap-2">
+                          <ShoppingBag className="h-4 w-4" />
+                          <span>Retail</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Wholesale: resellers get wholesale pricing. Retail: end customers pay retail prices.
+                  </p>
+                </div>
+                <div>
                   <Label htmlFor="notes">Notes</Label>
                   <Textarea
                     id="notes"
@@ -289,6 +339,7 @@ export default function Customers() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
+                <TableHead>Pricing</TableHead>
                 <TableHead>Address</TableHead>
                 <TableHead>City</TableHead>
                 <TableHead>Phone</TableHead>
@@ -312,6 +363,18 @@ export default function Customers() {
                 <TableRow key={customer.id}>
                   <TableCell className="font-medium">{customer.name}</TableCell>
                   <TableCell>
+                    <Badge 
+                      variant={customer.pricing_tier === 'retail' ? 'default' : 'secondary'}
+                      className="flex items-center gap-1 w-fit"
+                    >
+                      {customer.pricing_tier === 'retail' ? (
+                        <><ShoppingBag className="h-3 w-3" /> Retail</>
+                      ) : (
+                        <><Store className="h-3 w-3" /> Wholesale</>
+                      )}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
                     <div className="flex items-center gap-1">
                       <MapPin className="h-3 w-3" />
                       {customer.address}
@@ -328,6 +391,7 @@ export default function Customers() {
                           variant="ghost"
                           onClick={() => {
                             setEditingCustomer(customer);
+                            setSelectedPricingTier(customer.pricing_tier || 'wholesale');
                             setDialogOpen(true);
                           }}
                         >

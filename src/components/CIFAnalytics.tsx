@@ -20,6 +20,7 @@ import {
 interface OrderItem {
   product_code: string;
   quantity: number;
+  customer_name?: string;
 }
 
 interface AIRecommendation {
@@ -429,6 +430,7 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
           pack_size,
           empty_case_weight,
           wholesale_price_xcg_per_unit,
+          retail_price_xcg_per_unit,
           supplier_id,
           length_cm,
           width_cm,
@@ -443,6 +445,21 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
       const LOCAL_LOGISTICS_USD = 91;
       const LOCAL_LOGISTICS_XCG = LOCAL_LOGISTICS_USD * exchangeRate;
       const LABOR_XCG = 50;
+
+      // Fetch customer pricing tiers for accurate profit calculation
+      const customerNames = [...new Set(orderItems.map(item => item.customer_name).filter(Boolean))];
+      let customerTierMap = new Map<string, 'wholesale' | 'retail'>();
+      
+      if (customerNames.length > 0) {
+        const { data: customers } = await supabase
+          .from('customers')
+          .select('name, pricing_tier')
+          .in('name', customerNames);
+        
+        customers?.forEach(c => {
+          customerTierMap.set(c.name, c.pricing_tier as 'wholesale' | 'retail');
+        });
+      }
 
       // Calculate total weight using correct formula and build cost breakdown
       let totalWeight = 0;
@@ -536,13 +553,30 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
         const cifXCG = cifUSD * exchangeRate + (LABOR_XCG / products.length);
         const cifPerUnit = totalUnits > 0 ? cifXCG / totalUnits : 0;
         
-        // Wholesale price and margin
-        const wholesalePricePerUnit = product.wholesale_price_xcg_per_unit || 0;
-        const wholesaleRevenue = totalUnits * wholesalePricePerUnit;
-        const profit = wholesaleRevenue - cifXCG;
+        // Calculate revenue based on customer pricing tiers
+        // Group items by customer to determine proper pricing
+        const itemsForProduct = orderItems.filter(oi => oi.product_code === product.code);
+        let productRevenue = 0;
+        
+        itemsForProduct.forEach(oi => {
+          const customerTier = oi.customer_name ? customerTierMap.get(oi.customer_name) : 'wholesale';
+          const pricePerUnit = customerTier === 'retail' 
+            ? (product.retail_price_xcg_per_unit || product.wholesale_price_xcg_per_unit || 0)
+            : (product.wholesale_price_xcg_per_unit || 0);
+          const itemUnits = (oi.quantity || 0) * packSize;
+          productRevenue += itemUnits * pricePerUnit;
+        });
+        
+        // If no customer data, fall back to wholesale pricing
+        if (productRevenue === 0) {
+          const wholesalePricePerUnit = product.wholesale_price_xcg_per_unit || 0;
+          productRevenue = totalUnits * wholesalePricePerUnit;
+        }
+        
+        const profit = productRevenue - cifXCG;
         const marginPercentage = cifXCG > 0 ? (profit / cifXCG) * 100 : 0;
 
-        totalWholesaleRevenue += wholesaleRevenue;
+        totalWholesaleRevenue += productRevenue;
         totalCostXCG += cifXCG;
 
         // Add to supplier map (cost in Cg)
