@@ -514,6 +514,7 @@ export type Database = {
           notes: string | null
           phone: string | null
           postal_code: string | null
+          pricing_tier: string
           updated_at: string
         }
         Insert: {
@@ -528,6 +529,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           postal_code?: string | null
+          pricing_tier?: string
           updated_at?: string
         }
         Update: {
@@ -542,6 +544,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           postal_code?: string | null
+          pricing_tier?: string
           updated_at?: string
         }
         Relationships: []
