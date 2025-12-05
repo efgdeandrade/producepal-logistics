@@ -1,22 +1,22 @@
 project_id = "dnxzpkbobzwjcuyfgdnh"
 
 [functions.cif-advisor]
-verify_jwt = false
+verify_jwt = true
 
 [functions.volumetric-weight-advisor]
-verify_jwt = false
+verify_jwt = true
 
 [functions.cif-learning-engine]
-verify_jwt = false
+verify_jwt = true
 
 [functions.market-price-advisor]
-verify_jwt = false
+verify_jwt = true
 
 [functions.pricing-optimizer]
-verify_jwt = false
+verify_jwt = true
 
 [functions.document-parser]
-verify_jwt = false
+verify_jwt = true
 
 [functions.create-user-direct]
 verify_jwt = true
