@@ -1,6 +1,11 @@
 /**
  * Pure CIF (Cost, Insurance, Freight) calculation functions
  * Extracted for testability and single source of truth across components
+ * 
+ * Used by:
+ * - CIFCalculator.tsx (Estimate and Actual tabs)
+ * - OrderCIFTable.tsx (Order details page)
+ * - ActualCIFForm.tsx (Actual CIF entry form)
  */
 
 // ================== Types ==================
@@ -10,8 +15,8 @@ export interface CIFProductInput {
   productName: string;
   quantity: number;
   costPerUnit: number;
-  actualWeight: number; // kg
-  volumetricWeight: number; // kg
+  actualWeight: number; // kg - total for this product line
+  volumetricWeight: number; // kg - total for this product line
   orderFrequency?: number;
   wasteRate?: number;
   wholesalePriceXCG?: number;
@@ -20,7 +25,7 @@ export interface CIFProductInput {
 }
 
 export interface CIFParams {
-  totalFreight: number; // USD
+  totalFreight: number; // USD - total freight to distribute
   exchangeRate: number;
   limitingFactor: 'actual' | 'volumetric';
   wholesaleMultiplier?: number;
@@ -56,6 +61,10 @@ export type DistributionMethod =
 
 export const DEFAULT_WHOLESALE_MULTIPLIER = 1.25;
 export const DEFAULT_RETAIL_MULTIPLIER = 1.786;
+export const DEFAULT_EXCHANGE_RATE = 1.82;
+export const DEFAULT_LOCAL_LOGISTICS_USD = 91;
+export const DEFAULT_LABOR_XCG = 50;
+export const DEFAULT_BANK_CHARGES_USD = 0;
 
 // ================== Helper Functions ==================
 
@@ -69,6 +78,7 @@ export function calculateTotals(products: CIFProductInput[]): {
   totalVolumetricWeight: number;
   totalFrequency: number;
   totalStrategicWeight: number;
+  productCount: number;
 } {
   let totalCost = 0;
   let totalActualWeight = 0;
@@ -96,7 +106,20 @@ export function calculateTotals(products: CIFProductInput[]): {
     totalVolumetricWeight,
     totalFrequency,
     totalStrategicWeight,
+    productCount: products.length,
   };
+}
+
+/**
+ * Get the weight to use for a product based on limiting factor
+ */
+export function getProductContribution(
+  product: CIFProductInput,
+  limitingFactor: 'actual' | 'volumetric'
+): number {
+  return limitingFactor === 'volumetric' 
+    ? product.volumetricWeight 
+    : product.actualWeight;
 }
 
 /**
@@ -112,10 +135,7 @@ export function calculateFreightByWeight(
   const totalChargeableWeight = Math.max(totals.totalActualWeight, totals.totalVolumetricWeight);
   if (totalChargeableWeight === 0) return 0;
   
-  const productContribution = limitingFactor === 'volumetric' 
-    ? product.volumetricWeight 
-    : product.actualWeight;
-  
+  const productContribution = getProductContribution(product, limitingFactor);
   return (productContribution / totalChargeableWeight) * totalFreight;
 }
 
@@ -167,11 +187,10 @@ export function calculateFreightHybrid(
 export function calculateFreightStrategic(
   product: CIFProductInput,
   totals: ReturnType<typeof calculateTotals>,
-  totalFreight: number,
-  productCount: number
+  totalFreight: number
 ): number {
   if (totals.totalStrategicWeight === 0) {
-    return totalFreight / productCount;
+    return totalFreight / totals.productCount;
   }
   
   const riskFactor = 1 + ((product.wasteRate || 0) / 100);
@@ -188,18 +207,17 @@ export function calculateFreightStrategic(
 export function calculateFreightVolumeOptimized(
   product: CIFProductInput,
   totals: ReturnType<typeof calculateTotals>,
-  totalFreight: number,
-  productCount: number
+  totalFreight: number
 ): number {
-  if (productCount === 0) return 0;
+  if (totals.productCount === 0) return 0;
   
   const frequencyWeight = totals.totalFrequency > 0 
     ? ((product.orderFrequency || 0) / totals.totalFrequency) 
-    : 1 / productCount;
+    : 1 / totals.productCount;
   
   // Invert the weight so higher frequency = lower freight
   const invertedWeight = 1 - (frequencyWeight / 2);
-  return invertedWeight * (totalFreight / productCount);
+  return invertedWeight * (totalFreight / totals.productCount);
 }
 
 /**
@@ -221,6 +239,35 @@ export function calculateFreightCustomerTier(
   return baseShare * tierMultiplier;
 }
 
+/**
+ * Get freight share for a product using the specified distribution method
+ */
+export function getFreightShare(
+  product: CIFProductInput,
+  totals: ReturnType<typeof calculateTotals>,
+  params: CIFParams,
+  method: DistributionMethod
+): number {
+  switch (method) {
+    case 'byWeight':
+      return calculateFreightByWeight(product, totals, params.totalFreight, params.limitingFactor);
+    case 'byCost':
+      return calculateFreightByCost(product, totals, params.totalFreight);
+    case 'equally':
+      return calculateFreightEqually(params.totalFreight, totals.productCount);
+    case 'hybrid':
+      return calculateFreightHybrid(product, totals, params.totalFreight, params.limitingFactor);
+    case 'strategic':
+      return calculateFreightStrategic(product, totals, params.totalFreight);
+    case 'volumeOptimized':
+      return calculateFreightVolumeOptimized(product, totals, params.totalFreight);
+    case 'customerTier':
+      return calculateFreightCustomerTier(product, params.totalFreight, totals.productCount);
+    default:
+      return calculateFreightByWeight(product, totals, params.totalFreight, params.limitingFactor);
+  }
+}
+
 // ================== Main Calculation Functions ==================
 
 /**
@@ -239,6 +286,7 @@ export function calculateProductCIF(
   const cifXCG = cifUSD * params.exchangeRate;
   const cifPerUnit = product.quantity > 0 ? cifXCG / product.quantity : 0;
   
+  // Use stored prices if available, otherwise calculate from CIF
   const wholesalePrice = product.wholesalePriceXCG || (cifPerUnit * wholesaleMultiplier);
   const retailPrice = product.retailPriceXCG || (cifPerUnit * retailMultiplier);
   const wholesaleMargin = wholesalePrice - cifPerUnit;
@@ -274,32 +322,7 @@ export function calculateCIFByMethod(
   const totals = calculateTotals(products);
   
   return products.map(product => {
-    let freightShare = 0;
-    
-    switch (method) {
-      case 'byWeight':
-        freightShare = calculateFreightByWeight(product, totals, params.totalFreight, params.limitingFactor);
-        break;
-      case 'byCost':
-        freightShare = calculateFreightByCost(product, totals, params.totalFreight);
-        break;
-      case 'equally':
-        freightShare = calculateFreightEqually(params.totalFreight, products.length);
-        break;
-      case 'hybrid':
-        freightShare = calculateFreightHybrid(product, totals, params.totalFreight, params.limitingFactor);
-        break;
-      case 'strategic':
-        freightShare = calculateFreightStrategic(product, totals, params.totalFreight, products.length);
-        break;
-      case 'volumeOptimized':
-        freightShare = calculateFreightVolumeOptimized(product, totals, params.totalFreight, products.length);
-        break;
-      case 'customerTier':
-        freightShare = calculateFreightCustomerTier(product, params.totalFreight, products.length);
-        break;
-    }
-    
+    const freightShare = getFreightShare(product, totals, params, method);
     return calculateProductCIF(product, freightShare, params);
   });
 }
@@ -359,4 +382,42 @@ export function calculateProfitSummary(results: CIFResult[]): {
     totalWholesaleMargin: 0,
     totalRetailMargin: 0,
   });
+}
+
+/**
+ * Determine limiting factor from weight totals
+ */
+export function determineLimitingFactor(
+  totalActualWeight: number,
+  totalVolumetricWeight: number
+): 'actual' | 'volumetric' {
+  return totalVolumetricWeight > totalActualWeight ? 'volumetric' : 'actual';
+}
+
+/**
+ * Calculate total freight from rates and weight
+ * Used for estimate mode in CIF Calculator
+ */
+export function calculateTotalFreightFromRates(
+  chargeableWeight: number,
+  freightExteriorPerKg: number,
+  freightLocalPerKg: number,
+  localLogisticsUSD: number = DEFAULT_LOCAL_LOGISTICS_USD,
+  bankChargesUSD: number = DEFAULT_BANK_CHARGES_USD
+): number {
+  const combinedTariff = freightExteriorPerKg + freightLocalPerKg;
+  return (chargeableWeight * combinedTariff) + localLogisticsUSD + bankChargesUSD;
+}
+
+/**
+ * Calculate total freight from actual costs
+ * Used for actual mode in CIF Calculator
+ */
+export function calculateTotalFreightFromActual(
+  freightChampionCost: number,
+  swissportCost: number,
+  localLogisticsUSD: number = DEFAULT_LOCAL_LOGISTICS_USD,
+  bankChargesUSD: number = DEFAULT_BANK_CHARGES_USD
+): number {
+  return freightChampionCost + swissportCost + localLogisticsUSD + bankChargesUSD;
 }

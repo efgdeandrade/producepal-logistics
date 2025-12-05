@@ -260,8 +260,8 @@ describe('CIF Calculations', () => {
       const products = [lowWaste, highWaste];
       const totals = calculateTotals(products);
 
-      const freightLow = calculateFreightStrategic(lowWaste, totals, 500, products.length);
-      const freightHigh = calculateFreightStrategic(highWaste, totals, 500, products.length);
+      const freightLow = calculateFreightStrategic(lowWaste, totals, 500);
+      const freightHigh = calculateFreightStrategic(highWaste, totals, 500);
 
       // High waste product should get MORE freight (penalized)
       expect(freightHigh).toBeGreaterThan(freightLow);
@@ -293,8 +293,8 @@ describe('CIF Calculations', () => {
       const products = [slowMover, fastMover];
       const totals = calculateTotals(products);
 
-      const freightSlow = calculateFreightStrategic(slowMover, totals, 500, products.length);
-      const freightFast = calculateFreightStrategic(fastMover, totals, 500, products.length);
+      const freightSlow = calculateFreightStrategic(slowMover, totals, 500);
+      const freightFast = calculateFreightStrategic(fastMover, totals, 500);
 
       // Fast mover should get LESS freight (favored)
       expect(freightFast).toBeLessThan(freightSlow);
@@ -305,7 +305,7 @@ describe('CIF Calculations', () => {
       const totals = calculateTotals(products);
       
       // Should not throw and should return a valid freight share
-      const freight = calculateFreightStrategic(products[0], totals, 500, products.length);
+      const freight = calculateFreightStrategic(products[0], totals, 500);
       expect(freight).toBeGreaterThan(0);
     });
   });
@@ -317,8 +317,8 @@ describe('CIF Calculations', () => {
 
       // BLU_125 has highest frequency (12)
       // ROM_001 has lowest frequency (3)
-      const freightBLU = calculateFreightVolumeOptimized(products[2], totals, 500, products.length);
-      const freightROM = calculateFreightVolumeOptimized(products[1], totals, 500, products.length);
+      const freightBLU = calculateFreightVolumeOptimized(products[2], totals, 500);
+      const freightROM = calculateFreightVolumeOptimized(products[1], totals, 500);
 
       expect(freightBLU).toBeLessThan(freightROM);
     });
@@ -327,8 +327,8 @@ describe('CIF Calculations', () => {
       const products = createTestProducts();
       const totals = calculateTotals(products);
 
-      const freightROM = calculateFreightVolumeOptimized(products[1], totals, 500, products.length);
-      const freightSTB = calculateFreightVolumeOptimized(products[0], totals, 500, products.length);
+      const freightROM = calculateFreightVolumeOptimized(products[1], totals, 500);
+      const freightSTB = calculateFreightVolumeOptimized(products[0], totals, 500);
 
       // ROM (freq=3) should get more freight than STB (freq=8)
       expect(freightROM).toBeGreaterThan(freightSTB);
