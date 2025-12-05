@@ -16,19 +16,16 @@ const createUserSchema = z.object({
   }),
 });
 
-function generateFunnyPassword(): string {
-  // Multi-language fruit names (Papiamento, English, Dutch, Spanish)
-  const fruits = [
-    'Manggo', 'Papaya', 'Banana', 'Sandia', 'Limon', 'Parchita', 'Kas', 'Preimu',
-    'Apple', 'Grape', 'Orange', 'Cherry', 'Peach', 'Melon', 'Berry', 'Kiwi',
-    'Aardbei', 'Druif', 'Citroen', 'Ananas', 'Peer',
-    'Naranja', 'Fresa', 'Uva', 'Manzana', 'Lima', 'Pina'
-  ];
-  
-  const randomFruit = fruits[Math.floor(Math.random() * fruits.length)];
-  const randomNumber = Math.floor(100 + Math.random() * 900); // 3-digit number (100-999)
-  
-  return `${randomFruit}${randomNumber}`;
+// Generate a secure random password for initial account creation (never exposed)
+function generateSecurePassword(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+  let password = '';
+  const array = new Uint8Array(24);
+  crypto.getRandomValues(array);
+  for (let i = 0; i < 24; i++) {
+    password += chars[array[i] % chars.length];
+  }
+  return password;
 }
 
 serve(async (req) => {
@@ -37,8 +34,9 @@ serve(async (req) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
+      supabaseUrl,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       {
         auth: {
@@ -79,13 +77,13 @@ serve(async (req) => {
     const body = await req.json();
     const { email, fullName, role } = createUserSchema.parse(body);
 
-    // Generate funny password
-    const generatedPassword = generateFunnyPassword();
+    // Generate secure password for initial account creation (never exposed to anyone)
+    const securePassword = generateSecurePassword();
 
-    // Create user with generated password
+    // Create user with secure password (will be reset via link)
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
-      password: generatedPassword,
+      password: securePassword,
       email_confirm: true, // Auto-confirm email
       user_metadata: {
         full_name: fullName,
@@ -123,6 +121,23 @@ serve(async (req) => {
       throw roleError;
     }
 
+    // Generate password reset link instead of returning password
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'recovery',
+      email: email,
+    });
+
+    if (linkError) {
+      console.error("Error generating reset link:", linkError);
+      throw new Error("User created but failed to generate password reset link");
+    }
+
+    // Extract the token from the link and construct a proper reset URL
+    const resetToken = linkData.properties?.hashed_token;
+    const resetLink = resetToken 
+      ? `${supabaseUrl}/auth/v1/verify?token=${resetToken}&type=recovery&redirect_to=${encodeURIComponent(supabaseUrl)}`
+      : linkData.properties?.action_link;
+
     console.log(`User ${email} created successfully by admin ${user.id}`);
 
     return new Response(
@@ -130,7 +145,7 @@ serve(async (req) => {
         success: true,
         userId,
         email,
-        password: generatedPassword,
+        resetLink: linkData.properties?.action_link || resetLink,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

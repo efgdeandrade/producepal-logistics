@@ -51,8 +51,8 @@ export default function UserManagement() {
     fullName: '',
     role: 'driver' as const,
   });
-  const [generatedPassword, setGeneratedPassword] = useState<string>('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [resetLink, setResetLink] = useState<string>('');
+  const [showResetLink, setShowResetLink] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const availableRoles = ['admin', 'management', 'driver', 'production', 'logistics', 'accounting', 'manager'] as const;
@@ -157,8 +157,8 @@ export default function UserManagement() {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
-    setGeneratedPassword('');
-    setShowPassword(false);
+    setResetLink('');
+    setShowResetLink(false);
 
     const result = inviteSchema.safeParse(createUserForm);
     if (!result.success) {
@@ -187,8 +187,8 @@ export default function UserManagement() {
         throw new Error(data.error);
       }
 
-      setGeneratedPassword(data.password);
-      setShowPassword(true);
+      setResetLink(data.resetLink);
+      setShowResetLink(true);
       
       toast({
         title: 'Success',
@@ -205,12 +205,12 @@ export default function UserManagement() {
     }
   };
 
-  const handleCopyPassword = async () => {
-    if (generatedPassword) {
-      await navigator.clipboard.writeText(generatedPassword);
+  const handleCopyResetLink = async () => {
+    if (resetLink) {
+      await navigator.clipboard.writeText(resetLink);
       toast({
         title: 'Copied!',
-        description: 'Password copied to clipboard',
+        description: 'Reset link copied to clipboard',
       });
     }
   };
@@ -218,8 +218,8 @@ export default function UserManagement() {
   const handleCloseCreateUser = () => {
     setCreateUserOpen(false);
     setCreateUserForm({ email: '', fullName: '', role: 'driver' });
-    setGeneratedPassword('');
-    setShowPassword(false);
+    setResetLink('');
+    setShowResetLink(false);
     setErrors({});
   };
 
@@ -396,12 +396,12 @@ export default function UserManagement() {
                 </Button>
               </DialogTrigger>
               <DialogContent>
-                {!showPassword ? (
+                {!showResetLink ? (
                   <form onSubmit={handleCreateUser}>
                     <DialogHeader>
                       <DialogTitle>Create User Directly</DialogTitle>
                       <DialogDescription>
-                        Create a new user with a generated password
+                        Create a new user with a password reset link
                       </DialogDescription>
                     </DialogHeader>
 
@@ -459,34 +459,34 @@ export default function UserManagement() {
                     <DialogHeader>
                       <DialogTitle>✅ User Created Successfully!</DialogTitle>
                       <DialogDescription>
-                        Save this password and send it to the user manually
+                        Share this password reset link with the user
                       </DialogDescription>
                     </DialogHeader>
 
                     <div className="space-y-4 py-4">
                       <div className="space-y-2">
-                        <Label>Generated Password</Label>
+                        <Label>Password Reset Link</Label>
                         <div className="flex gap-2">
                           <Input
-                            value={generatedPassword}
+                            value={resetLink}
                             readOnly
-                            className="font-mono text-lg"
+                            className="font-mono text-xs"
                           />
                           <Button
                             type="button"
                             variant="outline"
                             size="icon"
-                            onClick={handleCopyPassword}
+                            onClick={handleCopyResetLink}
                           >
                             <Copy className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
 
-                      <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-md p-3">
-                        <p className="text-sm text-amber-900 dark:text-amber-100">
-                          ⚠️ <strong>IMPORTANT:</strong> Save this password! You won't see it again. 
-                          Send it to the user manually. They must change it on first login.
+                      <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md p-3">
+                        <p className="text-sm text-blue-900 dark:text-blue-100">
+                          ℹ️ <strong>Secure Setup:</strong> Share this link with the user. 
+                          They will use it to set their own password securely.
                         </p>
                       </div>
                     </div>
