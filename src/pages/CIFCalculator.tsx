@@ -19,6 +19,18 @@ import { calculateOrderPalletConfig, ProductWeightInfo, SupplierPalletData, crea
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { exportToExcel, exportToPDF, printCalculation } from '@/utils/cifExportUtils';
+import {
+  CIFProductInput,
+  CIFParams,
+  CIFResult as BaseCIFResult,
+  DistributionMethod,
+  calculateCIFByMethod,
+  calculateTotalFreightFromRates,
+  calculateTotalFreightFromActual,
+  determineLimitingFactor,
+  DEFAULT_WHOLESALE_MULTIPLIER,
+  DEFAULT_RETAIL_MULTIPLIER,
+} from '@/lib/cifCalculations';
 
 interface DatabaseProduct {
   code: string;
@@ -474,6 +486,68 @@ export default function CIFCalculator() {
     exportToPDF('cif-results', `CIF_${activeTab}_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
+  // Convert ProductInput to CIFProductInput format for shared calculation functions
+  const convertToCIFProductInput = (product: ProductInput): CIFProductInput => {
+    const productActualWeightKg = (product.quantity * product.weightPerUnit) + 
+      (product.quantity / (product.packSize || 1) * (product.emptyCaseWeight || 0));
+    const productVolumetricWeightKg = (product.quantity * (product.volumetricWeightPerUnit || 0)) + 
+      (product.quantity / (product.packSize || 1) * (product.emptyCaseWeight || 0));
+    
+    return {
+      productCode: product.code,
+      productName: product.name,
+      quantity: product.quantity,
+      costPerUnit: product.costPerUnit,
+      actualWeight: productActualWeightKg,
+      volumetricWeight: productVolumetricWeightKg,
+      wholesalePriceXCG: product.wholesalePriceXCG,
+      retailPriceXCG: product.retailPriceXCG,
+      supplier: product.supplierName,
+    };
+  };
+
+  // Add price comparison data to CIF results
+  const addPriceComparison = (
+    baseResult: BaseCIFResult,
+    storedWholesale?: number,
+    storedRetail?: number
+  ): CIFResult => {
+    const wholesalePriceDiff = storedWholesale 
+      ? baseResult.wholesalePrice - storedWholesale 
+      : undefined;
+    const wholesalePriceDiffPercent = storedWholesale && storedWholesale !== 0
+      ? (wholesalePriceDiff! / storedWholesale) * 100
+      : undefined;
+    const retailPriceDiff = storedRetail 
+      ? baseResult.retailPrice - storedRetail 
+      : undefined;
+    const retailPriceDiffPercent = storedRetail && storedRetail !== 0
+      ? (retailPriceDiff! / storedRetail) * 100
+      : undefined;
+
+    return {
+      productCode: baseResult.productCode as ProductCode,
+      productName: baseResult.productName,
+      quantity: baseResult.quantity,
+      costUSD: baseResult.costUSD,
+      freightCost: baseResult.freightCost,
+      cifUSD: baseResult.cifUSD,
+      cifXCG: baseResult.cifXCG,
+      wholesalePrice: baseResult.wholesalePrice,
+      retailPrice: baseResult.retailPrice,
+      wholesaleMargin: baseResult.wholesaleMargin,
+      retailMargin: baseResult.retailMargin,
+      storedWholesalePrice: storedWholesale,
+      storedRetailPrice: storedRetail,
+      calculatedWholesalePrice: baseResult.wholesalePrice,
+      calculatedRetailPrice: baseResult.retailPrice,
+      wholesalePriceDiff,
+      wholesalePriceDiffPercent,
+      retailPriceDiff,
+      retailPriceDiffPercent,
+    };
+  };
+
   const calculateCIF = (
     products: ProductInput[],
     freightChampionCost?: number,
@@ -516,12 +590,9 @@ export default function CIFCalculator() {
 
     // Use provided values or fall back to defaults
     const LOCAL_LOGISTICS_USD = localLogisticsUSD ?? 91;
-    const LABOR_XCG = laborXCG ?? 50;
     const BANK_CHARGES_USD = bankChargesUSD ?? 0;
-    const WHOLESALE_MULTIPLIER = 1.25;
-    const RETAIL_MULTIPLIER = 1.786;
 
-    // Convert products to weight info format
+    // Convert products to weight info format for pallet calculation
     const productsWithWeight: ProductWeightInfo[] = products.map(p => ({
       code: p.code,
       name: p.name,
@@ -546,138 +617,45 @@ export default function CIFCalculator() {
     const totalVolumetricWeight = orderPalletConfig.totalVolumetricWeight;
     const totalChargeableWeight = orderPalletConfig.totalChargeableWeight;
     const totalPallets = orderPalletConfig.totalPallets;
-    const limitingFactor = totalChargeableWeight === totalVolumetricWeight ? 'volumetric' : 'actual';
+    const limitingFactor = determineLimitingFactor(totalActualWeight, totalVolumetricWeight);
 
-    const totalCost = products.reduce((sum, p) => sum + (p.quantity * p.costPerUnit), 0);
+    // Calculate total freight using shared functions
+    const totalFreight = freightChampionCost !== undefined && swissportCost !== undefined
+      ? calculateTotalFreightFromActual(freightChampionCost, swissportCost, LOCAL_LOGISTICS_USD, BANK_CHARGES_USD)
+      : calculateTotalFreightFromRates(totalChargeableWeight, freightExteriorPerKg, freightLocalPerKg, LOCAL_LOGISTICS_USD, BANK_CHARGES_USD);
 
-    const combinedTariffPerKg = freightExteriorPerKg + freightLocalPerKg;
-    const totalFreightCost = freightChampionCost && swissportCost 
-      ? (freightChampionCost + swissportCost + LOCAL_LOGISTICS_USD + BANK_CHARGES_USD)
-      : (totalChargeableWeight * combinedTariffPerKg + LOCAL_LOGISTICS_USD + BANK_CHARGES_USD);
+    // Convert products to CIFProductInput format
+    const cifInputs: CIFProductInput[] = products.map(convertToCIFProductInput);
 
-    const calculateResults = (distributionMethod: 'weight' | 'cost' | 'equal' | 'hybrid' | 'strategic' | 'volumeOptimized' | 'customerTier'): CIFResult[] => {
-      return products.map(product => {
-        const productActualWeightKg = (product.quantity * product.weightPerUnit) + 
-          (product.quantity / (product.packSize || 1) * (product.emptyCaseWeight || 0));
-        const productVolumetricWeightKg = (product.quantity * (product.volumetricWeightPerUnit || 0)) + 
-          (product.quantity / (product.packSize || 1) * (product.emptyCaseWeight || 0));
-        
-        const productChargeableWeightKg = Math.max(productActualWeightKg, productVolumetricWeightKg);
-        const productCost = product.quantity * product.costPerUnit;
-
-        let freightShare = 0;
-        
-        switch (distributionMethod) {
-          case 'weight':
-            const productContribution = limitingFactor === 'volumetric' 
-              ? productVolumetricWeightKg 
-              : productActualWeightKg;
-            freightShare = totalChargeableWeight > 0 
-              ? (productContribution / totalChargeableWeight) * totalFreightCost 
-              : 0;
-            break;
-            
-          case 'cost':
-            freightShare = totalCost > 0 ? (productCost / totalCost) * totalFreightCost : 0;
-            break;
-            
-          case 'equal':
-            freightShare = totalFreightCost / products.length;
-            break;
-            
-          case 'hybrid':
-            const weightShare = totalChargeableWeight > 0 
-              ? (productChargeableWeightKg / totalChargeableWeight) * totalFreightCost * 0.5
-              : 0;
-            const costShare = totalCost > 0 
-              ? (productCost / totalCost) * totalFreightCost * 0.5
-              : 0;
-            freightShare = weightShare + costShare;
-            break;
-            
-          case 'strategic':
-            const baseShare = totalChargeableWeight > 0 
-              ? (productChargeableWeightKg / totalChargeableWeight) * totalFreightCost
-              : 0;
-            freightShare = baseShare;
-            break;
-            
-          case 'volumeOptimized':
-            const volumeEfficiency = productActualWeightKg > 0 
-              ? productVolumetricWeightKg / productActualWeightKg 
-              : 1;
-            const penalty = volumeEfficiency > 1.2 ? volumeEfficiency : 1;
-            const baseVolumeShare = totalChargeableWeight > 0 
-              ? (productChargeableWeightKg / totalChargeableWeight) * totalFreightCost
-              : 0;
-            freightShare = baseVolumeShare * penalty;
-            break;
-            
-          case 'customerTier':
-            freightShare = totalChargeableWeight > 0 
-              ? (productChargeableWeightKg / totalChargeableWeight) * totalFreightCost
-              : 0;
-            break;
-        }
-
-        const cifUSD = productCost + freightShare;
-        const cifXCG = cifUSD * exchangeRate;
-        const cifPerUnit = product.quantity > 0 ? cifXCG / product.quantity : 0;
-        
-        const wholesalePrice = cifPerUnit * WHOLESALE_MULTIPLIER;
-        const retailPrice = cifPerUnit * RETAIL_MULTIPLIER;
-        const wholesaleMargin = wholesalePrice - cifPerUnit;
-        const retailMargin = retailPrice - cifPerUnit;
-
-        const storedWholesalePrice = product.wholesalePriceXCG;
-        const storedRetailPrice = product.retailPriceXCG;
-
-        const wholesalePriceDiff = storedWholesalePrice 
-          ? wholesalePrice - storedWholesalePrice 
-          : undefined;
-        const wholesalePriceDiffPercent = storedWholesalePrice && storedWholesalePrice !== 0
-          ? (wholesalePriceDiff! / storedWholesalePrice) * 100
-          : undefined;
-
-        const retailPriceDiff = storedRetailPrice 
-          ? retailPrice - storedRetailPrice 
-          : undefined;
-        const retailPriceDiffPercent = storedRetailPrice && storedRetailPrice !== 0
-          ? (retailPriceDiff! / storedRetailPrice) * 100
-          : undefined;
-
-        return {
-          productCode: product.code,
-          productName: product.name,
-          quantity: product.quantity,
-          costUSD: productCost,
-          freightCost: freightShare,
-          cifUSD,
-          cifXCG,
-          wholesalePrice,
-          retailPrice,
-          wholesaleMargin,
-          retailMargin,
-          storedWholesalePrice,
-          storedRetailPrice,
-          calculatedWholesalePrice: wholesalePrice,
-          calculatedRetailPrice: retailPrice,
-          wholesalePriceDiff,
-          wholesalePriceDiffPercent,
-          retailPriceDiff,
-          retailPriceDiffPercent,
-        };
-      });
+    // Create CIF params
+    const cifParams: CIFParams = {
+      totalFreight,
+      exchangeRate,
+      limitingFactor,
+      wholesaleMultiplier: DEFAULT_WHOLESALE_MULTIPLIER,
+      retailMultiplier: DEFAULT_RETAIL_MULTIPLIER,
     };
 
+    // Calculate results for each method using shared functions
+    const methods: DistributionMethod[] = ['byWeight', 'byCost', 'equally', 'hybrid', 'strategic', 'volumeOptimized', 'customerTier'];
+    const resultsMap: Record<string, CIFResult[]> = {};
+
+    methods.forEach(method => {
+      const baseResults = calculateCIFByMethod(cifInputs, cifParams, method);
+      // Add price comparison data
+      resultsMap[method] = baseResults.map((result, index) => 
+        addPriceComparison(result, products[index].wholesalePriceXCG, products[index].retailPriceXCG)
+      );
+    });
+
     return {
-      byWeight: calculateResults('weight'),
-      byCost: calculateResults('cost'),
-      equally: calculateResults('equal'),
-      hybrid: calculateResults('hybrid'),
-      strategic: calculateResults('strategic'),
-      volumeOptimized: calculateResults('volumeOptimized'),
-      customerTier: calculateResults('customerTier'),
+      byWeight: resultsMap.byWeight,
+      byCost: resultsMap.byCost,
+      equally: resultsMap.equally,
+      hybrid: resultsMap.hybrid,
+      strategic: resultsMap.strategic,
+      volumeOptimized: resultsMap.volumeOptimized,
+      customerTier: resultsMap.customerTier,
       limitingFactor,
       totalPallets,
       totalActualWeight,

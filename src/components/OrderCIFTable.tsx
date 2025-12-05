@@ -14,6 +14,18 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+  CIFProductInput,
+  CIFParams,
+  CIFResult as BaseCIFResult,
+  DistributionMethod,
+  calculateCIFByMethod,
+  calculateTotalFreightFromRates,
+  determineLimitingFactor,
+  DEFAULT_WHOLESALE_MULTIPLIER,
+  DEFAULT_RETAIL_MULTIPLIER,
+  DEFAULT_LOCAL_LOGISTICS_USD,
+} from '@/lib/cifCalculations';
 
 interface OrderItem {
   product_code: string;
@@ -229,12 +241,6 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
         }) || []
       );
 
-      // Use fetched settings instead of hardcoded values
-      const LOCAL_LOGISTICS_USD = localLogisticsUsd;
-      const LABOR_XCG = laborXcg;
-      const WHOLESALE_MULTIPLIER = 1.25;
-      const RETAIL_MULTIPLIER = 1.786;
-
       // Prepare products with data
       const productsWithData = consolidatedItems.map(item => {
         const productData = productMap.get(item.product_code);
@@ -304,20 +310,13 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
       const totalVolumetricWeight = orderPalletConfig.totalVolumetricWeight;
       const totalChargeableWeight = orderPalletConfig.totalChargeableWeight;
       const totalPallets = orderPalletConfig.totalPallets;
-      const limitingFactor = totalChargeableWeight === totalVolumetricWeight ? 'volumetric' : 'actual';
       
       // Calculate if we're being charged by volumetric (this triggers the alert)
-      const isChargedByVolumetric = limitingFactor === 'volumetric';
+      const isChargedByVolumetric = totalVolumetricWeight > totalActualWeight;
       const weightGapKg = totalVolumetricWeight - totalActualWeight;
       const weightGapPercent = totalActualWeight > 0 
         ? ((weightGapKg / totalActualWeight) * 100) 
         : 0;
-
-      const totalCost = productsWithWeight.reduce((sum, p) => sum + (p.totalUnits * p.costPerUnit), 0);
-      const combinedTariffPerKg = freightExteriorPerKg + freightLocalPerKg;
-      
-      // Calculate freight based on ORDER-LEVEL chargeable weight (includes pallets)
-      const totalFreightCost = totalChargeableWeight * combinedTariffPerKg;
       
       // Set alert data for volumetric weight component
       setVolumetricAlertData({
@@ -329,133 +328,90 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
         totalChargeableWeight
       });
       
-      // Total freight is now just freight cost (pallets already included in totalChargeableWeight)
-      const totalFreight = localLogisticsUsd + totalFreightCost;
+      // Total freight using shared calculation
+      const totalFreight = calculateTotalFreightFromRates(
+        totalChargeableWeight,
+        freightExteriorPerKg,
+        freightLocalPerKg,
+        localLogisticsUsd,
+        0 // bank charges
+      );
 
-      const calculateResults = (
-        distributionMethod: 'weight' | 'cost' | 'equal' | 'hybrid' | 'strategic' | 'volumeOptimized' | 'customerTier'
-      ): CIFResult[] => {
-        return productsWithWeight.map(product => {
-          const productCost = product.totalUnits * product.costPerUnit;
+      // Convert products to CIFProductInput format for shared functions
+      const cifInputs: CIFProductInput[] = productsWithWeight.map(product => ({
+        productCode: product.code,
+        productName: product.name,
+        quantity: product.totalUnits,
+        costPerUnit: product.costPerUnit,
+        actualWeight: product.actualWeight,
+        volumetricWeight: product.volumetricWeight,
+        orderFrequency: product.orderFrequency,
+        wasteRate: product.wasteRate,
+        wholesalePriceXCG: product.wholesalePriceXCG,
+        retailPriceXCG: product.retailPriceXCG,
+        supplier: product.supplier,
+      }));
 
-          let freightShare = 0;
-          
-          switch (distributionMethod) {
-            case 'weight':
-              // Allocate freight based on contribution to LIMITING factor
-              const productContribution = limitingFactor === 'volumetric' 
-                ? product.volumetricWeight 
-                : product.actualWeight;
-              freightShare = totalChargeableWeight > 0 
-                ? (productContribution / totalChargeableWeight) * totalFreight 
-                : 0;
-              break;
-              
-            case 'cost':
-              freightShare = totalCost > 0 ? (productCost / totalCost) * totalFreight : 0;
-              break;
-              
-            case 'equal':
-              freightShare = totalFreight / productsWithWeight.length;
-              break;
-              
-            case 'hybrid':
-              // 50% by weight + 50% by cost
-              const productContrib = limitingFactor === 'volumetric' 
-                ? product.volumetricWeight 
-                : product.actualWeight;
-              const weightShare = totalChargeableWeight > 0 ? (productContrib / totalChargeableWeight) * totalFreight : 0;
-              const costShare = totalCost > 0 ? (productCost / totalCost) * totalFreight : 0;
-              freightShare = (weightShare + costShare) / 2;
-              break;
-              
-            case 'volumeOptimized':
-              // Products with higher order frequency get preferential rates (lower freight allocation)
-              const totalFrequency = productsWithWeight.reduce((sum, p) => sum + p.orderFrequency, 0);
-              const frequencyWeight = totalFrequency > 0 ? (product.orderFrequency / totalFrequency) : 1 / productsWithWeight.length;
-              // Invert the weight so higher frequency = lower freight
-              const invertedWeight = 1 - (frequencyWeight / 2);
-              freightShare = invertedWeight * (totalFreight / productsWithWeight.length);
-              break;
-              
-            case 'strategic':
-              // AI-driven: Products with high waste rate get less freight, fast movers get less freight
-              const riskFactor = 1 + (product.wasteRate / 100);
-              const velocityFactor = 1 / Math.sqrt(product.orderFrequency || 1);
-              const strategicWeight = riskFactor * velocityFactor;
-              const totalStrategicWeight = productsWithWeight.reduce((sum, p) => {
-                const rf = 1 + (p.wasteRate / 100);
-                const vf = 1 / Math.sqrt(p.orderFrequency || 1);
-                return sum + (rf * vf);
-              }, 0);
-              freightShare = totalStrategicWeight > 0 ? (strategicWeight / totalStrategicWeight) * totalFreight : totalFreight / productsWithWeight.length;
-              break;
-              
-            case 'customerTier':
-              // Wholesale products (high volume) get lower freight allocation
-              // Assume products with higher order frequency are wholesale-heavy
-              const isWholesaleHeavy = product.orderFrequency > 5;
-              const tierMultiplier = isWholesaleHeavy ? 0.85 : 1.15;
-              const baseShare = totalFreight / productsWithWeight.length;
-              freightShare = baseShare * tierMultiplier;
-              break;
-          }
+      // Create CIF params
+      const cifParams: CIFParams = {
+        totalFreight,
+        exchangeRate: exchangeRateValue,
+        limitingFactor: determineLimitingFactor(totalActualWeight, totalVolumetricWeight),
+        wholesaleMultiplier: DEFAULT_WHOLESALE_MULTIPLIER,
+        retailMultiplier: DEFAULT_RETAIL_MULTIPLIER,
+      };
 
-          const cifUSD = productCost + freightShare;
-          const cifXCG = cifUSD * exchangeRateValue;
-          const cifPerUnit = product.totalUnits > 0 ? cifXCG / product.totalUnits : 0;
-
-          const wholesalePrice = product.wholesalePriceXCG || (cifPerUnit * WHOLESALE_MULTIPLIER);
-          const retailPrice = product.retailPriceXCG || (cifPerUnit * RETAIL_MULTIPLIER);
-          const wholesaleMargin = wholesalePrice - cifPerUnit;
-          const retailMargin = retailPrice - cifPerUnit;
-
-          // Get price history for this product
+      // Calculate results for each method and add OrderCIFTable-specific fields
+      const calculateResultsWithExtras = (method: DistributionMethod): CIFResult[] => {
+        const baseResults = calculateCIFByMethod(cifInputs, cifParams, method);
+        
+        return baseResults.map((result, index) => {
+          const product = productsWithWeight[index];
           const history = priceHistory.get(product.code);
+          
           const priceHistoryData = history ? {
             previousWholesale: history.previousPrice,
             previousRetail: history.previousPrice ? history.previousPrice * 1.429 : undefined,
-            wholesaleChange: history.previousPrice ? ((wholesalePrice - history.previousPrice) / history.previousPrice * 100) : undefined,
-            retailChange: history.previousPrice ? ((retailPrice - (history.previousPrice * 1.429)) / (history.previousPrice * 1.429) * 100) : undefined,
+            wholesaleChange: history.previousPrice ? ((result.wholesalePrice - history.previousPrice) / history.previousPrice * 100) : undefined,
+            retailChange: history.previousPrice ? ((result.retailPrice - (history.previousPrice * 1.429)) / (history.previousPrice * 1.429) * 100) : undefined,
             lastChangeDate: history.changeDate
           } : undefined;
 
-          // Calculate per-product totalWeight and weightType for result object
           const productTotalWeight = Math.max(product.actualWeight, product.volumetricWeight);
           const productWeightType = product.volumetricWeight > product.actualWeight ? 'volumetric' : 'actual';
 
           return {
-            productCode: product.code,
-            productName: product.name,
-            quantity: product.totalUnits,
+            productCode: result.productCode,
+            productName: result.productName,
+            quantity: result.quantity,
             trays: product.numberOfCases,
             actualWeight: product.actualWeight,
             volumetricWeight: product.volumetricWeight,
             totalWeight: productTotalWeight,
             weightType: productWeightType as 'actual' | 'volumetric',
-            costUSD: productCost,
-            freightCost: freightShare,
-            cifUSD,
-            cifXCG,
-            cifPerUnit,
-            wholesalePrice,
-            retailPrice,
-            wholesaleMargin,
-            retailMargin,
-            supplier: product.supplier,
+            costUSD: result.costUSD,
+            freightCost: result.freightCost,
+            cifUSD: result.cifUSD,
+            cifXCG: result.cifXCG,
+            cifPerUnit: result.cifPerUnit,
+            wholesalePrice: result.wholesalePrice,
+            retailPrice: result.retailPrice,
+            wholesaleMargin: result.wholesaleMargin,
+            retailMargin: result.retailMargin,
+            supplier: result.supplier || product.supplier,
             priceHistory: priceHistoryData
           };
         });
       };
 
       setCifResults({
-        byWeight: calculateResults('weight'),
-        byCost: calculateResults('cost'),
-        equally: calculateResults('equal'),
-        hybrid: calculateResults('hybrid'),
-        strategic: calculateResults('strategic'),
-        volumeOptimized: calculateResults('volumeOptimized'),
-        customerTier: calculateResults('customerTier'),
+        byWeight: calculateResultsWithExtras('byWeight'),
+        byCost: calculateResultsWithExtras('byCost'),
+        equally: calculateResultsWithExtras('equally'),
+        hybrid: calculateResultsWithExtras('hybrid'),
+        strategic: calculateResultsWithExtras('strategic'),
+        volumeOptimized: calculateResultsWithExtras('volumeOptimized'),
+        customerTier: calculateResultsWithExtras('customerTier'),
       });
       
       // Store weight data for display
