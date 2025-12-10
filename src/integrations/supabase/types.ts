@@ -1635,6 +1635,7 @@ export type Database = {
         Row: {
           case_size: string | null
           code: string
+          consolidation_group: string | null
           created_at: string
           empty_case_weight: number | null
           gross_weight_per_unit: number | null
@@ -1662,6 +1663,7 @@ export type Database = {
         Insert: {
           case_size?: string | null
           code: string
+          consolidation_group?: string | null
           created_at?: string
           empty_case_weight?: number | null
           gross_weight_per_unit?: number | null
@@ -1689,6 +1691,7 @@ export type Database = {
         Update: {
           case_size?: string | null
           code?: string
+          consolidation_group?: string | null
           created_at?: string
           empty_case_weight?: number | null
           gross_weight_per_unit?: number | null
