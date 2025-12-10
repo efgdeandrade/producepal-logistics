@@ -17,6 +17,7 @@ interface Product {
   name: string;
   pack_size: number;
   supplier_id: string | null;
+  consolidation_group: string | null;
 }
 
 interface Customer {
@@ -62,7 +63,7 @@ const NewOrder = () => {
       setLoading(true);
       const [customersRes, productsRes, suppliersRes] = await Promise.all([
         supabase.from('customers').select('id, name').order('name'),
-        supabase.from('products').select('id, code, name, pack_size, supplier_id').order('name'),
+        supabase.from('products').select('id, code, name, pack_size, supplier_id, consolidation_group').order('name'),
         supabase.from('suppliers').select('id, name').order('name'),
       ]);
       
@@ -273,23 +274,54 @@ const NewOrder = () => {
     return Array.from(productMap.values()).sort((a, b) => a.product.name.localeCompare(b.product.name));
   };
 
-  const groupBySupplier = () => {
-    const supplierMap = new Map<string, { supplier: { id: string; name: string }; items: Array<{ product: Product; totalTrays: number; totalUnits: number }> }>();
+  interface ConsolidatedGroup {
+    groupName: string | null;
+    packSize: number;
+    products: Array<{ product: Product; individualUnits: number }>;
+    totalUnits: number;
+    totalCases: number;
+  }
 
+  interface SupplierGroup {
+    supplier: { id: string; name: string };
+    consolidatedGroups: ConsolidatedGroup[];
+  }
+
+  const groupBySupplier = (): SupplierGroup[] => {
     const roundup = calculateRoundup();
+    const supplierMap = new Map<string, SupplierGroup>();
+
     roundup.forEach(item => {
       const supplierId = item.product.supplier_id || 'unknown';
       const supplier = suppliers.find(s => s.id === supplierId) || { id: 'unknown', name: 'Unknown Supplier' };
+      const groupKey = item.product.consolidation_group;
+      const packSize = item.product.pack_size;
 
-      const existing = supplierMap.get(supplierId);
-      if (existing) {
-        existing.items.push(item);
-      } else {
-        supplierMap.set(supplierId, {
-          supplier,
-          items: [item],
-        });
+      if (!supplierMap.has(supplierId)) {
+        supplierMap.set(supplierId, { supplier, consolidatedGroups: [] });
       }
+
+      const supplierGroup = supplierMap.get(supplierId)!;
+      
+      // Find or create consolidation group
+      let consolidatedGroup = supplierGroup.consolidatedGroups.find(
+        cg => cg.groupName === groupKey && cg.packSize === packSize
+      );
+
+      if (!consolidatedGroup) {
+        consolidatedGroup = {
+          groupName: groupKey,
+          packSize,
+          products: [],
+          totalUnits: 0,
+          totalCases: 0,
+        };
+        supplierGroup.consolidatedGroups.push(consolidatedGroup);
+      }
+
+      consolidatedGroup.products.push({ product: item.product, individualUnits: item.totalUnits });
+      consolidatedGroup.totalUnits += item.totalUnits;
+      consolidatedGroup.totalCases = Math.ceil(consolidatedGroup.totalUnits / packSize);
     });
 
     return Array.from(supplierMap.values());
@@ -439,30 +471,65 @@ const NewOrder = () => {
   const handlePrintSupplierOrders = () => {
     const supplierGroups = groupBySupplier();
     
-    const printContent = supplierGroups.map(group => `
-      <div style="page-break-after: always; padding: 40px; font-family: Arial, sans-serif;">
-        <h1 style="margin-bottom: 20px;">Supplier Order - ${group.supplier.name}</h1>
-        <p><strong>Week:</strong> ${weekNumber} | <strong>Delivery Date:</strong> ${deliveryDate}</p>
-        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-          <thead>
-            <tr style="background: #f5f5f5;">
-              <th style="border: 1px solid #ddd; padding: 12px; text-align: left;">Product</th>
-              <th style="border: 1px solid #ddd; padding: 12px; text-align: right;">Total Trays</th>
-              <th style="border: 1px solid #ddd; padding: 12px; text-align: right;">Total Units</th>
+    const printContent = supplierGroups.map(group => {
+      const groupRows = group.consolidatedGroups.map(cg => {
+        const isConsolidated = cg.groupName && cg.products.length > 1;
+        
+        if (isConsolidated) {
+          // Show consolidated group with individual products indented
+          const groupHeader = `
+            <tr style="background: #e8f4e8;">
+              <td colspan="3" style="border: 1px solid #ddd; padding: 12px; font-weight: bold;">
+                ${cg.groupName?.replace(/_/g, ' ')} (${cg.packSize} per case) - ${cg.totalCases} CASE${cg.totalCases !== 1 ? 'S' : ''}
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            ${group.items.map(item => `
-              <tr>
-                <td style="border: 1px solid #ddd; padding: 12px;">${item.product.name}</td>
-                <td style="border: 1px solid #ddd; padding: 12px; text-align: right; font-weight: bold;">${item.totalTrays}</td>
-                <td style="border: 1px solid #ddd; padding: 12px; text-align: right;">${item.totalUnits}</td>
+          `;
+          const productRows = cg.products.map(p => `
+            <tr>
+              <td style="border: 1px solid #ddd; padding: 12px; padding-left: 32px; color: #666;">↳ ${p.product.name}</td>
+              <td style="border: 1px solid #ddd; padding: 12px; text-align: right; color: #666;">${p.individualUnits} units</td>
+              <td style="border: 1px solid #ddd; padding: 12px; text-align: right;"></td>
+            </tr>
+          `).join('');
+          const totalRow = `
+            <tr style="background: #f9f9f9;">
+              <td style="border: 1px solid #ddd; padding: 12px; padding-left: 32px; font-style: italic;">Total in case(s)</td>
+              <td style="border: 1px solid #ddd; padding: 12px; text-align: right; font-weight: bold;">${cg.totalUnits} units</td>
+              <td style="border: 1px solid #ddd; padding: 12px; text-align: right; font-weight: bold;">${cg.totalCases} case${cg.totalCases !== 1 ? 's' : ''}</td>
+            </tr>
+          `;
+          return groupHeader + productRows + totalRow;
+        } else {
+          // Non-consolidated: show individual product with cases
+          return cg.products.map(p => `
+            <tr>
+              <td style="border: 1px solid #ddd; padding: 12px;">${p.product.name}</td>
+              <td style="border: 1px solid #ddd; padding: 12px; text-align: right;">${p.individualUnits} units</td>
+              <td style="border: 1px solid #ddd; padding: 12px; text-align: right; font-weight: bold;">${cg.totalCases} case${cg.totalCases !== 1 ? 's' : ''}</td>
+            </tr>
+          `).join('');
+        }
+      }).join('');
+
+      return `
+        <div style="page-break-after: always; padding: 40px; font-family: Arial, sans-serif;">
+          <h1 style="margin-bottom: 20px;">Supplier Order - ${group.supplier.name}</h1>
+          <p><strong>Week:</strong> ${weekNumber} | <strong>Delivery Date:</strong> ${deliveryDate}</p>
+          <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+            <thead>
+              <tr style="background: #f5f5f5;">
+                <th style="border: 1px solid #ddd; padding: 12px; text-align: left;">Product</th>
+                <th style="border: 1px solid #ddd; padding: 12px; text-align: right;">Quantity</th>
+                <th style="border: 1px solid #ddd; padding: 12px; text-align: right;">Cases</th>
               </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-    `).join('');
+            </thead>
+            <tbody>
+              ${groupRows}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }).join('');
 
     const printWindow = window.open('', '_blank');
     if (printWindow) {
