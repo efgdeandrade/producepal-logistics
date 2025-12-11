@@ -1,5 +1,4 @@
 import { forwardRef } from 'react';
-import logo from '@/assets/logo.png';
 
 interface InvoiceItem {
   product_name: string;
@@ -48,7 +47,7 @@ export const Invoice = forwardRef<HTMLDivElement, InvoiceProps>(
         {/* Header */}
         <div className={`text-center ${is80mm ? 'mb-3' : 'mb-6'}`}>
           <img
-            src={logo}
+            src="/logo.png"
             alt="FUIK COMPANY B.V."
             className={`mx-auto ${is80mm ? 'h-8 mb-2' : 'h-12 mb-3'}`}
           />
