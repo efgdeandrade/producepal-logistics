@@ -28,6 +28,8 @@ interface Product {
   code: string;
   name: string;
   pack_size: number;
+  supplier_id: string | null;
+  consolidation_group: string | null;
 }
 
 interface Customer {
@@ -68,6 +70,7 @@ export default function StandingOrders() {
   
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([]);
   const [selectedDay, setSelectedDay] = useState<number>(2); // Tuesday by default
   const [editingTemplate, setEditingTemplate] = useState<TemplateCustomer[]>([]);
   const [templateName, setTemplateName] = useState('');
@@ -93,13 +96,15 @@ export default function StandingOrders() {
   }, [selectedDay, templates]);
 
   const loadData = async () => {
-    const [customersRes, productsRes] = await Promise.all([
+    const [customersRes, productsRes, suppliersRes] = await Promise.all([
       supabase.from('customers').select('id, name').order('name'),
-      supabase.from('products').select('id, code, name, pack_size').order('name'),
+      supabase.from('products').select('id, code, name, pack_size, supplier_id, consolidation_group').order('name'),
+      supabase.from('suppliers').select('id, name').order('name'),
     ]);
 
     if (customersRes.data) setCustomers(customersRes.data);
     if (productsRes.data) setProducts(productsRes.data);
+    if (suppliersRes.data) setSuppliers(suppliersRes.data);
   };
 
   const loadTemplateIntoEditor = (template: any) => {
@@ -315,6 +320,87 @@ export default function StandingOrders() {
   };
 
   const currentTemplate = templates.find(t => t.day_of_week === selectedDay);
+
+  // Calculate roundup - aggregate all products across all customers
+  const calculateRoundup = () => {
+    const productMap = new Map<string, { product: Product; totalTrays: number; totalUnits: number }>();
+
+    editingTemplate.forEach(customer => {
+      customer.products.forEach(templateProduct => {
+        const product = products.find(p => p.code === templateProduct.productCode);
+        if (!product) return;
+
+        const existing = productMap.get(product.id);
+        if (existing) {
+          existing.totalTrays += templateProduct.trays;
+          existing.totalUnits += templateProduct.units;
+        } else {
+          productMap.set(product.id, {
+            product,
+            totalTrays: templateProduct.trays,
+            totalUnits: templateProduct.units,
+          });
+        }
+      });
+    });
+
+    return Array.from(productMap.values()).sort((a, b) => a.product.name.localeCompare(b.product.name));
+  };
+
+  interface ConsolidatedGroup {
+    groupName: string | null;
+    packSize: number;
+    products: Array<{ product: Product; individualUnits: number }>;
+    totalUnits: number;
+    totalCases: number;
+  }
+
+  interface SupplierGroup {
+    supplier: { id: string; name: string };
+    consolidatedGroups: ConsolidatedGroup[];
+  }
+
+  const groupBySupplier = (): SupplierGroup[] => {
+    const roundup = calculateRoundup();
+    const supplierMap = new Map<string, SupplierGroup>();
+
+    roundup.forEach(item => {
+      const supplierId = item.product.supplier_id || 'unknown';
+      const supplier = suppliers.find(s => s.id === supplierId) || { id: 'unknown', name: 'Unknown Supplier' };
+      const groupKey = item.product.consolidation_group;
+      const packSize = item.product.pack_size;
+
+      if (!supplierMap.has(supplierId)) {
+        supplierMap.set(supplierId, { supplier, consolidatedGroups: [] });
+      }
+
+      const supplierGroup = supplierMap.get(supplierId)!;
+      
+      // Find or create consolidation group
+      let consolidatedGroup = supplierGroup.consolidatedGroups.find(
+        cg => cg.groupName === groupKey && cg.packSize === packSize
+      );
+
+      if (!consolidatedGroup) {
+        consolidatedGroup = {
+          groupName: groupKey,
+          packSize,
+          products: [],
+          totalUnits: 0,
+          totalCases: 0,
+        };
+        supplierGroup.consolidatedGroups.push(consolidatedGroup);
+      }
+
+      consolidatedGroup.products.push({ product: item.product, individualUnits: item.totalUnits });
+      consolidatedGroup.totalUnits += item.totalUnits;
+      consolidatedGroup.totalCases = Math.ceil(consolidatedGroup.totalUnits / packSize);
+    });
+
+    return Array.from(supplierMap.values());
+  };
+
+  const roundup = calculateRoundup();
 
   if (loading) {
     return (
@@ -547,6 +633,107 @@ export default function StandingOrders() {
                 <Plus className="mr-2 h-4 w-4" />
                 Add Customer
               </Button>
+
+              {/* Template Roundup */}
+              <Card className="border-primary/50 bg-primary/5">
+                <CardHeader>
+                  <CardTitle className="text-primary">Template Roundup</CardTitle>
+                  <CardDescription>Total quantities in this template</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Product</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Total Trays</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Total Units</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {roundup.length === 0 ? (
+                          <tr>
+                            <td colSpan={3} className="py-8 text-center text-sm text-muted-foreground">
+                              No products added yet
+                            </td>
+                          </tr>
+                        ) : (
+                          roundup.map(({ product, totalTrays, totalUnits }) => (
+                            <tr key={product.id} className="border-b">
+                              <td className="py-3 px-4 text-sm font-medium text-foreground">
+                                {product.name}
+                                {product.consolidation_group && (
+                                  <span className="ml-2 text-xs px-2 py-0.5 rounded bg-secondary text-secondary-foreground">
+                                    {product.consolidation_group.replace(/_/g, ' ')}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-3 px-4 text-right text-lg font-bold text-primary">{totalTrays}</td>
+                              <td className="py-3 px-4 text-right text-sm text-muted-foreground">{totalUnits}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Consolidated Supplier Orders Section */}
+                  {roundup.length > 0 && (
+                    <div className="mt-6 pt-6 border-t">
+                      <h4 className="text-sm font-semibold text-foreground mb-4">Consolidated Supplier Orders</h4>
+                      <div className="space-y-4">
+                        {groupBySupplier().map((supplierGroup) => (
+                          <div key={supplierGroup.supplier.id} className="border rounded-lg p-4 bg-background">
+                            <h5 className="font-medium text-foreground mb-3">{supplierGroup.supplier.name}</h5>
+                            <div className="space-y-2">
+                              {supplierGroup.consolidatedGroups.map((cg, idx) => {
+                                const isConsolidated = cg.groupName && cg.products.length > 1;
+                                
+                                if (isConsolidated) {
+                                  return (
+                                    <div key={idx} className="bg-green-50 dark:bg-green-950/20 rounded p-3">
+                                      <div className="flex items-center justify-between mb-2">
+                                        <span className="font-medium text-green-800 dark:text-green-200">
+                                          {cg.groupName?.replace(/_/g, ' ')} ({cg.packSize}/case)
+                                        </span>
+                                        <span className="font-bold text-green-700 dark:text-green-300">
+                                          {cg.totalCases} CASE{cg.totalCases !== 1 ? 'S' : ''}
+                                        </span>
+                                      </div>
+                                      <div className="text-sm text-muted-foreground space-y-1">
+                                        {cg.products.map((p, pIdx) => (
+                                          <div key={pIdx} className="flex justify-between pl-4">
+                                            <span>↳ {p.product.name}</span>
+                                            <span>{p.individualUnits} units</span>
+                                          </div>
+                                        ))}
+                                        <div className="flex justify-between pl-4 pt-1 border-t border-green-200 dark:border-green-800 font-medium">
+                                          <span>Total in case(s)</span>
+                                          <span>{cg.totalUnits} units</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                } else {
+                                  return cg.products.map((p, pIdx) => (
+                                    <div key={`${idx}-${pIdx}`} className="flex items-center justify-between py-2 px-3 bg-muted/50 rounded">
+                                      <span className="text-sm text-foreground">{p.product.name}</span>
+                                      <div className="text-right">
+                                        <span className="text-sm text-muted-foreground">{p.individualUnits} units</span>
+                                        <span className="ml-3 font-bold text-foreground">{cg.totalCases} case{cg.totalCases !== 1 ? 's' : ''}</span>
+                                      </div>
+                                    </div>
+                                  ));
+                                }
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
               {/* Save Button */}
               <Button 
