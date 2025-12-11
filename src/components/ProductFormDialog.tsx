@@ -10,6 +10,7 @@ interface ProductFormData {
   pack_size: string;
   supplier_id: string;
   case_size: string;
+  consolidation_group: string;
   netto_weight_per_unit: string;
   gross_weight_per_unit: string;
   empty_case_weight: string;
@@ -34,6 +35,7 @@ interface Product {
   pack_size: number;
   supplier_id?: string | null;
   case_size?: string | null;
+  consolidation_group?: string | null;
   netto_weight_per_unit?: number | null;
   gross_weight_per_unit?: number | null;
   empty_case_weight?: number | null;
@@ -171,6 +173,19 @@ export const ProductFormDialog = ({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="consolidation_group">Consolidation Group</Label>
+            <Input
+              id="consolidation_group"
+              value={formData.consolidation_group}
+              onChange={(e) => setFormData({ ...formData, consolidation_group: e.target.value.toUpperCase().replace(/\s+/g, '_') })}
+              placeholder="e.g., BABY_GREENS_150G"
+            />
+            <p className="text-xs text-muted-foreground">
+              Products in the same consolidation group with matching pack sizes will be combined when ordering from suppliers
+            </p>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
