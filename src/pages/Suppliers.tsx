@@ -60,6 +60,7 @@ interface Product {
   pack_size: number;
   supplier_id?: string | null;
   case_size?: string | null;
+  consolidation_group?: string | null;
   netto_weight_per_unit?: number | null;
   gross_weight_per_unit?: number | null;
   empty_case_weight?: number | null;
@@ -82,6 +83,7 @@ const productSchema = z.object({
   pack_size: z.number().int().min(1, 'Units per case must be at least 1'),
   supplier_id: z.string().uuid().optional().nullable(),
   case_size: z.string().trim().max(50, 'Case size too long').optional().nullable(),
+  consolidation_group: z.string().trim().max(50, 'Consolidation group too long').optional().nullable(),
   netto_weight_per_unit: z.number().min(0, 'Netto weight cannot be negative').optional().nullable(),
   gross_weight_per_unit: z.number().min(0, 'Gross weight cannot be negative').optional().nullable(),
   empty_case_weight: z.number().min(0, 'Empty case weight cannot be negative').optional().nullable(),
@@ -132,6 +134,7 @@ const Suppliers = () => {
     pack_size: '',
     supplier_id: '',
     case_size: '',
+    consolidation_group: '',
     netto_weight_per_unit: '',
     gross_weight_per_unit: '',
     empty_case_weight: '',
@@ -355,7 +358,7 @@ const Suppliers = () => {
       toast({ title: 'Product added successfully' });
       setIsProductDialogOpen(false);
       setProductFormData({ 
-        code: '', name: '', pack_size: '', supplier_id: viewingSupplier?.id || '', case_size: '',
+        code: '', name: '', pack_size: '', supplier_id: viewingSupplier?.id || '', case_size: '', consolidation_group: '',
         netto_weight_per_unit: '', gross_weight_per_unit: '', empty_case_weight: '',
         price_usd_per_unit: '', price_usd_per_case: '', price_xcg_per_unit: '', price_xcg_per_case: '',
         wholesale_price_usd_per_unit: '', wholesale_price_xcg_per_unit: '',
@@ -501,6 +504,7 @@ const Suppliers = () => {
         pack_size: product.pack_size.toString(),
         supplier_id: viewingSupplier?.id || '',
         case_size: product.case_size || '',
+        consolidation_group: product.consolidation_group || '',
         netto_weight_per_unit: product.netto_weight_per_unit?.toString() || '',
         gross_weight_per_unit: product.gross_weight_per_unit?.toString() || '',
         empty_case_weight: product.empty_case_weight?.toString() || '',
@@ -520,7 +524,7 @@ const Suppliers = () => {
     } else {
       setEditingProduct(null);
       setProductFormData({ 
-        code: '', name: '', pack_size: '', supplier_id: viewingSupplier?.id || '', case_size: '',
+        code: '', name: '', pack_size: '', supplier_id: viewingSupplier?.id || '', case_size: '', consolidation_group: '',
         netto_weight_per_unit: '', gross_weight_per_unit: '', empty_case_weight: '',
         price_usd_per_unit: '', price_usd_per_case: '', price_xcg_per_unit: '', price_xcg_per_case: '',
         wholesale_price_usd_per_unit: '', wholesale_price_xcg_per_unit: '',

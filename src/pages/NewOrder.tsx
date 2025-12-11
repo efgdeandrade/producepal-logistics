@@ -740,7 +740,14 @@ const NewOrder = () => {
                     ) : (
                       roundup.map(({ product, totalTrays, totalUnits }) => (
                         <tr key={product.id} className="border-b">
-                          <td className="py-3 px-4 text-sm font-medium text-foreground">{product.name}</td>
+                          <td className="py-3 px-4 text-sm font-medium text-foreground">
+                            {product.name}
+                            {product.consolidation_group && (
+                              <span className="ml-2 text-xs px-2 py-0.5 rounded bg-secondary text-secondary-foreground">
+                                {product.consolidation_group.replace(/_/g, ' ')}
+                              </span>
+                            )}
+                          </td>
                           <td className="py-3 px-4 text-right text-lg font-bold text-primary">{totalTrays}</td>
                           <td className="py-3 px-4 text-right text-sm text-muted-foreground">{totalUnits}</td>
                         </tr>
@@ -749,6 +756,62 @@ const NewOrder = () => {
                   </tbody>
                 </table>
               </div>
+
+              {/* Consolidated Supplier Orders Section */}
+              {roundup.length > 0 && (
+                <div className="mt-6 pt-6 border-t">
+                  <h4 className="text-sm font-semibold text-foreground mb-4">Consolidated Supplier Orders</h4>
+                  <div className="space-y-4">
+                    {groupBySupplier().map((supplierGroup) => (
+                      <div key={supplierGroup.supplier.id} className="border rounded-lg p-4 bg-background">
+                        <h5 className="font-medium text-foreground mb-3">{supplierGroup.supplier.name}</h5>
+                        <div className="space-y-2">
+                          {supplierGroup.consolidatedGroups.map((cg, idx) => {
+                            const isConsolidated = cg.groupName && cg.products.length > 1;
+                            
+                            if (isConsolidated) {
+                              return (
+                                <div key={idx} className="bg-green-50 dark:bg-green-950/20 rounded p-3">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="font-medium text-green-800 dark:text-green-200">
+                                      {cg.groupName?.replace(/_/g, ' ')} ({cg.packSize}/case)
+                                    </span>
+                                    <span className="font-bold text-green-700 dark:text-green-300">
+                                      {cg.totalCases} CASE{cg.totalCases !== 1 ? 'S' : ''}
+                                    </span>
+                                  </div>
+                                  <div className="text-sm text-muted-foreground space-y-1">
+                                    {cg.products.map((p, pIdx) => (
+                                      <div key={pIdx} className="flex justify-between pl-4">
+                                        <span>↳ {p.product.name}</span>
+                                        <span>{p.individualUnits} units</span>
+                                      </div>
+                                    ))}
+                                    <div className="flex justify-between pl-4 pt-1 border-t border-green-200 dark:border-green-800 font-medium">
+                                      <span>Total in case(s)</span>
+                                      <span>{cg.totalUnits} units</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            } else {
+                              return cg.products.map((p, pIdx) => (
+                                <div key={`${idx}-${pIdx}`} className="flex items-center justify-between py-2 px-3 bg-muted/50 rounded">
+                                  <span className="text-sm text-foreground">{p.product.name}</span>
+                                  <div className="text-right">
+                                    <span className="text-sm text-muted-foreground">{p.individualUnits} units</span>
+                                    <span className="ml-3 font-bold text-foreground">{cg.totalCases} case{cg.totalCases !== 1 ? 's' : ''}</span>
+                                  </div>
+                                </div>
+                              ));
+                            }
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
