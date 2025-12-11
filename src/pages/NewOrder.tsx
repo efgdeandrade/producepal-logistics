@@ -1,15 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, Save, Printer, X, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, Save, Printer, X, ArrowLeft, FileText, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { getWeek } from 'date-fns';
+import { StandingOrderPrompt } from '@/components/StandingOrderPrompt';
 
 interface Product {
   id: string;
@@ -57,6 +58,8 @@ const NewOrder = () => {
   const [customerOrders, setCustomerOrders] = useState<CustomerOrderItem[]>([]);
   const [showPrintOptions, setShowPrintOptions] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showStandingOrderPrompt, setShowStandingOrderPrompt] = useState(false);
+  const [initialDateSet, setInitialDateSet] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -247,6 +250,57 @@ const NewOrder = () => {
           }
         : co
     ));
+  };
+
+  const handleDeliveryDateChange = (newDate: string) => {
+    setDeliveryDate(newDate);
+    // Show standing order prompt when date is changed for new orders (not edit mode)
+    if (!isEditMode && initialDateSet) {
+      setShowStandingOrderPrompt(true);
+    }
+    setInitialDateSet(true);
+  };
+
+  const loadStandingOrderData = async (data: Array<{
+    customerId: string;
+    customerName: string;
+    products: Array<{ productCode: string; quantity: number }>;
+  }>) => {
+    // Convert standing order data to CustomerOrderItem format
+    const newCustomerOrders: CustomerOrderItem[] = data.map(customerData => {
+      const customerProducts: OrderProduct[] = customerData.products.map(p => {
+        const product = products.find(prod => prod.code === p.productCode);
+        return {
+          id: Date.now().toString() + Math.random(),
+          productId: product?.id || '',
+          productCode: p.productCode,
+          productName: product?.name || p.productCode,
+          packSize: product?.pack_size || 1,
+          trays: p.quantity,
+          units: p.quantity * (product?.pack_size || 1),
+        };
+      });
+
+      return {
+        id: Date.now().toString() + Math.random(),
+        customerId: customerData.customerId,
+        customerName: customerData.customerName,
+        products: customerProducts,
+      };
+    });
+
+    setCustomerOrders(newCustomerOrders);
+    toast({ title: 'Standing order loaded', description: `Loaded ${newCustomerOrders.length} customers` });
+  };
+
+  const cloneLastOrderData = async (data: Array<{
+    customerId: string;
+    customerName: string;
+    products: Array<{ productCode: string; quantity: number }>;
+  }>) => {
+    // Same as loading standing order
+    await loadStandingOrderData(data);
+    toast({ title: 'Order cloned', description: 'Copied from last order. PO numbers cleared.' });
   };
 
   const calculateRoundup = () => {
@@ -552,13 +606,24 @@ const NewOrder = () => {
       
       <main className="container py-8">
         <div className="mb-8">
-          <div className="flex items-center gap-4 mb-2">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/history')}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <h1 className="text-4xl font-bold text-foreground">
-              {isEditMode ? 'Edit Order' : 'New Order'}
-            </h1>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="icon" onClick={() => navigate('/history')}>
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <h1 className="text-4xl font-bold text-foreground">
+                {isEditMode ? 'Edit Order' : 'New Order'}
+              </h1>
+            </div>
+            {!isEditMode && (
+              <Button 
+                variant="outline" 
+                onClick={() => setShowStandingOrderPrompt(true)}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Load Template
+              </Button>
+            )}
           </div>
           <p className="text-muted-foreground">
             {isEditMode ? 'Update order details and items' : 'Create a new order from your customers'}
@@ -592,7 +657,7 @@ const NewOrder = () => {
                   id="delivery"
                   type="date"
                   value={deliveryDate}
-                  onChange={(e) => setDeliveryDate(e.target.value)}
+                  onChange={(e) => handleDeliveryDateChange(e.target.value)}
                 />
               </div>
               <div>
@@ -842,8 +907,31 @@ const NewOrder = () => {
               </Button>
             </div>
           </div>
+
+          {/* Quick access to Standing Orders */}
+          {!isEditMode && (
+            <div className="text-center">
+              <Link 
+                to="/standing-orders" 
+                className="text-sm text-muted-foreground hover:text-primary inline-flex items-center gap-1"
+              >
+                <Settings className="h-3 w-3" />
+                Manage Standing Order Templates
+              </Link>
+            </div>
+          )}
         </div>
       </main>
+
+      {/* Standing Order Prompt Dialog */}
+      <StandingOrderPrompt
+        open={showStandingOrderPrompt}
+        onOpenChange={setShowStandingOrderPrompt}
+        deliveryDate={deliveryDate}
+        onLoadStandingOrder={loadStandingOrderData}
+        onCloneLastOrder={cloneLastOrderData}
+        onStartFresh={() => setCustomerOrders([])}
+      />
     </div>
   );
 };

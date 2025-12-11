@@ -549,6 +549,87 @@ export type Database = {
         }
         Relationships: []
       }
+      day_order_template_items: {
+        Row: {
+          created_at: string
+          customer_id: string
+          customer_name: string
+          default_quantity: number
+          id: string
+          product_code: string
+          sort_order: number
+          template_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          customer_name: string
+          default_quantity?: number
+          id?: string
+          product_code: string
+          sort_order?: number
+          template_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          customer_name?: string
+          default_quantity?: number
+          id?: string
+          product_code?: string
+          sort_order?: number
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "day_order_template_items_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "day_order_template_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "day_order_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      day_order_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          day_of_week: number
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          day_of_week: number
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          day_of_week?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       deliveries: {
         Row: {
           adjusted_amount: number | null
