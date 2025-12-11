@@ -16,6 +16,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { useState, useEffect } from 'react';
 import { format, getWeek } from 'date-fns';
 import { getVersionDisplay } from '@/lib/version';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export const Header = () => {
   const location = useLocation();
@@ -316,6 +317,10 @@ export const Header = () => {
                 <p className="text-sm font-medium">{user?.email}</p>
               </div>
             </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <div className="px-2 py-1.5">
+              <ThemeToggle />
+            </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={signOut}>
               <LogOut className="mr-2 h-4 w-4" />
