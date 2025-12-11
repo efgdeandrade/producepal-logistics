@@ -1,15 +1,41 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Input validation schema
+const CIFResultSchema = z.object({
+  productCode: z.string(),
+  productName: z.string(),
+  quantity: z.number(),
+  totalWeight: z.number().optional(),
+  costUSD: z.number(),
+  freightCost: z.number(),
+  cifUSD: z.number(),
+  cifXCG: z.number(),
+  cifPerUnit: z.number(),
+  wholesalePrice: z.number(),
+  retailPrice: z.number(),
+  wholesaleMargin: z.number(),
+  retailMargin: z.number(),
+});
+
+const InputSchema = z.object({
+  cifResults: z.record(z.array(CIFResultSchema)),
+  orderItems: z.array(z.any()).optional(),
+  marketIntelligence: z.any().optional(),
+  historicalPerformance: z.any().optional(),
+});
+
 interface CIFResult {
   productCode: string;
   productName: string;
-  quantity: number; // Total units
-  totalWeight?: number; // Total weight in kg
+  quantity: number;
+  totalWeight?: number;
   costUSD: number;
   freightCost: number;
   cifUSD: number;
@@ -30,13 +56,72 @@ interface CIFAnalysis {
   marginVariance: number;
 }
 
+// Helper function to verify user role
+async function verifyUserRole(req: Request, allowedRoles: string[]): Promise<{ userId: string; role: string }> {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    throw new Error('Missing authorization header');
+  }
+
+  const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+  const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+
+  // Get user from JWT
+  const token = authHeader.replace('Bearer ', '');
+  const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+  
+  if (userError || !user) {
+    throw new Error('Invalid or expired token');
+  }
+
+  // Get user roles
+  const { data: roles, error: rolesError } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id);
+
+  if (rolesError) {
+    console.error('Error fetching user roles:', rolesError);
+    throw new Error('Failed to verify user permissions');
+  }
+
+  const userRoles = roles?.map(r => r.role) || [];
+  const hasRequiredRole = userRoles.some(role => allowedRoles.includes(role));
+
+  if (!hasRequiredRole) {
+    throw new Error('Forbidden: Insufficient permissions. Required roles: ' + allowedRoles.join(', '));
+  }
+
+  return { userId: user.id, role: userRoles[0] };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { cifResults, orderItems, marketIntelligence, historicalPerformance } = await req.json();
+    // Verify user has admin or management role
+    await verifyUserRole(req, ['admin', 'management']);
+
+    // Parse and validate input
+    const rawBody = await req.json();
+    const validationResult = InputSchema.safeParse(rawBody);
+    
+    if (!validationResult.success) {
+      console.error('Input validation failed:', validationResult.error.errors);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Invalid input format',
+          details: validationResult.error.errors 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { cifResults, orderItems, marketIntelligence, historicalPerformance } = validationResult.data;
     
     console.log('Analyzing CIF methods with multi-dimensional intelligence...');
 
@@ -223,13 +308,25 @@ Provide your recommendation in this EXACT JSON format (no markdown, just raw JSO
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
       console.error('AI API error:', aiResponse.status, errorText);
+      if (aiResponse.status === 429) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Rate limit exceeded. Please try again later.' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (aiResponse.status === 402) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'AI quota exceeded. Please add credits.' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       throw new Error(`AI API error: ${aiResponse.status}`);
     }
 
     const aiData = await aiResponse.json();
     const aiContent = aiData.choices[0].message.content;
     
-    console.log('AI Response:', aiContent);
+    console.log('AI Response received');
 
     // Parse AI response (remove markdown code blocks if present)
     let cleanContent = aiContent.trim();
@@ -245,7 +342,7 @@ Provide your recommendation in this EXACT JSON format (no markdown, just raw JSO
       JSON.stringify({ 
         success: true, 
         recommendation,
-        analyses // Include raw data for reference
+        analyses
       }), 
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -254,13 +351,17 @@ Provide your recommendation in this EXACT JSON format (no markdown, just raw JSO
 
   } catch (error) {
     console.error('Error in cif-advisor:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const status = errorMessage.includes('Forbidden') ? 403 : 
+                   errorMessage.includes('Invalid') || errorMessage.includes('Missing') ? 401 : 500;
+    
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+        error: errorMessage
       }), 
       {
-        status: 500,
+        status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );

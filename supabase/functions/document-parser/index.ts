@@ -1,9 +1,50 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Helper function to verify user role
+async function verifyUserRole(req: Request, allowedRoles: string[]): Promise<{ userId: string; role: string }> {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    throw new Error('Missing authorization header');
+  }
+
+  const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+  const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+
+  // Get user from JWT
+  const token = authHeader.replace('Bearer ', '');
+  const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+  
+  if (userError || !user) {
+    throw new Error('Invalid or expired token');
+  }
+
+  // Get user roles
+  const { data: roles, error: rolesError } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id);
+
+  if (rolesError) {
+    console.error('Error fetching user roles:', rolesError);
+    throw new Error('Failed to verify user permissions');
+  }
+
+  const userRoles = roles?.map((r: any) => r.role) || [];
+  const hasRequiredRole = userRoles.some((role: string) => allowedRoles.includes(role));
+
+  if (!hasRequiredRole) {
+    throw new Error('Forbidden: Insufficient permissions. Required roles: ' + allowedRoles.join(', '));
+  }
+
+  return { userId: user.id, role: userRoles[0] };
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -11,6 +52,9 @@ serve(async (req) => {
   }
 
   try {
+    // Verify user has admin, management, logistics, or accounting role
+    await verifyUserRole(req, ['admin', 'management', 'logistics', 'accounting']);
+
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
@@ -21,13 +65,31 @@ serve(async (req) => {
     const documentType = formData.get('type') as string;
 
     if (!file) {
-      throw new Error('No file provided');
+      return new Response(
+        JSON.stringify({ success: false, error: 'No file provided' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate document type
+    const validDocumentTypes = ['warehouse', 'exterior_agent', 'local_agent'];
+    if (!documentType || !validDocumentTypes.includes(documentType)) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: `Invalid document type. Must be one of: ${validDocumentTypes.join(', ')}` 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Validate file size (10MB limit)
     const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
     if (file.size > MAX_FILE_SIZE) {
-      throw new Error('File too large. Maximum size is 10MB');
+      return new Response(
+        JSON.stringify({ success: false, error: 'File too large. Maximum size is 10MB' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     console.log(`Processing ${documentType} document: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
@@ -35,6 +97,21 @@ serve(async (req) => {
     const mimeType = file.type || 'application/octet-stream';
     const isPDF = mimeType === 'application/pdf';
     
+    // Validate file type
+    const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const allowedTypes = [...allowedImageTypes, 'application/pdf'];
+
+    if (!allowedTypes.includes(mimeType)) {
+      console.log('Unsupported file type:', mimeType);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: `Unsupported file type: ${mimeType}. Please upload JPG, PNG, WEBP, or PDF files.` 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Convert file to base64 (works for both PDFs and images)
     const bytes = await file.arrayBuffer();
     const uint8Array = new Uint8Array(bytes);
@@ -136,15 +213,6 @@ Return the amount as a number with the currency code.`;
       };
     }
 
-    // Validate file type
-    const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    const allowedTypes = [...allowedImageTypes, 'application/pdf'];
-
-    if (!allowedTypes.includes(mimeType)) {
-      console.log('Unsupported file type:', mimeType);
-      throw new Error(`Unsupported file type: ${mimeType}. Please upload JPG, PNG, WEBP, or PDF files.`);
-    }
-
     console.log('Sending to AI - type:', documentType, 'mime:', mimeType, 'size:', base64.length);
 
     // Build the content - PDFs use inline_data, images use image_url
@@ -208,11 +276,23 @@ Return the amount as a number with the currency code.`;
         mimeType,
         fileSize: file.size
       });
+      if (aiResponse.status === 429) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Rate limit exceeded. Please try again later.' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (aiResponse.status === 402) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'AI quota exceeded. Please add credits.' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       throw new Error(`AI processing failed: ${aiResponse.status} - ${errorText}`);
     }
 
     const aiData = await aiResponse.json();
-    console.log('AI response:', JSON.stringify(aiData, null, 2));
+    console.log('AI response received');
 
     // Extract the tool call result
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
@@ -221,7 +301,7 @@ Return the amount as a number with the currency code.`;
     }
 
     const extractedData = JSON.parse(toolCall.function.arguments);
-    console.log('Extracted data:', extractedData);
+    console.log('Extracted data successfully');
 
     return new Response(
       JSON.stringify({ 
@@ -236,13 +316,17 @@ Return the amount as a number with the currency code.`;
 
   } catch (error: any) {
     console.error('Error in document-parser function:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const status = errorMessage.includes('Forbidden') ? 403 : 
+                   errorMessage.includes('Invalid') || errorMessage.includes('Missing') ? 401 : 500;
+    
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message 
+        error: errorMessage
       }),
       { 
-        status: 500,
+        status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );
