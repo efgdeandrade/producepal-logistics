@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PasswordChangeRequired } from "@/components/PasswordChangeRequired";
+import { VersionUpdateToast } from "@/components/VersionUpdateToast";
 import Dashboard from "./pages/Dashboard";
 import NewOrder from "./pages/NewOrder";
 import History from "./pages/History";
@@ -46,6 +47,7 @@ const App = () => (
       <AuthProvider>
         <Toaster />
         <Sonner />
+        <VersionUpdateToast />
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />

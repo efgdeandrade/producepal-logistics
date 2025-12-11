@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useState, useEffect } from 'react';
 import { format, getWeek } from 'date-fns';
+import { getVersionDisplay } from '@/lib/version';
 
 export const Header = () => {
   const location = useLocation();
@@ -320,6 +321,10 @@ export const Header = () => {
               <LogOut className="mr-2 h-4 w-4" />
               Log out
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <div className="px-2 py-1.5">
+              <p className="text-xs text-muted-foreground">{getVersionDisplay()}</p>
+            </div>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
