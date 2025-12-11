@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import logo from '@/assets/logo.png';
 import { z } from 'zod';
 
 const loginSchema = z.object({
@@ -51,7 +50,7 @@ export default function Auth() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <img src={logo} alt="FUIK Logo" className="h-16 object-contain" />
+            <img src="/logo.png" alt="FUIK Logo" className="h-16 object-contain" />
           </div>
           <CardTitle className="text-2xl">Welcome to FUIK</CardTitle>
           <CardDescription>Login with your admin-provided credentials</CardDescription>
