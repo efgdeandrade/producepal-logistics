@@ -29,6 +29,7 @@ import PredictionsAnalytics from "./pages/PredictionsAnalytics";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import ConsolidationGroups from "./pages/ConsolidationGroups";
+import StandingOrders from "./pages/StandingOrders";
 // F&B Pages
 import FnbDashboard from "./pages/fnb/FnbDashboard";
 import FnbProducts from "./pages/fnb/FnbProducts";
@@ -70,6 +71,7 @@ const App = () => (
             <Route path="/invoices" element={<ProtectedRoute><PasswordChangeRequired><Invoices /></PasswordChangeRequired></ProtectedRoute>} />
             <Route path="/analytics" element={<ProtectedRoute><PasswordChangeRequired><PredictionsAnalytics /></PasswordChangeRequired></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute requiredRole="admin"><PasswordChangeRequired><Settings /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/standing-orders" element={<ProtectedRoute><PasswordChangeRequired><StandingOrders /></PasswordChangeRequired></ProtectedRoute>} />
             {/* F&B Routes */}
             <Route path="/fnb" element={<ProtectedRoute><PasswordChangeRequired><FnbDashboard /></PasswordChangeRequired></ProtectedRoute>} />
             <Route path="/fnb/products" element={<ProtectedRoute><PasswordChangeRequired><FnbProducts /></PasswordChangeRequired></ProtectedRoute>} />
