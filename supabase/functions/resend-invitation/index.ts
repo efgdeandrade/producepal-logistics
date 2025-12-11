@@ -1,10 +1,16 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://esm.sh/zod@3.22.4";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Input validation schema
+const resendInvitationSchema = z.object({
+  email: z.string().email("Invalid email address"),
+});
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -23,7 +29,69 @@ serve(async (req) => {
       }
     );
 
-    const { email } = await req.json();
+    // Verify JWT token from Authorization header
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      console.error("No authorization header provided");
+      return new Response(
+        JSON.stringify({ error: "Authorization header required" }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 401,
+        }
+      );
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+
+    if (authError || !user) {
+      console.error("Invalid token:", authError?.message);
+      return new Response(
+        JSON.stringify({ error: "Invalid or expired token" }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 401,
+        }
+      );
+    }
+
+    // Check if user has admin role
+    const { data: roleData, error: roleError } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
+      .single();
+
+    if (roleError || !roleData) {
+      console.error("User is not an admin:", user.id);
+      return new Response(
+        JSON.stringify({ error: "Admin access required" }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 403,
+        }
+      );
+    }
+
+    // Validate and parse input
+    const body = await req.json();
+    const validationResult = resendInvitationSchema.safeParse(body);
+    
+    if (!validationResult.success) {
+      console.error("Validation error:", validationResult.error.errors);
+      return new Response(
+        JSON.stringify({ error: "Invalid input", details: validationResult.error.errors }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        }
+      );
+    }
+
+    const { email } = validationResult.data;
+    console.log(`Admin ${user.email} requesting password reset for: ${email}`);
 
     // Generate password reset link
     const { data: linkData, error } = await supabaseAdmin.auth.admin.generateLink({
@@ -96,7 +164,7 @@ serve(async (req) => {
     }
 
     const emailData = await resendResponse.json();
-    console.log(`Invitation email resent successfully to ${email}:`, emailData);
+    console.log(`Invitation email resent successfully to ${email} by admin ${user.email}:`, emailData);
 
     return new Response(
       JSON.stringify({ success: true }),
@@ -107,6 +175,7 @@ serve(async (req) => {
     );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    console.error("Error in resend-invitation:", errorMessage);
     return new Response(
       JSON.stringify({ error: errorMessage }),
       {
