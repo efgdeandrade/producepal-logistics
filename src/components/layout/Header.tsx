@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Package, History, PlusCircle, LayoutDashboard, Users, Activity, LogOut, MapPin, Truck, Factory, TrendingUp, Settings, ChevronDown, Calculator, FileText, UtensilsCrossed, ShoppingCart, ClipboardList, MessageSquare } from 'lucide-react';
+import { Package, History, PlusCircle, LayoutDashboard, Users, Activity, LogOut, MapPin, Truck, Factory, TrendingUp, Settings, ChevronDown, Calculator, FileText, UtensilsCrossed, ShoppingCart, ClipboardList, MessageSquare, Layers } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import logo from '@/assets/logo.png';
 import {
@@ -127,6 +127,12 @@ export const Header = () => {
                   <Link to="/products">
                     <Package className="mr-2 h-4 w-4" />
                     Products
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/consolidation-groups">
+                    <Layers className="mr-2 h-4 w-4" />
+                    Consolidation Groups
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>

@@ -28,6 +28,7 @@ import Invoices from "./pages/Invoices";
 import PredictionsAnalytics from "./pages/PredictionsAnalytics";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import ConsolidationGroups from "./pages/ConsolidationGroups";
 // F&B Pages
 import FnbDashboard from "./pages/fnb/FnbDashboard";
 import FnbProducts from "./pages/fnb/FnbProducts";
@@ -54,6 +55,7 @@ const App = () => (
             <Route path="/order/:orderId" element={<ProtectedRoute><PasswordChangeRequired><OrderDetails /></PasswordChangeRequired></ProtectedRoute>} />
             <Route path="/suppliers" element={<ProtectedRoute><PasswordChangeRequired><Suppliers /></PasswordChangeRequired></ProtectedRoute>} />
             <Route path="/products" element={<ProtectedRoute><PasswordChangeRequired><Products /></PasswordChangeRequired></ProtectedRoute>} />
+            <Route path="/consolidation-groups" element={<ProtectedRoute><PasswordChangeRequired><ConsolidationGroups /></PasswordChangeRequired></ProtectedRoute>} />
             <Route path="/customers" element={<ProtectedRoute><PasswordChangeRequired><Customers /></PasswordChangeRequired></ProtectedRoute>} />
             <Route path="/routes" element={<ProtectedRoute><PasswordChangeRequired><RoutesPage /></PasswordChangeRequired></ProtectedRoute>} />
             <Route path="/driver-portal" element={<ProtectedRoute requiredRole="driver"><PasswordChangeRequired><DriverPortal /></PasswordChangeRequired></ProtectedRoute>} />
