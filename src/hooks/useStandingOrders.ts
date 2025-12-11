@@ -12,7 +12,7 @@ interface TemplateItem {
   sort_order: number;
 }
 
-interface DayTemplate {
+export interface DayTemplate {
   id: string;
   day_of_week: number;
   name: string;
