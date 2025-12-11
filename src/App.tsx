@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PasswordChangeRequired } from "@/components/PasswordChangeRequired";
 import { VersionUpdateToast } from "@/components/VersionUpdateToast";
@@ -42,52 +43,54 @@ import FnbSettings from "./pages/fnb/FnbSettings";
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AuthProvider>
-        <Toaster />
-        <Sonner />
-        <VersionUpdateToast />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/" element={<ProtectedRoute><PasswordChangeRequired><Dashboard /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/order/new" element={<ProtectedRoute><PasswordChangeRequired><NewOrder /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/order/edit/:orderId" element={<ProtectedRoute><PasswordChangeRequired><NewOrder /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/history" element={<ProtectedRoute><PasswordChangeRequired><History /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/order/:orderId" element={<ProtectedRoute><PasswordChangeRequired><OrderDetails /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/suppliers" element={<ProtectedRoute><PasswordChangeRequired><Suppliers /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/products" element={<ProtectedRoute><PasswordChangeRequired><Products /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/consolidation-groups" element={<ProtectedRoute><PasswordChangeRequired><ConsolidationGroups /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/customers" element={<ProtectedRoute><PasswordChangeRequired><Customers /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/routes" element={<ProtectedRoute><PasswordChangeRequired><RoutesPage /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/driver-portal" element={<ProtectedRoute requiredRole="driver"><PasswordChangeRequired><DriverPortal /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/cif-calculator" element={<ProtectedRoute><PasswordChangeRequired><CIFCalculator /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/cif-calculator-history" element={<ProtectedRoute><PasswordChangeRequired><CIFCalculatorHistory /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/user-management" element={<ProtectedRoute requiredRole="admin"><PasswordChangeRequired><UserManagement /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/user-activity" element={<ProtectedRoute><PasswordChangeRequired><UserActivity /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/production" element={<ProtectedRoute><PasswordChangeRequired><ProductionDashboard /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/production-input" element={<ProtectedRoute><PasswordChangeRequired><ProductionInput /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/production-edit/:orderId" element={<ProtectedRoute><PasswordChangeRequired><ProductionEdit /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/deliveries" element={<ProtectedRoute><PasswordChangeRequired><DeliveryManagement /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/invoices" element={<ProtectedRoute><PasswordChangeRequired><Invoices /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/analytics" element={<ProtectedRoute><PasswordChangeRequired><PredictionsAnalytics /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute requiredRole="admin"><PasswordChangeRequired><Settings /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/standing-orders" element={<ProtectedRoute><PasswordChangeRequired><StandingOrders /></PasswordChangeRequired></ProtectedRoute>} />
-            {/* F&B Routes */}
-            <Route path="/fnb" element={<ProtectedRoute><PasswordChangeRequired><FnbDashboard /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/fnb/products" element={<ProtectedRoute><PasswordChangeRequired><FnbProducts /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/fnb/customers" element={<ProtectedRoute><PasswordChangeRequired><FnbCustomers /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/fnb/orders" element={<ProtectedRoute><PasswordChangeRequired><FnbOrders /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/fnb/picker" element={<ProtectedRoute><PasswordChangeRequired><FnbPicker /></PasswordChangeRequired></ProtectedRoute>} />
-            <Route path="/fnb/settings" element={<ProtectedRoute><PasswordChangeRequired><FnbSettings /></PasswordChangeRequired></ProtectedRoute>} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <AuthProvider>
+          <Toaster />
+          <Sonner />
+          <VersionUpdateToast />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/" element={<ProtectedRoute><PasswordChangeRequired><Dashboard /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/order/new" element={<ProtectedRoute><PasswordChangeRequired><NewOrder /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/order/edit/:orderId" element={<ProtectedRoute><PasswordChangeRequired><NewOrder /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/history" element={<ProtectedRoute><PasswordChangeRequired><History /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/order/:orderId" element={<ProtectedRoute><PasswordChangeRequired><OrderDetails /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/suppliers" element={<ProtectedRoute><PasswordChangeRequired><Suppliers /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/products" element={<ProtectedRoute><PasswordChangeRequired><Products /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/consolidation-groups" element={<ProtectedRoute><PasswordChangeRequired><ConsolidationGroups /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/customers" element={<ProtectedRoute><PasswordChangeRequired><Customers /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/routes" element={<ProtectedRoute><PasswordChangeRequired><RoutesPage /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/driver-portal" element={<ProtectedRoute requiredRole="driver"><PasswordChangeRequired><DriverPortal /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/cif-calculator" element={<ProtectedRoute><PasswordChangeRequired><CIFCalculator /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/cif-calculator-history" element={<ProtectedRoute><PasswordChangeRequired><CIFCalculatorHistory /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/user-management" element={<ProtectedRoute requiredRole="admin"><PasswordChangeRequired><UserManagement /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/user-activity" element={<ProtectedRoute><PasswordChangeRequired><UserActivity /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/production" element={<ProtectedRoute><PasswordChangeRequired><ProductionDashboard /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/production-input" element={<ProtectedRoute><PasswordChangeRequired><ProductionInput /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/production-edit/:orderId" element={<ProtectedRoute><PasswordChangeRequired><ProductionEdit /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/deliveries" element={<ProtectedRoute><PasswordChangeRequired><DeliveryManagement /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/invoices" element={<ProtectedRoute><PasswordChangeRequired><Invoices /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/analytics" element={<ProtectedRoute><PasswordChangeRequired><PredictionsAnalytics /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute requiredRole="admin"><PasswordChangeRequired><Settings /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/standing-orders" element={<ProtectedRoute><PasswordChangeRequired><StandingOrders /></PasswordChangeRequired></ProtectedRoute>} />
+              {/* F&B Routes */}
+              <Route path="/fnb" element={<ProtectedRoute><PasswordChangeRequired><FnbDashboard /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/fnb/products" element={<ProtectedRoute><PasswordChangeRequired><FnbProducts /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/fnb/customers" element={<ProtectedRoute><PasswordChangeRequired><FnbCustomers /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/fnb/orders" element={<ProtectedRoute><PasswordChangeRequired><FnbOrders /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/fnb/picker" element={<ProtectedRoute><PasswordChangeRequired><FnbPicker /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/fnb/settings" element={<ProtectedRoute><PasswordChangeRequired><FnbSettings /></PasswordChangeRequired></ProtectedRoute>} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ThemeProvider>
 );
 
 export default App;
