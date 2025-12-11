@@ -47,13 +47,13 @@ export const Header = () => {
           <Link to="/" className="flex items-center">
             <img src={logo} alt="Fuik.io Logo" className="h-8 object-contain" />
           </Link>
-          <div className="hidden md:flex flex-col text-sm">
-            <div className="font-semibold text-foreground">
-              {format(currentTime, 'EEE, MMM d, yyyy')}
-            </div>
-            <div className="text-muted-foreground">
-              {format(currentTime, 'HH:mm:ss')} • Week {getWeek(currentTime)}
-            </div>
+          <div className="hidden md:flex items-center gap-3 text-sm">
+            <span className="font-medium text-foreground">
+              {format(currentTime, 'MMM d')} • W{getWeek(currentTime)}
+            </span>
+            <span className="text-muted-foreground font-mono">
+              {format(currentTime, 'HH:mm')}
+            </span>
           </div>
         </div>
         
