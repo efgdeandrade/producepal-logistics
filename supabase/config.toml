@@ -29,3 +29,9 @@ verify_jwt = true
 
 [functions.resend-invitation]
 verify_jwt = true
+
+[functions.pallet-optimizer]
+verify_jwt = true
+
+[functions.weight-learning-engine]
+verify_jwt = true
