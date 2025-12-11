@@ -35,16 +35,20 @@ interface Customer {
   name: string;
 }
 
+interface TemplateProduct {
+  id: string;
+  productCode: string;
+  productName: string;
+  trays: number;
+  units: number;
+  packSize: number;
+}
+
 interface TemplateCustomer {
   id: string;
   customerId: string;
   customerName: string;
-  products: Array<{
-    id: string;
-    productCode: string;
-    productName: string;
-    quantity: number;
-  }>;
+  products: TemplateProduct[];
 }
 
 // Days we typically have orders (Tuesday, Wednesday, Friday)
@@ -109,6 +113,9 @@ export default function StandingOrders() {
     
     template.items.forEach((item: any) => {
       const product = products.find(p => p.code === item.product_code);
+      const packSize = product?.pack_size || 1;
+      const trays = item.default_quantity;
+      const units = trays * packSize;
       
       const existing = customerMap.get(item.customer_id);
       if (existing) {
@@ -116,7 +123,9 @@ export default function StandingOrders() {
           id: Date.now().toString() + Math.random(),
           productCode: item.product_code,
           productName: product?.name || item.product_code,
-          quantity: item.default_quantity,
+          trays,
+          units,
+          packSize,
         });
       } else {
         customerMap.set(item.customer_id, {
@@ -127,7 +136,9 @@ export default function StandingOrders() {
             id: Date.now().toString() + Math.random(),
             productCode: item.product_code,
             productName: product?.name || item.product_code,
-            quantity: item.default_quantity,
+            trays,
+            units,
+            packSize,
           }],
         });
       }
@@ -180,7 +191,9 @@ export default function StandingOrders() {
           id: Date.now().toString(),
           productCode: product.code,
           productName: product.name,
-          quantity: 0,
+          trays: 0,
+          units: 0,
+          packSize: product.pack_size || 1,
         }]
       };
     }));
@@ -194,13 +207,26 @@ export default function StandingOrders() {
     ));
   };
 
-  const updateProductQuantity = (customerId: string, productId: string, quantity: number) => {
+  const updateProductTrays = (customerId: string, productId: string, trays: number) => {
     setEditingTemplate(editingTemplate.map(c =>
       c.id === customerId
         ? {
             ...c,
             products: c.products.map(p =>
-              p.id === productId ? { ...p, quantity } : p
+              p.id === productId ? { ...p, trays, units: trays * p.packSize } : p
+            )
+          }
+        : c
+    ));
+  };
+
+  const updateProductUnits = (customerId: string, productId: string, units: number) => {
+    setEditingTemplate(editingTemplate.map(c =>
+      c.id === customerId
+        ? {
+            ...c,
+            products: c.products.map(p =>
+              p.id === productId ? { ...p, units, trays: Math.ceil(units / p.packSize) } : p
             )
           }
         : c
@@ -216,7 +242,7 @@ export default function StandingOrders() {
         customer_id: customer.customerId,
         customer_name: customer.customerName,
         product_code: product.productCode,
-        default_quantity: product.quantity,
+        default_quantity: product.trays,
         sort_order: customerIndex * 100 + productIndex,
       }))
     );
@@ -237,6 +263,9 @@ export default function StandingOrders() {
       
       result.items.forEach(item => {
         const product = products.find(p => p.code === item.product_code);
+        const packSize = product?.pack_size || 1;
+        const trays = item.default_quantity;
+        const units = trays * packSize;
         
         const existing = customerMap.get(item.customer_id);
         if (existing) {
@@ -244,7 +273,9 @@ export default function StandingOrders() {
             id: Date.now().toString() + Math.random(),
             productCode: item.product_code,
             productName: product?.name || item.product_code,
-            quantity: item.default_quantity,
+            trays,
+            units,
+            packSize,
           });
         } else {
           customerMap.set(item.customer_id, {
@@ -255,7 +286,9 @@ export default function StandingOrders() {
               id: Date.now().toString() + Math.random(),
               productCode: item.product_code,
               productName: product?.name || item.product_code,
-              quantity: item.default_quantity,
+              trays,
+              units,
+              packSize,
             }],
           });
         }
@@ -451,7 +484,9 @@ export default function StandingOrders() {
                           <thead>
                             <tr className="border-b">
                               <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Product</th>
-                              <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Default Trays</th>
+                              <th className="text-right py-3 px-4 text-sm font-semibold text-foreground w-28">Trays/Cases</th>
+                              <th className="text-right py-3 px-4 text-sm font-semibold text-foreground w-28">Units</th>
+                              <th className="text-center py-3 px-4 text-sm font-semibold text-foreground w-24">Pack Size</th>
                               <th className="w-12"></th>
                             </tr>
                           </thead>
@@ -463,14 +498,30 @@ export default function StandingOrders() {
                                   <Input
                                     type="number"
                                     min="0"
-                                    value={product.quantity || ''}
-                                    onChange={(e) => updateProductQuantity(
+                                    value={product.trays || ''}
+                                    onChange={(e) => updateProductTrays(
                                       customer.id, 
                                       product.id, 
                                       parseInt(e.target.value) || 0
                                     )}
-                                    className="w-24 ml-auto"
+                                    className="w-24 ml-auto text-right"
                                   />
+                                </td>
+                                <td className="py-3 px-4">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    value={product.units || ''}
+                                    onChange={(e) => updateProductUnits(
+                                      customer.id, 
+                                      product.id, 
+                                      parseInt(e.target.value) || 0
+                                    )}
+                                    className="w-24 ml-auto text-right"
+                                  />
+                                </td>
+                                <td className="py-3 px-4 text-center text-sm text-muted-foreground">
+                                  {product.packSize}
                                 </td>
                                 <td className="py-3 px-4">
                                   <Button
