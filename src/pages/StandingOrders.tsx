@@ -320,16 +320,22 @@ export default function StandingOrders() {
             {ACTIVE_DAYS.map(day => {
               const template = templates.find(t => t.day_of_week === day);
               const itemCount = template?.items?.length || 0;
+              const defaultName = `${DAY_NAMES[day]} Orders`;
+              const hasCustomName = template?.name && template.name !== defaultName;
+              const displayName = hasCustomName ? template.name : DAY_NAMES[day];
               
               return (
                 <TabsTrigger 
                   key={day} 
                   value={day.toString()}
-                  className="relative"
+                  className="relative flex flex-col items-center gap-0.5 py-2"
                 >
-                  {DAY_NAMES[day]}
+                  <span className="font-medium">{displayName}</span>
+                  {hasCustomName && (
+                    <span className="text-xs text-muted-foreground">{DAY_NAMES[day]}</span>
+                  )}
                   {itemCount > 0 && (
-                    <Badge variant="secondary" className="ml-2 h-5 px-1.5">
+                    <Badge variant="secondary" className="absolute -top-1 -right-1 h-5 px-1.5">
                       {itemCount}
                     </Badge>
                   )}
