@@ -1,11 +1,38 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Input validation schema
+const ProductInfoSchema = z.object({
+  code: z.string(),
+  name: z.string(),
+  quantity: z.number().min(0),
+  packSize: z.number().min(1),
+  nettoWeightPerUnit: z.number().min(0),
+  grossWeightPerUnit: z.number().min(0),
+  emptyCaseWeight: z.number().min(0),
+  lengthCm: z.number().min(0),
+  widthCm: z.number().min(0),
+  heightCm: z.number().min(0),
+  costUSD: z.number().min(0),
+  wholesalePriceXCG: z.number().min(0),
+  retailPriceXCG: z.number().min(0),
+  supplierId: z.string(),
+  supplierName: z.string(),
+});
+
+const InputSchema = z.object({
+  products: z.array(ProductInfoSchema).min(1, 'At least one product is required'),
+  orderId: z.string().uuid().optional(),
+  freightCostPerKg: z.number().min(0),
+  exchangeRate: z.number().min(0),
+});
 
 interface ProductInfo {
   code: string;
@@ -25,11 +52,40 @@ interface ProductInfo {
   supplierName: string;
 }
 
-interface PalletOptimizerInput {
-  products: ProductInfo[];
-  orderId?: string;
-  freightCostPerKg: number;
-  exchangeRate: number;
+// Helper function to verify user role
+async function verifyUserRole(req: Request, supabase: any, allowedRoles: string[]): Promise<{ userId: string; role: string }> {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    throw new Error('Missing authorization header');
+  }
+
+  // Get user from JWT
+  const token = authHeader.replace('Bearer ', '');
+  const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+  
+  if (userError || !user) {
+    throw new Error('Invalid or expired token');
+  }
+
+  // Get user roles
+  const { data: roles, error: rolesError } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id);
+
+  if (rolesError) {
+    console.error('Error fetching user roles:', rolesError);
+    throw new Error('Failed to verify user permissions');
+  }
+
+  const userRoles = roles?.map((r: any) => r.role) || [];
+  const hasRequiredRole = userRoles.some((role: string) => allowedRoles.includes(role));
+
+  if (!hasRequiredRole) {
+    throw new Error('Forbidden: Insufficient permissions. Required roles: ' + allowedRoles.join(', '));
+  }
+
+  return { userId: user.id, role: userRoles[0] };
 }
 
 serve(async (req) => {
@@ -38,8 +94,6 @@ serve(async (req) => {
   }
 
   try {
-    const { products, orderId, freightCostPerKg, exchangeRate } = await req.json() as PalletOptimizerInput;
-
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
@@ -49,8 +103,29 @@ serve(async (req) => {
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
+    // Verify user has admin, management, or logistics role
+    await verifyUserRole(req, supabase, ['admin', 'management', 'logistics']);
+
+    // Parse and validate input
+    const rawBody = await req.json();
+    const validationResult = InputSchema.safeParse(rawBody);
+    
+    if (!validationResult.success) {
+      console.error('Input validation failed:', validationResult.error.errors);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Invalid input format',
+          details: validationResult.error.errors 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { products, orderId, freightCostPerKg, exchangeRate } = validationResult.data;
+
     // Calculate weights for each product
-    const productAnalysis = products.map(p => {
+    const productAnalysis = products.map((p: ProductInfo) => {
       const cases = Math.ceil(p.quantity / p.packSize);
       const grossWeight = p.grossWeightPerUnit > 0 ? p.grossWeightPerUnit : p.nettoWeightPerUnit;
       const actualWeightPerCase = (grossWeight * p.packSize) + p.emptyCaseWeight;
@@ -218,13 +293,25 @@ Return ONLY valid JSON with this structure:
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
       console.error('AI API error:', aiResponse.status, errorText);
+      if (aiResponse.status === 429) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Rate limit exceeded. Please try again later.' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (aiResponse.status === 402) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'AI quota exceeded. Please add credits.' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       throw new Error(`AI API failed: ${aiResponse.status}`);
     }
 
     const aiData = await aiResponse.json();
     const recommendation = JSON.parse(aiData.choices[0].message.content);
 
-    console.log("AI recommendation generated:", recommendation);
+    console.log("AI recommendation generated");
 
     // Store pallet configuration if orderId provided
     if (orderId) {
@@ -279,13 +366,17 @@ Return ONLY valid JSON with this structure:
 
   } catch (error) {
     console.error('Error in pallet-optimizer:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const status = errorMessage.includes('Forbidden') ? 403 : 
+                   errorMessage.includes('Invalid') || errorMessage.includes('Missing') ? 401 : 500;
+    
     return new Response(
       JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage,
         details: error
       }),
       { 
-        status: 500,
+        status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );

@@ -1,10 +1,54 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Input validation schema
+const InputSchema = z.object({
+  products: z.array(z.string()).optional(),
+  analysisType: z.enum(['full', 'quick', 'targeted']).default('full'),
+  includeMarketData: z.boolean().default(true),
+});
+
+// Helper function to verify user role
+async function verifyUserRole(req: Request, supabase: any, allowedRoles: string[]): Promise<{ userId: string; role: string }> {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    throw new Error('Missing authorization header');
+  }
+
+  // Get user from JWT
+  const token = authHeader.replace('Bearer ', '');
+  const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+  
+  if (userError || !user) {
+    throw new Error('Invalid or expired token');
+  }
+
+  // Get user roles
+  const { data: roles, error: rolesError } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id);
+
+  if (rolesError) {
+    console.error('Error fetching user roles:', rolesError);
+    throw new Error('Failed to verify user permissions');
+  }
+
+  const userRoles = roles?.map((r: any) => r.role) || [];
+  const hasRequiredRole = userRoles.some((role: string) => allowedRoles.includes(role));
+
+  if (!hasRequiredRole) {
+    throw new Error('Forbidden: Insufficient permissions. Required roles: ' + allowedRoles.join(', '));
+  }
+
+  return { userId: user.id, role: userRoles[0] };
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -12,13 +56,32 @@ serve(async (req) => {
   }
 
   try {
-    const { products, analysisType = 'full', includeMarketData = true } = await req.json();
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
 
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Verify user has admin or management role
+    await verifyUserRole(req, supabase, ['admin', 'management']);
+
+    // Parse and validate input
+    const rawBody = await req.json();
+    const validationResult = InputSchema.safeParse(rawBody);
+    
+    if (!validationResult.success) {
+      console.error('Input validation failed:', validationResult.error.errors);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Invalid input format',
+          details: validationResult.error.errors 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { products, analysisType, includeMarketData } = validationResult.data;
 
     // Fetch all products or specific ones
     let productsQuery = supabase.from('products').select('*');
@@ -192,7 +255,6 @@ Return ONLY valid JSON (no other text):
           analysis = JSON.parse(cleanedMessage);
         } catch (parseError) {
           console.error('Failed to parse AI response:', parseError);
-          console.error('Raw AI message:', aiMessage);
           throw new Error('Invalid AI response format');
         }
 
@@ -254,13 +316,17 @@ Return ONLY valid JSON (no other text):
 
   } catch (error) {
     console.error('Pricing optimizer error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const status = errorMessage.includes('Forbidden') ? 403 : 
+                   errorMessage.includes('Invalid') || errorMessage.includes('Missing') ? 401 : 500;
+    
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: errorMessage
       }),
       {
-        status: 500,
+        status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );

@@ -16,6 +16,42 @@ interface LearningPattern {
   stdDeviation: number;
 }
 
+// Helper function to verify user role
+async function verifyUserRole(req: Request, supabase: any, allowedRoles: string[]): Promise<{ userId: string; role: string }> {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    throw new Error('Missing authorization header');
+  }
+
+  // Get user from JWT
+  const token = authHeader.replace('Bearer ', '');
+  const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+  
+  if (userError || !user) {
+    throw new Error('Invalid or expired token');
+  }
+
+  // Get user roles
+  const { data: roles, error: rolesError } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id);
+
+  if (rolesError) {
+    console.error('Error fetching user roles:', rolesError);
+    throw new Error('Failed to verify user permissions');
+  }
+
+  const userRoles = roles?.map((r: any) => r.role) || [];
+  const hasRequiredRole = userRoles.some((role: string) => allowedRoles.includes(role));
+
+  if (!hasRequiredRole) {
+    throw new Error('Forbidden: Insufficient permissions. Required roles: ' + allowedRoles.join(', '));
+  }
+
+  return { userId: user.id, role: userRoles[0] };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -25,6 +61,9 @@ serve(async (req) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+
+    // Verify user has admin or management role
+    await verifyUserRole(req, supabase, ['admin', 'management']);
 
     // Fetch all historical weight estimation accuracy data
     const { data: accuracyData, error: accuracyError } = await supabase
@@ -158,13 +197,17 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in weight-learning-engine:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const status = errorMessage.includes('Forbidden') ? 403 : 
+                   errorMessage.includes('Invalid') || errorMessage.includes('Missing') ? 401 : 500;
+    
     return new Response(
       JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage,
         details: error
       }),
       { 
-        status: 500,
+        status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );
