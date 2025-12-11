@@ -45,7 +45,14 @@ export const Header = () => {
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-6">
           <Link to="/" className="flex items-center">
-            <img src="/logo.png" alt="Fuik.io Logo" className="h-8 w-auto object-contain" />
+            <img 
+              src="/logo.png" 
+              alt="Fuik.io Logo" 
+              className="h-8 w-auto min-w-[32px] object-contain" 
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/favicon.png';
+              }}
+            />
           </Link>
           <div className="hidden md:flex flex-col text-sm min-w-[120px]">
             <div className="flex justify-between gap-4">
