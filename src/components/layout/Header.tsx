@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Package, History, PlusCircle, LayoutDashboard, Users, Activity, LogOut, MapPin, Truck, Factory, TrendingUp, Settings, ChevronDown, Calculator, FileText, UtensilsCrossed, ShoppingCart, ClipboardList, MessageSquare, Layers } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import logo from '@/assets/logo.png';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,7 +45,7 @@ export const Header = () => {
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-6">
           <Link to="/" className="flex items-center">
-            <img src={logo} alt="Fuik.io Logo" className="h-8 w-auto object-contain" />
+            <img src="/logo.png" alt="Fuik.io Logo" className="h-8 w-auto object-contain" />
           </Link>
           <div className="hidden md:flex flex-col text-sm min-w-[120px]">
             <div className="flex justify-between gap-4">
