@@ -154,6 +154,8 @@ export default function FnbNewOrder() {
           notes,
           total_xcg: orderTotal,
           status: 'pending',
+          payment_method: 'cod',
+          cod_amount_due: orderTotal,
         })
         .select()
         .single();

@@ -5,16 +5,26 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle, Phone, MapPin, Package, Clock } from "lucide-react";
+import { ArrowLeft, CheckCircle, Phone, MapPin, Package, Clock, Banknote } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 export default function FnbDriverPortal() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
+  const [codDialogOrder, setCodDialogOrder] = useState<any>(null);
+  const [codAmount, setCodAmount] = useState<string>("");
 
   // Fetch orders assigned to current driver
   const { data: myOrders, isLoading } = useQuery({
@@ -59,22 +69,31 @@ export default function FnbDriverPortal() {
     enabled: !!user?.id,
   });
 
-  // Mark as delivered mutation
+  // Calculate today's COD total
+  const todayCodTotal = deliveredOrders?.reduce((sum, order) => {
+    return sum + (order.cod_amount_collected || 0);
+  }, 0) || 0;
+
+  // Mark as delivered mutation with COD
   const markDeliveredMutation = useMutation({
-    mutationFn: async (orderId: string) => {
+    mutationFn: async ({ orderId, codCollected }: { orderId: string; codCollected: number }) => {
       const { error } = await supabase
         .from("fnb_orders")
         .update({
           status: "delivered",
           delivered_at: new Date().toISOString(),
+          cod_amount_collected: codCollected,
+          cod_collected_at: new Date().toISOString(),
         })
         .eq("id", orderId);
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Order marked as delivered!");
+      toast.success("Order delivered & COD recorded!");
       queryClient.invalidateQueries({ queryKey: ["fnb-driver-orders"] });
       queryClient.invalidateQueries({ queryKey: ["fnb-driver-delivered"] });
+      setCodDialogOrder(null);
+      setCodAmount("");
     },
     onError: (error) => {
       toast.error("Failed to update order: " + error.message);
@@ -90,6 +109,20 @@ export default function FnbDriverPortal() {
     window.open(`https://wa.me/${cleanPhone}`, "_blank");
   };
 
+  const openCodDialog = (order: any) => {
+    setCodDialogOrder(order);
+    setCodAmount(order.total_xcg?.toFixed(2) || "0");
+  };
+
+  const handleConfirmDelivery = () => {
+    if (!codDialogOrder) return;
+    const amount = parseFloat(codAmount) || 0;
+    markDeliveredMutation.mutate({
+      orderId: codDialogOrder.id,
+      codCollected: amount,
+    });
+  };
+
   return (
     <div className="container mx-auto p-4 space-y-6 max-w-lg">
       <div className="flex items-center gap-4">
@@ -103,6 +136,21 @@ export default function FnbDriverPortal() {
           </p>
         </div>
       </div>
+
+      {/* Today's COD Summary */}
+      {todayCodTotal > 0 && (
+        <Card className="bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Banknote className="h-5 w-5 text-green-600" />
+                <span className="font-medium">Today's COD Collected</span>
+              </div>
+              <span className="text-xl font-bold text-green-600">{todayCodTotal.toFixed(2)} XCG</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Active Deliveries */}
       {isLoading ? (
@@ -134,7 +182,12 @@ export default function FnbDriverPortal() {
                       <p className="text-sm text-muted-foreground">{order.order_number}</p>
                     </div>
                   </div>
-                  <Badge variant="secondary">{order.fnb_order_items?.length} items</Badge>
+                  <div className="text-right">
+                    <Badge variant="secondary">{order.fnb_order_items?.length} items</Badge>
+                    {order.payment_method === 'cod' && (
+                      <Badge variant="outline" className="ml-1 text-orange-600 border-orange-300">COD</Badge>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -146,10 +199,13 @@ export default function FnbDriverPortal() {
                   </div>
                 )}
 
-                {/* Order Total */}
+                {/* Order Total / COD Amount */}
                 <div className="flex items-center gap-2 text-sm">
-                  <Package className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">{order.total_xcg?.toFixed(2)} XCG</span>
+                  <Banknote className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">
+                    {order.payment_method === 'cod' ? 'COD: ' : ''}
+                    {order.total_xcg?.toFixed(2)} XCG
+                  </span>
                 </div>
 
                 {/* Expanded details */}
@@ -215,7 +271,7 @@ export default function FnbDriverPortal() {
                     className="flex-1"
                     onClick={(e) => {
                       e.stopPropagation();
-                      markDeliveredMutation.mutate(order.id);
+                      openCodDialog(order);
                     }}
                     disabled={markDeliveredMutation.isPending}
                   >
@@ -245,15 +301,59 @@ export default function FnbDriverPortal() {
                   <p className="font-medium">{order.fnb_customers?.name}</p>
                   <p className="text-muted-foreground">{order.order_number}</p>
                 </div>
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  {format(new Date(order.delivered_at), "HH:mm")}
+                <div className="text-right">
+                  <div className="flex items-center gap-1 text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    {format(new Date(order.delivered_at), "HH:mm")}
+                  </div>
+                  {order.cod_amount_collected > 0 && (
+                    <p className="text-green-600 font-medium">{order.cod_amount_collected.toFixed(2)} XCG</p>
+                  )}
                 </div>
               </div>
             ))}
           </CardContent>
         </Card>
       )}
+
+      {/* COD Collection Dialog */}
+      <Dialog open={!!codDialogOrder} onOpenChange={() => setCodDialogOrder(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Record COD Payment</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="text-sm text-muted-foreground">
+              <p>Customer: <span className="font-medium text-foreground">{codDialogOrder?.fnb_customers?.name}</span></p>
+              <p>Order: <span className="font-medium text-foreground">{codDialogOrder?.order_number}</span></p>
+              <p>Order Total: <span className="font-medium text-foreground">{codDialogOrder?.total_xcg?.toFixed(2)} XCG</span></p>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Cash Collected (XCG)</label>
+              <Input
+                type="number"
+                step="0.01"
+                value={codAmount}
+                onChange={(e) => setCodAmount(e.target.value)}
+                placeholder="Enter amount collected"
+                className="text-lg"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Enter the actual cash amount received from customer
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCodDialogOrder(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmDelivery} disabled={markDeliveredMutation.isPending}>
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Confirm Delivery
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

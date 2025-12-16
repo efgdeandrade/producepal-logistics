@@ -998,6 +998,12 @@ export type Database = {
       fnb_orders: {
         Row: {
           assigned_at: string | null
+          cod_amount_collected: number | null
+          cod_amount_due: number | null
+          cod_collected_at: string | null
+          cod_notes: string | null
+          cod_reconciled_at: string | null
+          cod_reconciled_by: string | null
           created_at: string | null
           customer_id: string | null
           delivered_at: string | null
@@ -1009,6 +1015,7 @@ export type Database = {
           notes: string | null
           order_date: string
           order_number: string
+          payment_method: string | null
           quickbooks_invoice_id: string | null
           quickbooks_invoice_number: string | null
           status: string | null
@@ -1017,6 +1024,12 @@ export type Database = {
         }
         Insert: {
           assigned_at?: string | null
+          cod_amount_collected?: number | null
+          cod_amount_due?: number | null
+          cod_collected_at?: string | null
+          cod_notes?: string | null
+          cod_reconciled_at?: string | null
+          cod_reconciled_by?: string | null
           created_at?: string | null
           customer_id?: string | null
           delivered_at?: string | null
@@ -1028,6 +1041,7 @@ export type Database = {
           notes?: string | null
           order_date?: string
           order_number: string
+          payment_method?: string | null
           quickbooks_invoice_id?: string | null
           quickbooks_invoice_number?: string | null
           status?: string | null
@@ -1036,6 +1050,12 @@ export type Database = {
         }
         Update: {
           assigned_at?: string | null
+          cod_amount_collected?: number | null
+          cod_amount_due?: number | null
+          cod_collected_at?: string | null
+          cod_notes?: string | null
+          cod_reconciled_at?: string | null
+          cod_reconciled_by?: string | null
           created_at?: string | null
           customer_id?: string | null
           delivered_at?: string | null
@@ -1047,6 +1067,7 @@ export type Database = {
           notes?: string | null
           order_date?: string
           order_number?: string
+          payment_method?: string | null
           quickbooks_invoice_id?: string | null
           quickbooks_invoice_number?: string | null
           status?: string | null
