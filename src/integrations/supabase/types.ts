@@ -997,9 +997,13 @@ export type Database = {
       }
       fnb_orders: {
         Row: {
+          assigned_at: string | null
           created_at: string | null
           customer_id: string | null
+          delivered_at: string | null
           delivery_date: string | null
+          driver_id: string | null
+          driver_name: string | null
           id: string
           language_used: string | null
           notes: string | null
@@ -1012,9 +1016,13 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          assigned_at?: string | null
           created_at?: string | null
           customer_id?: string | null
+          delivered_at?: string | null
           delivery_date?: string | null
+          driver_id?: string | null
+          driver_name?: string | null
           id?: string
           language_used?: string | null
           notes?: string | null
@@ -1027,9 +1035,13 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          assigned_at?: string | null
           created_at?: string | null
           customer_id?: string | null
+          delivered_at?: string | null
           delivery_date?: string | null
+          driver_id?: string | null
+          driver_name?: string | null
           id?: string
           language_used?: string | null
           notes?: string | null

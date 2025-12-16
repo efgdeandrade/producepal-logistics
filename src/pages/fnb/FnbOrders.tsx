@@ -50,6 +50,7 @@ const statusColors: Record<string, string> = {
   confirmed: 'bg-blue-100 text-blue-800',
   picking: 'bg-purple-100 text-purple-800',
   ready: 'bg-green-100 text-green-800',
+  out_for_delivery: 'bg-orange-100 text-orange-800',
   delivered: 'bg-gray-100 text-gray-800',
   cancelled: 'bg-red-100 text-red-800',
 };
@@ -191,6 +192,7 @@ export default function FnbOrders() {
                   <SelectItem value="confirmed">Confirmed</SelectItem>
                   <SelectItem value="picking">Picking</SelectItem>
                   <SelectItem value="ready">Ready</SelectItem>
+                  <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
                   <SelectItem value="delivered">Delivered</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
