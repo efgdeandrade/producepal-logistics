@@ -7,6 +7,7 @@ interface OrderItem {
   product_code: string;
   quantity: number;
   po_number?: string;
+  customer_notes?: string;
 }
 
 interface Order {
@@ -74,6 +75,11 @@ export const CustomerPackingSlip = ({ order, orderItems, format }: Props) => {
             <p className={`${textSize} font-semibold`}>{customerName}</p>
             {items[0].po_number && (
               <p className={`${textSize}`}><strong>PO #:</strong> {items[0].po_number}</p>
+            )}
+            {items[0].customer_notes && (
+              <p className={`${textSize} mt-2 p-2 bg-amber-50 border-l-4 border-amber-400 italic`}>
+                <strong>Notes:</strong> {items[0].customer_notes}
+              </p>
             )}
           </div>
 

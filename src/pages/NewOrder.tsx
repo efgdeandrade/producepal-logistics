@@ -3,6 +3,7 @@ import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Trash2, Save, Printer, X, ArrowLeft, FileText, Settings } from 'lucide-react';
@@ -40,6 +41,7 @@ interface CustomerOrderItem {
   id: string;
   customerId: string;
   customerName: string;
+  notes: string;
   products: OrderProduct[];
 }
 
@@ -123,7 +125,7 @@ const NewOrder = () => {
         // Group order items by customer
         const customerMap = new Map<string, CustomerOrderItem>();
         
-        orderItems?.forEach((item) => {
+        orderItems?.forEach((item: any) => {
           const existingCustomer = customerMap.get(item.customer_name);
           const product = productsRes.data?.find(p => p.code === item.product_code);
           
@@ -147,6 +149,7 @@ const NewOrder = () => {
               id: Date.now().toString() + Math.random(),
               customerId: customer?.id || '',
               customerName: item.customer_name,
+              notes: item.customer_notes || '',
               products: [orderProduct],
             });
           }
@@ -168,9 +171,16 @@ const NewOrder = () => {
         id: Date.now().toString(),
         customerId: '',
         customerName: '',
+        notes: '',
         products: [],
       }
     ]);
+  };
+
+  const updateCustomerNotes = (id: string, notes: string) => {
+    setCustomerOrders(customerOrders.map(co => 
+      co.id === id ? { ...co, notes } : co
+    ));
   };
 
   const removeCustomer = (id: string) => {
@@ -285,6 +295,7 @@ const NewOrder = () => {
         id: Date.now().toString() + Math.random(),
         customerId: customerData.customerId,
         customerName: customerData.customerName,
+        notes: '',
         products: customerProducts,
       };
     });
@@ -425,6 +436,7 @@ const NewOrder = () => {
             product_code: p.productCode,
             quantity: p.trays,
             po_number: null,
+            customer_notes: co.notes || null,
           }))
         );
 
@@ -461,6 +473,7 @@ const NewOrder = () => {
             product_code: p.productCode,
             quantity: p.trays,
             po_number: null,
+            customer_notes: co.notes || null,
           }))
         );
 
@@ -486,6 +499,7 @@ const NewOrder = () => {
         <div style="page-break-after: always; padding: 40px; font-family: Arial, sans-serif;">
           <h1 style="margin-bottom: 20px;">Packing List - ${co.customerName}</h1>
           <p><strong>Week:</strong> ${weekNumber} | <strong>Delivery Date:</strong> ${deliveryDate}</p>
+          ${co.notes ? `<p style="margin-top: 12px; padding: 10px; background: #fffbeb; border-left: 4px solid #f59e0b; font-style: italic;"><strong>Notes:</strong> ${co.notes}</p>` : ''}
           <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
             <thead>
               <tr style="background: #f5f5f5;">
@@ -714,6 +728,15 @@ const NewOrder = () => {
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
+                </div>
+                <div className="mt-3">
+                  <Textarea
+                    placeholder="Add notes for this customer's order (optional)..."
+                    value={customerOrder.notes}
+                    onChange={(e) => updateCustomerNotes(customerOrder.id, e.target.value)}
+                    className="min-h-[60px] text-sm"
+                    rows={2}
+                  />
                 </div>
               </CardHeader>
               <CardContent>
