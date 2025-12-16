@@ -5,7 +5,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Search, Eye, MessageSquare, Plus } from 'lucide-react';
+import { ArrowLeft, Search, Eye, MessageSquare, Plus, Pencil, X } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import {
@@ -43,9 +56,37 @@ const statusColors: Record<string, string> = {
 
 export default function FnbOrders() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+
+  const cancelOrderMutation = useMutation({
+    mutationFn: async (orderId: string) => {
+      // Remove from picker queue if present
+      await supabase.from('fnb_picker_queue').delete().eq('order_id', orderId);
+      
+      // Update order status to cancelled
+      const { error } = await supabase
+        .from('fnb_orders')
+        .update({ status: 'cancelled' })
+        .eq('id', orderId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['fnb-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['fnb-picker-queue'] });
+      toast.success('Order cancelled');
+      setSelectedOrder(null);
+    },
+    onError: () => {
+      toast.error('Failed to cancel order');
+    },
+  });
+
+  const canEditOrder = (status: string) => ['pending', 'confirmed'].includes(status);
+  const canCancelOrder = (status: string) => ['pending', 'confirmed', 'picking'].includes(status);
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['fnb-orders', statusFilter],
@@ -217,8 +258,7 @@ export default function FnbOrders() {
               </Table>
             ) : (
               <p className="text-center py-8 text-muted-foreground">
-                No orders found. Orders will appear here when customers send WhatsApp
-                messages.
+                No orders found. Click "New Order" to create your first F&B order.
               </p>
             )}
           </CardContent>
@@ -310,6 +350,49 @@ export default function FnbOrders() {
                       </p>
                     )}
                   </ScrollArea>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2 pt-4 border-t">
+                  {canEditOrder(selectedOrder.status) && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedOrder(null);
+                        navigate(`/fnb/orders/edit/${selectedOrder.id}`);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Edit Order
+                    </Button>
+                  )}
+                  {canCancelOrder(selectedOrder.status) && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive">
+                          <X className="h-4 w-4 mr-2" />
+                          Cancel Order
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Cancel Order?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will cancel order {selectedOrder.order_number} and remove it from the picker queue. This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Keep Order</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => cancelOrderMutation.mutate(selectedOrder.id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Cancel Order
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
                 </div>
               </div>
             )}

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, Users, ShoppingCart, ClipboardList, MessageSquare, TrendingUp } from 'lucide-react';
+import { Package, Users, ShoppingCart, ClipboardList, MessageSquare, TrendingUp, Plus } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function FnbDashboard() {
@@ -115,7 +115,13 @@ export default function FnbDashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5 mb-6">
+        <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6 mb-6">
+          <Button asChild className="h-24 flex-col gap-2">
+            <Link to="/fnb/orders/new">
+              <Plus className="h-6 w-6" />
+              <span>New Order</span>
+            </Link>
+          </Button>
           <Button asChild variant="outline" className="h-24 flex-col gap-2">
             <Link to="/fnb/orders">
               <ShoppingCart className="h-6 w-6" />
@@ -195,7 +201,7 @@ export default function FnbDashboard() {
               </div>
             ) : (
               <p className="text-muted-foreground text-center py-8">
-                No orders yet. Orders will appear here when customers send WhatsApp messages.
+                No orders yet. Click "New Order" to create your first F&B order.
               </p>
             )}
           </CardContent>
