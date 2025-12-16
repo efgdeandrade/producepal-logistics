@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, Users, ShoppingCart, ClipboardList, MessageSquare, TrendingUp, Plus, Truck } from 'lucide-react';
+import { Package, Users, ShoppingCart, ClipboardList, MessageSquare, TrendingUp, Plus, Truck, Banknote } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function FnbDashboard() {
@@ -150,6 +150,12 @@ export default function FnbDashboard() {
             <Link to="/fnb/delivery">
               <Truck className="h-6 w-6" />
               <span>Delivery</span>
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="h-24 flex-col gap-2">
+            <Link to="/fnb/cod">
+              <Banknote className="h-6 w-6" />
+              <span>COD</span>
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-24 flex-col gap-2">
