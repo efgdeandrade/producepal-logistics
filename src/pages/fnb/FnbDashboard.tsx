@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, Users, ShoppingCart, ClipboardList, MessageSquare, TrendingUp, Plus } from 'lucide-react';
+import { Package, Users, ShoppingCart, ClipboardList, MessageSquare, TrendingUp, Plus, Truck } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function FnbDashboard() {
@@ -147,6 +147,18 @@ export default function FnbDashboard() {
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-24 flex-col gap-2">
+            <Link to="/fnb/delivery">
+              <Truck className="h-6 w-6" />
+              <span>Delivery</span>
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="h-24 flex-col gap-2">
+            <Link to="/fnb/driver-portal">
+              <Truck className="h-6 w-6" />
+              <span>Driver Portal</span>
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="h-24 flex-col gap-2">
             <Link to="/fnb/settings">
               <MessageSquare className="h-6 w-6" />
               <span>WhatsApp Setup</span>
@@ -187,6 +199,8 @@ export default function FnbDashboard() {
                             ? 'bg-purple-100 text-purple-800'
                             : order.status === 'ready'
                             ? 'bg-green-100 text-green-800'
+                            : order.status === 'out_for_delivery'
+                            ? 'bg-orange-100 text-orange-800'
                             : 'bg-gray-100 text-gray-800'
                         }`}
                       >
