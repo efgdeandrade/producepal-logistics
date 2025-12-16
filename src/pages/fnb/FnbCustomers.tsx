@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Pencil, Trash2, ArrowLeft, Search, MessageSquare } from 'lucide-react';
+import { Plus, Pencil, Trash2, ArrowLeft, Search, MessageSquare, Route } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -39,6 +40,7 @@ interface FnbCustomer {
   whatsapp_phone: string;
   preferred_language: string;
   address: string | null;
+  delivery_zone: string | null;
   notes: string | null;
 }
 
@@ -47,6 +49,7 @@ const emptyCustomer: Omit<FnbCustomer, 'id'> = {
   whatsapp_phone: '',
   preferred_language: 'pap',
   address: '',
+  delivery_zone: '',
   notes: '',
 };
 
@@ -57,11 +60,28 @@ const languageLabels: Record<string, string> = {
   es: 'Spanish',
 };
 
+// Common delivery zones - can be customized
+const DELIVERY_ZONES = [
+  'Willemstad',
+  'Punda',
+  'Otrobanda',
+  'Pietermaai',
+  'Scharloo',
+  'Salinja',
+  'Groot Kwartier',
+  'Santa Rosa',
+  'Brievengat',
+  'Jan Thiel',
+  'Banda Abou',
+  'Banda Riba',
+];
+
 export default function FnbCustomers() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<FnbCustomer | null>(null);
   const [formData, setFormData] = useState<Omit<FnbCustomer, 'id'>>(emptyCustomer);
   const [searchTerm, setSearchTerm] = useState('');
+  const [zoneFilter, setZoneFilter] = useState<string>('all');
   const queryClient = useQueryClient();
 
   const { data: customers, isLoading } = useQuery({
@@ -75,6 +95,10 @@ export default function FnbCustomers() {
       return data as FnbCustomer[];
     },
   });
+
+  // Get unique zones from customers
+  const existingZones = [...new Set(customers?.map(c => c.delivery_zone).filter(Boolean))] as string[];
+  const allZones = [...new Set([...DELIVERY_ZONES, ...existingZones])].sort();
 
   const createMutation = useMutation({
     mutationFn: async (customer: Omit<FnbCustomer, 'id'>) => {
@@ -134,6 +158,7 @@ export default function FnbCustomers() {
       whatsapp_phone: customer.whatsapp_phone,
       preferred_language: customer.preferred_language,
       address: customer.address || '',
+      delivery_zone: customer.delivery_zone || '',
       notes: customer.notes || '',
     });
     setIsDialogOpen(true);
@@ -148,11 +173,13 @@ export default function FnbCustomers() {
     }
   };
 
-  const filteredCustomers = customers?.filter(
-    (c) =>
-      c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.whatsapp_phone.includes(searchTerm)
-  );
+  const filteredCustomers = customers?.filter((c) => {
+    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.whatsapp_phone.includes(searchTerm);
+    const matchesZone = zoneFilter === 'all' || 
+      (zoneFilter === 'unassigned' ? !c.delivery_zone : c.delivery_zone === zoneFilter);
+    return matchesSearch && matchesZone;
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -167,7 +194,7 @@ export default function FnbCustomers() {
           <div className="flex-1">
             <h1 className="text-3xl font-bold tracking-tight">F&B Customers</h1>
             <p className="text-muted-foreground">
-              Manage F&B customers and their WhatsApp contacts
+              Manage F&B customers and delivery zones
             </p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -211,24 +238,47 @@ export default function FnbCustomers() {
                   </p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="preferred_language">Preferred Language</Label>
-                  <Select
-                    value={formData.preferred_language}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, preferred_language: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pap">Papiamento</SelectItem>
-                      <SelectItem value="en">English</SelectItem>
-                      <SelectItem value="nl">Dutch</SelectItem>
-                      <SelectItem value="es">Spanish</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="preferred_language">Preferred Language</Label>
+                    <Select
+                      value={formData.preferred_language}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, preferred_language: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pap">Papiamento</SelectItem>
+                        <SelectItem value="en">English</SelectItem>
+                        <SelectItem value="nl">Dutch</SelectItem>
+                        <SelectItem value="es">Spanish</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="delivery_zone">Delivery Zone</Label>
+                    <Select
+                      value={formData.delivery_zone || ''}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, delivery_zone: value || null })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select zone" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {allZones.map((zone) => (
+                          <SelectItem key={zone} value={zone}>
+                            {zone}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -272,7 +322,7 @@ export default function FnbCustomers() {
 
         <Card>
           <CardHeader>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col md:flex-row gap-4">
               <div className="relative flex-1 max-w-sm">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -282,6 +332,20 @@ export default function FnbCustomers() {
                   className="pl-9"
                 />
               </div>
+              <Select value={zoneFilter} onValueChange={setZoneFilter}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Filter by zone" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Zones</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {allZones.map((zone) => (
+                    <SelectItem key={zone} value={zone}>
+                      {zone}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </CardHeader>
           <CardContent>
@@ -293,6 +357,7 @@ export default function FnbCustomers() {
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>WhatsApp</TableHead>
+                    <TableHead>Zone</TableHead>
                     <TableHead>Language</TableHead>
                     <TableHead>Address</TableHead>
                     <TableHead className="w-24">Actions</TableHead>
@@ -307,6 +372,16 @@ export default function FnbCustomers() {
                           <MessageSquare className="h-4 w-4 text-green-600" />
                           {customer.whatsapp_phone}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {customer.delivery_zone ? (
+                          <Badge variant="secondary" className="text-xs">
+                            <Route className="h-3 w-3 mr-1" />
+                            {customer.delivery_zone}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">-</span>
+                        )}
                       </TableCell>
                       <TableCell>{languageLabels[customer.preferred_language]}</TableCell>
                       <TableCell className="max-w-xs truncate">

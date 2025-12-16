@@ -8,17 +8,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { ArrowLeft, Truck, Package, User, MapPin, Clock } from "lucide-react";
+import { ArrowLeft, Truck, Package, User, MapPin, Clock, Route } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
+
+type GroupBy = "date" | "zone";
 
 export default function FnbDeliveryManagement() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [selectedDriver, setSelectedDriver] = useState<string>("");
+  const [groupBy, setGroupBy] = useState<GroupBy>("zone");
 
-  // Fetch ready orders
+  // Fetch ready orders with customer zone info
   const { data: readyOrders, isLoading: loadingReady } = useQuery({
     queryKey: ["fnb-orders-ready"],
     queryFn: async () => {
@@ -26,7 +29,7 @@ export default function FnbDeliveryManagement() {
         .from("fnb_orders")
         .select(`
           *,
-          fnb_customers (name, address, whatsapp_phone),
+          fnb_customers (name, address, whatsapp_phone, delivery_zone),
           fnb_order_items (id, quantity, product_id, fnb_products (name))
         `)
         .eq("status", "ready")
@@ -44,7 +47,7 @@ export default function FnbDeliveryManagement() {
         .from("fnb_orders")
         .select(`
           *,
-          fnb_customers (name, address, whatsapp_phone),
+          fnb_customers (name, address, whatsapp_phone, delivery_zone),
           fnb_order_items (id, quantity, product_id, fnb_products (name))
         `)
         .eq("status", "out_for_delivery")
@@ -101,6 +104,15 @@ export default function FnbDeliveryManagement() {
     }
   };
 
+  const handleSelectGroup = (orderIds: string[], checked: boolean) => {
+    if (checked) {
+      const newSelected = [...new Set([...selectedOrders, ...orderIds])];
+      setSelectedOrders(newSelected);
+    } else {
+      setSelectedOrders(selectedOrders.filter((id) => !orderIds.includes(id)));
+    }
+  };
+
   const handleAssignDriver = () => {
     if (!selectedDriver || selectedOrders.length === 0) {
       toast.error("Please select a driver and at least one order");
@@ -125,6 +137,37 @@ export default function FnbDeliveryManagement() {
     return grouped;
   };
 
+  const groupOrdersByZone = (orders: any[]) => {
+    const grouped: Record<string, any[]> = {};
+    orders?.forEach((order) => {
+      const zone = order.fnb_customers?.delivery_zone || "Unassigned Zone";
+      if (!grouped[zone]) grouped[zone] = [];
+      grouped[zone].push(order);
+    });
+    // Sort zones alphabetically, with "Unassigned Zone" at the end
+    const sortedKeys = Object.keys(grouped).sort((a, b) => {
+      if (a === "Unassigned Zone") return 1;
+      if (b === "Unassigned Zone") return -1;
+      return a.localeCompare(b);
+    });
+    const sortedGrouped: Record<string, any[]> = {};
+    sortedKeys.forEach((key) => {
+      sortedGrouped[key] = grouped[key];
+    });
+    return sortedGrouped;
+  };
+
+  const groupOrders = (orders: any[]) => {
+    return groupBy === "zone" ? groupOrdersByZone(orders) : groupOrdersByDate(orders);
+  };
+
+  const getGroupLabel = (key: string) => {
+    if (groupBy === "date") {
+      return key === "No Date" ? "No Delivery Date" : format(new Date(key), "EEEE, MMM d");
+    }
+    return key;
+  };
+
   const renderOrderCard = (order: any, showCheckbox: boolean = false) => (
     <Card key={order.id} className="mb-3">
       <CardContent className="p-4">
@@ -139,7 +182,15 @@ export default function FnbDeliveryManagement() {
           <div className="flex-1">
             <div className="flex items-center justify-between mb-2">
               <div className="font-semibold">{order.order_number}</div>
-              <Badge variant="outline">{order.fnb_order_items?.length || 0} items</Badge>
+              <div className="flex gap-1">
+                {order.fnb_customers?.delivery_zone && (
+                  <Badge variant="secondary" className="text-xs">
+                    <Route className="h-3 w-3 mr-1" />
+                    {order.fnb_customers.delivery_zone}
+                  </Badge>
+                )}
+                <Badge variant="outline">{order.fnb_order_items?.length || 0} items</Badge>
+              </div>
             </div>
             <div className="space-y-1 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
@@ -175,6 +226,13 @@ export default function FnbDeliveryManagement() {
     </Card>
   );
 
+  // Get unique zones for summary
+  const zoneSummary = readyOrders?.reduce((acc: Record<string, number>, order) => {
+    const zone = order.fnb_customers?.delivery_zone || "Unassigned";
+    acc[zone] = (acc[zone] || 0) + 1;
+    return acc;
+  }, {});
+
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-6">
       <div className="flex items-center gap-4">
@@ -183,9 +241,30 @@ export default function FnbDeliveryManagement() {
         </Button>
         <div>
           <h1 className="text-2xl font-bold">F&B Delivery Management</h1>
-          <p className="text-muted-foreground">Assign drivers to ready orders</p>
+          <p className="text-muted-foreground">Assign drivers to ready orders by zone</p>
         </div>
       </div>
+
+      {/* Zone Summary */}
+      {zoneSummary && Object.keys(zoneSummary).length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Route className="h-5 w-5" />
+              Delivery Zones
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(zoneSummary).map(([zone, count]) => (
+                <Badge key={zone} variant="outline" className="text-sm py-1 px-3">
+                  {zone}: {count} orders
+                </Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs defaultValue="ready" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
@@ -217,36 +296,63 @@ export default function FnbDeliveryManagement() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Group By</label>
+                  <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="zone">Zone</SelectItem>
+                      <SelectItem value="date">Date</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Button
                   onClick={handleAssignDriver}
                   disabled={!selectedDriver || selectedOrders.length === 0 || assignDriverMutation.isPending}
                 >
                   <Truck className="h-4 w-4 mr-2" />
-                  Assign to {selectedOrders.length} order(s)
+                  Assign {selectedOrders.length} order(s)
                 </Button>
               </div>
             </CardContent>
           </Card>
 
-          {/* Orders grouped by date */}
+          {/* Orders grouped */}
           {loadingReady ? (
             <p className="text-center py-8 text-muted-foreground">Loading orders...</p>
           ) : readyOrders?.length === 0 ? (
             <p className="text-center py-8 text-muted-foreground">No orders ready for delivery</p>
           ) : (
-            Object.entries(groupOrdersByDate(readyOrders || [])).map(([date, orders]) => (
-              <Card key={date}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg flex items-center justify-between">
-                    <span>{date === "No Date" ? "No Delivery Date" : format(new Date(date), "EEEE, MMM d")}</span>
-                    <Badge>{orders.length} orders</Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {orders.map((order) => renderOrderCard(order, true))}
-                </CardContent>
-              </Card>
-            ))
+            Object.entries(groupOrders(readyOrders || [])).map(([key, orders]) => {
+              const groupOrderIds = orders.map((o) => o.id);
+              const allSelected = groupOrderIds.every((id) => selectedOrders.includes(id));
+              const someSelected = groupOrderIds.some((id) => selectedOrders.includes(id));
+              
+              return (
+                <Card key={key}>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Checkbox
+                          checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                          onCheckedChange={(checked) => handleSelectGroup(groupOrderIds, checked === true)}
+                        />
+                        <span className="flex items-center gap-2">
+                          {groupBy === "zone" && <Route className="h-4 w-4" />}
+                          {getGroupLabel(key)}
+                        </span>
+                      </div>
+                      <Badge>{orders.length} orders</Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {orders.map((order) => renderOrderCard(order, true))}
+                  </CardContent>
+                </Card>
+              );
+            })
           )}
         </TabsContent>
 
@@ -256,11 +362,14 @@ export default function FnbDeliveryManagement() {
           ) : outForDeliveryOrders?.length === 0 ? (
             <p className="text-center py-8 text-muted-foreground">No orders out for delivery</p>
           ) : (
-            Object.entries(groupOrdersByDate(outForDeliveryOrders || [])).map(([date, orders]) => (
-              <Card key={date}>
+            Object.entries(groupOrders(outForDeliveryOrders || [])).map(([key, orders]) => (
+              <Card key={key}>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg flex items-center justify-between">
-                    <span>{date === "No Date" ? "No Delivery Date" : format(new Date(date), "EEEE, MMM d")}</span>
+                    <span className="flex items-center gap-2">
+                      {groupBy === "zone" && <Route className="h-4 w-4" />}
+                      {getGroupLabel(key)}
+                    </span>
                     <Badge>{orders.length} orders</Badge>
                   </CardTitle>
                 </CardHeader>
