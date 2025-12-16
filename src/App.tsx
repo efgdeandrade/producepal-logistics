@@ -37,6 +37,7 @@ import FnbDashboard from "./pages/fnb/FnbDashboard";
 import FnbProducts from "./pages/fnb/FnbProducts";
 import FnbCustomers from "./pages/fnb/FnbCustomers";
 import FnbOrders from "./pages/fnb/FnbOrders";
+import FnbNewOrder from "./pages/fnb/FnbNewOrder";
 import FnbPicker from "./pages/fnb/FnbPicker";
 import FnbSettings from "./pages/fnb/FnbSettings";
 
@@ -81,6 +82,7 @@ const App = () => (
               <Route path="/fnb/products" element={<ProtectedRoute><PasswordChangeRequired><FnbProducts /></PasswordChangeRequired></ProtectedRoute>} />
               <Route path="/fnb/customers" element={<ProtectedRoute><PasswordChangeRequired><FnbCustomers /></PasswordChangeRequired></ProtectedRoute>} />
               <Route path="/fnb/orders" element={<ProtectedRoute><PasswordChangeRequired><FnbOrders /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/fnb/orders/new" element={<ProtectedRoute><PasswordChangeRequired><FnbNewOrder /></PasswordChangeRequired></ProtectedRoute>} />
               <Route path="/fnb/picker" element={<ProtectedRoute><PasswordChangeRequired><FnbPicker /></PasswordChangeRequired></ProtectedRoute>} />
               <Route path="/fnb/settings" element={<ProtectedRoute><PasswordChangeRequired><FnbSettings /></PasswordChangeRequired></ProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

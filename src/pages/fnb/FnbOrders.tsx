@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Search, Eye, MessageSquare } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { ArrowLeft, Search, Eye, MessageSquare, Plus } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import {
   Table,
@@ -42,6 +42,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function FnbOrders() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
@@ -118,9 +119,13 @@ export default function FnbOrders() {
           <div className="flex-1">
             <h1 className="text-3xl font-bold tracking-tight">F&B Orders</h1>
             <p className="text-muted-foreground">
-              View and manage orders received via WhatsApp
+              View and manage F&B orders
             </p>
           </div>
+          <Button onClick={() => navigate('/fnb/orders/new')}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Order
+          </Button>
         </div>
 
         <Card>

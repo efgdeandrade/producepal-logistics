@@ -945,6 +945,8 @@ export type Database = {
           picked_quantity: number | null
           product_id: string | null
           quantity: number
+          short_quantity: number | null
+          short_reason: string | null
           total_xcg: number
           unit_price_xcg: number
         }
@@ -957,6 +959,8 @@ export type Database = {
           picked_quantity?: number | null
           product_id?: string | null
           quantity: number
+          short_quantity?: number | null
+          short_reason?: string | null
           total_xcg: number
           unit_price_xcg: number
         }
@@ -969,6 +973,8 @@ export type Database = {
           picked_quantity?: number | null
           product_id?: string | null
           quantity?: number
+          short_quantity?: number | null
+          short_reason?: string | null
           total_xcg?: number
           unit_price_xcg?: number
         }
