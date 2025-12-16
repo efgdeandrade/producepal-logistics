@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, TrendingUp, Package, Users, Truck, DollarSign, Calendar, Clock } from "lucide-react";
+import { ArrowLeft, TrendingUp, Package, Users, Truck, DollarSign, Calendar, Clock, UserCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format, subDays, startOfWeek, startOfMonth, differenceInMinutes } from "date-fns";
 import {
@@ -151,6 +151,64 @@ export default function FnbAnalytics() {
   const dayOfWeekChartData = daysOrder.map((day) => ({
     day,
     orders: dayOfWeekOrders?.[day] || 0,
+  }));
+
+  // Driver performance metrics
+  const driverStats = orders?.reduce((acc: Record<string, {
+    name: string;
+    deliveries: number;
+    totalDeliveryTime: number;
+    deliveriesWithTime: number;
+    codDue: number;
+    codCollected: number;
+  }>, order) => {
+    const driverName = order.driver_name || "Unassigned";
+    if (!acc[driverName]) {
+      acc[driverName] = {
+        name: driverName,
+        deliveries: 0,
+        totalDeliveryTime: 0,
+        deliveriesWithTime: 0,
+        codDue: 0,
+        codCollected: 0,
+      };
+    }
+    
+    if (order.status === "delivered") {
+      acc[driverName].deliveries += 1;
+      
+      if (order.assigned_at && order.delivered_at) {
+        const deliveryTime = differenceInMinutes(new Date(order.delivered_at), new Date(order.assigned_at));
+        if (deliveryTime > 0 && deliveryTime < 480) { // Filter out unrealistic times (> 8 hours)
+          acc[driverName].totalDeliveryTime += deliveryTime;
+          acc[driverName].deliveriesWithTime += 1;
+        }
+      }
+    }
+    
+    if (order.cod_amount_due && order.cod_amount_due > 0) {
+      acc[driverName].codDue += order.cod_amount_due;
+      acc[driverName].codCollected += order.cod_amount_collected || 0;
+    }
+    
+    return acc;
+  }, {});
+
+  const driverPerformance = Object.values(driverStats || {})
+    .filter(d => d.name !== "Unassigned")
+    .map(d => ({
+      name: d.name,
+      deliveries: d.deliveries,
+      avgDeliveryTime: d.deliveriesWithTime > 0 ? Math.round(d.totalDeliveryTime / d.deliveriesWithTime) : 0,
+      codCollectionRate: d.codDue > 0 ? Math.round((d.codCollected / d.codDue) * 100) : 0,
+      codCollected: d.codCollected,
+      codDue: d.codDue,
+    }))
+    .sort((a, b) => b.deliveries - a.deliveries);
+
+  const driverDeliveriesChartData = driverPerformance.slice(0, 8).map(d => ({
+    name: d.name.length > 12 ? d.name.substring(0, 12) + "..." : d.name,
+    deliveries: d.deliveries,
   }));
 
   return (
@@ -407,6 +465,82 @@ export default function FnbAnalytics() {
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
+            </div>
+
+            {/* Driver Performance Section */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <UserCheck className="h-5 w-5" />
+                Driver Performance
+              </h2>
+              
+              <div className="grid gap-4 lg:grid-cols-2">
+                {/* Deliveries per Driver Chart */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Deliveries per Driver</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {driverDeliveriesChartData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={driverDeliveriesChartData}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                          <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
+                          <YAxis tick={{ fill: "hsl(var(--muted-foreground))" }} />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "hsl(var(--card))",
+                              border: "1px solid hsl(var(--border))",
+                            }}
+                          />
+                          <Bar dataKey="deliveries" fill="hsl(var(--primary))" radius={4} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <p className="text-center py-12 text-muted-foreground">No driver data</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Driver Performance Table */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Performance Details</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {driverPerformance.length > 0 ? (
+                        driverPerformance.map((driver, index) => (
+                          <div key={driver.name} className="flex items-center justify-between border-b border-border pb-2 last:border-0">
+                            <div className="flex items-center gap-3">
+                              <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
+                                {index + 1}
+                              </div>
+                              <div>
+                                <p className="font-medium text-sm">{driver.name}</p>
+                                <p className="text-xs text-muted-foreground">{driver.deliveries} deliveries</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 text-right">
+                              <div>
+                                <p className="text-sm font-medium">{driver.avgDeliveryTime} min</p>
+                                <p className="text-xs text-muted-foreground">avg time</p>
+                              </div>
+                              <Badge 
+                                variant={driver.codCollectionRate >= 90 ? "default" : driver.codCollectionRate >= 70 ? "secondary" : "destructive"}
+                              >
+                                {driver.codCollectionRate}% COD
+                              </Badge>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-center py-4 text-muted-foreground">No driver data</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
 
             {/* Tables Row */}
