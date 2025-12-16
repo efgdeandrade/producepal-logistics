@@ -43,6 +43,7 @@ import FnbSettings from "./pages/fnb/FnbSettings";
 import FnbDeliveryManagement from "./pages/fnb/FnbDeliveryManagement";
 import FnbDriverPortal from "./pages/fnb/FnbDriverPortal";
 import FnbCODReconciliation from "./pages/fnb/FnbCODReconciliation";
+import FnbAnalytics from "./pages/fnb/FnbAnalytics";
 
 const queryClient = new QueryClient();
 
@@ -91,6 +92,7 @@ const App = () => (
               <Route path="/fnb/delivery" element={<ProtectedRoute><PasswordChangeRequired><FnbDeliveryManagement /></PasswordChangeRequired></ProtectedRoute>} />
               <Route path="/fnb/driver-portal" element={<ProtectedRoute requiredRole="driver"><PasswordChangeRequired><FnbDriverPortal /></PasswordChangeRequired></ProtectedRoute>} />
               <Route path="/fnb/cod" element={<ProtectedRoute><PasswordChangeRequired><FnbCODReconciliation /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/fnb/analytics" element={<ProtectedRoute><PasswordChangeRequired><FnbAnalytics /></PasswordChangeRequired></ProtectedRoute>} />
               <Route path="/fnb/settings" element={<ProtectedRoute><PasswordChangeRequired><FnbSettings /></PasswordChangeRequired></ProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
