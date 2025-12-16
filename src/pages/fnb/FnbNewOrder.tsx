@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ArrowLeft, Plus, Trash2, ShoppingCart, Save } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   Select,
@@ -28,13 +28,17 @@ interface OrderItem {
 
 export default function FnbNewOrder() {
   const navigate = useNavigate();
+  const { orderId } = useParams();
   const queryClient = useQueryClient();
+  const isEditMode = !!orderId;
+  
   const [customerId, setCustomerId] = useState<string>('');
   const [deliveryDate, setDeliveryDate] = useState<string>(
     format(new Date(), 'yyyy-MM-dd')
   );
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<OrderItem[]>([]);
+  const [orderNumber, setOrderNumber] = useState('');
 
   const { data: customers } = useQuery({
     queryKey: ['fnb-customers'],
@@ -60,6 +64,43 @@ export default function FnbNewOrder() {
       return data;
     },
   });
+
+  // Load existing order for edit mode
+  const { data: existingOrder, isLoading: isLoadingOrder } = useQuery({
+    queryKey: ['fnb-order', orderId],
+    queryFn: async () => {
+      if (!orderId) return null;
+      const { data, error } = await supabase
+        .from('fnb_orders')
+        .select(`
+          *,
+          fnb_order_items(*, fnb_products(*))
+        `)
+        .eq('id', orderId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: isEditMode,
+  });
+
+  // Populate form when editing
+  useEffect(() => {
+    if (existingOrder) {
+      setCustomerId(existingOrder.customer_id || '');
+      setDeliveryDate(existingOrder.delivery_date || format(new Date(), 'yyyy-MM-dd'));
+      setNotes(existingOrder.notes || '');
+      setOrderNumber(existingOrder.order_number);
+      
+      const loadedItems: OrderItem[] = existingOrder.fnb_order_items?.map((item: any) => ({
+        productId: item.product_id,
+        quantity: item.quantity,
+        unitPrice: item.unit_price_xcg,
+        total: item.total_xcg,
+      })) || [];
+      setItems(loadedItems);
+    }
+  }, [existingOrder]);
 
   const addItem = () => {
     setItems([...items, { productId: '', quantity: 1, unitPrice: 0, total: 0 }]);
@@ -100,14 +141,14 @@ export default function FnbNewOrder() {
         throw new Error('Please select products for all items');
 
       // Generate order number
-      const orderNumber = `FNB-${Date.now()}`;
+      const newOrderNumber = `FNB-${Date.now()}`;
 
       // Create order
       const { data: order, error: orderError } = await supabase
         .from('fnb_orders')
         .insert({
           customer_id: customerId,
-          order_number: orderNumber,
+          order_number: newOrderNumber,
           order_date: new Date().toISOString().split('T')[0],
           delivery_date: deliveryDate,
           notes,
@@ -164,6 +205,84 @@ export default function FnbNewOrder() {
     },
   });
 
+  const updateOrderMutation = useMutation({
+    mutationFn: async () => {
+      if (!orderId) throw new Error('No order ID');
+      if (!customerId) throw new Error('Please select a customer');
+      if (items.length === 0) throw new Error('Please add at least one item');
+      if (items.some((i) => !i.productId))
+        throw new Error('Please select products for all items');
+
+      // Update order
+      const { error: orderError } = await supabase
+        .from('fnb_orders')
+        .update({
+          customer_id: customerId,
+          delivery_date: deliveryDate,
+          notes,
+          total_xcg: orderTotal,
+        })
+        .eq('id', orderId);
+
+      if (orderError) throw orderError;
+
+      // Delete existing items
+      const { error: deleteError } = await supabase
+        .from('fnb_order_items')
+        .delete()
+        .eq('order_id', orderId);
+
+      if (deleteError) throw deleteError;
+
+      // Insert new items
+      const orderItems = items.map((item) => ({
+        order_id: orderId,
+        product_id: item.productId,
+        quantity: item.quantity,
+        unit_price_xcg: item.unitPrice,
+        total_xcg: item.total,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('fnb_order_items')
+        .insert(orderItems);
+
+      if (itemsError) throw itemsError;
+
+      return { order_number: orderNumber };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['fnb-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['fnb-order', orderId] });
+      toast.success(`Order ${result.order_number} updated`);
+      navigate('/fnb/orders');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const handleSubmit = () => {
+    if (isEditMode) {
+      updateOrderMutation.mutate();
+    } else {
+      createOrderMutation.mutate();
+    }
+  };
+
+  const isPending = createOrderMutation.isPending || updateOrderMutation.isPending;
+
+  if (isEditMode && isLoadingOrder) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container py-6">
+          <p className="text-center text-muted-foreground">Loading order...</p>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -175,9 +294,11 @@ export default function FnbNewOrder() {
             </Link>
           </Button>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold tracking-tight">New F&B Order</h1>
+            <h1 className="text-3xl font-bold tracking-tight">
+              {isEditMode ? `Edit Order ${orderNumber}` : 'New F&B Order'}
+            </h1>
             <p className="text-muted-foreground">
-              Manually create an order for F&B customers
+              {isEditMode ? 'Update order details and items' : 'Manually create an order for F&B customers'}
             </p>
           </div>
         </div>
@@ -337,19 +458,19 @@ export default function FnbNewOrder() {
                 <Button
                   className="w-full"
                   size="lg"
-                  onClick={() => createOrderMutation.mutate()}
-                  disabled={
-                    createOrderMutation.isPending ||
-                    !customerId ||
-                    items.length === 0
-                  }
+                  onClick={handleSubmit}
+                  disabled={isPending || !customerId || items.length === 0}
                 >
                   <Save className="h-4 w-4 mr-2" />
-                  {createOrderMutation.isPending ? 'Creating...' : 'Create Order'}
+                  {isPending 
+                    ? (isEditMode ? 'Updating...' : 'Creating...') 
+                    : (isEditMode ? 'Update Order' : 'Create Order')}
                 </Button>
 
                 <p className="text-xs text-muted-foreground text-center">
-                  Order will be automatically queued for picking
+                  {isEditMode 
+                    ? 'Changes will be saved to the existing order'
+                    : 'Order will be automatically queued for picking'}
                 </p>
               </CardContent>
             </Card>
