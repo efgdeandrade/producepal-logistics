@@ -60,22 +60,6 @@ const languageLabels: Record<string, string> = {
   es: 'Spanish',
 };
 
-// Common delivery zones - can be customized
-const DELIVERY_ZONES = [
-  'Willemstad',
-  'Punda',
-  'Otrobanda',
-  'Pietermaai',
-  'Scharloo',
-  'Salinja',
-  'Groot Kwartier',
-  'Santa Rosa',
-  'Brievengat',
-  'Jan Thiel',
-  'Banda Abou',
-  'Banda Riba',
-];
-
 export default function FnbCustomers() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<FnbCustomer | null>(null);
@@ -96,9 +80,21 @@ export default function FnbCustomers() {
     },
   });
 
-  // Get unique zones from customers
-  const existingZones = [...new Set(customers?.map(c => c.delivery_zone).filter(Boolean))] as string[];
-  const allZones = [...new Set([...DELIVERY_ZONES, ...existingZones])].sort();
+  // Fetch delivery zones from database
+  const { data: deliveryZones } = useQuery({
+    queryKey: ['fnb-delivery-zones'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('fnb_delivery_zones')
+        .select('name')
+        .eq('is_active', true)
+        .order('sort_order');
+      if (error) throw error;
+      return data?.map(z => z.name) || [];
+    },
+  });
+
+  const allZones = deliveryZones || [];
 
   const createMutation = useMutation({
     mutationFn: async (customer: Omit<FnbCustomer, 'id'>) => {
