@@ -1,23 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, CheckCircle, Clock, User, Package, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Clock, User, Package, AlertTriangle, LogOut, Scale, Trophy } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Progress } from '@/components/ui/progress';
+import { PickerSessionModal } from '@/components/fnb/PickerSessionModal';
+import { PickerQueueZone } from '@/components/fnb/PickerQueueZone';
+import { WeightVerificationDialog } from '@/components/fnb/WeightVerificationDialog';
+import { ShortageRequestDialog } from '@/components/fnb/ShortageRequestDialog';
+import { PickerLeaderboard } from '@/components/fnb/PickerLeaderboard';
+import { cn } from '@/lib/utils';
 
 const SHORT_REASONS = [
   { value: 'out_of_stock', label: 'Out of Stock' },
@@ -26,12 +25,46 @@ const SHORT_REASONS = [
   { value: 'other', label: 'Other' },
 ];
 
+const SESSION_KEY = 'fnb_picker_session';
+
 export default function FnbPicker() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  
+  // Session state
+  const [pickerName, setPickerName] = useState<string | null>(() => {
+    const stored = sessionStorage.getItem(SESSION_KEY);
+    return stored || null;
+  });
+  
+  // UI state
   const [selectedQueue, setSelectedQueue] = useState<string | null>(null);
   const [pickedQuantities, setPickedQuantities] = useState<Record<string, number>>({});
   const [shortReasons, setShortReasons] = useState<Record<string, string>>({});
+  const [showWeightDialog, setShowWeightDialog] = useState(false);
+  const [shortageItem, setShortageItem] = useState<{
+    id: string;
+    productName: string;
+    productCode: string;
+    orderedQuantity: number;
+    unit: string;
+  } | null>(null);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+
+  // Handle session start
+  const handleSessionStart = (name: string) => {
+    setPickerName(name);
+    sessionStorage.setItem(SESSION_KEY, name);
+    toast.success(`Welcome, ${name}!`);
+  };
+
+  // Handle session end
+  const handleSessionEnd = () => {
+    setPickerName(null);
+    sessionStorage.removeItem(SESSION_KEY);
+    setSelectedQueue(null);
+    toast.info('Session ended');
+  };
 
   // Subscribe to realtime updates
   useEffect(() => {
@@ -51,6 +84,13 @@ export default function FnbPicker() {
           queryClient.invalidateQueries({ queryKey: ['fnb-picker-queue'] });
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'fnb_order_items' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['fnb-picker-items'] });
+        }
+      )
       .subscribe();
 
     return () => {
@@ -58,6 +98,7 @@ export default function FnbPicker() {
     };
   }, [queryClient]);
 
+  // Fetch queue with item counts
   const { data: queueItems, isLoading } = useQuery({
     queryKey: ['fnb-picker-queue'],
     queryFn: async () => {
@@ -71,18 +112,131 @@ export default function FnbPicker() {
             total_xcg,
             delivery_date,
             notes,
-            fnb_customers(name, whatsapp_phone, address)
+            fnb_customers(name, whatsapp_phone, address, customer_type, delivery_zone)
           )
         `)
         .in('status', ['queued', 'in_progress'])
         .order('priority', { ascending: false })
         .order('created_at', { ascending: true });
       if (error) throw error;
-      return data;
+
+      // Get item counts for each order
+      const orderIds = data?.map((q: any) => q.order_id).filter(Boolean) || [];
+      const { data: itemCounts } = await supabase
+        .from('fnb_order_items')
+        .select('order_id')
+        .in('order_id', orderIds);
+
+      const countMap: Record<string, number> = {};
+      itemCounts?.forEach((item: any) => {
+        countMap[item.order_id] = (countMap[item.order_id] || 0) + 1;
+      });
+
+      return data?.map((q: any) => ({
+        ...q,
+        itemCount: countMap[q.order_id] || 0,
+      })) || [];
     },
     refetchInterval: 30000,
   });
 
+  // Fetch leaderboard stats
+  const { data: leaderboardStats } = useQuery({
+    queryKey: ['fnb-picker-leaderboard'],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Get today's completed orders by picker
+      const { data, error } = await supabase
+        .from('fnb_picker_queue')
+        .select('picker_name, completed_at, pick_start_time, order_id')
+        .eq('status', 'completed')
+        .gte('completed_at', today)
+        .not('picker_name', 'is', null);
+
+      if (error) throw error;
+
+      // Get active pickers
+      const { data: activePickers } = await supabase
+        .from('fnb_picker_queue')
+        .select('picker_name')
+        .eq('status', 'in_progress')
+        .not('picker_name', 'is', null);
+
+      const activeNames = new Set(activePickers?.map((p: any) => p.picker_name) || []);
+
+      // Aggregate stats
+      const statsMap: Record<string, { orders: number; totalTime: number; items: number }> = {};
+      
+      data?.forEach((row: any) => {
+        const name = row.picker_name;
+        if (!statsMap[name]) {
+          statsMap[name] = { orders: 0, totalTime: 0, items: 0 };
+        }
+        statsMap[name].orders++;
+        
+        if (row.pick_start_time && row.completed_at) {
+          const start = new Date(row.pick_start_time).getTime();
+          const end = new Date(row.completed_at).getTime();
+          statsMap[name].totalTime += (end - start) / 60000; // minutes
+        }
+      });
+
+      // Get item counts per order
+      const orderIds = data?.map((d: any) => d.order_id).filter(Boolean) || [];
+      if (orderIds.length > 0) {
+        const { data: items } = await supabase
+          .from('fnb_order_items')
+          .select('order_id, quantity')
+          .in('order_id', orderIds);
+
+        const orderItemMap: Record<string, number> = {};
+        items?.forEach((item: any) => {
+          orderItemMap[item.order_id] = (orderItemMap[item.order_id] || 0) + item.quantity;
+        });
+
+        data?.forEach((row: any) => {
+          if (statsMap[row.picker_name]) {
+            statsMap[row.picker_name].items += orderItemMap[row.order_id] || 0;
+          }
+        });
+      }
+
+      return Object.entries(statsMap).map(([name, stats]) => ({
+        picker_name: name,
+        orders_completed: stats.orders,
+        avg_pick_time_minutes: stats.orders > 0 ? stats.totalTime / stats.orders : 0,
+        items_picked: stats.items,
+        is_active: activeNames.has(name),
+      }));
+    },
+    refetchInterval: 10000,
+  });
+
+  // Group orders by zone
+  const ordersByZone = useMemo(() => {
+    if (!queueItems) return {};
+    
+    const grouped: Record<string, any[]> = {};
+    queueItems.forEach((item: any) => {
+      const zone = item.fnb_orders?.fnb_customers?.delivery_zone || 'Unassigned';
+      if (!grouped[zone]) grouped[zone] = [];
+      grouped[zone].push(item);
+    });
+
+    // Sort zones to put urgent ones first
+    return Object.fromEntries(
+      Object.entries(grouped).sort(([, a], [, b]) => {
+        const aUrgent = a.some((o: any) => o.priority > 0);
+        const bUrgent = b.some((o: any) => o.priority > 0);
+        if (aUrgent && !bUrgent) return -1;
+        if (!aUrgent && bUrgent) return 1;
+        return 0;
+      })
+    );
+  }, [queueItems]);
+
+  // Fetch order items when selected
   const { data: orderItems } = useQuery({
     queryKey: ['fnb-picker-items', selectedQueue],
     queryFn: async () => {
@@ -119,6 +273,7 @@ export default function FnbPicker() {
     }
   }, [orderItems]);
 
+  // Mutations
   const claimMutation = useMutation({
     mutationFn: async (queueId: string) => {
       const { error } = await supabase
@@ -127,6 +282,8 @@ export default function FnbPicker() {
           claimed_by: user?.id,
           claimed_at: new Date().toISOString(),
           status: 'in_progress',
+          picker_name: pickerName,
+          pick_start_time: new Date().toISOString(),
         })
         .eq('id', queueId)
         .eq('status', 'queued');
@@ -142,45 +299,59 @@ export default function FnbPicker() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fnb-picker-queue'] });
-      toast.success('Order claimed');
+      toast.success('Order claimed - start picking!');
     },
     onError: () => {
-      toast.error('Failed to claim order - it may have been taken');
+      toast.error('Failed to claim - another picker got it first');
+      queryClient.invalidateQueries({ queryKey: ['fnb-picker-queue'] });
     },
   });
 
-  const updateItemMutation = useMutation({
-    mutationFn: async ({
-      itemId,
-      pickedQty,
-      orderedQty,
-      shortReason,
-    }: {
+  const shortageRequestMutation = useMutation({
+    mutationFn: async ({ itemId, availableQuantity, reason, notes }: {
       itemId: string;
-      pickedQty: number;
-      orderedQty: number;
-      shortReason?: string;
+      availableQuantity: number;
+      reason: string;
+      notes?: string;
     }) => {
-      const shortQty = Math.max(0, orderedQty - pickedQty);
+      const item = orderItems?.find((i: any) => i.id === itemId);
+      if (!item) throw new Error('Item not found');
+
+      const shortQty = item.quantity - availableQuantity;
+      
       const { error } = await supabase
         .from('fnb_order_items')
         .update({
-          picked_quantity: pickedQty,
+          picked_quantity: availableQuantity,
           picked_by: user?.id,
           picked_at: new Date().toISOString(),
           short_quantity: shortQty,
-          short_reason: shortQty > 0 ? shortReason : null,
+          short_reason: reason,
+          shortage_status: 'pending',
         })
         .eq('id', itemId);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['fnb-picker-items'] });
+      setShortageItem(null);
+      setPickedQuantities(prev => ({
+        ...prev,
+        [variables.itemId]: variables.availableQuantity,
+      }));
+      setShortReasons(prev => ({
+        ...prev,
+        [variables.itemId]: variables.reason,
+      }));
+      toast.info('Shortage reported - waiting for supervisor approval');
+    },
+    onError: () => {
+      toast.error('Failed to submit shortage request');
     },
   });
 
   const completeMutation = useMutation({
-    mutationFn: async (queueId: string) => {
+    mutationFn: async ({ queueId, verifiedWeight }: { queueId: string; verifiedWeight: number }) => {
       const queueItem = queueItems?.find((q: any) => q.id === queueId);
       if (!queueItem) throw new Error('Queue item not found');
 
@@ -202,11 +373,18 @@ export default function FnbPicker() {
         }
       }
 
+      // Calculate expected weight
+      const expectedWeight = orderItems?.reduce((sum: number, item: any) => {
+        return sum + (pickedQuantities[item.id] || 0) * 0.5; // Placeholder: 0.5kg per unit
+      }, 0) || 0;
+
       const { error: queueError } = await supabase
         .from('fnb_picker_queue')
         .update({
           status: 'completed',
           completed_at: new Date().toISOString(),
+          verified_weight_kg: verifiedWeight,
+          expected_weight_kg: expectedWeight,
         })
         .eq('id', queueId);
       if (queueError) throw queueError;
@@ -219,10 +397,12 @@ export default function FnbPicker() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fnb-picker-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['fnb-picker-leaderboard'] });
       setSelectedQueue(null);
       setPickedQuantities({});
       setShortReasons({});
-      toast.success('Order completed and ready for delivery');
+      setShowWeightDialog(false);
+      toast.success('Order completed and ready for delivery! 🎉');
     },
     onError: () => {
       toast.error('Failed to complete order');
@@ -230,111 +410,147 @@ export default function FnbPicker() {
   });
 
   const selectedQueueItem = queueItems?.find((q: any) => q.id === selectedQueue);
-  const isMyOrder = selectedQueueItem?.claimed_by === user?.id;
+  const isMyOrder = selectedQueueItem?.picker_name === pickerName;
 
-  // Check if all items have been reviewed (picked_quantity set)
+  // Check for pending shortage approvals
+  const hasPendingShortages = orderItems?.some(
+    (item: any) => item.shortage_status === 'pending'
+  );
+
+  // Check if all items have been reviewed
   const allItemsReviewed =
     orderItems &&
     orderItems.length > 0 &&
     orderItems.every((item: any) => pickedQuantities[item.id] !== undefined);
 
-  // Check for any shorts
-  const hasShorts =
-    orderItems &&
-    orderItems.some(
-      (item: any) => (pickedQuantities[item.id] ?? item.quantity) < item.quantity
+  // Check for any shorts without reasons
+  const hasUnreasonedShorts = orderItems?.some(
+    (item: any) =>
+      (pickedQuantities[item.id] ?? item.quantity) < item.quantity &&
+      !shortReasons[item.id]
+  );
+
+  // Calculate progress
+  const pickedCount = Object.values(pickedQuantities).filter(q => q > 0).length;
+  const totalCount = orderItems?.length || 0;
+  const progress = totalCount > 0 ? (pickedCount / totalCount) * 100 : 0;
+
+  // Calculate expected weight
+  const expectedWeight = orderItems?.reduce((sum: number, item: any) => {
+    return sum + (pickedQuantities[item.id] || 0) * 0.5;
+  }, 0) || 0;
+
+  // Show session modal if no picker name
+  if (!pickerName) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <PickerSessionModal open={true} onSessionStart={handleSessionStart} />
+      </div>
     );
+  }
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="container py-6">
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="icon" asChild>
-            <Link to="/fnb">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold tracking-tight">Picker Workstation</h1>
-            <p className="text-muted-foreground">
-              Claim and fulfill F&B orders • Touch-friendly interface
-            </p>
+      <main className="container py-4 max-w-7xl">
+        {/* Header */}
+        <div className="flex items-center justify-between gap-4 mb-4">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" asChild>
+              <Link to="/fnb">
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Picker Workstation</h1>
+              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                <User className="h-3.5 w-3.5" />
+                {pickerName}
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowLeaderboard(!showLeaderboard)}
+              className={cn(showLeaderboard && 'bg-accent')}
+            >
+              <Trophy className="h-4 w-4 mr-1" />
+              Leaderboard
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSessionEnd}
+              className="text-muted-foreground"
+            >
+              <LogOut className="h-4 w-4 mr-1" />
+              End Session
+            </Button>
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Order Queue */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Order Queue ({queueItems?.length || 0})
+        {/* Leaderboard Panel */}
+        {showLeaderboard && (
+          <Card className="mb-4">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-amber-500" />
+                Today's Leaderboard
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {isLoading ? (
-                <p className="text-center py-8 text-muted-foreground">Loading...</p>
-              ) : queueItems && queueItems.length > 0 ? (
-                <div className="space-y-3">
-                  {queueItems.map((item: any) => (
-                    <div
-                      key={item.id}
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        selectedQueue === item.id
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                      onClick={() => setSelectedQueue(item.id)}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="font-bold text-lg">
-                            {item.fnb_orders?.order_number}
-                          </p>
-                          <p className="text-sm">
-                            {item.fnb_orders?.fnb_customers?.name}
-                          </p>
-                          {item.fnb_orders?.delivery_date && (
-                            <p className="text-xs text-muted-foreground">
-                              Deliver:{' '}
-                              {format(
-                                new Date(item.fnb_orders.delivery_date),
-                                'MMM d'
-                              )}
-                            </p>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          {item.status === 'in_progress' ? (
-                            <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-                              <User className="h-3 w-3 mr-1" />
-                              In Progress
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline">Queued</Badge>
-                          )}
-                          {item.priority > 0 && (
-                            <Badge className="ml-2 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                              Priority
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-center py-8 text-muted-foreground">
-                  No orders in queue
-                </p>
-              )}
+              <PickerLeaderboard
+                stats={leaderboardStats || []}
+                currentPickerName={pickerName}
+              />
             </CardContent>
           </Card>
+        )}
+
+        <div className="grid lg:grid-cols-2 gap-4">
+          {/* Order Queue - Zone Based */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Order Queue
+                <Badge variant="secondary">{queueItems?.length || 0}</Badge>
+              </h2>
+            </div>
+
+            {isLoading ? (
+              <div className="text-center py-8 text-muted-foreground">Loading...</div>
+            ) : Object.keys(ordersByZone).length > 0 ? (
+              <div className="space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto pr-2">
+                {Object.entries(ordersByZone).map(([zone, orders]) => (
+                  <PickerQueueZone
+                    key={zone}
+                    zoneName={zone}
+                    orders={orders}
+                    selectedOrderId={selectedQueue}
+                    onOrderSelect={setSelectedQueue}
+                    currentPickerName={pickerName}
+                  />
+                ))}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="py-12 text-center text-muted-foreground">
+                  <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>No orders in queue</p>
+                  <p className="text-sm">New orders will appear here automatically</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
 
           {/* Order Details & Picking */}
-          <Card>
-            <CardHeader>
+          <Card className="h-fit sticky top-4">
+            <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2">
                 <Package className="h-5 w-5" />
                 {selectedQueueItem
@@ -354,8 +570,9 @@ export default function FnbPicker() {
                       {selectedQueueItem.fnb_orders?.fnb_customers?.address}
                     </p>
                     {selectedQueueItem.fnb_orders?.notes && (
-                      <p className="text-sm mt-2 text-orange-600 dark:text-orange-400">
-                        Note: {selectedQueueItem.fnb_orders.notes}
+                      <p className="text-sm mt-2 text-orange-600 dark:text-orange-400 flex items-start gap-1">
+                        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                        {selectedQueueItem.fnb_orders.notes}
                       </p>
                     )}
                   </div>
@@ -363,7 +580,7 @@ export default function FnbPicker() {
                   {/* Claim Button */}
                   {selectedQueueItem.status === 'queued' && (
                     <Button
-                      className="w-full h-14 text-lg"
+                      className="w-full h-16 text-lg"
                       onClick={() => claimMutation.mutate(selectedQueueItem.id)}
                       disabled={claimMutation.isPending}
                     >
@@ -372,176 +589,212 @@ export default function FnbPicker() {
                     </Button>
                   )}
 
+                  {/* In progress by another picker */}
+                  {selectedQueueItem.status === 'in_progress' && !isMyOrder && (
+                    <div className="p-4 bg-purple-50 dark:bg-purple-950 rounded-lg text-center">
+                      <User className="h-8 w-8 mx-auto mb-2 text-purple-600 dark:text-purple-400" />
+                      <p className="font-medium">Being picked by {selectedQueueItem.picker_name}</p>
+                      <p className="text-sm text-muted-foreground">Select another order from the queue</p>
+                    </div>
+                  )}
+
                   {/* Items List with Quantity Adjustment */}
                   {isMyOrder && orderItems && (
-                    <div className="space-y-2">
-                      <h4 className="font-medium">Items to Pick</h4>
-                      {orderItems.map((item: any) => {
-                        const pickedQty = pickedQuantities[item.id] ?? item.quantity;
-                        const isShort = pickedQty < item.quantity;
-                        const shortQty = item.quantity - pickedQty;
+                    <>
+                      {/* Progress Bar */}
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span>Progress</span>
+                          <span>{pickedCount} / {totalCount} items</span>
+                        </div>
+                        <Progress value={progress} className="h-2" />
+                      </div>
 
-                        return (
-                          <div
-                            key={item.id}
-                            className={`p-4 rounded-lg border ${
-                              isShort
-                                ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800'
-                                : 'bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800'
-                            }`}
-                          >
-                            <div className="flex items-start justify-between mb-2">
-                              <div className="flex-1">
-                                <p className="font-medium">
-                                  {item.fnb_products?.name}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                  {item.fnb_products?.code}
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-sm text-muted-foreground">
-                                  Ordered
-                                </p>
-                                <p className="font-bold">
-                                  {item.quantity} {item.fnb_products?.unit}
-                                </p>
-                              </div>
-                            </div>
-
-                            {/* Quantity Adjustment */}
-                            <div className="flex items-center gap-3 mt-3">
-                              <span className="text-sm font-medium w-16">Picked:</span>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-10 w-10 text-lg"
-                                  onClick={() =>
-                                    setPickedQuantities({
-                                      ...pickedQuantities,
-                                      [item.id]: Math.max(0, pickedQty - 1),
-                                    })
-                                  }
-                                >
-                                  -
-                                </Button>
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  max={item.quantity}
-                                  value={pickedQty}
-                                  onChange={(e) =>
-                                    setPickedQuantities({
-                                      ...pickedQuantities,
-                                      [item.id]: Math.max(
-                                        0,
-                                        Math.min(
-                                          item.quantity,
-                                          Number(e.target.value) || 0
-                                        )
-                                      ),
-                                    })
-                                  }
-                                  className="w-20 h-10 text-center text-lg font-bold"
-                                />
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-10 w-10 text-lg"
-                                  onClick={() =>
-                                    setPickedQuantities({
-                                      ...pickedQuantities,
-                                      [item.id]: Math.min(item.quantity, pickedQty + 1),
-                                    })
-                                  }
-                                >
-                                  +
-                                </Button>
-                              </div>
-                            </div>
-
-                            {/* Short Reason */}
-                            {isShort && (
-                              <div className="mt-3 p-2 bg-yellow-100 dark:bg-yellow-900 rounded">
-                                <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200 text-sm mb-2">
-                                  <AlertTriangle className="h-4 w-4" />
-                                  <span>Short by {shortQty} {item.fnb_products?.unit}</span>
-                                </div>
-                                <Select
-                                  value={shortReasons[item.id] || ''}
-                                  onValueChange={(v) =>
-                                    setShortReasons({
-                                      ...shortReasons,
-                                      [item.id]: v,
-                                    })
-                                  }
-                                >
-                                  <SelectTrigger className="h-9">
-                                    <SelectValue placeholder="Select reason" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {SHORT_REASONS.map((reason) => (
-                                      <SelectItem key={reason.value} value={reason.value}>
-                                        {reason.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            )}
+                      {/* Pending Shortage Warning */}
+                      {hasPendingShortages && (
+                        <div className="p-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg flex items-start gap-2">
+                          <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                          <div>
+                            <p className="font-medium text-amber-800 dark:text-amber-200">Waiting for Approval</p>
+                            <p className="text-sm text-amber-700 dark:text-amber-300">
+                              Some items have shortage requests pending supervisor approval
+                            </p>
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Complete Button */}
-                  {isMyOrder && allItemsReviewed && (
-                    <div className="space-y-2">
-                      {hasShorts && (
-                        <p className="text-sm text-yellow-600 dark:text-yellow-400 text-center">
-                          This order has shortages. Please ensure all short reasons are selected.
-                        </p>
+                        </div>
                       )}
+
+                      <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                        <h4 className="font-medium sticky top-0 bg-card py-1">Items to Pick</h4>
+                        {orderItems.map((item: any) => {
+                          const pickedQty = pickedQuantities[item.id] ?? item.quantity;
+                          const isShort = pickedQty < item.quantity;
+                          const isPending = item.shortage_status === 'pending';
+
+                          return (
+                            <div
+                              key={item.id}
+                              className={cn(
+                                'p-4 rounded-lg border',
+                                isPending
+                                  ? 'bg-amber-50 border-amber-200 dark:bg-amber-950 dark:border-amber-800'
+                                  : isShort
+                                  ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800'
+                                  : 'bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800'
+                              )}
+                            >
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex-1">
+                                  <p className="font-medium">{item.fnb_products?.name}</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {item.fnb_products?.code}
+                                  </p>
+                                  {isPending && (
+                                    <Badge variant="outline" className="mt-1 text-amber-600 border-amber-400">
+                                      Pending Approval
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-sm text-muted-foreground">Ordered</p>
+                                  <p className="font-bold">
+                                    {item.quantity} {item.fnb_products?.unit}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Quantity Adjustment */}
+                              <div className="flex items-center gap-3 mt-3">
+                                <span className="text-sm font-medium w-16">Picked:</span>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-12 w-12 text-lg touch-manipulation"
+                                    onClick={() =>
+                                      setPickedQuantities({
+                                        ...pickedQuantities,
+                                        [item.id]: Math.max(0, pickedQty - 1),
+                                      })
+                                    }
+                                    disabled={isPending}
+                                  >
+                                    -
+                                  </Button>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    max={item.quantity}
+                                    value={pickedQty}
+                                    onChange={(e) =>
+                                      setPickedQuantities({
+                                        ...pickedQuantities,
+                                        [item.id]: Math.max(
+                                          0,
+                                          Math.min(item.quantity, Number(e.target.value) || 0)
+                                        ),
+                                      })
+                                    }
+                                    className="w-20 h-12 text-center text-lg font-bold"
+                                    disabled={isPending}
+                                  />
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-12 w-12 text-lg touch-manipulation"
+                                    onClick={() =>
+                                      setPickedQuantities({
+                                        ...pickedQuantities,
+                                        [item.id]: Math.min(item.quantity, pickedQty + 1),
+                                      })
+                                    }
+                                    disabled={isPending}
+                                  >
+                                    +
+                                  </Button>
+                                </div>
+                              </div>
+
+                              {/* Shortage Button */}
+                              {isShort && !isPending && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full mt-3 text-amber-600 border-amber-400 hover:bg-amber-50"
+                                  onClick={() =>
+                                    setShortageItem({
+                                      id: item.id,
+                                      productName: item.fnb_products?.name,
+                                      productCode: item.fnb_products?.code,
+                                      orderedQuantity: item.quantity,
+                                      unit: item.fnb_products?.unit || 'units',
+                                    })
+                                  }
+                                >
+                                  <AlertTriangle className="h-4 w-4 mr-2" />
+                                  Report Shortage ({item.quantity - pickedQty} short)
+                                </Button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Complete Button */}
                       <Button
-                        className={`w-full h-14 text-lg ${
-                          hasShorts
-                            ? 'bg-yellow-600 hover:bg-yellow-700'
-                            : 'bg-green-600 hover:bg-green-700'
-                        }`}
-                        onClick={() => completeMutation.mutate(selectedQueueItem.id)}
+                        className="w-full h-16 text-lg"
+                        onClick={() => setShowWeightDialog(true)}
                         disabled={
-                          completeMutation.isPending ||
-                          (hasShorts &&
-                            orderItems?.some(
-                              (item: any) =>
-                                (pickedQuantities[item.id] ?? item.quantity) <
-                                  item.quantity && !shortReasons[item.id]
-                            ))
+                          !allItemsReviewed ||
+                          hasPendingShortages ||
+                          hasUnreasonedShorts ||
+                          completeMutation.isPending
                         }
                       >
-                        <CheckCircle className="mr-2 h-5 w-5" />
-                        {hasShorts ? 'Complete with Shortages' : 'Complete Order'}
+                        <Scale className="mr-2 h-5 w-5" />
+                        Verify Weight & Complete
                       </Button>
-                    </div>
-                  )}
 
-                  {selectedQueueItem.status === 'in_progress' && !isMyOrder && (
-                    <p className="text-center py-4 text-muted-foreground">
-                      This order is being picked by another team member
-                    </p>
+                      {hasUnreasonedShorts && (
+                        <p className="text-sm text-amber-600 dark:text-amber-400 text-center">
+                          Please report shortages for items with reduced quantities
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               ) : (
-                <p className="text-center py-8 text-muted-foreground">
-                  Select an order from the queue to start picking
-                </p>
+                <div className="py-12 text-center text-muted-foreground">
+                  <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>Select an order from the queue to start picking</p>
+                </div>
               )}
             </CardContent>
           </Card>
         </div>
       </main>
+
+      {/* Weight Verification Dialog */}
+      <WeightVerificationDialog
+        open={showWeightDialog}
+        onOpenChange={setShowWeightDialog}
+        expectedWeight={expectedWeight}
+        onVerify={(weight) =>
+          completeMutation.mutate({
+            queueId: selectedQueue!,
+            verifiedWeight: weight,
+          })
+        }
+        isLoading={completeMutation.isPending}
+      />
+
+      {/* Shortage Request Dialog */}
+      <ShortageRequestDialog
+        open={!!shortageItem}
+        onOpenChange={(open) => !open && setShortageItem(null)}
+        item={shortageItem}
+        onSubmit={shortageRequestMutation.mutate}
+        isLoading={shortageRequestMutation.isPending}
+      />
     </div>
   );
 }

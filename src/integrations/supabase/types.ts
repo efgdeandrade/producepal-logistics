@@ -983,6 +983,9 @@ export type Database = {
           quantity: number
           short_quantity: number | null
           short_reason: string | null
+          shortage_approved_at: string | null
+          shortage_approved_by: string | null
+          shortage_status: string | null
           total_xcg: number
           unit_price_xcg: number
         }
@@ -997,6 +1000,9 @@ export type Database = {
           quantity: number
           short_quantity?: number | null
           short_reason?: string | null
+          shortage_approved_at?: string | null
+          shortage_approved_by?: string | null
+          shortage_status?: string | null
           total_xcg: number
           unit_price_xcg: number
         }
@@ -1011,6 +1017,9 @@ export type Database = {
           quantity?: number
           short_quantity?: number | null
           short_reason?: string | null
+          shortage_approved_at?: string | null
+          shortage_approved_by?: string | null
+          shortage_status?: string | null
           total_xcg?: number
           unit_price_xcg?: number
         }
@@ -1150,30 +1159,42 @@ export type Database = {
           claimed_by: string | null
           completed_at: string | null
           created_at: string | null
+          expected_weight_kg: number | null
           id: string
           order_id: string | null
+          pick_start_time: string | null
+          picker_name: string | null
           priority: number | null
           status: string | null
+          verified_weight_kg: number | null
         }
         Insert: {
           claimed_at?: string | null
           claimed_by?: string | null
           completed_at?: string | null
           created_at?: string | null
+          expected_weight_kg?: number | null
           id?: string
           order_id?: string | null
+          pick_start_time?: string | null
+          picker_name?: string | null
           priority?: number | null
           status?: string | null
+          verified_weight_kg?: number | null
         }
         Update: {
           claimed_at?: string | null
           claimed_by?: string | null
           completed_at?: string | null
           created_at?: string | null
+          expected_weight_kg?: number | null
           id?: string
           order_id?: string | null
+          pick_start_time?: string | null
+          picker_name?: string | null
           priority?: number | null
           status?: string | null
+          verified_weight_kg?: number | null
         }
         Relationships: [
           {
