@@ -39,6 +39,7 @@ import FnbCustomers from "./pages/fnb/FnbCustomers";
 import FnbOrders from "./pages/fnb/FnbOrders";
 import FnbNewOrder from "./pages/fnb/FnbNewOrder";
 import FnbPicker from "./pages/fnb/FnbPicker";
+import FnbPickerSupervisor from "./pages/fnb/FnbPickerSupervisor";
 import FnbSettings from "./pages/fnb/FnbSettings";
 import FnbDeliveryManagement from "./pages/fnb/FnbDeliveryManagement";
 import FnbDriverPortal from "./pages/fnb/FnbDriverPortal";
