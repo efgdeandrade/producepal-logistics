@@ -93,6 +93,7 @@ const App = () => (
               <Route path="/fnb/orders/new" element={<ProtectedRoute><PasswordChangeRequired><FnbNewOrder /></PasswordChangeRequired></ProtectedRoute>} />
               <Route path="/fnb/orders/edit/:orderId" element={<ProtectedRoute><PasswordChangeRequired><FnbNewOrder /></PasswordChangeRequired></ProtectedRoute>} />
               <Route path="/fnb/picker" element={<ProtectedRoute><PasswordChangeRequired><FnbPicker /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/fnb/picker/supervisor" element={<ProtectedRoute><PasswordChangeRequired><FnbPickerSupervisor /></PasswordChangeRequired></ProtectedRoute>} />
               <Route path="/fnb/delivery" element={<ProtectedRoute><PasswordChangeRequired><FnbDeliveryManagement /></PasswordChangeRequired></ProtectedRoute>} />
               <Route path="/fnb/driver-portal" element={<ProtectedRoute requiredRole="driver"><PasswordChangeRequired><FnbDriverPortal /></PasswordChangeRequired></ProtectedRoute>} />
               <Route path="/fnb/cod" element={<ProtectedRoute><PasswordChangeRequired><FnbCODReconciliation /></PasswordChangeRequired></ProtectedRoute>} />
