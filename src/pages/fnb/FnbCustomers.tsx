@@ -70,11 +70,6 @@ const customerTypeLabels: Record<CustomerType, string> = {
   cod: 'COD (Cash on Delivery)',
   credit: 'Credit Account',
 };
-  pap: 'Papiamento',
-  en: 'English',
-  nl: 'Dutch',
-  es: 'Spanish',
-};
 
 export default function FnbCustomers() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
