@@ -16,7 +16,10 @@ import {
   ExternalLink,
   Store,
   User,
-  Calendar
+  Calendar,
+  Sparkles,
+  FileCheck,
+  Loader2
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
@@ -41,6 +44,8 @@ export default function FnbReceiptVerification() {
   const [dateFilter, setDateFilter] = useState<string>("today");
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [viewingReceipt, setViewingReceipt] = useState<string | null>(null);
+  const [showOriginal, setShowOriginal] = useState(false);
+  const [reprocessingOrder, setReprocessingOrder] = useState<string | null>(null);
 
   // Get date range based on filter
   const getDateRange = () => {
@@ -135,6 +140,90 @@ export default function FnbReceiptVerification() {
   const getReceiptUrl = (path: string) => {
     const { data } = supabase.storage.from("delivery-receipts").getPublicUrl(path);
     return data.publicUrl;
+  };
+
+  // Reprocess receipt with AI
+  const handleReprocess = async (order: any) => {
+    if (!order.receipt_photo_url) return;
+    
+    setReprocessingOrder(order.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("receipt-processor", {
+        body: { 
+          receiptPath: order.receipt_photo_url, 
+          orderId: order.id 
+        }
+      });
+      
+      if (error) {
+        toast.error("Failed to reprocess receipt: " + error.message);
+      } else {
+        toast.success("Receipt reprocessed successfully");
+        queryClient.invalidateQueries({ queryKey: ["fnb-pending-receipts"] });
+        queryClient.invalidateQueries({ queryKey: ["fnb-verified-receipts"] });
+      }
+    } catch (err: any) {
+      toast.error("Failed to reprocess: " + err.message);
+    } finally {
+      setReprocessingOrder(null);
+    }
+  };
+
+  // View receipt with option for processed/original
+  const handleViewReceipt = (order: any) => {
+    setSelectedOrder(order);
+    // Default to processed version if available
+    const receiptToView = order.receipt_photo_processed_url || order.receipt_photo_url;
+    setViewingReceipt(receiptToView);
+    setShowOriginal(!order.receipt_photo_processed_url);
+  };
+
+  const toggleOriginal = () => {
+    if (!selectedOrder) return;
+    if (showOriginal) {
+      setViewingReceipt(selectedOrder.receipt_photo_processed_url || selectedOrder.receipt_photo_url);
+    } else {
+      setViewingReceipt(selectedOrder.receipt_photo_url);
+    }
+    setShowOriginal(!showOriginal);
+  };
+
+  // Render extracted data
+  const renderExtractedData = (data: any) => {
+    if (!data || data.parse_error) return null;
+    
+    return (
+      <div className="mt-4 p-3 bg-muted rounded-lg text-sm space-y-2">
+        <div className="flex items-center gap-2 font-medium">
+          <Sparkles className="h-4 w-4 text-primary" />
+          AI Extracted Data
+        </div>
+        {data.extracted_data && (
+          <div className="grid grid-cols-2 gap-2 text-muted-foreground">
+            {data.extracted_data.total_amount && (
+              <div>Total: <span className="text-foreground font-medium">{data.extracted_data.total_amount} XCG</span></div>
+            )}
+            {data.extracted_data.has_signature !== undefined && (
+              <div>Signature: <span className={data.extracted_data.has_signature ? "text-green-600 font-medium" : "text-orange-600"}>{data.extracted_data.has_signature ? "Yes ✓" : "Not detected"}</span></div>
+            )}
+            {data.extracted_data.date && (
+              <div>Date: <span className="text-foreground">{data.extracted_data.date}</span></div>
+            )}
+            {data.extracted_data.business_name && (
+              <div>Business: <span className="text-foreground">{data.extracted_data.business_name}</span></div>
+            )}
+            {data.extracted_data.receipt_number && (
+              <div>Receipt #: <span className="text-foreground">{data.extracted_data.receipt_number}</span></div>
+            )}
+          </div>
+        )}
+        {data.quality_score && (
+          <div className="text-xs">
+            Quality Score: <span className={data.quality_score >= 7 ? "text-green-600" : data.quality_score >= 4 ? "text-orange-600" : "text-red-600"}>{data.quality_score}/10</span>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -245,18 +334,52 @@ export default function FnbReceiptVerification() {
                         </div>
                       </div>
 
-                      <div className="mt-4 flex gap-2">
+                      {/* AI Processing Status */}
+                      {order.receipt_photo_processed_url && (
+                        <div className="flex items-center gap-1 text-xs text-green-600 mt-2">
+                          <Sparkles className="h-3 w-3" />
+                          <span>AI Enhanced</span>
+                        </div>
+                      )}
+                      
+                      {/* Extracted Data Preview */}
+                      {order.receipt_extracted_data && typeof order.receipt_extracted_data === 'object' && !(order.receipt_extracted_data as any).parse_error && (
+                        <div className="mt-2 text-xs text-muted-foreground">
+                          {(order.receipt_extracted_data as any).extracted_data?.has_signature && (
+                            <span className="text-green-600 flex items-center gap-1">
+                              <FileCheck className="h-3 w-3" />
+                              Signature detected
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="mt-4 flex gap-2 flex-wrap">
                         {order.receipt_photo_url ? (
                           <>
                             <Button
                               variant="outline"
                               size="sm"
                               className="flex-1"
-                              onClick={() => setViewingReceipt(order.receipt_photo_url)}
+                              onClick={() => handleViewReceipt(order)}
                             >
                               <Camera className="h-4 w-4 mr-1" />
                               View Receipt
                             </Button>
+                            {!order.receipt_photo_processed_url && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleReprocess(order)}
+                                disabled={reprocessingOrder === order.id}
+                              >
+                                {reprocessingOrder === order.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Sparkles className="h-4 w-4" />
+                                )}
+                              </Button>
+                            )}
                             <Button
                               size="sm"
                               className="flex-1"
@@ -336,22 +459,38 @@ export default function FnbReceiptVerification() {
         </Card>
 
         {/* Receipt Image Dialog */}
-        <Dialog open={!!viewingReceipt} onOpenChange={() => setViewingReceipt(null)}>
+        <Dialog open={!!viewingReceipt} onOpenChange={() => { setViewingReceipt(null); setSelectedOrder(null); setShowOriginal(false); }}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Receipt Photo</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                Receipt Photo
+                {selectedOrder?.receipt_photo_processed_url && (
+                  <Badge variant="secondary" className="text-xs">
+                    <Sparkles className="h-3 w-3 mr-1" />
+                    {showOriginal ? "Original" : "AI Enhanced"}
+                  </Badge>
+                )}
+              </DialogTitle>
             </DialogHeader>
             {viewingReceipt && (
-              <div className="flex justify-center">
+              <div className="flex flex-col items-center">
                 <img
                   src={getReceiptUrl(viewingReceipt)}
                   alt="Receipt"
-                  className="max-h-[60vh] object-contain rounded-lg"
+                  className="max-h-[50vh] object-contain rounded-lg"
                 />
+                
+                {/* Extracted Data */}
+                {selectedOrder?.receipt_extracted_data && renderExtractedData(selectedOrder.receipt_extracted_data)}
               </div>
             )}
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setViewingReceipt(null)}>
+            <DialogFooter className="flex-wrap gap-2">
+              {selectedOrder?.receipt_photo_processed_url && selectedOrder?.receipt_photo_url && (
+                <Button variant="outline" onClick={toggleOriginal}>
+                  {showOriginal ? "View Enhanced" : "View Original"}
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => { setViewingReceipt(null); setSelectedOrder(null); setShowOriginal(false); }}>
                 Close
               </Button>
               {viewingReceipt && (

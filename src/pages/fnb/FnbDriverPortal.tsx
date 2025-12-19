@@ -38,6 +38,7 @@ export default function FnbDriverPortal() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>("cash");
   const [receiptPhoto, setReceiptPhoto] = useState<File | null>(null);
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const [processingReceipt, setProcessingReceipt] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch orders assigned to current driver
@@ -99,6 +100,34 @@ export default function FnbDriverPortal() {
     
     if (uploadError) throw uploadError;
     return fileName;
+  };
+
+  // Process receipt with AI (crop, enhance, extract data)
+  const processReceiptWithAI = async (orderId: string, receiptPath: string) => {
+    try {
+      setProcessingReceipt(true);
+      
+      const { data, error } = await supabase.functions.invoke("receipt-processor", {
+        body: { receiptPath, orderId }
+      });
+      
+      if (error) {
+        console.error("AI processing error:", error);
+        toast.error("Receipt processing failed, but delivery was recorded");
+      } else if (data?.extracted_data) {
+        const extracted = data.extracted_data;
+        if (extracted.has_signature) {
+          toast.success("Receipt processed: Signature detected ✓");
+        } else if (!extracted.parse_error) {
+          toast.info("Receipt processed, but no signature detected");
+        }
+      }
+    } catch (err) {
+      console.error("Failed to process receipt:", err);
+      // Don't fail the delivery for AI processing errors
+    } finally {
+      setProcessingReceipt(false);
+    }
   };
 
   // Mark as delivered mutation with COD and receipt
@@ -187,18 +216,25 @@ export default function FnbDriverPortal() {
     
     try {
       let receiptPhotoPath: string | undefined;
+      const orderId = codDialogOrder.id;
       
       if (receiptPhoto) {
-        receiptPhotoPath = await uploadReceiptPhoto(codDialogOrder.id, receiptPhoto);
+        receiptPhotoPath = await uploadReceiptPhoto(orderId, receiptPhoto);
       }
 
       const amount = parseFloat(codAmount) || 0;
       await markDeliveredMutation.mutateAsync({
-        orderId: codDialogOrder.id,
+        orderId,
         codCollected: amount,
         paymentMethod,
         receiptPhotoPath,
       });
+
+      // Process receipt with AI in background (for supermarket orders)
+      if (receiptPhotoPath && isSupermarket) {
+        // Don't await - process in background
+        processReceiptWithAI(orderId, receiptPhotoPath);
+      }
     } catch (error: any) {
       toast.error("Failed to upload receipt: " + error.message);
     } finally {

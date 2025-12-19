@@ -1057,6 +1057,8 @@ export type Database = {
             | null
           quickbooks_invoice_id: string | null
           quickbooks_invoice_number: string | null
+          receipt_extracted_data: Json | null
+          receipt_photo_processed_url: string | null
           receipt_photo_url: string | null
           receipt_verified_at: string | null
           receipt_verified_by: string | null
@@ -1089,6 +1091,8 @@ export type Database = {
             | null
           quickbooks_invoice_id?: string | null
           quickbooks_invoice_number?: string | null
+          receipt_extracted_data?: Json | null
+          receipt_photo_processed_url?: string | null
           receipt_photo_url?: string | null
           receipt_verified_at?: string | null
           receipt_verified_by?: string | null
@@ -1121,6 +1125,8 @@ export type Database = {
             | null
           quickbooks_invoice_id?: string | null
           quickbooks_invoice_number?: string | null
+          receipt_extracted_data?: Json | null
+          receipt_photo_processed_url?: string | null
           receipt_photo_url?: string | null
           receipt_verified_at?: string | null
           receipt_verified_by?: string | null
