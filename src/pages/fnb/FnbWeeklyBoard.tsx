@@ -1,11 +1,16 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { 
   ArrowLeft, 
   ChevronLeft, 
@@ -18,7 +23,8 @@ import {
   Clock,
   Truck,
   Camera,
-  AlertCircle
+  AlertCircle,
+  ExternalLink
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { format, addDays, startOfWeek, isSameDay, parseISO } from "date-fns";
@@ -80,8 +86,8 @@ const customerTypeLabels: Record<CustomerType, string> = {
 
 export default function FnbWeeklyBoard() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
   const weekDays = Array.from({ length: 6 }, (_, i) => addDays(weekStart, i)); // Mon-Sat
 
@@ -143,7 +149,7 @@ export default function FnbWeeklyBoard() {
   const nextWeek = () => setWeekStart(addDays(weekStart, 7));
   const goToToday = () => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
 
-  const renderOrderCard = (order: OrderWithDetails) => {
+  const renderOrderCard = (order: OrderWithDetails, compact = false) => {
     const customerType = order.fnb_customers?.customer_type || "regular";
     const isSupermarket = customerType === "supermarket";
     const needsReceipt = isSupermarket && order.status === "delivered" && !order.receipt_verified_at;
@@ -227,6 +233,18 @@ export default function FnbWeeklyBoard() {
     );
   };
 
+  // Daily drill-down dialog content
+  const selectedDayOrders = selectedDay ? getOrdersForDay(selectedDay) : [];
+  const selectedDayStats = selectedDay ? getDayStats(selectedDayOrders) : null;
+  
+  // Group orders by driver
+  const ordersByDriver = selectedDayOrders.reduce((acc, order) => {
+    const driver = order.driver_name || "Unassigned";
+    if (!acc[driver]) acc[driver] = [];
+    acc[driver].push(order);
+    return acc;
+  }, {} as Record<string, OrderWithDetails[]>);
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -297,9 +315,10 @@ export default function FnbWeeklyBoard() {
                 <Card
                   key={day.toISOString()}
                   className={cn(
-                    "min-h-[400px]",
+                    "min-h-[400px] cursor-pointer hover:shadow-lg transition-shadow",
                     isToday && "ring-2 ring-primary"
                   )}
+                  onClick={() => setSelectedDay(day)}
                 >
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm flex items-center justify-between">
@@ -345,7 +364,7 @@ export default function FnbWeeklyBoard() {
                         No orders
                       </p>
                     ) : (
-                      dayOrders.map(renderOrderCard)
+                      dayOrders.map((order) => renderOrderCard(order))
                     )}
                   </CardContent>
                 </Card>
@@ -353,6 +372,121 @@ export default function FnbWeeklyBoard() {
             })}
           </div>
         )}
+
+        {/* Daily Drill-Down Dialog */}
+        <Dialog open={!!selectedDay} onOpenChange={() => setSelectedDay(null)}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-4">
+                <span>{selectedDay && format(selectedDay, "EEEE, MMMM d, yyyy")}</span>
+                {selectedDayStats && (
+                  <div className="flex gap-2">
+                    <Badge>{selectedDayStats.total} orders</Badge>
+                    {selectedDayStats.delivered > 0 && (
+                      <Badge variant="outline" className="text-green-600">
+                        {selectedDayStats.delivered} delivered
+                      </Badge>
+                    )}
+                  </div>
+                )}
+              </DialogTitle>
+            </DialogHeader>
+
+            {selectedDayOrders.length === 0 ? (
+              <p className="text-center py-8 text-muted-foreground">No orders for this day</p>
+            ) : (
+              <div className="space-y-6">
+                {/* Summary Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="text-2xl font-bold">{selectedDayStats?.total}</div>
+                      <p className="text-xs text-muted-foreground">Total Orders</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="text-2xl font-bold text-green-600">{selectedDayStats?.delivered}</div>
+                      <p className="text-xs text-muted-foreground">Delivered</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="text-2xl font-bold text-orange-600">{selectedDayStats?.pendingReceipts}</div>
+                      <p className="text-xs text-muted-foreground">Pending Receipts</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="text-2xl font-bold">{selectedDayStats?.codTotal.toFixed(2)}</div>
+                      <p className="text-xs text-muted-foreground">COD Total (XCG)</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Orders by Driver */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg">Orders by Driver</h3>
+                  {Object.entries(ordersByDriver).map(([driver, driverOrders]) => {
+                    const driverTotal = driverOrders.reduce((sum, o) => sum + (o.total_xcg || 0), 0);
+                    const driverCOD = driverOrders
+                      .filter((o) => o.fnb_customers?.customer_type === "cod" || o.payment_method === "cod")
+                      .reduce((sum, o) => sum + (o.total_xcg || 0), 0);
+
+                    return (
+                      <Card key={driver}>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Truck className="h-4 w-4" />
+                              <span>{driver}</span>
+                              <Badge variant="outline">{driverOrders.length} orders</Badge>
+                            </div>
+                            <div className="flex gap-2 text-xs">
+                              <span>{driverTotal.toFixed(2)} XCG</span>
+                              {driverCOD > 0 && (
+                                <Badge variant="outline" className="text-orange-600">
+                                  COD: {driverCOD.toFixed(2)}
+                                </Badge>
+                              )}
+                            </div>
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid gap-2 md:grid-cols-2">
+                            {driverOrders.map((order) => renderOrderCard(order))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+
+                {/* Quick Actions */}
+                <div className="flex gap-2 pt-4 border-t">
+                  <Button asChild variant="outline">
+                    <Link to="/fnb/receipts">
+                      <Camera className="h-4 w-4 mr-2" />
+                      Verify Receipts
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link to="/fnb/cod">
+                      <Banknote className="h-4 w-4 mr-2" />
+                      COD Reconciliation
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link to="/fnb/orders">
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      View All Orders
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
