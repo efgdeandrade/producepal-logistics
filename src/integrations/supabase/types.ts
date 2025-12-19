@@ -903,6 +903,7 @@ export type Database = {
         Row: {
           address: string | null
           created_at: string | null
+          customer_type: Database["public"]["Enums"]["customer_type"]
           delivery_zone: string | null
           id: string
           name: string
@@ -915,6 +916,7 @@ export type Database = {
         Insert: {
           address?: string | null
           created_at?: string | null
+          customer_type?: Database["public"]["Enums"]["customer_type"]
           delivery_zone?: string | null
           id?: string
           name: string
@@ -927,6 +929,7 @@ export type Database = {
         Update: {
           address?: string | null
           created_at?: string | null
+          customer_type?: Database["public"]["Enums"]["customer_type"]
           delivery_zone?: string | null
           id?: string
           name?: string
@@ -1049,8 +1052,14 @@ export type Database = {
           order_date: string
           order_number: string
           payment_method: string | null
+          payment_method_used:
+            | Database["public"]["Enums"]["payment_method_type"]
+            | null
           quickbooks_invoice_id: string | null
           quickbooks_invoice_number: string | null
+          receipt_photo_url: string | null
+          receipt_verified_at: string | null
+          receipt_verified_by: string | null
           status: string | null
           total_xcg: number | null
           updated_at: string | null
@@ -1075,8 +1084,14 @@ export type Database = {
           order_date?: string
           order_number: string
           payment_method?: string | null
+          payment_method_used?:
+            | Database["public"]["Enums"]["payment_method_type"]
+            | null
           quickbooks_invoice_id?: string | null
           quickbooks_invoice_number?: string | null
+          receipt_photo_url?: string | null
+          receipt_verified_at?: string | null
+          receipt_verified_by?: string | null
           status?: string | null
           total_xcg?: number | null
           updated_at?: string | null
@@ -1101,8 +1116,14 @@ export type Database = {
           order_date?: string
           order_number?: string
           payment_method?: string | null
+          payment_method_used?:
+            | Database["public"]["Enums"]["payment_method_type"]
+            | null
           quickbooks_invoice_id?: string | null
           quickbooks_invoice_number?: string | null
+          receipt_photo_url?: string | null
+          receipt_verified_at?: string | null
+          receipt_verified_by?: string | null
           status?: string | null
           total_xcg?: number | null
           updated_at?: string | null
@@ -2585,6 +2606,8 @@ export type Database = {
         | "logistics"
         | "accounting"
         | "manager"
+      customer_type: "regular" | "supermarket" | "cod" | "credit"
+      payment_method_type: "cash" | "swipe" | "transfer" | "credit"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2721,6 +2744,8 @@ export const Constants = {
         "accounting",
         "manager",
       ],
+      customer_type: ["regular", "supermarket", "cod", "credit"],
+      payment_method_type: ["cash", "swipe", "transfer", "credit"],
     },
   },
 } as const
