@@ -34,6 +34,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+type CustomerType = "regular" | "supermarket" | "cod" | "credit";
+
 interface FnbCustomer {
   id: string;
   name: string;
@@ -41,6 +43,7 @@ interface FnbCustomer {
   preferred_language: string;
   address: string | null;
   delivery_zone: string | null;
+  customer_type: CustomerType;
   notes: string | null;
 }
 
@@ -50,10 +53,23 @@ const emptyCustomer: Omit<FnbCustomer, 'id'> = {
   preferred_language: 'pap',
   address: '',
   delivery_zone: '',
+  customer_type: 'regular',
   notes: '',
 };
 
 const languageLabels: Record<string, string> = {
+  pap: 'Papiamento',
+  en: 'English',
+  nl: 'Dutch',
+  es: 'Spanish',
+};
+
+const customerTypeLabels: Record<CustomerType, string> = {
+  regular: 'Regular',
+  supermarket: 'Supermarket (Receipt Required)',
+  cod: 'COD (Cash on Delivery)',
+  credit: 'Credit Account',
+};
   pap: 'Papiamento',
   en: 'English',
   nl: 'Dutch',
@@ -155,6 +171,7 @@ export default function FnbCustomers() {
       preferred_language: customer.preferred_language,
       address: customer.address || '',
       delivery_zone: customer.delivery_zone || '',
+      customer_type: customer.customer_type || 'regular',
       notes: customer.notes || '',
     });
     setIsDialogOpen(true);
@@ -272,6 +289,26 @@ export default function FnbCustomers() {
                             {zone}
                           </SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="customer_type">Customer Type</Label>
+                    <Select
+                      value={formData.customer_type}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, customer_type: value as CustomerType })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="regular">Regular</SelectItem>
+                        <SelectItem value="supermarket">Supermarket (Receipt Required)</SelectItem>
+                        <SelectItem value="cod">COD (Cash on Delivery)</SelectItem>
+                        <SelectItem value="credit">Credit Account</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

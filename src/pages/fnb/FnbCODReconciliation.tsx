@@ -333,9 +333,10 @@ export default function FnbCODReconciliation() {
                     <TableHead>Order</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Driver</TableHead>
+                    <TableHead>Payment</TableHead>
                     <TableHead>Delivered</TableHead>
                     <TableHead>Order Total</TableHead>
-                    <TableHead>COD Collected</TableHead>
+                    <TableHead>Collected</TableHead>
                     <TableHead>Difference</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -353,6 +354,11 @@ export default function FnbCODReconciliation() {
                         <TableCell className="font-mono">{order.order_number}</TableCell>
                         <TableCell>{order.fnb_customers?.name}</TableCell>
                         <TableCell>{order.driver_name || "-"}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="capitalize">
+                            {order.payment_method_used || order.payment_method || "cash"}
+                          </Badge>
+                        </TableCell>
                         <TableCell>
                           {order.delivered_at && format(new Date(order.delivered_at), "MMM d, HH:mm")}
                         </TableCell>
