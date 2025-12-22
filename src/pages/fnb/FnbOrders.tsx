@@ -11,6 +11,8 @@ import {
   Plus, 
   ChevronLeft, 
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Package,
   Store,
   Banknote,
@@ -20,8 +22,11 @@ import {
   Camera,
   AlertCircle,
   Truck,
-  Target
+  Target,
+  Edit,
+  X
 } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Link, useNavigate } from 'react-router-dom';
 import { format, addDays, startOfWeek, isSameDay, parseISO, getISOWeek } from 'date-fns';
 import {
@@ -102,6 +107,19 @@ export default function FnbOrders() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
+
+  const toggleOrderExpanded = (orderId: string) => {
+    setExpandedOrders(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(orderId)) {
+        newSet.delete(orderId);
+      } else {
+        newSet.add(orderId);
+      }
+      return newSet;
+    });
+  };
 
   const weekDays = Array.from({ length: 6 }, (_, i) => addDays(weekStart, i)); // Mon-Sat
 
@@ -210,77 +228,147 @@ export default function FnbOrders() {
     const needsReceipt = isSupermarket && order.status === 'delivered' && !order.receipt_verified_at;
     const hasReceipt = !!order.receipt_photo_url;
     const isVerified = !!order.receipt_verified_at;
+    const isExpanded = expandedOrders.has(order.id);
+    const totalItems = order.fnb_order_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
 
     return (
-      <Card
+      <Collapsible
         key={order.id}
-        className={cn(
-          'mb-2 cursor-pointer hover:shadow-md transition-shadow border-l-4',
-          getZoneColor(order.fnb_customers?.delivery_zone || null),
-          needsReceipt && 'ring-2 ring-orange-400'
-        )}
-        onClick={(e) => {
-          e.stopPropagation();
-        }}
+        open={isExpanded}
+        onOpenChange={() => toggleOrderExpanded(order.id)}
       >
-        <CardContent className="p-3">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm truncate">{order.fnb_customers?.name || 'Unknown'}</p>
-              <p className="text-xs text-muted-foreground">{order.order_number}</p>
-            </div>
-            <div className="flex flex-col items-end gap-1">
-              <Badge className={cn('text-xs', statusColors[order.status])}>
-                {order.status?.replace('_', ' ')}
-              </Badge>
-              <div className="flex items-center gap-1">
-                {customerTypeIcons[customerType]}
-                <span className="text-xs text-muted-foreground">{customerTypeLabels[customerType]}</span>
+        <Card
+          className={cn(
+            'mb-2 transition-shadow border-l-4',
+            getZoneColor(order.fnb_customers?.delivery_zone || null),
+            needsReceipt && 'ring-2 ring-orange-400',
+            isExpanded && 'shadow-md'
+          )}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <CollapsibleTrigger asChild>
+            <CardContent className="p-3 cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm truncate">{order.fnb_customers?.name || 'Unknown'}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="font-semibold text-sm">{order.total_xcg?.toFixed(2)} XCG</span>
+                    {totalItems > 0 && (
+                      <span className="text-xs text-muted-foreground">({totalItems} items)</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge className={cn('text-xs', statusColors[order.status])}>
+                    {order.status?.replace('_', ' ')}
+                  </Badge>
+                  {isExpanded ? (
+                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </CollapsibleTrigger>
+
+          <CollapsibleContent>
+            <div className="px-3 pb-3 border-t pt-2 space-y-2">
+              {/* Order details */}
+              <div className="text-xs text-muted-foreground">
+                Order: {order.order_number}
+              </div>
+
+              {/* Customer type and zone */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1">
+                  {customerTypeIcons[customerType]}
+                  <span className="text-xs">{customerTypeLabels[customerType]}</span>
+                </div>
+                {order.fnb_customers?.delivery_zone && (
+                  <Badge variant="outline" className="text-xs">
+                    {order.fnb_customers.delivery_zone}
+                  </Badge>
+                )}
+              </div>
+
+              {/* Driver info */}
+              {order.driver_name && (
+                <div className="flex items-center gap-1 text-xs">
+                  <Truck className="h-3 w-3" />
+                  <span>Driver: {order.driver_name}</span>
+                </div>
+              )}
+
+              {/* Payment method */}
+              {order.payment_method && (
+                <div className="flex items-center gap-1 text-xs">
+                  <Banknote className="h-3 w-3" />
+                  <span>Payment: {order.payment_method}</span>
+                </div>
+              )}
+
+              {/* Status indicators for supermarket orders */}
+              {isSupermarket && order.status === 'delivered' && (
+                <div className="flex items-center gap-2 text-xs">
+                  {hasReceipt ? (
+                    <Badge variant="outline" className="text-green-600 border-green-300">
+                      <Camera className="h-3 w-3 mr-1" />
+                      Receipt
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-orange-600 border-orange-300">
+                      <AlertCircle className="h-3 w-3 mr-1" />
+                      No Receipt
+                    </Badge>
+                  )}
+                  {isVerified ? (
+                    <Badge variant="outline" className="text-green-600 border-green-300">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Verified
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-orange-600 border-orange-300">
+                      <Clock className="h-3 w-3 mr-1" />
+                      Pending
+                    </Badge>
+                  )}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex items-center gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-7"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/fnb/orders/${order.id}/edit`);
+                  }}
+                >
+                  <Edit className="h-3 w-3 mr-1" />
+                  Edit
+                </Button>
+                {order.status === 'pending' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-7 text-destructive hover:text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Cancel order logic would go here
+                    }}
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    Cancel
+                  </Button>
+                )}
               </div>
             </div>
-          </div>
-
-          <div className="mt-2 flex items-center justify-between text-xs">
-            <span className="font-medium">{order.total_xcg?.toFixed(2)} XCG</span>
-            <div className="flex items-center gap-1">
-              {order.driver_name && (
-                <Badge variant="outline" className="text-xs py-0">
-                  <Truck className="h-3 w-3 mr-1" />
-                  {order.driver_name.split(' ')[0]}
-                </Badge>
-              )}
-            </div>
-          </div>
-
-          {/* Status indicators for supermarket orders */}
-          {isSupermarket && order.status === 'delivered' && (
-            <div className="mt-2 flex items-center gap-2 text-xs">
-              {hasReceipt ? (
-                <Badge variant="outline" className="text-green-600 border-green-300">
-                  <Camera className="h-3 w-3 mr-1" />
-                  Receipt
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="text-orange-600 border-orange-300">
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  No Receipt
-                </Badge>
-              )}
-              {isVerified ? (
-                <Badge variant="outline" className="text-green-600 border-green-300">
-                  <CheckCircle className="h-3 w-3 mr-1" />
-                  Verified
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="text-orange-600 border-orange-300">
-                  <Clock className="h-3 w-3 mr-1" />
-                  Pending
-                </Badge>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
     );
   };
 
