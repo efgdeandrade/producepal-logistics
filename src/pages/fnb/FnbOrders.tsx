@@ -23,7 +23,7 @@ import {
   Target
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { format, addDays, startOfWeek, isSameDay, parseISO } from 'date-fns';
+import { format, addDays, startOfWeek, isSameDay, parseISO, getISOWeek } from 'date-fns';
 import {
   Select,
   SelectContent,
@@ -317,9 +317,14 @@ export default function FnbOrders() {
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <div className="flex items-center gap-4">
-                  <h2 className="text-lg font-semibold">
-                    {format(weekStart, 'MMM d')} - {format(addDays(weekStart, 5), 'MMM d, yyyy')}
-                  </h2>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="text-sm font-semibold">
+                      Week {getISOWeek(weekStart)}
+                    </Badge>
+                    <h2 className="text-lg font-semibold">
+                      {format(weekStart, 'MMM d')} - {format(addDays(weekStart, 5), 'MMM d, yyyy')}
+                    </h2>
+                  </div>
                   <Button variant="outline" size="sm" onClick={goToToday}>
                     Today
                   </Button>
