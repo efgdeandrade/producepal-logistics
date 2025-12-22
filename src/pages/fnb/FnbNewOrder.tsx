@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Trash2, ShoppingCart, Save } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ShoppingCart, Save, Banknote, CreditCard, Building2, FileText } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { format } from 'date-fns';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 interface OrderItem {
   productId: string;
@@ -25,6 +26,15 @@ interface OrderItem {
   unitPrice: number;
   total: number;
 }
+
+type PaymentMethod = 'cash' | 'swipe' | 'transfer' | 'credit';
+
+const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: React.ReactNode }[] = [
+  { value: 'cash', label: 'Cash', icon: <Banknote className="h-4 w-4" /> },
+  { value: 'swipe', label: 'Swipe', icon: <CreditCard className="h-4 w-4" /> },
+  { value: 'transfer', label: 'Bank Transfer', icon: <Building2 className="h-4 w-4" /> },
+  { value: 'credit', label: 'Credit (QB)', icon: <FileText className="h-4 w-4" /> },
+];
 
 export default function FnbNewOrder() {
   const navigate = useNavigate();
@@ -39,6 +49,7 @@ export default function FnbNewOrder() {
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<OrderItem[]>([]);
   const [orderNumber, setOrderNumber] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
 
   const { data: customers } = useQuery({
     queryKey: ['fnb-customers'],
@@ -84,6 +95,51 @@ export default function FnbNewOrder() {
     enabled: isEditMode,
   });
 
+  // Smart pre-fill payment method when customer changes
+  useEffect(() => {
+    const prefillPaymentMethod = async () => {
+      if (!customerId || isEditMode) return;
+      
+      const customer = customers?.find((c: any) => c.id === customerId);
+      
+      // 1. Check if customer has preferred payment method
+      if (customer?.preferred_payment_method) {
+        setPaymentMethod(customer.preferred_payment_method as PaymentMethod);
+        return;
+      }
+      
+      // 2. Check last 5 orders for most common payment method
+      const { data: recentOrders } = await supabase
+        .from('fnb_orders')
+        .select('payment_method_used')
+        .eq('customer_id', customerId)
+        .not('payment_method_used', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      if (recentOrders && recentOrders.length > 0) {
+        // Find most common payment method
+        const methodCounts: Record<string, number> = {};
+        recentOrders.forEach((order) => {
+          if (order.payment_method_used) {
+            methodCounts[order.payment_method_used] = (methodCounts[order.payment_method_used] || 0) + 1;
+          }
+        });
+        
+        const mostCommon = Object.entries(methodCounts).sort((a, b) => b[1] - a[1])[0];
+        if (mostCommon) {
+          setPaymentMethod(mostCommon[0] as PaymentMethod);
+          return;
+        }
+      }
+      
+      // 3. Default to cash
+      setPaymentMethod('cash');
+    };
+    
+    prefillPaymentMethod();
+  }, [customerId, customers, isEditMode]);
+
   // Populate form when editing
   useEffect(() => {
     if (existingOrder) {
@@ -91,6 +147,7 @@ export default function FnbNewOrder() {
       setDeliveryDate(existingOrder.delivery_date || format(new Date(), 'yyyy-MM-dd'));
       setNotes(existingOrder.notes || '');
       setOrderNumber(existingOrder.order_number);
+      setPaymentMethod((existingOrder.payment_method_used as PaymentMethod) || 'cash');
       
       const loadedItems: OrderItem[] = existingOrder.fnb_order_items?.map((item: any) => ({
         productId: item.product_id,
@@ -154,8 +211,9 @@ export default function FnbNewOrder() {
           notes,
           total_xcg: orderTotal,
           status: 'pending',
-          payment_method: 'cod',
-          cod_amount_due: orderTotal,
+          payment_method: paymentMethod,
+          payment_method_used: paymentMethod,
+          cod_amount_due: paymentMethod === 'cash' ? orderTotal : null,
         })
         .select()
         .single();
@@ -223,6 +281,9 @@ export default function FnbNewOrder() {
           delivery_date: deliveryDate,
           notes,
           total_xcg: orderTotal,
+          payment_method: paymentMethod,
+          payment_method_used: paymentMethod,
+          cod_amount_due: paymentMethod === 'cash' ? orderTotal : null,
         })
         .eq('id', orderId);
 
@@ -338,6 +399,26 @@ export default function FnbNewOrder() {
                       onChange={(e) => setDeliveryDate(e.target.value)}
                     />
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Payment Method *</Label>
+                  <ToggleGroup 
+                    type="single" 
+                    value={paymentMethod} 
+                    onValueChange={(value) => value && setPaymentMethod(value as PaymentMethod)}
+                    className="justify-start flex-wrap"
+                  >
+                    {PAYMENT_METHODS.map((method) => (
+                      <ToggleGroupItem 
+                        key={method.value} 
+                        value={method.value}
+                        className="flex items-center gap-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                      >
+                        {method.icon}
+                        <span className="hidden sm:inline">{method.label}</span>
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
                 </div>
                 <div className="space-y-2">
                   <Label>Notes</Label>

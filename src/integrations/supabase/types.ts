@@ -909,6 +909,9 @@ export type Database = {
           name: string
           notes: string | null
           preferred_language: string | null
+          preferred_payment_method:
+            | Database["public"]["Enums"]["payment_method_type"]
+            | null
           quickbooks_customer_id: string | null
           updated_at: string | null
           whatsapp_phone: string
@@ -922,6 +925,9 @@ export type Database = {
           name: string
           notes?: string | null
           preferred_language?: string | null
+          preferred_payment_method?:
+            | Database["public"]["Enums"]["payment_method_type"]
+            | null
           quickbooks_customer_id?: string | null
           updated_at?: string | null
           whatsapp_phone: string
@@ -935,6 +941,9 @@ export type Database = {
           name?: string
           notes?: string | null
           preferred_language?: string | null
+          preferred_payment_method?:
+            | Database["public"]["Enums"]["payment_method_type"]
+            | null
           quickbooks_customer_id?: string | null
           updated_at?: string | null
           whatsapp_phone?: string
