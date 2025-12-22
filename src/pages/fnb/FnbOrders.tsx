@@ -253,25 +253,28 @@ export default function FnbOrders() {
         >
           <CollapsibleTrigger asChild>
             <CardContent className="p-3 cursor-pointer hover:bg-muted/50 transition-colors">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm line-clamp-2">{order.fnb_customers?.name || 'Unknown'}</p>
-                  <div className="flex items-center gap-2 mt-1">
+              <div className="space-y-1">
+                {/* Customer name on its own row */}
+                <p className="font-medium text-sm line-clamp-2">{order.fnb_customers?.name || 'Unknown'}</p>
+                
+                {/* Amount, items, status, and chevron - all aligned on one row */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
                     <span className="font-semibold text-sm">{order.total_xcg?.toFixed(2)} XCG</span>
                     {totalItems > 0 && (
                       <span className="text-xs text-muted-foreground">({totalItems} items)</span>
                     )}
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge className={cn('text-xs', statusColors[order.status])}>
-                    {order.status?.replace('_', ' ')}
-                  </Badge>
-                  {isExpanded ? (
-                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  )}
+                  <div className="flex items-center gap-2">
+                    <Badge className={cn('text-xs', statusColors[order.status])}>
+                      {order.status?.replace('_', ' ')}
+                    </Badge>
+                    {isExpanded ? (
+                      <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </div>
                 </div>
               </div>
             </CardContent>
