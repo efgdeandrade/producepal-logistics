@@ -1,22 +1,30 @@
-import { ThemeProvider as NextThemesProvider } from "next-themes";
-import { type ReactNode } from "react";
+import * as React from "react";
 
 interface ThemeProviderProps {
-  children: ReactNode;
-  defaultTheme?: string;
+  children: React.ReactNode;
+  defaultTheme?: "light" | "dark";
   storageKey?: string;
 }
 
-export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
-  return (
-    <NextThemesProvider
-      attribute="class"
-      defaultTheme="light"
-      enableSystem
-      disableTransitionOnChange
-      {...props}
-    >
-      {children}
-    </NextThemesProvider>
-  );
+export function ThemeProvider({
+  children,
+  defaultTheme = "light",
+  storageKey = "theme",
+}: ThemeProviderProps) {
+  React.useEffect(() => {
+    const root = document.documentElement;
+
+    let theme = defaultTheme;
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored === "light" || stored === "dark") theme = stored;
+    } catch {
+      // ignore
+    }
+
+    root.classList.toggle("dark", theme === "dark");
+    root.classList.toggle("light", theme === "light");
+  }, [defaultTheme, storageKey]);
+
+  return <>{children}</>;
 }
