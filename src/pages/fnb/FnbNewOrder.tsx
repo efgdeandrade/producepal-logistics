@@ -29,12 +29,22 @@ interface OrderItem {
 
 type PaymentMethod = 'cash' | 'swipe' | 'transfer' | 'credit';
 
-const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: React.ReactNode }[] = [
-  { value: 'cash', label: 'Cash', icon: <Banknote className="h-4 w-4" /> },
-  { value: 'swipe', label: 'Swipe', icon: <CreditCard className="h-4 w-4" /> },
-  { value: 'transfer', label: 'Bank Transfer', icon: <Building2 className="h-4 w-4" /> },
-  { value: 'credit', label: 'Credit (QB)', icon: <FileText className="h-4 w-4" /> },
+const PAYMENT_METHODS: { value: PaymentMethod; label: string; iconName: 'banknote' | 'creditCard' | 'building2' | 'fileText' }[] = [
+  { value: 'cash', label: 'Cash', iconName: 'banknote' },
+  { value: 'swipe', label: 'Swipe', iconName: 'creditCard' },
+  { value: 'transfer', label: 'Bank Transfer', iconName: 'building2' },
+  { value: 'credit', label: 'Credit (QB)', iconName: 'fileText' },
 ];
+
+const PaymentIcon = ({ name }: { name: string }) => {
+  switch (name) {
+    case 'banknote': return <Banknote className="h-4 w-4" />;
+    case 'creditCard': return <CreditCard className="h-4 w-4" />;
+    case 'building2': return <Building2 className="h-4 w-4" />;
+    case 'fileText': return <FileText className="h-4 w-4" />;
+    default: return null;
+  }
+};
 
 export default function FnbNewOrder() {
   const navigate = useNavigate();
@@ -414,7 +424,7 @@ export default function FnbNewOrder() {
                         value={method.value}
                         className="flex items-center gap-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
                       >
-                        {method.icon}
+                        <PaymentIcon name={method.iconName} />
                         <span className="hidden sm:inline">{method.label}</span>
                       </ToggleGroupItem>
                     ))}
