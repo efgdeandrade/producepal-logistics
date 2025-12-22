@@ -64,6 +64,11 @@ interface OrderWithDetails {
     quantity: number;
     picked_quantity: number | null;
     short_quantity: number | null;
+    unit_price_xcg: number;
+    fnb_products: {
+      name: string;
+      code: string;
+    } | null;
   }[];
 }
 
@@ -142,7 +147,7 @@ export default function FnbOrders() {
           receipt_verified_at,
           quickbooks_invoice_id,
           fnb_customers (name, whatsapp_phone, delivery_zone, customer_type),
-          fnb_order_items (id, quantity, picked_quantity, short_quantity)
+          fnb_order_items (id, quantity, picked_quantity, short_quantity, unit_price_xcg, fnb_products (name, code))
         `)
         .gte('delivery_date', format(weekStart, 'yyyy-MM-dd'))
         .lte('delivery_date', format(weekEnd, 'yyyy-MM-dd'))
@@ -208,7 +213,22 @@ export default function FnbOrders() {
         if (item.picked_quantity !== null) {
           totalOrdered += item.quantity || 0;
           totalPicked += item.picked_quantity || 0;
-        }
+              }
+
+              {/* Order Items */}
+              {order.fnb_order_items && order.fnb_order_items.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-xs font-medium">Items:</p>
+                  <div className="space-y-1 pl-2 max-h-32 overflow-y-auto">
+                    {order.fnb_order_items.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between text-xs">
+                        <span className="truncate flex-1">{item.fnb_products?.name || 'Unknown Product'}</span>
+                        <span className="text-muted-foreground ml-2">x {item.quantity}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
       });
     });
     const pickingAccuracy = totalOrdered > 0 
