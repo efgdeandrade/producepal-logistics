@@ -93,7 +93,7 @@ export default function FnbCustomers() {
 
   // Fetch delivery zones from database
   const { data: deliveryZones } = useQuery({
-    queryKey: ['fnb-delivery-zones'],
+    queryKey: ['fnb-delivery-zones-names'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('fnb_delivery_zones')
