@@ -462,18 +462,13 @@ export default function FnbOrders() {
                       </div>
                     )}
                   </CardHeader>
-                  <CardContent className="space-y-2 overflow-y-auto max-h-[320px]">
+                  <CardContent className="space-y-2 overflow-y-auto max-h-[500px]">
                     {dayOrders.length === 0 ? (
                       <p className="text-center py-4 text-muted-foreground text-sm">
                         No orders
                       </p>
                     ) : (
-                      dayOrders.slice(0, 5).map((order) => renderOrderCard(order))
-                    )}
-                    {dayOrders.length > 5 && (
-                      <p className="text-center text-xs text-muted-foreground py-2">
-                        +{dayOrders.length - 5} more orders
-                      </p>
+                      dayOrders.map((order) => renderOrderCard(order))
                     )}
                   </CardContent>
                 </Card>
