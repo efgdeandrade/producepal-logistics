@@ -213,22 +213,7 @@ export default function FnbOrders() {
         if (item.picked_quantity !== null) {
           totalOrdered += item.quantity || 0;
           totalPicked += item.picked_quantity || 0;
-              }
-
-              {/* Order Items */}
-              {order.fnb_order_items && order.fnb_order_items.length > 0 && (
-                <div className="space-y-1">
-                  <p className="text-xs font-medium">Items:</p>
-                  <div className="space-y-1 pl-2 max-h-32 overflow-y-auto">
-                    {order.fnb_order_items.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between text-xs">
-                        <span className="truncate flex-1">{item.fnb_products?.name || 'Unknown Product'}</span>
-                        <span className="text-muted-foreground ml-2">x {item.quantity}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+        }
       });
     });
     const pickingAccuracy = totalOrdered > 0 
@@ -270,7 +255,7 @@ export default function FnbOrders() {
             <CardContent className="p-3 cursor-pointer hover:bg-muted/50 transition-colors">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{order.fnb_customers?.name || 'Unknown'}</p>
+                  <p className="font-medium text-sm line-clamp-2">{order.fnb_customers?.name || 'Unknown'}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="font-semibold text-sm">{order.total_xcg?.toFixed(2)} XCG</span>
                     {totalItems > 0 && (
@@ -325,6 +310,21 @@ export default function FnbOrders() {
                 <div className="flex items-center gap-1 text-xs">
                   <Banknote className="h-3 w-3" />
                   <span>Payment: {order.payment_method}</span>
+                </div>
+              )}
+
+              {/* Order Items */}
+              {order.fnb_order_items && order.fnb_order_items.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-xs font-medium">Items:</p>
+                  <div className="space-y-1 pl-2 max-h-32 overflow-y-auto">
+                    {order.fnb_order_items.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between text-xs">
+                        <span className="truncate flex-1">{item.fnb_products?.name || 'Unknown Product'}</span>
+                        <span className="text-muted-foreground ml-2">x {item.quantity}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
