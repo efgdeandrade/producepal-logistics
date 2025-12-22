@@ -19,7 +19,8 @@ import {
   Clock,
   Camera,
   AlertCircle,
-  Truck
+  Truck,
+  Target
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { format, addDays, startOfWeek, isSameDay, parseISO } from 'date-fns';
@@ -53,7 +54,12 @@ interface OrderWithDetails {
     delivery_zone: string | null;
     customer_type: CustomerType;
   } | null;
-  fnb_order_items?: { id: string }[];
+  fnb_order_items?: { 
+    id: string;
+    quantity: number;
+    picked_quantity: number | null;
+    short_quantity: number | null;
+  }[];
 }
 
 const statusColors: Record<string, string> = {
@@ -118,7 +124,7 @@ export default function FnbOrders() {
           receipt_verified_at,
           quickbooks_invoice_id,
           fnb_customers (name, whatsapp_phone, delivery_zone, customer_type),
-          fnb_order_items (id)
+          fnb_order_items (id, quantity, picked_quantity, short_quantity)
         `)
         .gte('delivery_date', format(weekStart, 'yyyy-MM-dd'))
         .lte('delivery_date', format(weekEnd, 'yyyy-MM-dd'))
@@ -170,7 +176,28 @@ export default function FnbOrders() {
       .reduce((sum, o) => sum + (o.total_xcg || 0), 0);
     const totalXCG = dayOrders.reduce((sum, o) => sum + (o.total_xcg || 0), 0);
     
-    return { total, delivered, pending, pendingReceipts, codTotal, totalXCG };
+    // Total items count
+    const totalItems = dayOrders.reduce((sum, order) => {
+      return sum + (order.fnb_order_items?.reduce((itemSum, item) => 
+        itemSum + (item.quantity || 0), 0) || 0);
+    }, 0);
+    
+    // Picking accuracy calculation
+    let totalOrdered = 0;
+    let totalPicked = 0;
+    dayOrders.forEach(order => {
+      order.fnb_order_items?.forEach(item => {
+        if (item.picked_quantity !== null) {
+          totalOrdered += item.quantity || 0;
+          totalPicked += item.picked_quantity || 0;
+        }
+      });
+    });
+    const pickingAccuracy = totalOrdered > 0 
+      ? Math.round((totalPicked / totalOrdered) * 100) 
+      : null;
+    
+    return { total, delivered, pending, pendingReceipts, codTotal, totalXCG, totalItems, pickingAccuracy };
   };
 
   const previousWeek = () => setWeekStart(addDays(weekStart, -7));
@@ -405,6 +432,26 @@ export default function FnbOrders() {
                           <Badge variant="outline" className="text-xs">
                             <Banknote className="h-3 w-3 mr-1" />
                             {stats.codTotal.toFixed(0)}
+                          </Badge>
+                        )}
+                        {stats.totalItems > 0 && (
+                          <Badge variant="outline" className="text-xs">
+                            <Package className="h-3 w-3 mr-1" />
+                            {stats.totalItems}
+                          </Badge>
+                        )}
+                        {stats.pickingAccuracy !== null && (
+                          <Badge 
+                            variant="outline" 
+                            className={cn(
+                              "text-xs",
+                              stats.pickingAccuracy >= 95 && "text-green-600 border-green-300",
+                              stats.pickingAccuracy >= 80 && stats.pickingAccuracy < 95 && "text-yellow-600 border-yellow-300",
+                              stats.pickingAccuracy < 80 && "text-red-600 border-red-300"
+                            )}
+                          >
+                            <Target className="h-3 w-3 mr-1" />
+                            {stats.pickingAccuracy}%
                           </Badge>
                         )}
                       </div>
