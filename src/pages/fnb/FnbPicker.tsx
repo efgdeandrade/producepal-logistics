@@ -446,7 +446,7 @@ export default function FnbPicker() {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <PickerSessionModal open={true} onSessionStart={handleSessionStart} onClose={() => navigate('/fnb/dashboard')} />
+        <PickerSessionModal open={true} onSessionStart={handleSessionStart} onClose={() => navigate('/fnb')} />
       </div>
     );
   }
