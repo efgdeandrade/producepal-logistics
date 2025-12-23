@@ -2650,6 +2650,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      update_user_roles: {
+        Args: {
+          new_roles: Database["public"]["Enums"]["app_role"][]
+          target_user_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role:

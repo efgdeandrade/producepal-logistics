@@ -290,38 +290,20 @@ export default function UserManagement() {
   const handleSaveRoles = async () => {
     if (!selectedUser) return;
 
-    // Delete all existing roles for this user
-    const { error: deleteError } = await supabase
-      .from('user_roles')
-      .delete()
-      .eq('user_id', selectedUser.id);
+    // Use security definer function to update roles safely
+    // This prevents RLS issues when admin edits their own roles
+    const { error } = await supabase.rpc('update_user_roles', {
+      target_user_id: selectedUser.id,
+      new_roles: selectedRoles as any,
+    });
 
-    if (deleteError) {
+    if (error) {
       toast({
         title: 'Error',
-        description: 'Failed to update roles',
+        description: error.message || 'Failed to update roles',
         variant: 'destructive',
       });
       return;
-    }
-
-    // Insert new roles
-    if (selectedRoles.length > 0) {
-      const { error: insertError } = await supabase
-        .from('user_roles')
-        .insert(selectedRoles.map(role => ({
-          user_id: selectedUser.id,
-          role: role as any,
-        })));
-
-      if (insertError) {
-        toast({
-          title: 'Error',
-          description: 'Failed to assign roles',
-          variant: 'destructive',
-        });
-        return;
-      }
     }
 
     toast({
