@@ -8,18 +8,21 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { user, loading, hasRole } = useAuth();
+  const { user, loading, hasRole, isAdmin } = useAuth();
   const navigate = useNavigate();
+
+  // Check if user has required access (admin can access everything)
+  const hasRequiredAccess = !requiredRole || isAdmin() || hasRole(requiredRole);
 
   useEffect(() => {
     if (!loading && !user) {
       navigate('/auth');
     }
 
-    if (!loading && user && requiredRole && !hasRole(requiredRole)) {
+    if (!loading && user && requiredRole && !hasRequiredAccess) {
       navigate('/');
     }
-  }, [user, loading, requiredRole, hasRole, navigate]);
+  }, [user, loading, requiredRole, hasRequiredAccess, navigate]);
 
   if (loading) {
     return (
@@ -33,7 +36,7 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     return null;
   }
 
-  if (requiredRole && !hasRole(requiredRole)) {
+  if (requiredRole && !hasRequiredAccess) {
     return null;
   }
 
