@@ -44,6 +44,8 @@ interface FnbProduct {
   price_xcg: number;
   min_order_qty: number;
   is_active: boolean;
+  is_weight_based: boolean;
+  weight_unit: string;
 }
 
 const emptyProduct: Omit<FnbProduct, 'id'> = {
@@ -56,6 +58,8 @@ const emptyProduct: Omit<FnbProduct, 'id'> = {
   price_xcg: 0,
   min_order_qty: 1,
   is_active: true,
+  is_weight_based: false,
+  weight_unit: 'kg',
 };
 
 export default function FnbProducts() {
@@ -140,6 +144,8 @@ export default function FnbProducts() {
       price_xcg: product.price_xcg,
       min_order_qty: product.min_order_qty,
       is_active: product.is_active,
+      is_weight_based: product.is_weight_based ?? false,
+      weight_unit: product.weight_unit || 'kg',
     });
     setIsDialogOpen(true);
   };
@@ -293,6 +299,46 @@ export default function FnbProducts() {
                   </div>
                 </div>
 
+                {/* Weight-based toggle */}
+                <div className="p-3 border rounded-lg bg-muted/50 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="is_weight_based" className="text-sm font-medium">
+                        Weight-Based Item
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Allow decimal input and over-picking for this product
+                      </p>
+                    </div>
+                    <Switch
+                      id="is_weight_based"
+                      checked={formData.is_weight_based}
+                      onCheckedChange={(checked) =>
+                        setFormData({ ...formData, is_weight_based: checked })
+                      }
+                    />
+                  </div>
+                  
+                  {formData.is_weight_based && (
+                    <div className="space-y-2">
+                      <Label htmlFor="weight_unit">Weight Unit</Label>
+                      <Select
+                        value={formData.weight_unit}
+                        onValueChange={(value) => setFormData({ ...formData, weight_unit: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="kg">Kilograms (kg)</SelectItem>
+                          <SelectItem value="lb">Pounds (lb)</SelectItem>
+                          <SelectItem value="g">Grams (g)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="is_active"
@@ -345,6 +391,7 @@ export default function FnbProducts() {
                     <TableHead>Code</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Unit</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Price (XCG)</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-24">Actions</TableHead>
@@ -365,6 +412,17 @@ export default function FnbProducts() {
                         </div>
                       </TableCell>
                       <TableCell>{product.unit}</TableCell>
+                      <TableCell>
+                        {product.is_weight_based ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                            Weight ({product.weight_unit || 'kg'})
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                            Fixed Qty
+                          </span>
+                        )}
+                      </TableCell>
                       <TableCell>{product.price_xcg.toFixed(2)}</TableCell>
                       <TableCell>
                         <span

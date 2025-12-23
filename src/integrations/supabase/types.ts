@@ -1000,8 +1000,10 @@ export type Database = {
       }
       fnb_order_items: {
         Row: {
+          actual_weight_kg: number | null
           created_at: string | null
           id: string
+          is_over_picked: boolean | null
           order_id: string | null
           picked_at: string | null
           picked_by: string | null
@@ -1017,8 +1019,10 @@ export type Database = {
           unit_price_xcg: number
         }
         Insert: {
+          actual_weight_kg?: number | null
           created_at?: string | null
           id?: string
+          is_over_picked?: boolean | null
           order_id?: string | null
           picked_at?: string | null
           picked_by?: string | null
@@ -1034,8 +1038,10 @@ export type Database = {
           unit_price_xcg: number
         }
         Update: {
+          actual_weight_kg?: number | null
           created_at?: string | null
           id?: string
+          is_over_picked?: boolean | null
           order_id?: string | null
           picked_at?: string | null
           picked_by?: string | null
@@ -1242,6 +1248,7 @@ export type Database = {
           created_at: string | null
           id: string
           is_active: boolean | null
+          is_weight_based: boolean | null
           min_order_qty: number | null
           name: string
           name_es: string | null
@@ -1251,12 +1258,14 @@ export type Database = {
           quickbooks_item_id: string | null
           unit: string
           updated_at: string | null
+          weight_unit: string | null
         }
         Insert: {
           code: string
           created_at?: string | null
           id?: string
           is_active?: boolean | null
+          is_weight_based?: boolean | null
           min_order_qty?: number | null
           name: string
           name_es?: string | null
@@ -1266,12 +1275,14 @@ export type Database = {
           quickbooks_item_id?: string | null
           unit: string
           updated_at?: string | null
+          weight_unit?: string | null
         }
         Update: {
           code?: string
           created_at?: string | null
           id?: string
           is_active?: boolean | null
+          is_weight_based?: boolean | null
           min_order_qty?: number | null
           name?: string
           name_es?: string | null
@@ -1281,6 +1292,7 @@ export type Database = {
           quickbooks_item_id?: string | null
           unit?: string
           updated_at?: string | null
+          weight_unit?: string | null
         }
         Relationships: []
       }
