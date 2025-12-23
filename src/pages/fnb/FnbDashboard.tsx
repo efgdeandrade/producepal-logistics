@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Package, Users, ShoppingCart, ClipboardList, MessageSquare, TrendingUp, Plus, Truck, Banknote, BarChart3, MapPin, Calendar, Camera } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { FnbAlertsCard } from '@/components/fnb/FnbAlertsCard';
 
 export default function FnbDashboard() {
   const { data: stats, isLoading } = useQuery({
@@ -194,6 +195,11 @@ export default function FnbDashboard() {
               <span>Receipts</span>
             </Link>
           </Button>
+        </div>
+
+        {/* Alerts Card */}
+        <div className="mb-6">
+          <FnbAlertsCard showAudioAlerts />
         </div>
 
         {/* Recent Orders */}

@@ -16,6 +16,8 @@ import { PickerQueueZone } from '@/components/fnb/PickerQueueZone';
 import { WeightVerificationDialog } from '@/components/fnb/WeightVerificationDialog';
 import { ShortageRequestDialog } from '@/components/fnb/ShortageRequestDialog';
 import { PickerLeaderboard } from '@/components/fnb/PickerLeaderboard';
+import { ShortageQuickButtons } from '@/components/fnb/ShortageQuickButtons';
+import { AssistanceButton } from '@/components/fnb/AssistanceButton';
 import { cn } from '@/lib/utils';
 
 const SHORT_REASONS = [
@@ -320,6 +322,8 @@ export default function FnbPicker() {
 
       const shortQty = item.quantity - availableQuantity;
       
+      // Non-blocking: Mark as 'reported' instead of 'pending' approval
+      // This allows the picker to continue without waiting
       const { error } = await supabase
         .from('fnb_order_items')
         .update({
@@ -328,13 +332,15 @@ export default function FnbPicker() {
           picked_at: new Date().toISOString(),
           short_quantity: shortQty,
           short_reason: reason,
-          shortage_status: 'pending',
+          shortage_status: 'reported', // Non-blocking - just reported, no approval needed
+          shortage_alerted_at: new Date().toISOString(),
         })
         .eq('id', itemId);
       if (error) throw error;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['fnb-picker-items'] });
+      queryClient.invalidateQueries({ queryKey: ['fnb-shortage-alerts'] });
       setShortageItem(null);
       setPickedQuantities(prev => ({
         ...prev,
@@ -344,7 +350,7 @@ export default function FnbPicker() {
         ...prev,
         [variables.itemId]: variables.reason,
       }));
-      toast.info('Shortage reported - waiting for supervisor approval');
+      toast.success('Shortage reported - you can continue picking');
     },
     onError: () => {
       toast.error('Failed to submit shortage request');
@@ -419,9 +425,9 @@ export default function FnbPicker() {
   const selectedQueueItem = queueItems?.find((q: any) => q.id === selectedQueue);
   const isMyOrder = selectedQueueItem?.picker_name === pickerName;
 
-  // Check for pending shortage approvals
-  const hasPendingShortages = orderItems?.some(
-    (item: any) => item.shortage_status === 'pending'
+  // Check if any items have reported shortages (non-blocking, just visual)
+  const hasReportedShortages = orderItems?.some(
+    (item: any) => item.shortage_status === 'reported'
   );
 
   // Check if all items have been reviewed
@@ -430,11 +436,12 @@ export default function FnbPicker() {
     orderItems.length > 0 &&
     orderItems.every((item: any) => pickedQuantities[item.id] !== undefined);
 
-  // Check for any shorts without reasons
+  // Check for any shorts without reasons - only block if quantity reduced but no reason selected
   const hasUnreasonedShorts = orderItems?.some(
     (item: any) =>
       (pickedQuantities[item.id] ?? item.quantity) < item.quantity &&
-      !shortReasons[item.id]
+      !shortReasons[item.id] &&
+      item.shortage_status !== 'reported' // Don't block if already reported
   );
 
   // Calculate progress
@@ -661,14 +668,14 @@ export default function FnbPicker() {
                         <Progress value={progress} className="h-2" />
                       </div>
 
-                      {/* Pending Shortage Warning */}
-                      {hasPendingShortages && (
-                        <div className="p-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg flex items-start gap-2">
-                          <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                      {/* Reported Shortages Info - Non-blocking */}
+                      {hasReportedShortages && (
+                        <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg flex items-start gap-2">
+                          <AlertTriangle className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0" />
                           <div>
-                            <p className="font-medium text-amber-800 dark:text-amber-200">Waiting for Approval</p>
-                            <p className="text-sm text-amber-700 dark:text-amber-300">
-                              Some items have shortage requests pending supervisor approval
+                            <p className="font-medium text-blue-800 dark:text-blue-200">Shortages Reported</p>
+                            <p className="text-sm text-blue-700 dark:text-blue-300">
+                              Supervisor has been notified - you can continue
                             </p>
                           </div>
                         </div>
@@ -680,13 +687,13 @@ export default function FnbPicker() {
                           const pickedQty = pickedQuantities[item.id] ?? item.quantity;
                           const isShort = pickedQty < item.quantity;
                           const isOverPicked = pickedQty > item.quantity;
-                          const isPending = item.shortage_status === 'pending';
+                          const isReported = item.shortage_status === 'reported';
                           const isWeightBased = item.fnb_products?.is_weight_based || false;
                           const isComplete = pickedQty === item.quantity;
 
-                          // Visual status: green for complete, orange for short/over, yellow for pending
+                          // Visual status: green for complete, blue for reported, orange for short
                           const getBorderColor = () => {
-                            if (isPending) return 'border-amber-400 dark:border-amber-600';
+                            if (isReported) return 'border-blue-400 dark:border-blue-600';
                             if (isOverPicked && isWeightBased) return 'border-blue-400 dark:border-blue-600';
                             if (isShort) return 'border-orange-400 dark:border-orange-600';
                             if (isComplete) return 'border-green-400 dark:border-green-600';
@@ -694,7 +701,7 @@ export default function FnbPicker() {
                           };
 
                           const getBgColor = () => {
-                            if (isPending) return 'bg-amber-50 dark:bg-amber-950';
+                            if (isReported) return 'bg-blue-50 dark:bg-blue-950';
                             if (isOverPicked && isWeightBased) return 'bg-blue-50 dark:bg-blue-950';
                             if (isShort) return 'bg-orange-50 dark:bg-orange-950';
                             if (isComplete) return 'bg-green-50 dark:bg-green-950';
@@ -724,9 +731,9 @@ export default function FnbPicker() {
                                   <p className="text-sm text-muted-foreground">
                                     {item.fnb_products?.code}
                                   </p>
-                                  {isPending && (
-                                    <Badge variant="outline" className="mt-1 text-amber-600 border-amber-400">
-                                      Pending Approval
+                                  {isReported && (
+                                    <Badge variant="outline" className="mt-1 text-blue-600 border-blue-400">
+                                      Shortage Reported
                                     </Badge>
                                   )}
                                   {isOverPicked && isWeightBased && (
@@ -760,7 +767,7 @@ export default function FnbPicker() {
                                         ),
                                       })
                                     }
-                                    disabled={isPending}
+                                    disabled={isReported}
                                   >
                                     -
                                   </Button>
@@ -772,7 +779,6 @@ export default function FnbPicker() {
                                     value={pickedQty}
                                     onChange={(e) => {
                                       const value = parseFloat(e.target.value) || 0;
-                                      // Weight-based items can exceed ordered qty
                                       const maxValue = isWeightBased ? value : Math.min(item.quantity, value);
                                       setPickedQuantities({
                                         ...pickedQuantities,
@@ -780,7 +786,7 @@ export default function FnbPicker() {
                                       });
                                     }}
                                     className="w-24 h-12 text-center text-lg font-bold"
-                                    disabled={isPending}
+                                    disabled={isReported}
                                   />
                                   <Button
                                     variant="outline"
@@ -794,7 +800,7 @@ export default function FnbPicker() {
                                           : Math.min(item.quantity, pickedQty + 1),
                                       })
                                     }
-                                    disabled={isPending}
+                                    disabled={isReported}
                                   >
                                     +
                                   </Button>
@@ -806,30 +812,43 @@ export default function FnbPicker() {
                                 </div>
                               </div>
 
-                              {/* Shortage Button - only show for short items that are not weight-based over-picks */}
-                              {isShort && !isPending && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="w-full mt-3 text-amber-600 border-amber-400 hover:bg-amber-50"
-                                  onClick={() =>
-                                    setShortageItem({
-                                      id: item.id,
-                                      productName: item.fnb_products?.name,
-                                      productCode: item.fnb_products?.code,
-                                      orderedQuantity: item.quantity,
-                                      unit: item.fnb_products?.unit || 'units',
-                                    })
-                                  }
-                                >
-                                  <AlertTriangle className="h-4 w-4 mr-2" />
-                                  Report Shortage ({(item.quantity - pickedQty).toFixed(isWeightBased ? 2 : 0)} short)
-                                </Button>
+                              {/* Inline Shortage Quick Buttons - only show for short items not yet reported */}
+                              {isShort && !isReported && (
+                                <div className="mt-3 space-y-2">
+                                  <p className="text-xs text-muted-foreground">
+                                    Short {(item.quantity - pickedQty).toFixed(isWeightBased ? 2 : 0)} - Select reason:
+                                  </p>
+                                  <ShortageQuickButtons
+                                    compact
+                                    onSelect={(reason) => {
+                                      setShortReasons(prev => ({
+                                        ...prev,
+                                        [item.id]: reason,
+                                      }));
+                                      // Auto-submit shortage with selected reason
+                                      shortageRequestMutation.mutate({
+                                        itemId: item.id,
+                                        availableQuantity: pickedQty,
+                                        reason,
+                                      });
+                                    }}
+                                    selectedReason={shortReasons[item.id]}
+                                    disabled={shortageRequestMutation.isPending}
+                                  />
+                                </div>
                               )}
                             </div>
                           );
                         })}
                       </div>
+
+                      {/* Assistance Button */}
+                      <AssistanceButton
+                        pickerQueueId={selectedQueueItem.id}
+                        pickerName={pickerName}
+                        orderNumber={selectedQueueItem.fnb_orders?.order_number || ''}
+                        disabled={completeMutation.isPending}
+                      />
 
                       {/* Complete Button */}
                       <Button
@@ -837,7 +856,6 @@ export default function FnbPicker() {
                         onClick={() => setShowWeightDialog(true)}
                         disabled={
                           !allItemsReviewed ||
-                          hasPendingShortages ||
                           hasUnreasonedShorts ||
                           completeMutation.isPending
                         }

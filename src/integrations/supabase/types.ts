@@ -794,6 +794,53 @@ export type Database = {
           },
         ]
       }
+      fnb_assistance_queue: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          created_at: string | null
+          id: string
+          notes: string | null
+          picker_name: string
+          picker_queue_id: string | null
+          reason: string
+          resolved_at: string | null
+          status: string | null
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          picker_name: string
+          picker_queue_id?: string | null
+          reason: string
+          resolved_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          picker_name?: string
+          picker_queue_id?: string | null
+          reason?: string
+          resolved_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_assistance_queue_picker_queue_id_fkey"
+            columns: ["picker_queue_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_picker_queue"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fnb_conversations: {
         Row: {
           created_at: string | null
@@ -1012,6 +1059,7 @@ export type Database = {
           quantity: number
           short_quantity: number | null
           short_reason: string | null
+          shortage_alerted_at: string | null
           shortage_approved_at: string | null
           shortage_approved_by: string | null
           shortage_status: string | null
@@ -1031,6 +1079,7 @@ export type Database = {
           quantity: number
           short_quantity?: number | null
           short_reason?: string | null
+          shortage_alerted_at?: string | null
           shortage_approved_at?: string | null
           shortage_approved_by?: string | null
           shortage_status?: string | null
@@ -1050,6 +1099,7 @@ export type Database = {
           quantity?: number
           short_quantity?: number | null
           short_reason?: string | null
+          shortage_alerted_at?: string | null
           shortage_approved_at?: string | null
           shortage_approved_by?: string | null
           shortage_status?: string | null
