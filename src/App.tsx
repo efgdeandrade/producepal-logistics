@@ -48,6 +48,7 @@ import FnbAnalytics from "./pages/fnb/FnbAnalytics";
 import FnbZoneManagement from "./pages/fnb/FnbZoneManagement";
 import FnbWeeklyBoard from "./pages/fnb/FnbWeeklyBoard";
 import FnbReceiptVerification from "./pages/fnb/FnbReceiptVerification";
+import FnbStandingOrders from "./pages/fnb/FnbStandingOrders";
 import FnbDriverMobile from "./pages/fnb/FnbDriverMobile";
 import Install from "./pages/Install";
 const queryClient = new QueryClient();
@@ -101,6 +102,7 @@ const App = () => (
               <Route path="/fnb/analytics" element={<ProtectedRoute><PasswordChangeRequired><FnbAnalytics /></PasswordChangeRequired></ProtectedRoute>} />
               <Route path="/fnb/zones" element={<ProtectedRoute><PasswordChangeRequired><FnbZoneManagement /></PasswordChangeRequired></ProtectedRoute>} />
               <Route path="/fnb/weekly" element={<ProtectedRoute><PasswordChangeRequired><FnbWeeklyBoard /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/fnb/standing-orders" element={<ProtectedRoute><PasswordChangeRequired><FnbStandingOrders /></PasswordChangeRequired></ProtectedRoute>} />
               <Route path="/fnb/receipts" element={<ProtectedRoute><PasswordChangeRequired><FnbReceiptVerification /></PasswordChangeRequired></ProtectedRoute>} />
               <Route path="/fnb/settings" element={<ProtectedRoute><PasswordChangeRequired><FnbSettings /></PasswordChangeRequired></ProtectedRoute>} />
               <Route path="/fnb/driver-mobile" element={<ProtectedRoute requiredRole="driver"><PasswordChangeRequired><FnbDriverMobile /></PasswordChangeRequired></ProtectedRoute>} />

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,11 +24,15 @@ import {
   Truck,
   Camera,
   AlertCircle,
-  ExternalLink
+  ExternalLink,
+  Wand2,
+  Loader2,
+  CalendarCheck
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { format, addDays, startOfWeek, isSameDay, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useFnbStandingOrders } from "@/hooks/useFnbStandingOrders";
 
 type CustomerType = "regular" | "supermarket" | "cod" | "credit";
 
@@ -86,10 +90,22 @@ const customerTypeLabels: Record<CustomerType, string> = {
 
 export default function FnbWeeklyBoard() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const { templates, generateOrdersForWeek, getWeekGeneration } = useFnbStandingOrders();
 
   const weekDays = Array.from({ length: 6 }, (_, i) => addDays(weekStart, i)); // Mon-Sat
+
+  // Check if this week has been generated
+  const { data: weekGeneration, refetch: refetchGeneration } = useQuery({
+    queryKey: ["fnb-week-generation", format(weekStart, "yyyy-MM-dd")],
+    queryFn: () => getWeekGeneration(weekStart),
+  });
+
+  const activeTemplatesCount = templates.filter(t => t.is_active && t.items.length > 0).length;
 
   // Fetch orders for the week
   const { data: orders, isLoading } = useQuery({
@@ -145,9 +161,27 @@ export default function FnbWeeklyBoard() {
     return { total, delivered, pendingReceipts, codTotal };
   };
 
-  const previousWeek = () => setWeekStart(addDays(weekStart, -7));
-  const nextWeek = () => setWeekStart(addDays(weekStart, 7));
+  const previousWeek = () => {
+    setWeekStart(addDays(weekStart, -7));
+  };
+  const nextWeek = () => {
+    setWeekStart(addDays(weekStart, 7));
+  };
   const goToToday = () => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
+
+  const handleGenerateWeek = async () => {
+    setIsGenerating(true);
+    try {
+      const ordersCreated = await generateOrdersForWeek(weekStart);
+      if (ordersCreated > 0) {
+        // Refresh orders and generation status
+        queryClient.invalidateQueries({ queryKey: ["fnb-weekly-orders"] });
+        refetchGeneration();
+      }
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const renderOrderCard = (order: OrderWithDetails, compact = false) => {
     const customerType = order.fnb_customers?.customer_type || "regular";
@@ -281,6 +315,51 @@ export default function FnbWeeklyBoard() {
               <Button variant="outline" size="icon" onClick={nextWeek}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Generate Week from Standing Orders */}
+        <Card className="border-primary/50 bg-primary/5">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <CalendarCheck className="h-5 w-5 text-primary" />
+                <div>
+                  <h3 className="font-medium">Standing Order Templates</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {weekGeneration ? (
+                      <>
+                        Generated {weekGeneration.orders_created} orders on{" "}
+                        {format(parseISO(weekGeneration.generated_at), "MMM d, h:mm a")}
+                      </>
+                    ) : activeTemplatesCount > 0 ? (
+                      <>{activeTemplatesCount} active templates ready to generate</>
+                    ) : (
+                      <>No templates configured. <Link to="/fnb/standing-orders" className="text-primary underline">Set up templates</Link></>
+                    )}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/fnb/standing-orders">
+                    Manage Templates
+                  </Link>
+                </Button>
+                <Button
+                  onClick={handleGenerateWeek}
+                  disabled={isGenerating || !!weekGeneration || activeTemplatesCount === 0}
+                  size="sm"
+                >
+                  {isGenerating ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Wand2 className="h-4 w-4 mr-2" />
+                  )}
+                  {weekGeneration ? "Already Generated" : "Generate Week"}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

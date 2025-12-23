@@ -1390,6 +1390,118 @@ export type Database = {
         }
         Relationships: []
       }
+      fnb_standing_order_items: {
+        Row: {
+          created_at: string
+          customer_id: string
+          default_price_xcg: number | null
+          default_quantity: number
+          id: string
+          product_id: string
+          sort_order: number
+          template_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          default_price_xcg?: number | null
+          default_quantity?: number
+          id?: string
+          product_id: string
+          sort_order?: number
+          template_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          default_price_xcg?: number | null
+          default_quantity?: number
+          id?: string
+          product_id?: string
+          sort_order?: number
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_standing_order_items_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_standing_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_standing_order_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_standing_order_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fnb_standing_order_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          day_of_week: number
+          id: string
+          is_active: boolean
+          notes: string | null
+          template_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          day_of_week: number
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          template_name?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          day_of_week?: number
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          template_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fnb_week_generations: {
+        Row: {
+          generated_at: string
+          generated_by: string | null
+          id: string
+          orders_created: number
+          week_start_date: string
+        }
+        Insert: {
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          orders_created?: number
+          week_start_date: string
+        }
+        Update: {
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          orders_created?: number
+          week_start_date?: string
+        }
+        Relationships: []
+      }
       invoices: {
         Row: {
           adjusted_total: number

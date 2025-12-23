@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, Users, ShoppingCart, ClipboardList, MessageSquare, TrendingUp, Plus, Truck, Banknote, BarChart3, MapPin, Calendar, Camera } from 'lucide-react';
+import { Package, Users, ShoppingCart, ClipboardList, MessageSquare, TrendingUp, Plus, Truck, Banknote, BarChart3, MapPin, Calendar, Camera, CalendarCheck } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { FnbAlertsCard } from '@/components/fnb/FnbAlertsCard';
 
@@ -187,6 +187,12 @@ export default function FnbDashboard() {
             <Link to="/fnb/weekly">
               <Calendar className="h-6 w-6" />
               <span>Weekly Board</span>
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="h-24 flex-col gap-2 border-green-500/50">
+            <Link to="/fnb/standing-orders">
+              <CalendarCheck className="h-6 w-6" />
+              <span>Standing Orders</span>
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-24 flex-col gap-2 border-orange-500/50">
