@@ -48,7 +48,8 @@ import FnbAnalytics from "./pages/fnb/FnbAnalytics";
 import FnbZoneManagement from "./pages/fnb/FnbZoneManagement";
 import FnbWeeklyBoard from "./pages/fnb/FnbWeeklyBoard";
 import FnbReceiptVerification from "./pages/fnb/FnbReceiptVerification";
-
+import FnbDriverMobile from "./pages/fnb/FnbDriverMobile";
+import Install from "./pages/Install";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -102,6 +103,8 @@ const App = () => (
               <Route path="/fnb/weekly" element={<ProtectedRoute><PasswordChangeRequired><FnbWeeklyBoard /></PasswordChangeRequired></ProtectedRoute>} />
               <Route path="/fnb/receipts" element={<ProtectedRoute><PasswordChangeRequired><FnbReceiptVerification /></PasswordChangeRequired></ProtectedRoute>} />
               <Route path="/fnb/settings" element={<ProtectedRoute><PasswordChangeRequired><FnbSettings /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/fnb/driver-mobile" element={<ProtectedRoute requiredRole="driver"><PasswordChangeRequired><FnbDriverMobile /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/install" element={<Install />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
