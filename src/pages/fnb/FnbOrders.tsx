@@ -374,7 +374,7 @@ export default function FnbOrders() {
                   className="text-xs h-7"
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigate(`/fnb/orders/${order.id}/edit`);
+                    navigate(`/fnb/orders/edit/${order.id}`);
                   }}
                 >
                   <Edit className="h-3 w-3 mr-1" />
