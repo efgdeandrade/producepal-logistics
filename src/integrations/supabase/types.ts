@@ -906,6 +906,8 @@ export type Database = {
           customer_type: Database["public"]["Enums"]["customer_type"]
           delivery_zone: string | null
           id: string
+          latitude: number | null
+          longitude: number | null
           name: string
           notes: string | null
           preferred_language: string | null
@@ -922,6 +924,8 @@ export type Database = {
           customer_type?: Database["public"]["Enums"]["customer_type"]
           delivery_zone?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name: string
           notes?: string | null
           preferred_language?: string | null
@@ -938,6 +942,8 @@ export type Database = {
           customer_type?: Database["public"]["Enums"]["customer_type"]
           delivery_zone?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name?: string
           notes?: string | null
           preferred_language?: string | null
@@ -952,29 +958,41 @@ export type Database = {
       }
       fnb_delivery_zones: {
         Row: {
+          center_latitude: number | null
+          center_longitude: number | null
           created_at: string
           description: string | null
           id: string
           is_active: boolean
           name: string
+          polygon_coordinates: Json | null
+          radius_meters: number | null
           sort_order: number
           updated_at: string
         }
         Insert: {
+          center_latitude?: number | null
+          center_longitude?: number | null
           created_at?: string
           description?: string | null
           id?: string
           is_active?: boolean
           name: string
+          polygon_coordinates?: Json | null
+          radius_meters?: number | null
           sort_order?: number
           updated_at?: string
         }
         Update: {
+          center_latitude?: number | null
+          center_longitude?: number | null
           created_at?: string
           description?: string | null
           id?: string
           is_active?: boolean
           name?: string
+          polygon_coordinates?: Json | null
+          radius_meters?: number | null
           sort_order?: number
           updated_at?: string
         }
