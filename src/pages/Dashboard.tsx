@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { FnbAlertsCard } from '@/components/fnb/FnbAlertsCard';
 
 interface ChartData {
   period: string;
@@ -368,6 +369,11 @@ const Dashboard = () => {
               </Button>
             </CardContent>
           </Card>
+        </div>
+
+        {/* F&B Alerts (Compact) */}
+        <div className="mb-8">
+          <FnbAlertsCard compact />
         </div>
 
         {/* Year-over-Year Comparison */}
