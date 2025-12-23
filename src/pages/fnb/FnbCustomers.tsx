@@ -90,22 +90,41 @@ export default function FnbCustomers() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
+  const normalizePhone = (raw: string) => {
+    const trimmed = raw.trim();
+    if (!trimmed) return '';
+
+    // Keep leading + if present, otherwise strip non-digits and prepend Curaçao code
+    if (trimmed.startsWith('+')) {
+      return `+${trimmed.slice(1).replace(/[^\d]/g, '')}`;
+    }
+
+    const digits = trimmed.replace(/[^\d]/g, '');
+    return digits ? `+5999${digits}` : '';
+  };
+
+  const chunk = <T,>(arr: T[], size: number) => {
+    const out: T[][] = [];
+    for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+    return out;
+  };
+
   const parseCsvFile = (file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
       const lines = text.split('\n');
-      const headers = lines[0].split(',').map(h => h.trim());
-      
+      const headers = lines[0].split(',').map((h) => h.trim());
+
       const parsed: CsvCustomer[] = [];
       const timestamp = Date.now();
       const seenPhones = new Set<string>();
-      let rowIndex = 0;
-      
+      let noPhoneIndex = 0;
+
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i];
         if (!line.trim()) continue;
-        
+
         // Handle CSV with quoted fields containing commas
         const values: string[] = [];
         let current = '';
@@ -121,58 +140,46 @@ export default function FnbCustomers() {
           }
         }
         values.push(current.trim());
-        
+
         const row: Record<string, string> = {};
         headers.forEach((h, idx) => {
           row[h] = values[idx] || '';
         });
-        
+
         const name = row['Name']?.trim();
         if (!name) continue;
-        
+
         // Build address from components
-        const addressParts = [
-          row['Street Address'],
-          row['City'],
-          row['Country'],
-          row['Zip']
-        ].filter(Boolean);
+        const addressParts = [row['Street Address'], row['City'], row['Country'], row['Zip']].filter(Boolean);
         const address = addressParts.join(', ');
-        
+
         // Build notes from company and email
-        const notesParts = [];
+        const notesParts: string[] = [];
         if (row['Company name']) notesParts.push(`Company: ${row['Company name']}`);
         if (row['Email']) notesParts.push(`Email: ${row['Email']}`);
         const notes = notesParts.join(' | ');
-        
-        // Clean phone number and ensure uniqueness
-        let phone = row['Phone']?.trim() || '';
-        if (phone && !phone.startsWith('+')) {
-          phone = phone.replace(/[^\d]/g, '');
-          if (phone) phone = '+5999' + phone;
-        }
-        
-        // Generate unique placeholder for empty phones
+
+        let phone = normalizePhone(row['Phone'] || '');
+
+        // Unique placeholder for empty phones (so they don't violate the unique constraint)
         if (!phone) {
-          phone = `NO_PHONE_${timestamp}_${rowIndex}`;
+          phone = `NO_PHONE_${timestamp}_${noPhoneIndex++}`;
         }
-        
-        // Handle duplicate phones within CSV by making them unique
+
+        // If the CSV itself contains duplicates, keep the first and skip the rest
         if (seenPhones.has(phone)) {
-          phone = `${phone}_dup${rowIndex}`;
+          continue;
         }
         seenPhones.add(phone);
-        
+
         parsed.push({
           name,
           whatsapp_phone: phone,
           address,
-          notes
+          notes,
         });
-        
-        rowIndex++;
       }
-      
+
       setCsvData(parsed);
       setIsImportDialogOpen(true);
     };
@@ -191,36 +198,48 @@ export default function FnbCustomers() {
   const handleImport = async () => {
     setIsImporting(true);
     try {
-      const existingNames = new Set(customers?.map(c => c.name.toLowerCase()) || []);
-      const existingPhones = new Set(customers?.map(c => c.whatsapp_phone) || []);
-      
-      const toInsert = csvData
-        .filter(c => !existingNames.has(c.name.toLowerCase()) && !existingPhones.has(c.whatsapp_phone))
-        .map(c => ({
-          name: c.name,
-          whatsapp_phone: c.whatsapp_phone,
-          address: c.address || null,
-          notes: c.notes || null,
-          preferred_language: 'pap',
-          customer_type: 'regular' as CustomerType,
-        }));
-      
-      if (toInsert.length === 0) {
-        toast.info('All customers already exist in the database');
+      const existingPhones = new Set((customers || []).map((c) => c.whatsapp_phone));
+
+      // Normalize phones again defensively (in case csvData was set from older parse logic)
+      const prepared = csvData.map((c) => {
+        const normalized = c.whatsapp_phone.startsWith('NO_PHONE_') ? c.whatsapp_phone : normalizePhone(c.whatsapp_phone);
+        return { ...c, whatsapp_phone: normalized || c.whatsapp_phone };
+      });
+
+      const csvUniqueByPhone = new Map<string, CsvCustomer>();
+      for (const c of prepared) {
+        if (!csvUniqueByPhone.has(c.whatsapp_phone)) csvUniqueByPhone.set(c.whatsapp_phone, c);
+      }
+
+      const uniqueCsv = Array.from(csvUniqueByPhone.values());
+      const candidates = uniqueCsv.map((c) => ({
+        name: c.name,
+        whatsapp_phone: c.whatsapp_phone,
+        address: c.address || null,
+        notes: c.notes || null,
+        preferred_language: 'pap',
+        customer_type: 'regular' as CustomerType,
+      }));
+
+      if (candidates.length === 0) {
+        toast.info('No customers found to import');
         setIsImportDialogOpen(false);
         return;
       }
-      
-      const { error } = await supabase.from('fnb_customers').insert(toInsert);
-      if (error) {
-        if (error.message.includes('duplicate key')) {
-          throw new Error('A customer with this phone number already exists. Please check for duplicates.');
-        }
-        throw error;
+
+      // Upsert with ignoreDuplicates so the import NEVER fails because a phone already exists
+      const chunks = chunk(candidates, 200);
+      for (const batch of chunks) {
+        const { error } = await supabase
+          .from('fnb_customers')
+          .upsert(batch, { onConflict: 'whatsapp_phone', ignoreDuplicates: true });
+        if (error) throw error;
       }
-      
-      const skipped = csvData.length - toInsert.length;
-      toast.success(`Imported ${toInsert.length} customers${skipped > 0 ? `, skipped ${skipped} duplicates` : ''}`);
+
+      const skippedExisting = uniqueCsv.filter((c) => existingPhones.has(c.whatsapp_phone)).length;
+      toast.success(
+        `Import complete: processed ${uniqueCsv.length} customers${skippedExisting ? `, skipped ${skippedExisting} existing phone duplicates` : ''}`
+      );
       queryClient.invalidateQueries({ queryKey: ['fnb-customers'] });
       setIsImportDialogOpen(false);
       setCsvData([]);
