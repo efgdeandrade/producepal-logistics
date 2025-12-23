@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Pencil, Trash2, ArrowLeft, Search, MessageSquare, Route } from 'lucide-react';
+import { Plus, Pencil, Trash2, ArrowLeft, Search, MessageSquare, Route, Upload, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -71,13 +71,142 @@ const customerTypeLabels: Record<CustomerType, string> = {
   credit: 'Credit Account',
 };
 
+interface CsvCustomer {
+  name: string;
+  whatsapp_phone: string;
+  address: string;
+  notes: string;
+}
+
 export default function FnbCustomers() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<FnbCustomer | null>(null);
   const [formData, setFormData] = useState<Omit<FnbCustomer, 'id'>>(emptyCustomer);
   const [searchTerm, setSearchTerm] = useState('');
   const [zoneFilter, setZoneFilter] = useState<string>('all');
+  const [csvData, setCsvData] = useState<CsvCustomer[]>([]);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+
+  const parseCsvFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split('\n');
+      const headers = lines[0].split(',').map(h => h.trim());
+      
+      const parsed: CsvCustomer[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i];
+        if (!line.trim()) continue;
+        
+        // Handle CSV with quoted fields containing commas
+        const values: string[] = [];
+        let current = '';
+        let inQuotes = false;
+        for (const char of line) {
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            values.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        values.push(current.trim());
+        
+        const row: Record<string, string> = {};
+        headers.forEach((h, idx) => {
+          row[h] = values[idx] || '';
+        });
+        
+        const name = row['Name']?.trim();
+        if (!name) continue;
+        
+        // Build address from components
+        const addressParts = [
+          row['Street Address'],
+          row['City'],
+          row['Country'],
+          row['Zip']
+        ].filter(Boolean);
+        const address = addressParts.join(', ');
+        
+        // Build notes from company and email
+        const notesParts = [];
+        if (row['Company name']) notesParts.push(`Company: ${row['Company name']}`);
+        if (row['Email']) notesParts.push(`Email: ${row['Email']}`);
+        const notes = notesParts.join(' | ');
+        
+        // Clean phone number
+        let phone = row['Phone']?.trim() || '';
+        if (phone && !phone.startsWith('+')) {
+          phone = phone.replace(/[^\d]/g, '');
+          if (phone) phone = '+5999' + phone;
+        }
+        if (!phone) phone = 'No phone';
+        
+        parsed.push({
+          name,
+          whatsapp_phone: phone,
+          address,
+          notes
+        });
+      }
+      
+      setCsvData(parsed);
+      setIsImportDialogOpen(true);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      parseCsvFile(file);
+    }
+    // Reset input so same file can be selected again
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleImport = async () => {
+    setIsImporting(true);
+    try {
+      const existingNames = new Set(customers?.map(c => c.name.toLowerCase()) || []);
+      const toInsert = csvData
+        .filter(c => !existingNames.has(c.name.toLowerCase()))
+        .map(c => ({
+          name: c.name,
+          whatsapp_phone: c.whatsapp_phone,
+          address: c.address || null,
+          notes: c.notes || null,
+          preferred_language: 'pap',
+          customer_type: 'regular' as CustomerType,
+        }));
+      
+      if (toInsert.length === 0) {
+        toast.info('All customers already exist in the database');
+        setIsImportDialogOpen(false);
+        return;
+      }
+      
+      const { error } = await supabase.from('fnb_customers').insert(toInsert);
+      if (error) throw error;
+      
+      const skipped = csvData.length - toInsert.length;
+      toast.success(`Imported ${toInsert.length} customers${skipped > 0 ? `, skipped ${skipped} duplicates` : ''}`);
+      queryClient.invalidateQueries({ queryKey: ['fnb-customers'] });
+      setIsImportDialogOpen(false);
+      setCsvData([]);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to import customers');
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   const { data: customers, isLoading } = useQuery({
     queryKey: ['fnb-customers'],
@@ -205,6 +334,17 @@ export default function FnbCustomers() {
               Manage F&B customers and delivery zones
             </p>
           </div>
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept=".csv"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+            <Upload className="mr-2 h-4 w-4" />
+            Import CSV
+          </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={resetForm}>
@@ -344,6 +484,57 @@ export default function FnbCustomers() {
                   </Button>
                 </div>
               </form>
+            </DialogContent>
+          </Dialog>
+
+          {/* CSV Import Dialog */}
+          <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+            <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <FileSpreadsheet className="h-5 w-5" />
+                  Import Customers from CSV
+                </DialogTitle>
+              </DialogHeader>
+              <div className="flex-1 overflow-auto">
+                <p className="text-sm text-muted-foreground mb-4">
+                  Found {csvData.length} customers to import. Preview (first 10):
+                </p>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Address</TableHead>
+                      <TableHead>Notes</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {csvData.slice(0, 10).map((customer, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell className="font-medium">{customer.name}</TableCell>
+                        <TableCell>{customer.whatsapp_phone}</TableCell>
+                        <TableCell className="max-w-xs truncate">{customer.address || '-'}</TableCell>
+                        <TableCell className="max-w-xs truncate">{customer.notes || '-'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {csvData.length > 10 && (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    ...and {csvData.length - 10} more
+                  </p>
+                )}
+              </div>
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleImport} disabled={isImporting}>
+                  {isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Import {csvData.length} Customers
+                </Button>
+              </div>
             </DialogContent>
           </Dialog>
         </div>
