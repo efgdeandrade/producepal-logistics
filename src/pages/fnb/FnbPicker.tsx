@@ -249,7 +249,7 @@ export default function FnbPicker() {
         .from('fnb_order_items')
         .select(`
           *,
-          fnb_products(code, name, unit)
+          fnb_products(code, name, unit, is_weight_based, weight_unit)
         `)
         .eq('order_id', queueItem.order_id);
       if (error) throw error;
@@ -361,6 +361,9 @@ export default function FnbPicker() {
         for (const item of orderItems) {
           const pickedQty = pickedQuantities[item.id] ?? item.quantity;
           const shortQty = Math.max(0, item.quantity - pickedQty);
+          const isWeightBased = item.fnb_products?.is_weight_based || false;
+          const isOverPicked = pickedQty > item.quantity;
+          
           await supabase
             .from('fnb_order_items')
             .update({
@@ -369,6 +372,9 @@ export default function FnbPicker() {
               picked_at: new Date().toISOString(),
               short_quantity: shortQty,
               short_reason: shortQty > 0 ? shortReasons[item.id] || 'other' : null,
+              // For weight-based items, track if over-picked and actual weight
+              is_over_picked: isWeightBased && isOverPicked,
+              actual_weight_kg: isWeightBased ? pickedQty : null,
             })
             .eq('id', item.id);
         }
@@ -600,26 +606,34 @@ export default function FnbPicker() {
                             </h4>
                           </div>
                           <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
-                            {orderItems.map((item: any) => (
-                              <div
-                                key={item.id}
-                                className="p-3 rounded-lg bg-muted/50 border border-border/50"
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <p className="font-medium text-sm">{item.fnb_products?.name}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {item.fnb_products?.code}
-                                    </p>
-                                  </div>
-                                  <div className="text-right">
-                                    <p className="font-bold text-sm">
-                                      {item.quantity} {item.fnb_products?.unit}
-                                    </p>
+                            {orderItems.map((item: any) => {
+                              const isWeightBased = item.fnb_products?.is_weight_based || false;
+                              return (
+                                <div
+                                  key={item.id}
+                                  className="p-3 rounded-lg bg-muted/50 border border-border/50"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <div className="flex items-center gap-1.5">
+                                        <p className="font-medium text-sm">{item.fnb_products?.name}</p>
+                                        {isWeightBased && (
+                                          <Scale className="h-3 w-3 text-blue-500" />
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-muted-foreground">
+                                        {item.fnb_products?.code}
+                                      </p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="font-bold text-sm">
+                                        {item.quantity} {item.fnb_products?.unit}
+                                      </p>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       )}
@@ -665,29 +679,59 @@ export default function FnbPicker() {
                         {orderItems.map((item: any) => {
                           const pickedQty = pickedQuantities[item.id] ?? item.quantity;
                           const isShort = pickedQty < item.quantity;
+                          const isOverPicked = pickedQty > item.quantity;
                           const isPending = item.shortage_status === 'pending';
+                          const isWeightBased = item.fnb_products?.is_weight_based || false;
+                          const isComplete = pickedQty === item.quantity;
+
+                          // Visual status: green for complete, orange for short/over, yellow for pending
+                          const getBorderColor = () => {
+                            if (isPending) return 'border-amber-400 dark:border-amber-600';
+                            if (isOverPicked && isWeightBased) return 'border-blue-400 dark:border-blue-600';
+                            if (isShort) return 'border-orange-400 dark:border-orange-600';
+                            if (isComplete) return 'border-green-400 dark:border-green-600';
+                            return 'border-border';
+                          };
+
+                          const getBgColor = () => {
+                            if (isPending) return 'bg-amber-50 dark:bg-amber-950';
+                            if (isOverPicked && isWeightBased) return 'bg-blue-50 dark:bg-blue-950';
+                            if (isShort) return 'bg-orange-50 dark:bg-orange-950';
+                            if (isComplete) return 'bg-green-50 dark:bg-green-950';
+                            return 'bg-card';
+                          };
 
                           return (
                             <div
                               key={item.id}
                               className={cn(
-                                'p-4 rounded-lg border',
-                                isPending
-                                  ? 'bg-amber-50 border-amber-200 dark:bg-amber-950 dark:border-amber-800'
-                                  : isShort
-                                  ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800'
-                                  : 'bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800'
+                                'p-4 rounded-lg border-2 transition-colors',
+                                getBorderColor(),
+                                getBgColor()
                               )}
                             >
                               <div className="flex items-start justify-between mb-2">
                                 <div className="flex-1">
-                                  <p className="font-medium">{item.fnb_products?.name}</p>
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-medium">{item.fnb_products?.name}</p>
+                                    {isWeightBased && (
+                                      <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                                        <Scale className="h-3 w-3 mr-1" />
+                                        Weight
+                                      </Badge>
+                                    )}
+                                  </div>
                                   <p className="text-sm text-muted-foreground">
                                     {item.fnb_products?.code}
                                   </p>
                                   {isPending && (
                                     <Badge variant="outline" className="mt-1 text-amber-600 border-amber-400">
                                       Pending Approval
+                                    </Badge>
+                                  )}
+                                  {isOverPicked && isWeightBased && (
+                                    <Badge variant="outline" className="mt-1 text-blue-600 border-blue-400">
+                                      Over-picked (+{(pickedQty - item.quantity).toFixed(2)})
                                     </Badge>
                                   )}
                                 </div>
@@ -710,7 +754,10 @@ export default function FnbPicker() {
                                     onClick={() =>
                                       setPickedQuantities({
                                         ...pickedQuantities,
-                                        [item.id]: Math.max(0, pickedQty - 1),
+                                        [item.id]: Math.max(0, isWeightBased 
+                                          ? parseFloat((pickedQty - 0.1).toFixed(2))
+                                          : pickedQty - 1
+                                        ),
                                       })
                                     }
                                     disabled={isPending}
@@ -720,18 +767,19 @@ export default function FnbPicker() {
                                   <Input
                                     type="number"
                                     min="0"
-                                    max={item.quantity}
+                                    max={isWeightBased ? undefined : item.quantity}
+                                    step={isWeightBased ? "0.01" : "1"}
                                     value={pickedQty}
-                                    onChange={(e) =>
+                                    onChange={(e) => {
+                                      const value = parseFloat(e.target.value) || 0;
+                                      // Weight-based items can exceed ordered qty
+                                      const maxValue = isWeightBased ? value : Math.min(item.quantity, value);
                                       setPickedQuantities({
                                         ...pickedQuantities,
-                                        [item.id]: Math.max(
-                                          0,
-                                          Math.min(item.quantity, Number(e.target.value) || 0)
-                                        ),
-                                      })
-                                    }
-                                    className="w-20 h-12 text-center text-lg font-bold"
+                                        [item.id]: Math.max(0, maxValue),
+                                      });
+                                    }}
+                                    className="w-24 h-12 text-center text-lg font-bold"
                                     disabled={isPending}
                                   />
                                   <Button
@@ -741,17 +789,24 @@ export default function FnbPicker() {
                                     onClick={() =>
                                       setPickedQuantities({
                                         ...pickedQuantities,
-                                        [item.id]: Math.min(item.quantity, pickedQty + 1),
+                                        [item.id]: isWeightBased
+                                          ? parseFloat((pickedQty + 0.1).toFixed(2))
+                                          : Math.min(item.quantity, pickedQty + 1),
                                       })
                                     }
                                     disabled={isPending}
                                   >
                                     +
                                   </Button>
+                                  {isWeightBased && (
+                                    <span className="text-sm text-muted-foreground ml-1">
+                                      {item.fnb_products?.weight_unit || 'kg'}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
 
-                              {/* Shortage Button */}
+                              {/* Shortage Button - only show for short items that are not weight-based over-picks */}
                               {isShort && !isPending && (
                                 <Button
                                   variant="outline"
@@ -768,7 +823,7 @@ export default function FnbPicker() {
                                   }
                                 >
                                   <AlertTriangle className="h-4 w-4 mr-2" />
-                                  Report Shortage ({item.quantity - pickedQty} short)
+                                  Report Shortage ({(item.quantity - pickedQty).toFixed(isWeightBased ? 2 : 0)} short)
                                 </Button>
                               )}
                             </div>

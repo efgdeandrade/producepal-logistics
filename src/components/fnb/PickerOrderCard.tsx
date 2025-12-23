@@ -29,6 +29,7 @@ interface PickerOrderCardProps {
   isSelected: boolean;
   onClick: () => void;
   currentPickerName?: string;
+  pickProgress?: number; // 0-100 percentage of items picked
 }
 
 export function PickerOrderCard({
@@ -37,6 +38,7 @@ export function PickerOrderCard({
   isSelected,
   onClick,
   currentPickerName,
+  pickProgress,
 }: PickerOrderCardProps) {
   const deliveryDate = order.fnb_orders?.delivery_date
     ? new Date(order.fnb_orders.delivery_date)
@@ -74,13 +76,28 @@ export function PickerOrderCard({
   // Estimate pick time based on item count (1 min per item on average)
   const estimatedMinutes = Math.max(3, itemCount * 1);
 
+  // Get status-based border color
+  const getStatusBorder = () => {
+    if (order.status === 'in_progress') {
+      if (pickProgress !== undefined) {
+        if (pickProgress >= 100) return 'border-green-500';
+        if (pickProgress > 0) return 'border-orange-400';
+      }
+      return 'border-purple-400';
+    }
+    return 'border-border';
+  };
+
   return (
     <div
       className={cn(
         'p-4 rounded-xl border-2 cursor-pointer transition-all relative overflow-hidden',
         isSelected
           ? 'border-primary bg-primary/5 shadow-md'
-          : 'border-border hover:border-primary/50 hover:shadow-sm',
+          : cn(
+              'hover:border-primary/50 hover:shadow-sm',
+              getStatusBorder()
+            ),
         isUrgent && !isSelected && 'border-destructive/50 bg-destructive/5',
         isWarning && !isSelected && 'border-orange-400/50 bg-orange-50 dark:bg-orange-950/20',
         isClaimedByOther && 'opacity-60'
