@@ -1123,6 +1123,50 @@ export type Database = {
           },
         ]
       }
+      fnb_order_modifications: {
+        Row: {
+          created_at: string
+          id: string
+          modification_type: string
+          modified_by: string | null
+          modified_by_email: string | null
+          new_value: Json | null
+          notes: string | null
+          order_id: string | null
+          previous_value: Json | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          modification_type: string
+          modified_by?: string | null
+          modified_by_email?: string | null
+          new_value?: Json | null
+          notes?: string | null
+          order_id?: string | null
+          previous_value?: Json | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          modification_type?: string
+          modified_by?: string | null
+          modified_by_email?: string | null
+          new_value?: Json | null
+          notes?: string | null
+          order_id?: string | null
+          previous_value?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_order_modifications_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fnb_orders: {
         Row: {
           assigned_at: string | null

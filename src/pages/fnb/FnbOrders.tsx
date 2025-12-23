@@ -24,7 +24,8 @@ import {
   Truck,
   Target,
   Edit,
-  X
+  X,
+  PlusCircle
 } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Link, useNavigate } from 'react-router-dom';
@@ -39,6 +40,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { FnbOrderDayDialog } from '@/components/fnb/FnbOrderDayDialog';
+import { QuickAddItemDialog } from '@/components/fnb/QuickAddItemDialog';
 
 type CustomerType = 'regular' | 'supermarket' | 'cod' | 'credit';
 
@@ -114,6 +116,7 @@ export default function FnbOrders() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
+  const [quickAddOrder, setQuickAddOrder] = useState<{ id: string; orderNumber: string } | null>(null);
 
   const toggleOrderExpanded = (orderId: string) => {
     setExpandedOrders(prev => {
@@ -367,7 +370,21 @@ export default function FnbOrders() {
               )}
 
               {/* Actions */}
-              <div className="flex items-center gap-2 pt-2">
+              <div className="flex items-center gap-2 pt-2 flex-wrap">
+                {!['delivered', 'cancelled'].includes(order.status) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-7"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setQuickAddOrder({ id: order.id, orderNumber: order.order_number });
+                    }}
+                  >
+                    <PlusCircle className="h-3 w-3 mr-1" />
+                    Add Item
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
@@ -380,7 +397,7 @@ export default function FnbOrders() {
                   <Edit className="h-3 w-3 mr-1" />
                   Edit
                 </Button>
-                {order.status === 'pending' && (
+                {!['delivered', 'cancelled'].includes(order.status) && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -602,6 +619,16 @@ export default function FnbOrders() {
           open={!!selectedDay}
           onOpenChange={(open) => !open && setSelectedDay(null)}
         />
+
+        {/* Quick Add Item Dialog */}
+        {quickAddOrder && (
+          <QuickAddItemDialog
+            orderId={quickAddOrder.id}
+            orderNumber={quickAddOrder.orderNumber}
+            open={!!quickAddOrder}
+            onOpenChange={(open) => !open && setQuickAddOrder(null)}
+          />
+        )}
       </main>
     </div>
   );
