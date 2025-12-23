@@ -98,6 +98,10 @@ export default function FnbCustomers() {
       const headers = lines[0].split(',').map(h => h.trim());
       
       const parsed: CsvCustomer[] = [];
+      const timestamp = Date.now();
+      const seenPhones = new Set<string>();
+      let rowIndex = 0;
+      
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i];
         if (!line.trim()) continue;
@@ -141,13 +145,23 @@ export default function FnbCustomers() {
         if (row['Email']) notesParts.push(`Email: ${row['Email']}`);
         const notes = notesParts.join(' | ');
         
-        // Clean phone number
+        // Clean phone number and ensure uniqueness
         let phone = row['Phone']?.trim() || '';
         if (phone && !phone.startsWith('+')) {
           phone = phone.replace(/[^\d]/g, '');
           if (phone) phone = '+5999' + phone;
         }
-        if (!phone) phone = 'No phone';
+        
+        // Generate unique placeholder for empty phones
+        if (!phone) {
+          phone = `NO_PHONE_${timestamp}_${rowIndex}`;
+        }
+        
+        // Handle duplicate phones within CSV by making them unique
+        if (seenPhones.has(phone)) {
+          phone = `${phone}_dup${rowIndex}`;
+        }
+        seenPhones.add(phone);
         
         parsed.push({
           name,
@@ -155,6 +169,8 @@ export default function FnbCustomers() {
           address,
           notes
         });
+        
+        rowIndex++;
       }
       
       setCsvData(parsed);
@@ -176,8 +192,10 @@ export default function FnbCustomers() {
     setIsImporting(true);
     try {
       const existingNames = new Set(customers?.map(c => c.name.toLowerCase()) || []);
+      const existingPhones = new Set(customers?.map(c => c.whatsapp_phone) || []);
+      
       const toInsert = csvData
-        .filter(c => !existingNames.has(c.name.toLowerCase()))
+        .filter(c => !existingNames.has(c.name.toLowerCase()) && !existingPhones.has(c.whatsapp_phone))
         .map(c => ({
           name: c.name,
           whatsapp_phone: c.whatsapp_phone,
@@ -194,7 +212,12 @@ export default function FnbCustomers() {
       }
       
       const { error } = await supabase.from('fnb_customers').insert(toInsert);
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes('duplicate key')) {
+          throw new Error('A customer with this phone number already exists. Please check for duplicates.');
+        }
+        throw error;
+      }
       
       const skipped = csvData.length - toInsert.length;
       toast.success(`Imported ${toInsert.length} customers${skipped > 0 ? `, skipped ${skipped} duplicates` : ''}`);
