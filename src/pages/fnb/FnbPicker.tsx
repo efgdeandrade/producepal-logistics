@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, CheckCircle, Clock, User, Package, AlertTriangle, LogOut, Scale, Trophy } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Clock, User, Package, AlertTriangle, LogOut, Scale, Trophy, Edit, ChevronDown, ChevronUp } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,6 +18,8 @@ import { ShortageRequestDialog } from '@/components/fnb/ShortageRequestDialog';
 import { PickerLeaderboard } from '@/components/fnb/PickerLeaderboard';
 import { ShortageQuickButtons } from '@/components/fnb/ShortageQuickButtons';
 import { AssistanceButton } from '@/components/fnb/AssistanceButton';
+import { WeightAccuracyIndicator } from '@/components/fnb/WeightAccuracyIndicator';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 
 const SHORT_REASONS = [
@@ -53,6 +55,7 @@ export default function FnbPicker() {
     unit: string;
   } | null>(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showCompletedOrders, setShowCompletedOrders] = useState(false);
 
   // Handle session start
   const handleSessionStart = (name: string) => {
@@ -214,6 +217,38 @@ export default function FnbPicker() {
       }));
     },
     refetchInterval: 10000,
+  });
+
+  // Fetch today's completed orders for editing
+  const { data: completedOrders } = useQuery({
+    queryKey: ['fnb-completed-orders-today', pickerName],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
+      
+      const { data, error } = await supabase
+        .from('fnb_picker_queue')
+        .select(`
+          *,
+          fnb_orders(
+            id,
+            order_number,
+            total_xcg,
+            delivery_date,
+            notes,
+            status,
+            fnb_customers(name, whatsapp_phone, address, delivery_zone)
+          )
+        `)
+        .eq('status', 'completed')
+        .gte('completed_at', today)
+        .order('completed_at', { ascending: false })
+        .limit(10);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!pickerName,
+    refetchInterval: 30000,
   });
 
   // Group orders by zone
@@ -411,6 +446,7 @@ export default function FnbPicker() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fnb-picker-queue'] });
       queryClient.invalidateQueries({ queryKey: ['fnb-picker-leaderboard'] });
+      queryClient.invalidateQueries({ queryKey: ['fnb-completed-orders-today'] });
       setSelectedQueue(null);
       setPickedQuantities({});
       setShortReasons({});
@@ -419,6 +455,47 @@ export default function FnbPicker() {
     },
     onError: () => {
       toast.error('Failed to complete order');
+    },
+  });
+
+  // Reopen a completed order for editing
+  const reopenOrderMutation = useMutation({
+    mutationFn: async (queueId: string) => {
+      const completedOrder = completedOrders?.find((o: any) => o.id === queueId);
+      if (!completedOrder) throw new Error('Order not found');
+
+      // Update picker queue status back to in_progress
+      const { error: queueError } = await supabase
+        .from('fnb_picker_queue')
+        .update({
+          status: 'in_progress',
+          completed_at: null,
+          verified_weight_kg: null,
+          pick_start_time: new Date().toISOString(),
+          picker_name: pickerName,
+          claimed_by: user?.id,
+          claimed_at: new Date().toISOString(),
+        })
+        .eq('id', queueId);
+      if (queueError) throw queueError;
+
+      // Update order status back to picking
+      const { error: orderError } = await supabase
+        .from('fnb_orders')
+        .update({ status: 'picking' })
+        .eq('id', completedOrder.order_id);
+      if (orderError) throw orderError;
+
+      return queueId;
+    },
+    onSuccess: (queueId) => {
+      queryClient.invalidateQueries({ queryKey: ['fnb-picker-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['fnb-completed-orders-today'] });
+      setSelectedQueue(queueId);
+      toast.success('Order reopened for editing');
+    },
+    onError: () => {
+      toast.error('Failed to reopen order');
     },
   });
 
@@ -587,6 +664,82 @@ export default function FnbPicker() {
                   <p className="text-sm">New orders will appear here automatically</p>
                 </CardContent>
               </Card>
+            )}
+
+            {/* Completed Orders - Editable */}
+            {completedOrders && completedOrders.length > 0 && (
+              <Collapsible open={showCompletedOrders} onOpenChange={setShowCompletedOrders}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" className="w-full justify-between px-2 py-1 h-auto">
+                    <span className="flex items-center gap-2 text-sm font-medium">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      Recently Completed
+                      <Badge variant="secondary" className="text-xs">
+                        {completedOrders.length}
+                      </Badge>
+                    </span>
+                    {showCompletedOrders ? (
+                      <ChevronUp className="h-4 w-4" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4" />
+                    )}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2 space-y-2">
+                  {completedOrders.map((order: any) => {
+                    const completedTime = order.completed_at 
+                      ? new Date(order.completed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                      : '';
+                    const isEditable = order.fnb_orders?.status === 'ready'; // Can only edit if not yet delivered
+                    
+                    return (
+                      <Card 
+                        key={order.id} 
+                        className={cn(
+                          "border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/30",
+                          !isEditable && "opacity-60"
+                        )}
+                      >
+                        <CardContent className="p-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium text-sm">
+                                {order.fnb_orders?.order_number}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {order.fnb_orders?.fnb_customers?.name}
+                              </p>
+                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                                <Clock className="h-3 w-3" />
+                                Completed at {completedTime}
+                                {order.picker_name && (
+                                  <span className="ml-2">by {order.picker_name}</span>
+                                )}
+                              </p>
+                            </div>
+                            {isEditable ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => reopenOrderMutation.mutate(order.id)}
+                                disabled={reopenOrderMutation.isPending}
+                                className="gap-1"
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                                Edit
+                              </Button>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs">
+                                {order.fnb_orders?.status === 'delivered' ? 'Delivered' : order.fnb_orders?.status}
+                              </Badge>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </CollapsibleContent>
+              </Collapsible>
             )}
           </div>
 
@@ -838,6 +991,16 @@ export default function FnbPicker() {
                                     </span>
                                   )}
                                 </div>
+                                
+                                {/* Per-item Weight Accuracy Indicator - only for weight-based items */}
+                                {isWeightBased && pickedQty !== item.quantity && (
+                                  <WeightAccuracyIndicator
+                                    expectedWeight={item.quantity}
+                                    actualWeight={pickedQty}
+                                    unit={item.fnb_products?.weight_unit || 'kg'}
+                                    size="sm"
+                                  />
+                                )}
                               </div>
 
                               {/* Inline Shortage Quick Buttons - only show for short items not yet reported */}
