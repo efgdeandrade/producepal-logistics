@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Trash2, ShoppingCart, Save, Banknote, CreditCard, Building2, FileText, UserPlus, Truck, Store } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ShoppingCart, Save, Banknote, CreditCard, Building2, FileText, UserPlus, Truck, Store, Package } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -79,6 +79,16 @@ export default function FnbNewOrder() {
     delivery_zone: '',
     customer_type: 'regular' as 'regular' | 'supermarket' | 'cod' | 'credit',
     preferred_language: 'pap',
+  });
+
+  // New product dialog state
+  const [isNewProductDialogOpen, setIsNewProductDialogOpen] = useState(false);
+  const [pendingProductItemIndex, setPendingProductItemIndex] = useState<number | null>(null);
+  const [newProductForm, setNewProductForm] = useState({
+    code: '',
+    name: '',
+    unit: 'kg',
+    price_xcg: 0,
   });
 
   const { data: customers } = useQuery({
@@ -251,6 +261,54 @@ export default function FnbNewOrder() {
         preferred_language: 'pap',
       });
       toast.success(`Customer "${newCustomer.name}" created`);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  // Handle product selection including "add new" option
+  const handleProductChange = (index: number, value: string) => {
+    if (value === '__add_new__') {
+      setPendingProductItemIndex(index);
+      setIsNewProductDialogOpen(true);
+    } else {
+      updateItem(index, 'productId', value);
+    }
+  };
+
+  // Create new product mutation
+  const createProductMutation = useMutation({
+    mutationFn: async () => {
+      if (!newProductForm.code.trim()) throw new Error('Product code is required');
+      if (!newProductForm.name.trim()) throw new Error('Product name is required');
+      if (newProductForm.price_xcg <= 0) throw new Error('Price must be greater than 0');
+
+      const { data, error } = await supabase
+        .from('fnb_products')
+        .insert({
+          code: newProductForm.code.trim(),
+          name: newProductForm.name.trim(),
+          unit: newProductForm.unit,
+          price_xcg: newProductForm.price_xcg,
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (newProduct) => {
+      queryClient.invalidateQueries({ queryKey: ['fnb-products-active'] });
+      // Auto-select the new product in the pending order item
+      if (pendingProductItemIndex !== null) {
+        updateItem(pendingProductItemIndex, 'productId', newProduct.id);
+      }
+      setIsNewProductDialogOpen(false);
+      setPendingProductItemIndex(null);
+      setNewProductForm({ code: '', name: '', unit: 'kg', price_xcg: 0 });
+      toast.success(`Product "${newProduct.name}" created`);
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -588,12 +646,19 @@ export default function FnbNewOrder() {
                         <div className="flex-1">
                           <Select
                             value={item.productId}
-                            onValueChange={(v) => updateItem(index, 'productId', v)}
+                            onValueChange={(v) => handleProductChange(index, v)}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Select product" />
                             </SelectTrigger>
                             <SelectContent>
+                              <SelectItem value="__add_new__" className="text-primary font-medium">
+                                <span className="flex items-center gap-2">
+                                  <Package className="h-4 w-4" />
+                                  Add New Product
+                                </span>
+                              </SelectItem>
+                              <SelectSeparator />
                               {products?.map((p: any) => (
                                 <SelectItem key={p.id} value={p.id}>
                                   {p.name} ({p.code}) - {p.price_xcg} XCG/{p.unit}
@@ -788,6 +853,79 @@ export default function FnbNewOrder() {
               disabled={createCustomerMutation.isPending || !newCustomerForm.name.trim() || !newCustomerForm.whatsapp_phone.trim()}
             >
               {createCustomerMutation.isPending ? 'Creating...' : 'Create Customer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add New Product Dialog */}
+      <Dialog open={isNewProductDialogOpen} onOpenChange={setIsNewProductDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Add New Product
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Product Code *</Label>
+              <Input
+                value={newProductForm.code}
+                onChange={(e) => setNewProductForm({ ...newProductForm, code: e.target.value })}
+                placeholder="e.g., STB_500"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Product Name *</Label>
+              <Input
+                value={newProductForm.name}
+                onChange={(e) => setNewProductForm({ ...newProductForm, name: e.target.value })}
+                placeholder="e.g., Strawberries 500g"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Unit</Label>
+                <Select 
+                  value={newProductForm.unit} 
+                  onValueChange={(v) => setNewProductForm({ ...newProductForm, unit: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="kg">kg</SelectItem>
+                    <SelectItem value="piece">piece</SelectItem>
+                    <SelectItem value="box">box</SelectItem>
+                    <SelectItem value="tray">tray</SelectItem>
+                    <SelectItem value="gram">gram</SelectItem>
+                    <SelectItem value="bunch">bunch</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Price (XCG) *</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={newProductForm.price_xcg}
+                  onChange={(e) => setNewProductForm({ ...newProductForm, price_xcg: Number(e.target.value) })}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsNewProductDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => createProductMutation.mutate()}
+              disabled={createProductMutation.isPending || !newProductForm.code.trim() || !newProductForm.name.trim() || newProductForm.price_xcg <= 0}
+            >
+              {createProductMutation.isPending ? 'Creating...' : 'Create Product'}
             </Button>
           </DialogFooter>
         </DialogContent>
