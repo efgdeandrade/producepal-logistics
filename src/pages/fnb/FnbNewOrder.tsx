@@ -411,7 +411,13 @@ export default function FnbNewOrder() {
       queryClient.invalidateQueries({ queryKey: ['fnb-orders'] });
       queryClient.invalidateQueries({ queryKey: ['fnb-picker-queue'] });
       toast.success(`Order ${order.order_number} created and queued for picking${isPickup ? ' (Pickup)' : ''}`);
-      navigate('/fnb/orders');
+      
+      // Reset form for next order instead of navigating away
+      setCustomerId('');
+      setItems([{ productId: '', quantity: 1, unitPrice: 0, total: 0 }]);
+      setNotes('');
+      setPaymentMethod('cash');
+      setIsPickup(false);
     },
     onError: (error: Error) => {
       toast.error(error.message);
