@@ -16,10 +16,10 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  SelectSeparator,
 } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import {
   Dialog,
   DialogContent,
@@ -217,13 +217,9 @@ export default function FnbNewOrder() {
     setItems([...items, { productId: '', quantity: 1, unitPrice: 0, total: 0 }]);
   };
 
-  // Handle customer selection including "add new" option
+  // Handle customer selection
   const handleCustomerChange = (value: string) => {
-    if (value === '__add_new__') {
-      setIsNewCustomerDialogOpen(true);
-    } else {
-      setCustomerId(value);
-    }
+    setCustomerId(value);
   };
 
   // Create new customer mutation
@@ -267,14 +263,15 @@ export default function FnbNewOrder() {
     },
   });
 
-  // Handle product selection including "add new" option
+  // Handle product selection
   const handleProductChange = (index: number, value: string) => {
-    if (value === '__add_new__') {
-      setPendingProductItemIndex(index);
-      setIsNewProductDialogOpen(true);
-    } else {
-      updateItem(index, 'productId', value);
-    }
+    updateItem(index, 'productId', value);
+  };
+
+  // Handle add new product click
+  const handleAddNewProduct = (index: number) => {
+    setPendingProductItemIndex(index);
+    setIsNewProductDialogOpen(true);
   };
 
   // Create new product mutation
@@ -538,25 +535,20 @@ export default function FnbNewOrder() {
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Customer *</Label>
-                    <Select value={customerId} onValueChange={handleCustomerChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select customer" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__add_new__" className="text-primary font-medium">
-                          <span className="flex items-center gap-2">
-                            <UserPlus className="h-4 w-4" />
-                            Add New Customer
-                          </span>
-                        </SelectItem>
-                        <SelectSeparator />
-                        {customers?.map((c: any) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      options={customers?.map((c: any) => ({
+                        value: c.id,
+                        label: c.name,
+                        searchTerms: `${c.name} ${c.whatsapp_phone || ''} ${c.delivery_zone || ''} ${c.address || ''}`,
+                      })) || []}
+                      value={customerId}
+                      onValueChange={handleCustomerChange}
+                      placeholder="Select customer"
+                      emptyMessage="No customers found"
+                      addNewLabel="Add New Customer"
+                      onAddNew={() => setIsNewCustomerDialogOpen(true)}
+                      addNewIcon={<UserPlus className="mr-2 h-4 w-4" />}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>{isPickup ? 'Pickup Date' : 'Delivery Date'}</Label>
@@ -650,28 +642,20 @@ export default function FnbNewOrder() {
                         className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30"
                       >
                         <div className="flex-1">
-                          <Select
+                          <SearchableSelect
+                            options={products?.map((p: any) => ({
+                              value: p.id,
+                              label: `${p.name} (${p.code}) - ${p.price_xcg} XCG/${p.unit}`,
+                              searchTerms: `${p.name} ${p.code}`,
+                            })) || []}
                             value={item.productId}
                             onValueChange={(v) => handleProductChange(index, v)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select product" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__add_new__" className="text-primary font-medium">
-                                <span className="flex items-center gap-2">
-                                  <Package className="h-4 w-4" />
-                                  Add New Product
-                                </span>
-                              </SelectItem>
-                              <SelectSeparator />
-                              {products?.map((p: any) => (
-                                <SelectItem key={p.id} value={p.id}>
-                                  {p.name} ({p.code}) - {p.price_xcg} XCG/{p.unit}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            placeholder="Select product"
+                            emptyMessage="No products found"
+                            addNewLabel="Add New Product"
+                            onAddNew={() => handleAddNewProduct(index)}
+                            addNewIcon={<Package className="mr-2 h-4 w-4" />}
+                          />
                         </div>
                         <div className="w-24">
                           <Input
