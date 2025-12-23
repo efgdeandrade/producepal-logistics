@@ -1083,6 +1083,7 @@ export type Database = {
           driver_id: string | null
           driver_name: string | null
           id: string
+          is_pickup: boolean | null
           language_used: string | null
           notes: string | null
           order_date: string
@@ -1117,6 +1118,7 @@ export type Database = {
           driver_id?: string | null
           driver_name?: string | null
           id?: string
+          is_pickup?: boolean | null
           language_used?: string | null
           notes?: string | null
           order_date?: string
@@ -1151,6 +1153,7 @@ export type Database = {
           driver_id?: string | null
           driver_name?: string | null
           id?: string
+          is_pickup?: boolean | null
           language_used?: string | null
           notes?: string | null
           order_date?: string

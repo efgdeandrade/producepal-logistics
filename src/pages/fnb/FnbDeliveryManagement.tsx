@@ -33,6 +33,7 @@ export default function FnbDeliveryManagement() {
           fnb_order_items (id, quantity, product_id, fnb_products (name))
         `)
         .eq("status", "ready")
+        .neq("is_pickup", true)
         .order("delivery_date", { ascending: true });
       if (error) throw error;
       return data;
