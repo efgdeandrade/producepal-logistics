@@ -4,6 +4,7 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import fs from "fs";
 import { componentTagger } from "lovable-tagger";
+import { VitePWA } from "vite-plugin-pwa";
 
 const APP_VERSION = '1.0.0';
 const BUILD_TIMESTAMP = new Date().toISOString();
@@ -39,7 +40,52 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(), 
     mode === "development" && componentTagger(),
-    versionPlugin()
+    versionPlugin(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.png', 'logo.png'],
+      manifest: {
+        name: 'ProducePal Driver',
+        short_name: 'Driver',
+        description: 'Mobile Driver Portal for ProducePal Logistics',
+        theme_color: '#00b4d8',
+        background_color: '#1a1a2e',
+        display: 'standalone',
+        orientation: 'portrait',
+        scope: '/',
+        start_url: '/fnb/driver-mobile',
+        icons: [
+          {
+            src: '/icons/icon-192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any maskable'
+          },
+          {
+            src: '/icons/icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable'
+          }
+        ]
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/api\.mapbox\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'mapbox-cache',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 60 * 24 * 7 // 7 days
+              }
+            }
+          }
+        ]
+      }
+    })
   ].filter(Boolean),
   resolve: {
     alias: {
