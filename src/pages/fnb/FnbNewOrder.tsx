@@ -334,6 +334,11 @@ export default function FnbNewOrder() {
       newItems[index].total = newItems[index].unitPrice * value;
     }
 
+    // Recalculate total when price changes
+    if (field === 'unitPrice') {
+      newItems[index].total = value * newItems[index].quantity;
+    }
+
     setItems(newItems);
   };
 
@@ -657,7 +662,7 @@ export default function FnbNewOrder() {
                             addNewIcon={<Package className="mr-2 h-4 w-4" />}
                           />
                         </div>
-                        <div className="w-24">
+                        <div className="w-20">
                           <Input
                             type="number"
                             min="1"
@@ -666,6 +671,18 @@ export default function FnbNewOrder() {
                               updateItem(index, 'quantity', Number(e.target.value))
                             }
                             placeholder="Qty"
+                          />
+                        </div>
+                        <div className="w-24">
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.unitPrice}
+                            onChange={(e) =>
+                              updateItem(index, 'unitPrice', Number(e.target.value))
+                            }
+                            placeholder="Price"
                           />
                         </div>
                         <div className="w-28 text-right font-medium">
