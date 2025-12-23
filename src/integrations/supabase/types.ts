@@ -2638,6 +2638,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_initial_admin: { Args: never; Returns: undefined }
       generate_receipt_number: { Args: never; Returns: string }
       get_user_roles: {
         Args: { _user_id: string }
