@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle, Phone, MapPin, Package, Clock, Banknote, Camera, Store, Upload, CreditCard } from "lucide-react";
+import { ArrowLeft, CheckCircle, Phone, MapPin, Package, Clock, Banknote, Camera, Store, Upload, CreditCard, LayoutDashboard, Truck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import {
@@ -25,13 +25,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DriverAdminDashboard } from "@/components/driver/DriverAdminDashboard";
 
 type PaymentMethodType = "cash" | "swipe" | "transfer" | "credit";
 
 export default function FnbDriverPortal() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, hasRole, isAdmin } = useAuth();
+  const canSeeAdminDashboard = isAdmin() || hasRole("management");
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [codDialogOrder, setCodDialogOrder] = useState<any>(null);
   const [codAmount, setCodAmount] = useState<string>("");
@@ -242,20 +245,9 @@ export default function FnbDriverPortal() {
     }
   };
 
-  return (
-    <div className="container mx-auto p-4 space-y-6 max-w-lg">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/fnb")}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold">My Deliveries</h1>
-          <p className="text-muted-foreground">
-            {myOrders?.length || 0} orders to deliver
-          </p>
-        </div>
-      </div>
-
+  // Render the driver deliveries content (used in both tab and non-tab views)
+  const renderDriverDeliveries = () => (
+    <div className="space-y-6">
       {/* Today's COD Summary */}
       {todayCodTotal > 0 && (
         <Card className="bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
@@ -454,6 +446,210 @@ export default function FnbDriverPortal() {
           </CardContent>
         </Card>
       )}
+    </div>
+  );
+
+  // If admin/management, show tabs with dashboard + deliveries
+  if (canSeeAdminDashboard) {
+    return (
+      <div className="container mx-auto p-4 space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/fnb")}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold">Driver Portal</h1>
+            <p className="text-muted-foreground">Manage drivers and deliveries</p>
+          </div>
+        </div>
+
+        <Tabs defaultValue="dashboard" className="w-full">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="dashboard" className="flex items-center gap-2">
+              <LayoutDashboard className="h-4 w-4" />
+              Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="deliveries" className="flex items-center gap-2">
+              <Truck className="h-4 w-4" />
+              My Deliveries
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="dashboard" className="mt-6">
+            <DriverAdminDashboard />
+          </TabsContent>
+          
+          <TabsContent value="deliveries" className="mt-6 max-w-lg">
+            {renderDriverDeliveries()}
+          </TabsContent>
+        </Tabs>
+
+        {/* COD Collection Dialog */}
+        <Dialog open={!!codDialogOrder} onOpenChange={() => resetDialog()}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {codDialogOrder?.fnb_customers?.customer_type === 'supermarket' 
+                  ? 'Complete Supermarket Delivery' 
+                  : 'Record Payment & Delivery'}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="text-sm text-muted-foreground">
+                <p>Customer: <span className="font-medium text-foreground">{codDialogOrder?.fnb_customers?.name}</span></p>
+                <p>Order: <span className="font-medium text-foreground">{codDialogOrder?.order_number}</span></p>
+                <p>Order Total: <span className="font-medium text-foreground">{codDialogOrder?.total_xcg?.toFixed(2)} XCG</span></p>
+                {codDialogOrder?.fnb_customers?.customer_type && (
+                  <p>Type: <span className="font-medium text-foreground capitalize">{codDialogOrder.fnb_customers.customer_type}</span></p>
+                )}
+              </div>
+
+              {/* Payment Method */}
+              <div>
+                <Label className="mb-2 block">Payment Method</Label>
+                <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethodType)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="swipe">Card Swipe</SelectItem>
+                    <SelectItem value="transfer">Bank Transfer</SelectItem>
+                    <SelectItem value="credit">Credit (Invoice Later)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Amount - hide for credit */}
+              {paymentMethod !== "credit" && (
+                <div>
+                  <Label className="mb-2 block">Amount Collected (XCG)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={codAmount}
+                    onChange={(e) => setCodAmount(e.target.value)}
+                    placeholder="Enter amount collected"
+                    className="text-lg"
+                  />
+                </div>
+              )}
+
+              {/* Receipt Photo - Required for Supermarket */}
+              {codDialogOrder?.fnb_customers?.customer_type === 'supermarket' && (
+                <div>
+                  <Label className="mb-2 block">
+                    Signed Receipt Photo <span className="text-destructive">*</span>
+                  </Label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  {receiptPhoto ? (
+                    <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                      <span className="flex-1 text-sm truncate">{receiptPhoto.name}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        Change
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Camera className="h-4 w-4 mr-2" />
+                      Take Photo of Signed Receipt
+                    </Button>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Required: Photo of receipt signed by store representative
+                  </p>
+                </div>
+              )}
+
+              {/* Optional receipt for non-supermarket */}
+              {codDialogOrder?.fnb_customers?.customer_type !== 'supermarket' && (
+                <div>
+                  <Label className="mb-2 block">Receipt Photo (Optional)</Label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  {receiptPhoto ? (
+                    <div className="flex items-center gap-2 p-2 border rounded">
+                      <Camera className="h-4 w-4 text-green-600" />
+                      <span className="flex-1 text-sm truncate">{receiptPhoto.name}</span>
+                      <Button variant="ghost" size="sm" onClick={() => setReceiptPhoto(null)}>
+                        Remove
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Add Photo
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => resetDialog()}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleConfirmDelivery} 
+                disabled={markDeliveredMutation.isPending || uploadingReceipt}
+              >
+                {uploadingReceipt ? (
+                  <>Uploading...</>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Confirm Delivery
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
+
+  // Regular driver view (no tabs, just deliveries)
+  return (
+    <div className="container mx-auto p-4 space-y-6 max-w-lg">
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={() => navigate("/fnb")}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <div>
+          <h1 className="text-2xl font-bold">My Deliveries</h1>
+          <p className="text-muted-foreground">
+            {myOrders?.length || 0} orders to deliver
+          </p>
+        </div>
+      </div>
+
+      {renderDriverDeliveries()}
 
       {/* COD Collection Dialog */}
       <Dialog open={!!codDialogOrder} onOpenChange={() => resetDialog()}>
