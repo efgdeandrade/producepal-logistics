@@ -449,10 +449,38 @@ export default function FnbPicker() {
   const totalCount = orderItems?.length || 0;
   const progress = totalCount > 0 ? (pickedCount / totalCount) * 100 : 0;
 
-  // Calculate expected weight
+  // Calculate expected weight - use actual product weights when available
+  // For weight-based items, the picked quantity IS the weight
+  // For fixed items, use an average weight estimate (0.5kg per unit as fallback)
   const expectedWeight = orderItems?.reduce((sum: number, item: any) => {
-    return sum + (pickedQuantities[item.id] || 0) * 0.5;
+    const pickedQty = pickedQuantities[item.id] ?? item.quantity;
+    const isWeightBased = item.fnb_products?.is_weight_based || false;
+    
+    if (isWeightBased) {
+      // Weight-based: picked quantity is already in kg (or weight unit)
+      return sum + pickedQty;
+    } else {
+      // Fixed quantity: estimate 0.5kg per unit as fallback
+      return sum + pickedQty * 0.5;
+    }
   }, 0) || 0;
+
+  // Prepare order items for weight verification dialog
+  const weightVerificationItems = orderItems?.map((item: any) => {
+    const pickedQty = pickedQuantities[item.id] ?? item.quantity;
+    const isWeightBased = item.fnb_products?.is_weight_based || false;
+    
+    return {
+      id: item.id,
+      productName: item.fnb_products?.name || 'Unknown',
+      productCode: item.fnb_products?.code || '',
+      quantity: item.quantity,
+      pickedQuantity: pickedQty,
+      expectedWeight: isWeightBased ? pickedQty : pickedQty * 0.5,
+      isWeightBased,
+      weightUnit: item.fnb_products?.weight_unit || 'kg',
+    };
+  }) || [];
 
   // Show session modal if no picker name
   if (!pickerName) {
@@ -888,6 +916,7 @@ export default function FnbPicker() {
         open={showWeightDialog}
         onOpenChange={setShowWeightDialog}
         expectedWeight={expectedWeight}
+        orderItems={weightVerificationItems}
         onVerify={(weight) =>
           completeMutation.mutate({
             queueId: selectedQueue!,
