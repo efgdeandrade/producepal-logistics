@@ -14,12 +14,13 @@ import { User, Clock } from 'lucide-react';
 interface PickerSessionModalProps {
   open: boolean;
   onSessionStart: (pickerName: string) => void;
+  onClose?: () => void;
 }
 
 const RECENT_PICKERS_KEY = 'fnb_recent_pickers';
 const MAX_RECENT_PICKERS = 5;
 
-export function PickerSessionModal({ open, onSessionStart }: PickerSessionModalProps) {
+export function PickerSessionModal({ open, onSessionStart, onClose }: PickerSessionModalProps) {
   const [name, setName] = useState('');
   const [recentPickers, setRecentPickers] = useState<string[]>([]);
 
@@ -55,7 +56,11 @@ export function PickerSessionModal({ open, onSessionStart }: PickerSessionModalP
   };
 
   return (
-    <Dialog open={open} onOpenChange={() => {}}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      if (!isOpen && onClose) {
+        onClose();
+      }
+    }}>
       <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-2xl">
