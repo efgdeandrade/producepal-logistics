@@ -580,14 +580,50 @@ export default function FnbPicker() {
 
                   {/* Claim Button */}
                   {selectedQueueItem.status === 'queued' && (
-                    <Button
-                      className="w-full h-16 text-lg"
-                      onClick={() => claimMutation.mutate(selectedQueueItem.id)}
-                      disabled={claimMutation.isPending}
-                    >
-                      <User className="mr-2 h-5 w-5" />
-                      Claim This Order
-                    </Button>
+                    <>
+                      <Button
+                        className="w-full h-16 text-lg"
+                        onClick={() => claimMutation.mutate(selectedQueueItem.id)}
+                        disabled={claimMutation.isPending}
+                      >
+                        <User className="mr-2 h-5 w-5" />
+                        Claim This Order
+                      </Button>
+
+                      {/* Items Preview for unclaimed orders */}
+                      {orderItems && orderItems.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Package className="h-4 w-4 text-muted-foreground" />
+                            <h4 className="font-medium text-sm text-muted-foreground">
+                              Items Preview ({orderItems.length} items)
+                            </h4>
+                          </div>
+                          <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
+                            {orderItems.map((item: any) => (
+                              <div
+                                key={item.id}
+                                className="p-3 rounded-lg bg-muted/50 border border-border/50"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <p className="font-medium text-sm">{item.fnb_products?.name}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {item.fnb_products?.code}
+                                    </p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="font-bold text-sm">
+                                      {item.quantity} {item.fnb_products?.unit}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
 
                   {/* In progress by another picker */}
