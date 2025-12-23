@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Trash2, ShoppingCart, Save, Banknote, CreditCard, Building2, FileText } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ShoppingCart, Save, Banknote, CreditCard, Building2, FileText, UserPlus } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -16,9 +16,17 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectSeparator,
 } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 interface OrderItem {
   productId: string;
@@ -60,6 +68,17 @@ export default function FnbNewOrder() {
   const [items, setItems] = useState<OrderItem[]>([]);
   const [orderNumber, setOrderNumber] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  
+  // New customer dialog state
+  const [isNewCustomerDialogOpen, setIsNewCustomerDialogOpen] = useState(false);
+  const [newCustomerForm, setNewCustomerForm] = useState({
+    name: '',
+    whatsapp_phone: '',
+    address: '',
+    delivery_zone: '',
+    customer_type: 'regular' as 'regular' | 'supermarket' | 'cod' | 'credit',
+    preferred_language: 'pap',
+  });
 
   const { data: customers } = useQuery({
     queryKey: ['fnb-customers'],
@@ -67,6 +86,19 @@ export default function FnbNewOrder() {
       const { data, error } = await supabase
         .from('fnb_customers')
         .select('*')
+        .order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: deliveryZones } = useQuery({
+    queryKey: ['fnb-delivery-zones'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('fnb_delivery_zones')
+        .select('name')
+        .eq('is_active', true)
         .order('name');
       if (error) throw error;
       return data;
@@ -172,6 +204,56 @@ export default function FnbNewOrder() {
   const addItem = () => {
     setItems([...items, { productId: '', quantity: 1, unitPrice: 0, total: 0 }]);
   };
+
+  // Handle customer selection including "add new" option
+  const handleCustomerChange = (value: string) => {
+    if (value === '__add_new__') {
+      setIsNewCustomerDialogOpen(true);
+    } else {
+      setCustomerId(value);
+    }
+  };
+
+  // Create new customer mutation
+  const createCustomerMutation = useMutation({
+    mutationFn: async () => {
+      if (!newCustomerForm.name.trim()) throw new Error('Name is required');
+      if (!newCustomerForm.whatsapp_phone.trim()) throw new Error('WhatsApp phone is required');
+
+      const { data, error } = await supabase
+        .from('fnb_customers')
+        .insert({
+          name: newCustomerForm.name.trim(),
+          whatsapp_phone: newCustomerForm.whatsapp_phone.trim(),
+          address: newCustomerForm.address.trim() || null,
+          delivery_zone: newCustomerForm.delivery_zone || null,
+          customer_type: newCustomerForm.customer_type,
+          preferred_language: newCustomerForm.preferred_language,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (newCustomer) => {
+      queryClient.invalidateQueries({ queryKey: ['fnb-customers'] });
+      setCustomerId(newCustomer.id);
+      setIsNewCustomerDialogOpen(false);
+      setNewCustomerForm({
+        name: '',
+        whatsapp_phone: '',
+        address: '',
+        delivery_zone: '',
+        customer_type: 'regular',
+        preferred_language: 'pap',
+      });
+      toast.success(`Customer "${newCustomer.name}" created`);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
 
   const removeItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index));
@@ -388,11 +470,18 @@ export default function FnbNewOrder() {
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Customer *</Label>
-                    <Select value={customerId} onValueChange={setCustomerId}>
+                    <Select value={customerId} onValueChange={handleCustomerChange}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select customer" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="__add_new__" className="text-primary font-medium">
+                          <span className="flex items-center gap-2">
+                            <UserPlus className="h-4 w-4" />
+                            Add New Customer
+                          </span>
+                        </SelectItem>
+                        <SelectSeparator />
                         {customers?.map((c: any) => (
                           <SelectItem key={c.id} value={c.id}>
                             {c.name}
@@ -570,6 +659,109 @@ export default function FnbNewOrder() {
           </div>
         </div>
       </main>
+
+      {/* Add New Customer Dialog */}
+      <Dialog open={isNewCustomerDialogOpen} onOpenChange={setIsNewCustomerDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              Add New Customer
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Name *</Label>
+              <Input
+                value={newCustomerForm.name}
+                onChange={(e) => setNewCustomerForm({ ...newCustomerForm, name: e.target.value })}
+                placeholder="Customer name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>WhatsApp Phone *</Label>
+              <Input
+                value={newCustomerForm.whatsapp_phone}
+                onChange={(e) => setNewCustomerForm({ ...newCustomerForm, whatsapp_phone: e.target.value })}
+                placeholder="+5999..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Address</Label>
+              <Input
+                value={newCustomerForm.address}
+                onChange={(e) => setNewCustomerForm({ ...newCustomerForm, address: e.target.value })}
+                placeholder="Delivery address"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Delivery Zone</Label>
+                <Select 
+                  value={newCustomerForm.delivery_zone} 
+                  onValueChange={(v) => setNewCustomerForm({ ...newCustomerForm, delivery_zone: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select zone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {deliveryZones?.map((zone: any) => (
+                      <SelectItem key={zone.name} value={zone.name}>
+                        {zone.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Customer Type</Label>
+                <Select 
+                  value={newCustomerForm.customer_type} 
+                  onValueChange={(v) => setNewCustomerForm({ ...newCustomerForm, customer_type: v as any })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="regular">Regular</SelectItem>
+                    <SelectItem value="supermarket">Supermarket</SelectItem>
+                    <SelectItem value="cod">COD</SelectItem>
+                    <SelectItem value="credit">Credit</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Preferred Language</Label>
+              <Select 
+                value={newCustomerForm.preferred_language} 
+                onValueChange={(v) => setNewCustomerForm({ ...newCustomerForm, preferred_language: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pap">Papiamentu</SelectItem>
+                  <SelectItem value="nl">Dutch</SelectItem>
+                  <SelectItem value="en">English</SelectItem>
+                  <SelectItem value="es">Spanish</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsNewCustomerDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => createCustomerMutation.mutate()}
+              disabled={createCustomerMutation.isPending || !newCustomerForm.name.trim() || !newCustomerForm.whatsapp_phone.trim()}
+            >
+              {createCustomerMutation.isPending ? 'Creating...' : 'Create Customer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
