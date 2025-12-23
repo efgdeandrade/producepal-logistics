@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ArrowLeft, CheckCircle, Clock, User, Package, AlertTriangle, LogOut, Scale, Trophy } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,7 @@ const SESSION_KEY = 'fnb_picker_session';
 
 export default function FnbPicker() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   
   // Session state
@@ -445,7 +446,7 @@ export default function FnbPicker() {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <PickerSessionModal open={true} onSessionStart={handleSessionStart} />
+        <PickerSessionModal open={true} onSessionStart={handleSessionStart} onClose={() => navigate('/fnb/dashboard')} />
       </div>
     );
   }
