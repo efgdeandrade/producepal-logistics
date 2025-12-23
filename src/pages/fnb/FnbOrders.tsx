@@ -53,6 +53,7 @@ interface OrderWithDetails {
   receipt_photo_url: string | null;
   receipt_verified_at: string | null;
   quickbooks_invoice_id: string | null;
+  is_pickup: boolean | null;
   fnb_customers: {
     name: string;
     whatsapp_phone?: string;
@@ -146,6 +147,7 @@ export default function FnbOrders() {
           receipt_photo_url,
           receipt_verified_at,
           quickbooks_invoice_id,
+          is_pickup,
           fnb_customers (name, whatsapp_phone, delivery_zone, customer_type),
           fnb_order_items (id, quantity, picked_quantity, short_quantity, unit_price_xcg, fnb_products (name, code))
         `)
@@ -266,6 +268,11 @@ export default function FnbOrders() {
                     )}
                   </div>
                   <div className="flex items-center gap-2">
+                    {order.is_pickup && (
+                      <Badge variant="outline" className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300 border-amber-300">
+                        Pickup
+                      </Badge>
+                    )}
                     <Badge className={cn('text-xs', statusColors[order.status])}>
                       {order.status?.replace('_', ' ')}
                     </Badge>

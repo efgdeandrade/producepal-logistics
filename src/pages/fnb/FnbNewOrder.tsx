@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Trash2, ShoppingCart, Save, Banknote, CreditCard, Building2, FileText, UserPlus } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ShoppingCart, Save, Banknote, CreditCard, Building2, FileText, UserPlus, Truck, Store } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -68,6 +68,7 @@ export default function FnbNewOrder() {
   const [items, setItems] = useState<OrderItem[]>([]);
   const [orderNumber, setOrderNumber] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [isPickup, setIsPickup] = useState(false);
   
   // New customer dialog state
   const [isNewCustomerDialogOpen, setIsNewCustomerDialogOpen] = useState(false);
@@ -190,6 +191,7 @@ export default function FnbNewOrder() {
       setNotes(existingOrder.notes || '');
       setOrderNumber(existingOrder.order_number);
       setPaymentMethod((existingOrder.payment_method_used as PaymentMethod) || 'cash');
+      setIsPickup(existingOrder.is_pickup || false);
       
       const loadedItems: OrderItem[] = existingOrder.fnb_order_items?.map((item: any) => ({
         productId: item.product_id,
@@ -306,6 +308,7 @@ export default function FnbNewOrder() {
           payment_method: paymentMethod,
           payment_method_used: paymentMethod,
           cod_amount_due: paymentMethod === 'cash' ? orderTotal : null,
+          is_pickup: isPickup,
         })
         .select()
         .single();
@@ -349,7 +352,7 @@ export default function FnbNewOrder() {
     onSuccess: (order) => {
       queryClient.invalidateQueries({ queryKey: ['fnb-orders'] });
       queryClient.invalidateQueries({ queryKey: ['fnb-picker-queue'] });
-      toast.success(`Order ${order.order_number} created and queued for picking`);
+      toast.success(`Order ${order.order_number} created and queued for picking${isPickup ? ' (Pickup)' : ''}`);
       navigate('/fnb/orders');
     },
     onError: (error: Error) => {
@@ -376,6 +379,7 @@ export default function FnbNewOrder() {
           payment_method: paymentMethod,
           payment_method_used: paymentMethod,
           cod_amount_due: paymentMethod === 'cash' ? orderTotal : null,
+          is_pickup: isPickup,
         })
         .eq('id', orderId);
 
@@ -491,13 +495,39 @@ export default function FnbNewOrder() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Delivery Date</Label>
+                    <Label>{isPickup ? 'Pickup Date' : 'Delivery Date'}</Label>
                     <Input
                       type="date"
                       value={deliveryDate}
                       onChange={(e) => setDeliveryDate(e.target.value)}
                     />
                   </div>
+                </div>
+                
+                {/* Order Type Toggle */}
+                <div className="space-y-2">
+                  <Label>Order Type</Label>
+                  <ToggleGroup 
+                    type="single" 
+                    value={isPickup ? 'pickup' : 'delivery'} 
+                    onValueChange={(value) => value && setIsPickup(value === 'pickup')}
+                    className="justify-start"
+                  >
+                    <ToggleGroupItem 
+                      value="delivery"
+                      className="flex items-center gap-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                    >
+                      <Truck className="h-4 w-4" />
+                      <span>Delivery</span>
+                    </ToggleGroupItem>
+                    <ToggleGroupItem 
+                      value="pickup"
+                      className="flex items-center gap-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                    >
+                      <Store className="h-4 w-4" />
+                      <span>Pickup</span>
+                    </ToggleGroupItem>
+                  </ToggleGroup>
                 </div>
                 <div className="space-y-2">
                   <Label>Payment Method *</Label>
