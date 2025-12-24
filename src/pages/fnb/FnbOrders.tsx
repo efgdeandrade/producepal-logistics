@@ -25,7 +25,8 @@ import {
   Target,
   Edit,
   X,
-  PlusCircle
+  PlusCircle,
+  ClipboardList
 } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Link, useNavigate } from 'react-router-dom';
@@ -371,6 +372,20 @@ export default function FnbOrders() {
 
               {/* Actions */}
               <div className="flex items-center gap-2 pt-2 flex-wrap">
+                {['pending', 'confirmed', 'picking'].includes(order.status) && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="text-xs h-7"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/fnb/picker/${order.id}`);
+                    }}
+                  >
+                    <ClipboardList className="h-3 w-3 mr-1" />
+                    Go to Picking
+                  </Button>
+                )}
                 {!['delivered', 'cancelled'].includes(order.status) && (
                   <Button
                     variant="outline"

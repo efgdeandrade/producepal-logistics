@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, Pencil, X, Plus, AlertTriangle, History } from 'lucide-react';
+import { MessageSquare, Pencil, X, Plus, AlertTriangle, History, Target } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -106,6 +106,7 @@ export function FnbOrderDetailDialog({ order, open, onOpenChange }: FnbOrderDeta
   const canEditOrder = (status: string) => !['cancelled'].includes(status);
   const canCancelOrder = (status: string) => !['delivered', 'cancelled'].includes(status);
   const canQuickAdd = (status: string) => !['delivered', 'cancelled'].includes(status);
+  const canGoToPicking = (status: string) => ['pending', 'confirmed', 'picking'].includes(status);
   const hasWarning = (status: string) => Object.keys(statusWarnings).includes(status);
 
   const { data: orderItems } = useQuery({
@@ -318,6 +319,18 @@ export function FnbOrderDetailDialog({ order, open, onOpenChange }: FnbOrderDeta
 
             {/* Action Buttons */}
             <div className="flex gap-2 pt-4 border-t flex-wrap">
+              {canGoToPicking(order.status) && (
+                <Button
+                  variant="default"
+                  onClick={() => {
+                    onOpenChange(false);
+                    navigate(`/fnb/picker/${order.id}`);
+                  }}
+                >
+                  <Target className="h-4 w-4 mr-2" />
+                  Go to Picking
+                </Button>
+              )}
               {canQuickAdd(order.status) && (
                 <Button
                   variant="outline"
