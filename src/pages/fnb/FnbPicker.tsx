@@ -420,6 +420,56 @@ export default function FnbPicker() {
     },
   });
 
+  // Picker self-resolution of shortage - update picked quantity and resolve if fulfilled
+  const [editingShortageItem, setEditingShortageItem] = useState<string | null>(null);
+  
+  const resolveShortageByPickerMutation = useMutation({
+    mutationFn: async ({ itemId, newPickedQuantity }: {
+      itemId: string;
+      newPickedQuantity: number;
+    }) => {
+      const item = orderItems?.find((i: any) => i.id === itemId);
+      if (!item) throw new Error('Item not found');
+
+      const newShortQty = Math.max(0, item.quantity - newPickedQuantity);
+      const isFullyResolved = newShortQty === 0;
+      
+      const { error } = await supabase
+        .from('fnb_order_items')
+        .update({
+          picked_quantity: newPickedQuantity,
+          short_quantity: newShortQty,
+          shortage_status: isFullyResolved ? 'resolved' : 'reported',
+          ...(isFullyResolved && {
+            shortage_resolved_at: new Date().toISOString(),
+            shortage_resolved_by: user?.id,
+          }),
+        })
+        .eq('id', itemId);
+      if (error) throw error;
+      
+      return { isFullyResolved, newShortQty };
+    },
+    onSuccess: (result, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['fnb-picker-items'] });
+      queryClient.invalidateQueries({ queryKey: ['fnb-shortage-alerts'] });
+      setEditingShortageItem(null);
+      setPickedQuantities(prev => ({
+        ...prev,
+        [variables.itemId]: variables.newPickedQuantity,
+      }));
+      
+      if (result.isFullyResolved) {
+        toast.success('Shortage resolved - full quantity now picked! ✓');
+      } else {
+        toast.success(`Quantity updated - still short ${result.newShortQty}`);
+      }
+    },
+    onError: () => {
+      toast.error('Failed to update shortage');
+    },
+  });
+
   const completeMutation = useMutation({
     mutationFn: async ({ queueId, verifiedWeight }: { queueId: string; verifiedWeight: number }) => {
       const queueItem = queueItems?.find((q: any) => q.id === queueId);
@@ -940,10 +990,21 @@ export default function FnbPicker() {
                                   <p className="text-sm text-muted-foreground">
                                     {item.fnb_products?.code}
                                   </p>
-                                  {isReported && (
-                                    <Badge variant="outline" className="mt-1 text-blue-600 border-blue-400">
-                                      Shortage Reported
-                                    </Badge>
+                                  {isReported && editingShortageItem !== item.id && (
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <Badge variant="outline" className="text-blue-600 border-blue-400">
+                                        Shortage Reported
+                                      </Badge>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700"
+                                        onClick={() => setEditingShortageItem(item.id)}
+                                      >
+                                        <Edit className="h-3 w-3 mr-1" />
+                                        Edit
+                                      </Button>
+                                    </div>
                                   )}
                                   {isOverPicked && isWeightBased && (
                                     <Badge variant="outline" className="mt-1 text-blue-600 border-blue-400">
@@ -976,7 +1037,7 @@ export default function FnbPicker() {
                                         ),
                                       })
                                     }
-                                    disabled={isReported}
+                                    disabled={isReported && editingShortageItem !== item.id}
                                   >
                                     -
                                   </Button>
@@ -995,7 +1056,7 @@ export default function FnbPicker() {
                                       });
                                     }}
                                     className="w-24 h-12 text-center text-lg font-bold"
-                                    disabled={isReported}
+                                    disabled={isReported && editingShortageItem !== item.id}
                                   />
                                   <Button
                                     variant="outline"
@@ -1009,7 +1070,7 @@ export default function FnbPicker() {
                                           : Math.min(item.quantity, pickedQty + 1),
                                       })
                                     }
-                                    disabled={isReported}
+                                    disabled={isReported && editingShortageItem !== item.id}
                                   >
                                     +
                                   </Button>
@@ -1019,6 +1080,39 @@ export default function FnbPicker() {
                                     </span>
                                   )}
                                 </div>
+                                
+                                {/* Save button when editing a reported shortage */}
+                                {editingShortageItem === item.id && (
+                                  <div className="flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      className="h-12"
+                                      onClick={() => resolveShortageByPickerMutation.mutate({
+                                        itemId: item.id,
+                                        newPickedQuantity: pickedQty,
+                                      })}
+                                      disabled={resolveShortageByPickerMutation.isPending}
+                                    >
+                                      <CheckCircle className="h-4 w-4 mr-1" />
+                                      {pickedQty >= item.quantity ? 'Resolve' : 'Update'}
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-12"
+                                      onClick={() => {
+                                        setEditingShortageItem(null);
+                                        // Reset to original picked quantity
+                                        setPickedQuantities(prev => ({
+                                          ...prev,
+                                          [item.id]: item.picked_quantity ?? item.quantity,
+                                        }));
+                                      }}
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                )}
                                 
                                 {/* Per-item Weight Accuracy Indicator - only for weight-based items */}
                                 {isWeightBased && pickedQty !== item.quantity && (

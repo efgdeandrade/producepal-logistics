@@ -1062,6 +1062,9 @@ export type Database = {
           shortage_alerted_at: string | null
           shortage_approved_at: string | null
           shortage_approved_by: string | null
+          shortage_resolution_notes: string | null
+          shortage_resolved_at: string | null
+          shortage_resolved_by: string | null
           shortage_status: string | null
           total_xcg: number
           unit_price_xcg: number
@@ -1082,6 +1085,9 @@ export type Database = {
           shortage_alerted_at?: string | null
           shortage_approved_at?: string | null
           shortage_approved_by?: string | null
+          shortage_resolution_notes?: string | null
+          shortage_resolved_at?: string | null
+          shortage_resolved_by?: string | null
           shortage_status?: string | null
           total_xcg: number
           unit_price_xcg: number
@@ -1102,6 +1108,9 @@ export type Database = {
           shortage_alerted_at?: string | null
           shortage_approved_at?: string | null
           shortage_approved_by?: string | null
+          shortage_resolution_notes?: string | null
+          shortage_resolved_at?: string | null
+          shortage_resolved_by?: string | null
           shortage_status?: string | null
           total_xcg?: number
           unit_price_xcg?: number

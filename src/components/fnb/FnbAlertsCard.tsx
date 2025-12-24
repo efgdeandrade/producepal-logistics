@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { AlertTriangle, HelpCircle, Check, Clock, Package, Bell } from 'lucide-react';
+import { AlertTriangle, HelpCircle, Check, Clock, Package, Bell, CheckCircle, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,7 +19,7 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Fetch shortage alerts (non-blocking - just for visibility)
+  // Fetch active shortage alerts (pending/reported)
   const { data: shortageAlerts } = useQuery({
     queryKey: ['fnb-shortage-alerts'],
     queryFn: async () => {
@@ -32,16 +32,78 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
           short_reason,
           picked_at,
           shortage_alerted_at,
+          shortage_status,
           fnb_products(name, code),
           fnb_orders(order_number, fnb_customers(name))
         `)
         .gt('short_quantity', 0)
+        .eq('shortage_status', 'reported')
         .gte('picked_at', today)
         .order('picked_at', { ascending: false })
         .limit(10);
       
       if (error) throw error;
       return data || [];
+    },
+    refetchInterval: 15000,
+  });
+
+  // Fetch recently resolved shortages (today)
+  const { data: resolvedShortages } = useQuery({
+    queryKey: ['fnb-resolved-shortages'],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const { data, error } = await supabase
+        .from('fnb_order_items')
+        .select(`
+          id,
+          short_quantity,
+          short_reason,
+          shortage_resolved_at,
+          shortage_resolved_by,
+          picked_quantity,
+          quantity,
+          fnb_products(name, code),
+          fnb_orders(order_number, fnb_customers(name))
+        `)
+        .eq('shortage_status', 'resolved')
+        .gte('shortage_resolved_at', today)
+        .order('shortage_resolved_at', { ascending: false })
+        .limit(5);
+      
+      if (error) throw error;
+      
+      // Get picker names for resolved shortages
+      const resolverIds = data?.map(d => d.shortage_resolved_by).filter(Boolean) || [];
+      let pickerNames: Record<string, string> = {};
+      
+      if (resolverIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, email')
+          .in('id', resolverIds);
+        
+        profiles?.forEach(p => {
+          pickerNames[p.id] = p.full_name || p.email?.split('@')[0] || 'Unknown';
+        });
+        
+        // Also check picker_queue for picker_name
+        const { data: queues } = await supabase
+          .from('fnb_picker_queue')
+          .select('claimed_by, picker_name')
+          .in('claimed_by', resolverIds);
+        
+        queues?.forEach(q => {
+          if (q.picker_name && q.claimed_by) {
+            pickerNames[q.claimed_by] = q.picker_name;
+          }
+        });
+      }
+      
+      return (data || []).map(item => ({
+        ...item,
+        resolverName: item.shortage_resolved_by ? pickerNames[item.shortage_resolved_by] || 'Picker' : 'Picker',
+      }));
     },
     refetchInterval: 15000,
   });
@@ -137,7 +199,9 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
     },
   });
 
-  const totalAlerts = (shortageAlerts?.length || 0) + (assistanceRequests?.length || 0);
+  const activeShortages = shortageAlerts?.length || 0;
+  const resolvedCount = resolvedShortages?.length || 0;
+  const totalAlerts = activeShortages + (assistanceRequests?.length || 0);
 
   if (compact && totalAlerts === 0) return null;
 
@@ -221,12 +285,12 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
           </div>
         )}
 
-        {/* Shortage Alerts - Informational */}
+        {/* Active Shortage Alerts */}
         {shortageAlerts && shortageAlerts.length > 0 && (
           <div className="space-y-2">
             <h4 className="text-sm font-medium flex items-center gap-2 text-amber-600 dark:text-amber-400">
               <AlertTriangle className="h-4 w-4" />
-              Recent Shortages ({shortageAlerts.length})
+              Active Shortages ({shortageAlerts.length})
             </h4>
             <div className="space-y-1.5">
               {shortageAlerts.slice(0, compact ? 3 : 5).map((alert: any) => (
@@ -250,6 +314,51 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {getReasonLabel(alert.short_reason)}
                       </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Recently Resolved Shortages */}
+        {resolvedShortages && resolvedShortages.length > 0 && (
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium flex items-center gap-2 text-green-600 dark:text-green-400">
+              <CheckCircle className="h-4 w-4" />
+              Recently Resolved ({resolvedShortages.length})
+            </h4>
+            <div className="space-y-1.5">
+              {resolvedShortages.slice(0, compact ? 2 : 5).map((item: any) => (
+                <div
+                  key={item.id}
+                  className="p-2 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-sm"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">
+                        {item.fnb_products?.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Order: {item.fnb_orders?.order_number} • {item.fnb_orders?.fnb_customers?.name}
+                      </p>
+                      <div className="flex items-center gap-1 mt-1">
+                        <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-200">
+                          <User className="h-3 w-3 mr-1" />
+                          Resolved by {item.resolverName}
+                        </Badge>
+                        {item.shortage_resolved_at && (
+                          <span className="text-xs text-muted-foreground">
+                            • {format(new Date(item.shortage_resolved_at), 'h:mm a')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <Badge variant="outline" className="text-xs text-green-600 border-green-400">
+                        ✓ Resolved
+                      </Badge>
                     </div>
                   </div>
                 </div>
