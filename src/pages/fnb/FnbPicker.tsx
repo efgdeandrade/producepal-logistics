@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ArrowLeft, CheckCircle, Clock, User, Package, AlertTriangle, LogOut, Scale, Trophy, Edit, ChevronDown, ChevronUp } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
@@ -34,6 +34,7 @@ const SESSION_KEY = 'fnb_picker_session';
 export default function FnbPicker() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { orderId: urlOrderId } = useParams<{ orderId?: string }>();
   const queryClient = useQueryClient();
   
   // Session state
@@ -344,6 +345,33 @@ export default function FnbPicker() {
       queryClient.invalidateQueries({ queryKey: ['fnb-picker-queue'] });
     },
   });
+
+  // Auto-select order from URL parameter (after claimMutation is defined)
+  const [hasAutoSelected, setHasAutoSelected] = useState(false);
+  useEffect(() => {
+    if (urlOrderId && queueItems && pickerName && !hasAutoSelected) {
+      // Find the queue item for this order
+      const queueItem = queueItems.find((q: any) => q.order_id === urlOrderId);
+      
+      if (queueItem) {
+        setHasAutoSelected(true);
+        // If it's queued and not claimed, auto-claim it
+        if (queueItem.status === 'queued') {
+          claimMutation.mutate(queueItem.id);
+          setSelectedQueue(queueItem.id);
+          toast.success(`Auto-claimed order for ${queueItem.fnb_orders?.fnb_customers?.name || 'customer'}`);
+        } else if (queueItem.status === 'in_progress') {
+          // If already in progress, just select it
+          setSelectedQueue(queueItem.id);
+          toast.info(`Viewing order for ${queueItem.fnb_orders?.fnb_customers?.name || 'customer'}`);
+        }
+      } else if (queueItems.length > 0) {
+        // Queue loaded but order not found
+        setHasAutoSelected(true);
+        toast.error('Order not found in picker queue. It may need to be confirmed first.');
+      }
+    }
+  }, [urlOrderId, queueItems, pickerName, hasAutoSelected]);
 
   const shortageRequestMutation = useMutation({
     mutationFn: async ({ itemId, availableQuantity, reason, notes }: {
