@@ -13,7 +13,6 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { PickerSessionModal } from '@/components/fnb/PickerSessionModal';
 import { PickerQueueZone } from '@/components/fnb/PickerQueueZone';
-import { WeightVerificationDialog } from '@/components/fnb/WeightVerificationDialog';
 import { ShortageRequestDialog } from '@/components/fnb/ShortageRequestDialog';
 import { PickerLeaderboard } from '@/components/fnb/PickerLeaderboard';
 import { ShortageQuickButtons } from '@/components/fnb/ShortageQuickButtons';
@@ -47,7 +46,6 @@ export default function FnbPicker() {
   const [selectedQueue, setSelectedQueue] = useState<string | null>(null);
   const [pickedQuantities, setPickedQuantities] = useState<Record<string, number>>({});
   const [shortReasons, setShortReasons] = useState<Record<string, string>>({});
-  const [showWeightDialog, setShowWeightDialog] = useState(false);
   const [shortageItem, setShortageItem] = useState<{
     id: string;
     productName: string;
@@ -528,7 +526,6 @@ export default function FnbPicker() {
       setSelectedQueue(null);
       setPickedQuantities({});
       setShortReasons({});
-      setShowWeightDialog(false);
       toast.success('Order completed and ready for delivery! 🎉');
     },
     onError: () => {
@@ -619,23 +616,6 @@ export default function FnbPicker() {
       return sum + pickedQty * 0.5;
     }
   }, 0) || 0;
-
-  // Prepare order items for weight verification dialog
-  const weightVerificationItems = orderItems?.map((item: any) => {
-    const pickedQty = pickedQuantities[item.id] ?? item.quantity;
-    const isWeightBased = item.fnb_products?.is_weight_based || false;
-    
-    return {
-      id: item.id,
-      productName: item.fnb_products?.name || 'Unknown',
-      productCode: item.fnb_products?.code || '',
-      quantity: item.quantity,
-      pickedQuantity: pickedQty,
-      expectedWeight: isWeightBased ? pickedQty : pickedQty * 0.5,
-      isWeightBased,
-      weightUnit: item.fnb_products?.weight_unit || 'kg',
-    };
-  }) || [];
 
   // Show session modal if no picker name
   if (!pickerName) {
@@ -1020,73 +1000,135 @@ export default function FnbPicker() {
                                 </div>
                               </div>
 
-                              {/* Quantity Adjustment */}
-                              <div className="flex items-center gap-3 mt-3">
-                                <span className="text-sm font-medium w-16">Picked:</span>
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-12 w-12 text-lg touch-manipulation"
-                                    onClick={() =>
-                                      setPickedQuantities({
-                                        ...pickedQuantities,
-                                        [item.id]: Math.max(0, isWeightBased 
-                                          ? parseFloat((pickedQty - 0.1).toFixed(2))
-                                          : pickedQty - 1
-                                        ),
-                                      })
-                                    }
-                                    disabled={isReported && editingShortageItem !== item.id}
-                                  >
-                                    -
-                                  </Button>
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    max={isWeightBased ? undefined : item.quantity}
-                                    step={isWeightBased ? "0.01" : "1"}
-                                    value={pickedQty}
-                                    onChange={(e) => {
-                                      const value = parseFloat(e.target.value) || 0;
-                                      const maxValue = isWeightBased ? value : Math.min(item.quantity, value);
-                                      setPickedQuantities({
-                                        ...pickedQuantities,
-                                        [item.id]: Math.max(0, maxValue),
-                                      });
-                                    }}
-                                    className="w-24 h-12 text-center text-lg font-bold"
-                                    disabled={isReported && editingShortageItem !== item.id}
-                                  />
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-12 w-12 text-lg touch-manipulation"
-                                    onClick={() =>
-                                      setPickedQuantities({
-                                        ...pickedQuantities,
-                                        [item.id]: isWeightBased
-                                          ? parseFloat((pickedQty + 0.1).toFixed(2))
-                                          : Math.min(item.quantity, pickedQty + 1),
-                                      })
-                                    }
-                                    disabled={isReported && editingShortageItem !== item.id}
-                                  >
-                                    +
-                                  </Button>
-                                  {isWeightBased && (
-                                    <span className="text-sm text-muted-foreground ml-1">
-                                      {item.fnb_products?.weight_unit || 'kg'}
-                                    </span>
-                                  )}
-                                </div>
+                              {/* Quantity/Weight Input */}
+                              <div className="mt-3">
+                                {isWeightBased ? (
+                                  /* Weight-based items: Direct weight input */
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-3">
+                                      <Scale className="h-5 w-5 text-blue-500" />
+                                      <span className="text-sm font-medium">Actual Weight:</span>
+                                      <div className="flex items-center gap-2 flex-1">
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          placeholder="Enter weight"
+                                          value={pickedQty || ''}
+                                          onChange={(e) => {
+                                            const value = parseFloat(e.target.value) || 0;
+                                            setPickedQuantities({
+                                              ...pickedQuantities,
+                                              [item.id]: Math.max(0, value),
+                                            });
+                                          }}
+                                          className="w-32 h-12 text-center text-lg font-bold"
+                                          disabled={isReported && editingShortageItem !== item.id}
+                                        />
+                                        <span className="text-sm text-muted-foreground">
+                                          {item.fnb_products?.weight_unit || 'kg'}
+                                        </span>
+                                      </div>
+                                      
+                                      {/* Weight Accuracy Indicator */}
+                                      {pickedQty > 0 && (
+                                        <WeightAccuracyIndicator
+                                          expectedWeight={item.quantity}
+                                          actualWeight={pickedQty}
+                                          unit={item.fnb_products?.weight_unit || 'kg'}
+                                          size="sm"
+                                        />
+                                      )}
+                                    </div>
+                                    
+                                    {/* Weight status message */}
+                                    {pickedQty > 0 && (
+                                      <div className={cn(
+                                        "flex items-center gap-2 text-sm px-3 py-1.5 rounded-md",
+                                        pickedQty === item.quantity && "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300",
+                                        pickedQty > item.quantity && "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300",
+                                        pickedQty < item.quantity && "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
+                                      )}>
+                                        {pickedQty === item.quantity && (
+                                          <>
+                                            <CheckCircle className="h-4 w-4" />
+                                            Exact weight matched
+                                          </>
+                                        )}
+                                        {pickedQty > item.quantity && (
+                                          <>
+                                            <Scale className="h-4 w-4" />
+                                            Over by {(pickedQty - item.quantity).toFixed(2)} {item.fnb_products?.weight_unit || 'kg'}
+                                          </>
+                                        )}
+                                        {pickedQty < item.quantity && (
+                                          <>
+                                            <AlertTriangle className="h-4 w-4" />
+                                            Short by {(item.quantity - pickedQty).toFixed(2)} {item.fnb_products?.weight_unit || 'kg'}
+                                          </>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  /* Fixed quantity items: +/- buttons */
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-sm font-medium w-16">Picked:</span>
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-12 w-12 text-lg touch-manipulation"
+                                        onClick={() =>
+                                          setPickedQuantities({
+                                            ...pickedQuantities,
+                                            [item.id]: Math.max(0, pickedQty - 1),
+                                          })
+                                        }
+                                        disabled={isReported && editingShortageItem !== item.id}
+                                      >
+                                        -
+                                      </Button>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        max={item.quantity}
+                                        step="1"
+                                        value={pickedQty}
+                                        onChange={(e) => {
+                                          const value = parseInt(e.target.value) || 0;
+                                          setPickedQuantities({
+                                            ...pickedQuantities,
+                                            [item.id]: Math.max(0, Math.min(item.quantity, value)),
+                                          });
+                                        }}
+                                        className="w-24 h-12 text-center text-lg font-bold"
+                                        disabled={isReported && editingShortageItem !== item.id}
+                                      />
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-12 w-12 text-lg touch-manipulation"
+                                        onClick={() =>
+                                          setPickedQuantities({
+                                            ...pickedQuantities,
+                                            [item.id]: Math.min(item.quantity, pickedQty + 1),
+                                          })
+                                        }
+                                        disabled={isReported && editingShortageItem !== item.id}
+                                      >
+                                        +
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )}
                                 
                                 {/* Save button when editing a reported shortage */}
                                 {editingShortageItem === item.id && (
-                                  <div className="flex gap-2">
+                                  <div className="flex gap-2 mt-2">
                                     <Button
                                       size="sm"
-                                      className="h-12"
+                                      className="h-10"
                                       onClick={() => resolveShortageByPickerMutation.mutate({
                                         itemId: item.id,
                                         newPickedQuantity: pickedQty,
@@ -1099,10 +1141,9 @@ export default function FnbPicker() {
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      className="h-12"
+                                      className="h-10"
                                       onClick={() => {
                                         setEditingShortageItem(null);
-                                        // Reset to original picked quantity
                                         setPickedQuantities(prev => ({
                                           ...prev,
                                           [item.id]: item.picked_quantity ?? item.quantity,
@@ -1112,16 +1153,6 @@ export default function FnbPicker() {
                                       Cancel
                                     </Button>
                                   </div>
-                                )}
-                                
-                                {/* Per-item Weight Accuracy Indicator - only for weight-based items */}
-                                {isWeightBased && pickedQty !== item.quantity && (
-                                  <WeightAccuracyIndicator
-                                    expectedWeight={item.quantity}
-                                    actualWeight={pickedQty}
-                                    unit={item.fnb_products?.weight_unit || 'kg'}
-                                    size="sm"
-                                  />
                                 )}
                               </div>
 
@@ -1163,18 +1194,30 @@ export default function FnbPicker() {
                         disabled={completeMutation.isPending}
                       />
 
-                      {/* Complete Button */}
+                      {/* Complete Button - Direct completion, weight already captured per-item */}
                       <Button
                         className="w-full h-16 text-lg"
-                        onClick={() => setShowWeightDialog(true)}
+                        onClick={() => {
+                          // Calculate total weight from individual items
+                          const totalWeight = orderItems?.reduce((sum: number, item: any) => {
+                            const pickedQty = pickedQuantities[item.id] ?? item.quantity;
+                            const isWeightBased = item.fnb_products?.is_weight_based || false;
+                            return sum + (isWeightBased ? pickedQty : pickedQty * 0.5);
+                          }, 0) || 0;
+                          
+                          completeMutation.mutate({
+                            queueId: selectedQueue!,
+                            verifiedWeight: totalWeight,
+                          });
+                        }}
                         disabled={
                           !allItemsReviewed ||
                           hasUnreasonedShorts ||
                           completeMutation.isPending
                         }
                       >
-                        <Scale className="mr-2 h-5 w-5" />
-                        Verify Weight & Complete
+                        <CheckCircle className="mr-2 h-5 w-5" />
+                        Complete Order
                       </Button>
 
                       {hasUnreasonedShorts && (
@@ -1196,20 +1239,7 @@ export default function FnbPicker() {
         </div>
       </main>
 
-      {/* Weight Verification Dialog */}
-      <WeightVerificationDialog
-        open={showWeightDialog}
-        onOpenChange={setShowWeightDialog}
-        expectedWeight={expectedWeight}
-        orderItems={weightVerificationItems}
-        onVerify={(weight) =>
-          completeMutation.mutate({
-            queueId: selectedQueue!,
-            verifiedWeight: weight,
-          })
-        }
-        isLoading={completeMutation.isPending}
-      />
+      {/* Weight Verification Dialog - No longer used, kept for potential future use */}
 
       {/* Shortage Request Dialog */}
       <ShortageRequestDialog
