@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Pencil, Trash2, ArrowLeft, Search, MessageSquare, Route, Upload, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, ArrowLeft, Search, MessageSquare, Route, Upload, FileSpreadsheet, Loader2, MapPin, Wand2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -33,6 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Progress } from '@/components/ui/progress';
 
 type CustomerType = "regular" | "supermarket" | "cod" | "credit";
 
@@ -45,6 +46,8 @@ interface FnbCustomer {
   delivery_zone: string | null;
   customer_type: CustomerType;
   notes: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 const emptyCustomer: Omit<FnbCustomer, 'id'> = {
@@ -78,6 +81,14 @@ interface CsvCustomer {
   notes: string;
 }
 
+interface GeocodeResult {
+  latitude: number;
+  longitude: number;
+  matchedZone: string | null;
+  distance: number | null;
+  allZoneDistances: { name: string; distance: number; withinRadius: boolean }[];
+}
+
 export default function FnbCustomers() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
@@ -87,6 +98,10 @@ export default function FnbCustomers() {
   const [zoneFilter, setZoneFilter] = useState<string>('all');
   const [csvData, setCsvData] = useState<CsvCustomer[]>([]);
   const [isImporting, setIsImporting] = useState(false);
+  const [isDetectingZone, setIsDetectingZone] = useState(false);
+  const [detectedZoneInfo, setDetectedZoneInfo] = useState<GeocodeResult | null>(null);
+  const [isBulkAssigning, setIsBulkAssigning] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0, matched: 0, failed: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
@@ -327,6 +342,7 @@ export default function FnbCustomers() {
   const resetForm = () => {
     setFormData(emptyCustomer);
     setEditingCustomer(null);
+    setDetectedZoneInfo(null);
   };
 
   const handleEdit = (customer: FnbCustomer) => {
@@ -340,6 +356,7 @@ export default function FnbCustomers() {
       customer_type: customer.customer_type || 'regular',
       notes: customer.notes || '',
     });
+    setDetectedZoneInfo(null);
     setIsDialogOpen(true);
   };
 
@@ -350,6 +367,102 @@ export default function FnbCustomers() {
     } else {
       createMutation.mutate(formData);
     }
+  };
+
+  // Auto-detect zone from address using geocoding
+  const handleAutoDetectZone = async () => {
+    if (!formData.address) {
+      toast.error('Please enter an address first');
+      return;
+    }
+
+    setIsDetectingZone(true);
+    setDetectedZoneInfo(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('geocode-address', {
+        body: { 
+          address: formData.address,
+          customerId: editingCustomer?.id // Will save coordinates if editing
+        }
+      });
+
+      if (error) throw error;
+
+      const result = data as GeocodeResult;
+      setDetectedZoneInfo(result);
+
+      if (result.matchedZone) {
+        setFormData(prev => ({ ...prev, delivery_zone: result.matchedZone! }));
+        toast.success(`Zone detected: ${result.matchedZone} (${result.distance}m from center)`);
+      } else if (result.allZoneDistances?.length > 0) {
+        const closest = result.allZoneDistances[0];
+        toast.warning(`Address outside all zones. Closest: ${closest.name} (${closest.distance}m away)`);
+      } else {
+        toast.error('Could not determine zone');
+      }
+    } catch (error: any) {
+      console.error('Geocoding error:', error);
+      toast.error(error.message || 'Failed to detect zone');
+    } finally {
+      setIsDetectingZone(false);
+    }
+  };
+
+  // Bulk auto-assign zones for all customers with addresses but no zone
+  const handleBulkAutoAssign = async () => {
+    const eligibleCustomers = customers?.filter(c => c.address && !c.delivery_zone) || [];
+    
+    if (eligibleCustomers.length === 0) {
+      toast.info('No customers with addresses need zone assignment');
+      return;
+    }
+
+    setIsBulkAssigning(true);
+    setBulkProgress({ current: 0, total: eligibleCustomers.length, matched: 0, failed: 0 });
+
+    let matched = 0;
+    let failed = 0;
+
+    for (let i = 0; i < eligibleCustomers.length; i++) {
+      const customer = eligibleCustomers[i];
+      
+      try {
+        const { data, error } = await supabase.functions.invoke('geocode-address', {
+          body: { 
+            address: customer.address,
+            customerId: customer.id
+          }
+        });
+
+        if (error) throw error;
+
+        const result = data as GeocodeResult;
+        if (result.matchedZone) {
+          matched++;
+        } else {
+          failed++;
+        }
+      } catch (error) {
+        console.error(`Failed to geocode customer ${customer.name}:`, error);
+        failed++;
+      }
+
+      setBulkProgress({ 
+        current: i + 1, 
+        total: eligibleCustomers.length, 
+        matched, 
+        failed 
+      });
+
+      // Small delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+
+    setIsBulkAssigning(false);
+    queryClient.invalidateQueries({ queryKey: ['fnb-customers'] });
+    
+    toast.success(`Bulk assignment complete: ${matched} matched, ${failed} could not be matched`);
   };
 
   const filteredCustomers = customers?.filter((c) => {
@@ -386,6 +499,18 @@ export default function FnbCustomers() {
           <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
             <Upload className="mr-2 h-4 w-4" />
             Import CSV
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={handleBulkAutoAssign}
+            disabled={isBulkAssigning}
+          >
+            {isBulkAssigning ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Wand2 className="mr-2 h-4 w-4" />
+            )}
+            {isBulkAssigning ? `${bulkProgress.current}/${bulkProgress.total}` : 'Auto-Assign Zones'}
           </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
@@ -449,25 +574,56 @@ export default function FnbCustomers() {
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-2 col-span-2">
                     <Label htmlFor="delivery_zone">Delivery Zone</Label>
-                    <Select
-                      value={formData.delivery_zone || ''}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, delivery_zone: value || null })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select zone" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {allZones.map((zone) => (
-                          <SelectItem key={zone} value={zone}>
-                            {zone}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex gap-2">
+                      <Select
+                        value={formData.delivery_zone || ''}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, delivery_zone: value || null })
+                        }
+                      >
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Select zone" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {allZones.map((zone) => (
+                            <SelectItem key={zone} value={zone}>
+                              {zone}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={handleAutoDetectZone}
+                        disabled={isDetectingZone || !formData.address}
+                        title="Auto-detect zone from address"
+                      >
+                        {isDetectingZone ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <MapPin className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                    {detectedZoneInfo && (
+                      <div className="text-xs mt-1">
+                        {detectedZoneInfo.matchedZone ? (
+                          <span className="text-green-600">
+                            ✓ Detected: {detectedZoneInfo.matchedZone} ({detectedZoneInfo.distance}m from center)
+                          </span>
+                        ) : detectedZoneInfo.allZoneDistances?.length > 0 ? (
+                          <span className="text-amber-600">
+                            ⚠ Outside zones. Closest: {detectedZoneInfo.allZoneDistances[0].name} ({detectedZoneInfo.allZoneDistances[0].distance}m)
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">Could not determine zone</span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -580,6 +736,25 @@ export default function FnbCustomers() {
             </DialogContent>
           </Dialog>
         </div>
+
+        {/* Bulk Assignment Progress */}
+        {isBulkAssigning && (
+          <Card className="mb-6">
+            <CardContent className="pt-6">
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Processing customers...</span>
+                  <span>{bulkProgress.current} / {bulkProgress.total}</span>
+                </div>
+                <Progress value={(bulkProgress.current / bulkProgress.total) * 100} />
+                <div className="flex gap-4 text-sm text-muted-foreground">
+                  <span className="text-green-600">✓ Matched: {bulkProgress.matched}</span>
+                  <span className="text-amber-600">✗ Failed: {bulkProgress.failed}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
