@@ -9,18 +9,28 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { User, Clock } from 'lucide-react';
+import { User, Clock, CheckCircle, Package } from 'lucide-react';
 
 interface PickerSessionModalProps {
   open: boolean;
   onSessionStart: (pickerName: string) => void;
   onClose?: () => void;
+  previousPickerStats?: {
+    name: string;
+    ordersCompleted: number;
+    sessionDuration: string;
+  } | null;
 }
 
 const RECENT_PICKERS_KEY = 'fnb_recent_pickers';
-const MAX_RECENT_PICKERS = 5;
+const MAX_RECENT_PICKERS = 6;
 
-export function PickerSessionModal({ open, onSessionStart, onClose }: PickerSessionModalProps) {
+export function PickerSessionModal({ 
+  open, 
+  onSessionStart, 
+  onClose,
+  previousPickerStats 
+}: PickerSessionModalProps) {
   const [name, setName] = useState('');
   const [recentPickers, setRecentPickers] = useState<string[]>([]);
 
@@ -61,34 +71,57 @@ export function PickerSessionModal({ open, onSessionStart, onClose }: PickerSess
         onClose();
       }
     }}>
-      <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+      <DialogContent className="sm:max-w-lg" onPointerDownOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-2xl">
             <User className="h-6 w-6" />
-            Start Picking Session
+            {previousPickerStats ? 'Switch Picker' : 'Start Picking Session'}
           </DialogTitle>
           <DialogDescription>
-            Enter your name to begin picking orders. Your performance will be tracked on the leaderboard.
+            {previousPickerStats 
+              ? 'Select the next picker to continue working on orders.'
+              : 'Enter your name to begin picking orders. Your performance will be tracked on the leaderboard.'
+            }
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Recent Pickers */}
+          {/* Previous Session Summary */}
+          {previousPickerStats && (
+            <div className="bg-muted/50 rounded-lg p-4 border">
+              <div className="flex items-center gap-2 text-sm font-medium mb-2">
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                Previous Session: {previousPickerStats.name}
+              </div>
+              <div className="flex gap-4 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Package className="h-3.5 w-3.5" />
+                  {previousPickerStats.ordersCompleted} orders
+                </span>
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3.5 w-3.5" />
+                  {previousPickerStats.sessionDuration}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Quick Select - Prominent Grid */}
           {recentPickers.length > 0 && (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label className="text-sm text-muted-foreground flex items-center gap-1">
                 <Clock className="h-3 w-3" />
-                Quick Select
+                Quick Select - Tap Your Name
               </Label>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {recentPickers.map((picker) => (
                   <Button
                     key={picker}
                     variant="outline"
-                    size="lg"
-                    className="h-12 px-6 text-base"
+                    className="h-16 text-lg font-medium hover:bg-primary hover:text-primary-foreground transition-colors"
                     onClick={() => handleQuickSelect(picker)}
                   >
+                    <User className="h-5 w-5 mr-2 opacity-70" />
                     {picker}
                   </Button>
                 ))}
@@ -98,7 +131,9 @@ export function PickerSessionModal({ open, onSessionStart, onClose }: PickerSess
 
           {/* Manual Entry */}
           <div className="space-y-2">
-            <Label htmlFor="picker-name">Or enter your name</Label>
+            <Label htmlFor="picker-name" className="text-sm text-muted-foreground">
+              {recentPickers.length > 0 ? 'Or enter a new name' : 'Enter your name'}
+            </Label>
             <Input
               id="picker-name"
               value={name}

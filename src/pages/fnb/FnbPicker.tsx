@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, CheckCircle, Clock, User, Package, AlertTriangle, LogOut, Scale, Trophy, Edit, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Clock, User, Package, AlertTriangle, LogOut, Scale, Trophy, Edit, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,6 +29,8 @@ const SHORT_REASONS = [
 ];
 
 const SESSION_KEY = 'fnb_picker_session';
+const SESSION_START_KEY = 'fnb_picker_session_start';
+const SESSION_ORDERS_KEY = 'fnb_picker_session_orders';
 
 export default function FnbPicker() {
   const { user } = useAuth();
@@ -41,6 +43,20 @@ export default function FnbPicker() {
     const stored = sessionStorage.getItem(SESSION_KEY);
     return stored || null;
   });
+  const [sessionStartTime, setSessionStartTime] = useState<Date | null>(() => {
+    const stored = sessionStorage.getItem(SESSION_START_KEY);
+    return stored ? new Date(stored) : null;
+  });
+  const [sessionOrdersCompleted, setSessionOrdersCompleted] = useState<number>(() => {
+    const stored = sessionStorage.getItem(SESSION_ORDERS_KEY);
+    return stored ? parseInt(stored, 10) : 0;
+  });
+  const [showSwitchPicker, setShowSwitchPicker] = useState(false);
+  const [previousPickerStats, setPreviousPickerStats] = useState<{
+    name: string;
+    ordersCompleted: number;
+    sessionDuration: string;
+  } | null>(null);
   
   // UI state
   const [selectedQueue, setSelectedQueue] = useState<string | null>(null);
@@ -56,18 +72,55 @@ export default function FnbPicker() {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showCompletedOrders, setShowCompletedOrders] = useState(false);
 
+  // Calculate session duration
+  const getSessionDuration = () => {
+    if (!sessionStartTime) return '0m';
+    const now = new Date();
+    const diffMs = now.getTime() - sessionStartTime.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 60) return `${diffMins}m`;
+    const hours = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    return `${hours}h ${mins}m`;
+  };
+
   // Handle session start
   const handleSessionStart = (name: string) => {
+    const now = new Date();
     setPickerName(name);
+    setSessionStartTime(now);
+    setSessionOrdersCompleted(0);
     sessionStorage.setItem(SESSION_KEY, name);
+    sessionStorage.setItem(SESSION_START_KEY, now.toISOString());
+    sessionStorage.setItem(SESSION_ORDERS_KEY, '0');
+    setShowSwitchPicker(false);
+    setPreviousPickerStats(null);
     toast.success(`Welcome, ${name}!`);
+  };
+
+  // Handle switch picker
+  const handleSwitchPicker = () => {
+    if (pickerName && sessionStartTime) {
+      setPreviousPickerStats({
+        name: pickerName,
+        ordersCompleted: sessionOrdersCompleted,
+        sessionDuration: getSessionDuration(),
+      });
+    }
+    setShowSwitchPicker(true);
+    setSelectedQueue(null);
   };
 
   // Handle session end
   const handleSessionEnd = () => {
     setPickerName(null);
+    setSessionStartTime(null);
+    setSessionOrdersCompleted(0);
     sessionStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(SESSION_START_KEY);
+    sessionStorage.removeItem(SESSION_ORDERS_KEY);
     setSelectedQueue(null);
+    setPreviousPickerStats(null);
     toast.info('Session ended');
   };
 
@@ -523,6 +576,12 @@ export default function FnbPicker() {
       queryClient.invalidateQueries({ queryKey: ['fnb-picker-queue'] });
       queryClient.invalidateQueries({ queryKey: ['fnb-picker-leaderboard'] });
       queryClient.invalidateQueries({ queryKey: ['fnb-completed-orders-today'] });
+      
+      // Increment session orders count
+      const newCount = sessionOrdersCompleted + 1;
+      setSessionOrdersCompleted(newCount);
+      sessionStorage.setItem(SESSION_ORDERS_KEY, newCount.toString());
+      
       setSelectedQueue(null);
       setPickedQuantities({});
       setShortReasons({});
@@ -617,12 +676,24 @@ export default function FnbPicker() {
     }
   }, 0) || 0;
 
-  // Show session modal if no picker name
-  if (!pickerName) {
+  // Show session modal if no picker name or switching
+  if (!pickerName || showSwitchPicker) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <PickerSessionModal open={true} onSessionStart={handleSessionStart} onClose={() => navigate('/fnb')} />
+        <PickerSessionModal 
+          open={true} 
+          onSessionStart={handleSessionStart} 
+          onClose={() => {
+            if (showSwitchPicker) {
+              setShowSwitchPicker(false);
+              setPreviousPickerStats(null);
+            } else {
+              navigate('/fnb');
+            }
+          }}
+          previousPickerStats={previousPickerStats}
+        />
       </div>
     );
   }
@@ -631,20 +702,31 @@ export default function FnbPicker() {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container py-4 max-w-7xl">
-        {/* Header */}
-        <div className="flex items-center justify-between gap-4 mb-4">
+        {/* Header with Session Info */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" asChild>
               <Link to="/fnb">
                 <ArrowLeft className="h-4 w-4" />
               </Link>
             </Button>
-            <div>
+            <div className="flex-1">
               <h1 className="text-2xl font-bold tracking-tight">Picker Workstation</h1>
-              <p className="text-sm text-muted-foreground flex items-center gap-2">
-                <User className="h-3.5 w-3.5" />
-                {pickerName}
-              </p>
+              {/* Session Info Banner */}
+              <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground mt-1">
+                <span className="flex items-center gap-1.5 font-medium text-foreground">
+                  <User className="h-3.5 w-3.5" />
+                  {pickerName}
+                </span>
+                <span className="flex items-center gap-1 text-muted-foreground">
+                  <Clock className="h-3.5 w-3.5" />
+                  {getSessionDuration()}
+                </span>
+                <span className="flex items-center gap-1 text-muted-foreground">
+                  <CheckCircle className="h-3.5 w-3.5" />
+                  {sessionOrdersCompleted} orders
+                </span>
+              </div>
             </div>
           </div>
           
@@ -652,11 +734,20 @@ export default function FnbPicker() {
             <Button
               variant="outline"
               size="sm"
+              onClick={handleSwitchPicker}
+              className="text-primary border-primary/50 hover:bg-primary/10"
+            >
+              <RefreshCw className="h-4 w-4 mr-1.5" />
+              Switch Picker
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setShowLeaderboard(!showLeaderboard)}
               className={cn(showLeaderboard && 'bg-accent')}
             >
               <Trophy className="h-4 w-4 mr-1" />
-              Leaderboard
+              <span className="hidden sm:inline">Leaderboard</span>
             </Button>
             <Button
               variant="ghost"
@@ -665,7 +756,7 @@ export default function FnbPicker() {
               className="text-muted-foreground"
             >
               <LogOut className="h-4 w-4 mr-1" />
-              End Session
+              <span className="hidden sm:inline">End Session</span>
             </Button>
           </div>
         </div>
