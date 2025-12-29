@@ -46,6 +46,14 @@ interface FnbProduct {
   is_active: boolean;
   is_weight_based: boolean;
   weight_unit: string;
+  // Unit pricing
+  price_per_kg: number | null;
+  price_per_lb: number | null;
+  price_per_case: number | null;
+  price_per_piece: number | null;
+  items_per_case: number | null;
+  case_weight_kg: number | null;
+  product_description: string | null;
 }
 
 const emptyProduct: Omit<FnbProduct, 'id'> = {
@@ -60,6 +68,13 @@ const emptyProduct: Omit<FnbProduct, 'id'> = {
   is_active: true,
   is_weight_based: false,
   weight_unit: 'kg',
+  price_per_kg: null,
+  price_per_lb: null,
+  price_per_case: null,
+  price_per_piece: null,
+  items_per_case: null,
+  case_weight_kg: null,
+  product_description: null,
 };
 
 export default function FnbProducts() {
@@ -146,6 +161,13 @@ export default function FnbProducts() {
       is_active: product.is_active,
       is_weight_based: product.is_weight_based ?? false,
       weight_unit: product.weight_unit || 'kg',
+      price_per_kg: product.price_per_kg,
+      price_per_lb: product.price_per_lb,
+      price_per_case: product.price_per_case,
+      price_per_piece: product.price_per_piece,
+      items_per_case: product.items_per_case,
+      case_weight_kg: product.case_weight_kg,
+      product_description: product.product_description,
     });
     setIsDialogOpen(true);
   };
@@ -270,7 +292,7 @@ export default function FnbProducts() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="price_xcg">Price (XCG)</Label>
+                    <Label htmlFor="price_xcg">Default Price (XCG)</Label>
                     <Input
                       id="price_xcg"
                       type="number"
@@ -295,6 +317,112 @@ export default function FnbProducts() {
                           min_order_qty: parseFloat(e.target.value) || 1,
                         })
                       }
+                    />
+                  </div>
+                </div>
+
+                {/* Unit Pricing Section */}
+                <div className="p-3 border rounded-lg bg-muted/50 space-y-3">
+                  <p className="text-sm font-medium">Unit Pricing (optional)</p>
+                  <p className="text-xs text-muted-foreground">
+                    Set specific prices for different units. When ordering, the price will auto-update based on unit selection.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="price_per_kg" className="text-xs">Per Kg</Label>
+                      <Input
+                        id="price_per_kg"
+                        type="number"
+                        step="0.01"
+                        value={formData.price_per_kg ?? ''}
+                        onChange={(e) =>
+                          setFormData({ ...formData, price_per_kg: e.target.value ? parseFloat(e.target.value) : null })
+                        }
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="price_per_lb" className="text-xs">Per Lb</Label>
+                      <Input
+                        id="price_per_lb"
+                        type="number"
+                        step="0.01"
+                        value={formData.price_per_lb ?? ''}
+                        onChange={(e) =>
+                          setFormData({ ...formData, price_per_lb: e.target.value ? parseFloat(e.target.value) : null })
+                        }
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="price_per_case" className="text-xs">Per Case</Label>
+                      <Input
+                        id="price_per_case"
+                        type="number"
+                        step="0.01"
+                        value={formData.price_per_case ?? ''}
+                        onChange={(e) =>
+                          setFormData({ ...formData, price_per_case: e.target.value ? parseFloat(e.target.value) : null })
+                        }
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="price_per_piece" className="text-xs">Per Piece</Label>
+                      <Input
+                        id="price_per_piece"
+                        type="number"
+                        step="0.01"
+                        value={formData.price_per_piece ?? ''}
+                        onChange={(e) =>
+                          setFormData({ ...formData, price_per_piece: e.target.value ? parseFloat(e.target.value) : null })
+                        }
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Case Information Section */}
+                <div className="p-3 border rounded-lg bg-muted/50 space-y-3">
+                  <p className="text-sm font-medium">Case Information (optional)</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="items_per_case" className="text-xs">Items per Case</Label>
+                      <Input
+                        id="items_per_case"
+                        type="number"
+                        step="1"
+                        value={formData.items_per_case ?? ''}
+                        onChange={(e) =>
+                          setFormData({ ...formData, items_per_case: e.target.value ? parseInt(e.target.value) : null })
+                        }
+                        placeholder="e.g., 12"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="case_weight_kg" className="text-xs">Case Weight (kg)</Label>
+                      <Input
+                        id="case_weight_kg"
+                        type="number"
+                        step="0.01"
+                        value={formData.case_weight_kg ?? ''}
+                        onChange={(e) =>
+                          setFormData({ ...formData, case_weight_kg: e.target.value ? parseFloat(e.target.value) : null })
+                        }
+                        placeholder="e.g., 6.5"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="product_description" className="text-xs">Product Description</Label>
+                    <Input
+                      id="product_description"
+                      value={formData.product_description ?? ''}
+                      onChange={(e) =>
+                        setFormData({ ...formData, product_description: e.target.value || null })
+                      }
+                      placeholder="Additional product details..."
                     />
                   </div>
                 </div>

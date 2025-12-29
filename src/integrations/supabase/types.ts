@@ -1353,51 +1353,72 @@ export type Database = {
       }
       fnb_products: {
         Row: {
+          case_weight_kg: number | null
           code: string
           created_at: string | null
           id: string
           is_active: boolean | null
           is_weight_based: boolean | null
+          items_per_case: number | null
           min_order_qty: number | null
           name: string
           name_es: string | null
           name_nl: string | null
           name_pap: string | null
+          price_per_case: number | null
+          price_per_kg: number | null
+          price_per_lb: number | null
+          price_per_piece: number | null
           price_xcg: number
+          product_description: string | null
           quickbooks_item_id: string | null
           unit: string
           updated_at: string | null
           weight_unit: string | null
         }
         Insert: {
+          case_weight_kg?: number | null
           code: string
           created_at?: string | null
           id?: string
           is_active?: boolean | null
           is_weight_based?: boolean | null
+          items_per_case?: number | null
           min_order_qty?: number | null
           name: string
           name_es?: string | null
           name_nl?: string | null
           name_pap?: string | null
+          price_per_case?: number | null
+          price_per_kg?: number | null
+          price_per_lb?: number | null
+          price_per_piece?: number | null
           price_xcg: number
+          product_description?: string | null
           quickbooks_item_id?: string | null
           unit: string
           updated_at?: string | null
           weight_unit?: string | null
         }
         Update: {
+          case_weight_kg?: number | null
           code?: string
           created_at?: string | null
           id?: string
           is_active?: boolean | null
           is_weight_based?: boolean | null
+          items_per_case?: number | null
           min_order_qty?: number | null
           name?: string
           name_es?: string | null
           name_nl?: string | null
           name_pap?: string | null
+          price_per_case?: number | null
+          price_per_kg?: number | null
+          price_per_lb?: number | null
+          price_per_piece?: number | null
           price_xcg?: number
+          product_description?: string | null
           quickbooks_item_id?: string | null
           unit?: string
           updated_at?: string | null
