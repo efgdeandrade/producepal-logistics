@@ -25,6 +25,7 @@ import { PickerLeaderboard } from '@/components/fnb/PickerLeaderboard';
 import { ShortageQuickButtons } from '@/components/fnb/ShortageQuickButtons';
 import { AssistanceButton } from '@/components/fnb/AssistanceButton';
 import { WeightAccuracyIndicator } from '@/components/fnb/WeightAccuracyIndicator';
+import { ItemsOverviewTable } from '@/components/fnb/ItemsOverviewTable';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 
@@ -316,6 +317,30 @@ const PICKER_UNITS = [
       return data || [];
     },
     enabled: !!pickerName,
+    refetchInterval: 30000,
+  });
+
+  // Fetch all order items for the items overview table
+  const { data: allQueueOrderItems, isLoading: isLoadingAllItems } = useQuery({
+    queryKey: ['fnb-picker-all-items', queueItems?.map((q: any) => q.order_id).join(',')],
+    queryFn: async () => {
+      if (!queueItems || queueItems.length === 0) return [];
+      
+      const orderIds = queueItems.map((q: any) => q.order_id).filter(Boolean);
+      if (orderIds.length === 0) return [];
+
+      const { data, error } = await supabase
+        .from('fnb_order_items')
+        .select(`
+          *,
+          fnb_products(id, code, name, unit)
+        `)
+        .in('order_id', orderIds);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!queueItems && queueItems.length > 0,
     refetchInterval: 30000,
   });
 
@@ -800,7 +825,14 @@ const PICKER_UNITS = [
           </Card>
         )}
 
-        <div className="grid lg:grid-cols-2 gap-4">
+        {/* Items Overview Table */}
+        <ItemsOverviewTable
+          queueItems={queueItems || []}
+          allOrderItems={allQueueOrderItems || []}
+          isLoading={isLoadingAllItems}
+        />
+
+        <div className="grid lg:grid-cols-2 gap-4 mt-4">
           {/* Order Queue - Zone Based */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
