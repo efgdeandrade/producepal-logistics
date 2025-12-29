@@ -65,7 +65,7 @@ export default function FnbNewOrder() {
     format(new Date(), 'yyyy-MM-dd')
   );
   const [notes, setNotes] = useState('');
-  const [items, setItems] = useState<OrderItem[]>([]);
+  const [items, setItems] = useState<OrderItem[]>([{ productId: '', quantity: 1, unitPrice: 0, total: 0 }]);
   const [orderNumber, setOrderNumber] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [isPickup, setIsPickup] = useState(false);
@@ -327,6 +327,11 @@ export default function FnbNewOrder() {
         newItems[index].unitPrice = product.price_xcg;
         newItems[index].total = product.price_xcg * newItems[index].quantity;
       }
+      
+      // Auto-add new blank row when selecting product on last item
+      if (value && index === newItems.length - 1) {
+        newItems.push({ productId: '', quantity: 1, unitPrice: 0, total: 0 });
+      }
     }
 
     // Recalculate total when quantity changes
@@ -346,11 +351,11 @@ export default function FnbNewOrder() {
 
   const createOrderMutation = useMutation({
     mutationFn: async () => {
+      // Filter out empty items before validation
+      const validItems = items.filter(item => item.productId);
+      
       if (!customerId) throw new Error('Please select a customer');
-      if (items.length === 0) throw new Error('Please add at least one item');
-      if (items.some((i) => !i.productId))
-        throw new Error('Please select products for all items');
-
+      if (validItems.length === 0) throw new Error('Please add at least one item');
       // Generate order number
       const newOrderNumber = `FNB-${Date.now()}`;
 
@@ -375,8 +380,8 @@ export default function FnbNewOrder() {
 
       if (orderError) throw orderError;
 
-      // Create order items
-      const orderItems = items.map((item) => ({
+      // Create order items (use validItems to exclude empty rows)
+      const orderItems = validItems.map((item) => ({
         order_id: order.id,
         product_id: item.productId,
         quantity: item.quantity,
@@ -428,12 +433,12 @@ export default function FnbNewOrder() {
 
   const updateOrderMutation = useMutation({
     mutationFn: async () => {
+      // Filter out empty items before validation
+      const validItems = items.filter(item => item.productId);
+      
       if (!orderId) throw new Error('No order ID');
       if (!customerId) throw new Error('Please select a customer');
-      if (items.length === 0) throw new Error('Please add at least one item');
-      if (items.some((i) => !i.productId))
-        throw new Error('Please select products for all items');
-
+      if (validItems.length === 0) throw new Error('Please add at least one item');
       // Update order
       const { error: orderError } = await supabase
         .from('fnb_orders')
@@ -459,8 +464,8 @@ export default function FnbNewOrder() {
 
       if (deleteError) throw deleteError;
 
-      // Insert new items
-      const orderItems = items.map((item) => ({
+      // Insert new items (use validItems to exclude empty rows)
+      const orderItems = validItems.map((item) => ({
         order_id: orderId,
         product_id: item.productId,
         quantity: item.quantity,
