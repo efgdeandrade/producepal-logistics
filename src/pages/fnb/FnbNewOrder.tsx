@@ -31,9 +31,18 @@ import {
 interface OrderItem {
   productId: string;
   quantity: number;
+  unit: string;
   unitPrice: number;
   total: number;
 }
+
+const UNITS = [
+  { value: 'pcs', label: 'Pieces' },
+  { value: 'kg', label: 'Kg' },
+  { value: 'lb', label: 'Lb' },
+  { value: 'oz', label: 'Oz' },
+  { value: 'case', label: 'Case' },
+];
 
 type PaymentMethod = 'cash' | 'swipe' | 'transfer' | 'credit';
 
@@ -65,7 +74,7 @@ export default function FnbNewOrder() {
     format(new Date(), 'yyyy-MM-dd')
   );
   const [notes, setNotes] = useState('');
-  const [items, setItems] = useState<OrderItem[]>([{ productId: '', quantity: 1, unitPrice: 0, total: 0 }]);
+  const [items, setItems] = useState<OrderItem[]>([{ productId: '', quantity: 1, unit: 'pcs', unitPrice: 0, total: 0 }]);
   const [orderNumber, setOrderNumber] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [isPickup, setIsPickup] = useState(false);
@@ -206,15 +215,18 @@ export default function FnbNewOrder() {
       const loadedItems: OrderItem[] = existingOrder.fnb_order_items?.map((item: any) => ({
         productId: item.product_id,
         quantity: item.quantity,
+        unit: item.order_unit || item.fnb_products?.unit || 'pcs',
         unitPrice: item.unit_price_xcg,
         total: item.total_xcg,
       })) || [];
+      // Ensure there's always a blank row for adding more items
+      loadedItems.push({ productId: '', quantity: 1, unit: 'pcs', unitPrice: 0, total: 0 });
       setItems(loadedItems);
     }
   }, [existingOrder]);
 
   const addItem = () => {
-    setItems([...items, { productId: '', quantity: 1, unitPrice: 0, total: 0 }]);
+    setItems([...items, { productId: '', quantity: 1, unit: 'pcs', unitPrice: 0, total: 0 }]);
   };
 
   // Handle customer selection
@@ -320,17 +332,18 @@ export default function FnbNewOrder() {
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
 
-    // Auto-fill price when product selected
+    // Auto-fill price and unit when product selected
     if (field === 'productId') {
       const product = products?.find((p: any) => p.id === value);
       if (product) {
         newItems[index].unitPrice = product.price_xcg;
+        newItems[index].unit = product.unit || 'pcs';
         newItems[index].total = product.price_xcg * newItems[index].quantity;
       }
       
       // Auto-add new blank row when selecting product on last item
       if (value && index === newItems.length - 1) {
-        newItems.push({ productId: '', quantity: 1, unitPrice: 0, total: 0 });
+        newItems.push({ productId: '', quantity: 1, unit: 'pcs', unitPrice: 0, total: 0 });
       }
     }
 
@@ -387,6 +400,7 @@ export default function FnbNewOrder() {
         quantity: item.quantity,
         unit_price_xcg: item.unitPrice,
         total_xcg: item.total,
+        order_unit: item.unit,
       }));
 
       const { error: itemsError } = await supabase
@@ -421,7 +435,7 @@ export default function FnbNewOrder() {
       
       // Reset form for next order instead of navigating away
       setCustomerId('');
-      setItems([{ productId: '', quantity: 1, unitPrice: 0, total: 0 }]);
+      setItems([{ productId: '', quantity: 1, unit: 'pcs', unitPrice: 0, total: 0 }]);
       setNotes('');
       setPaymentMethod('cash');
       setIsPickup(false);
@@ -471,6 +485,7 @@ export default function FnbNewOrder() {
         quantity: item.quantity,
         unit_price_xcg: item.unitPrice,
         total_xcg: item.total,
+        order_unit: item.unit,
       }));
 
       const { error: itemsError } = await supabase
@@ -670,13 +685,31 @@ export default function FnbNewOrder() {
                         <div className="w-20">
                           <Input
                             type="number"
-                            min="1"
+                            min="0.01"
+                            step="0.01"
                             value={item.quantity}
                             onChange={(e) =>
                               updateItem(index, 'quantity', Number(e.target.value))
                             }
                             placeholder="Qty"
                           />
+                        </div>
+                        <div className="w-20">
+                          <Select
+                            value={item.unit}
+                            onValueChange={(v) => updateItem(index, 'unit', v)}
+                          >
+                            <SelectTrigger className="h-10">
+                              <SelectValue placeholder="Unit" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {UNITS.map((u) => (
+                                <SelectItem key={u.value} value={u.value}>
+                                  {u.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div className="w-24">
                           <Input

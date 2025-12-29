@@ -9,6 +9,13 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { PickerSessionModal } from '@/components/fnb/PickerSessionModal';
@@ -61,6 +68,7 @@ export default function FnbPicker() {
   // UI state
   const [selectedQueue, setSelectedQueue] = useState<string | null>(null);
   const [pickedQuantities, setPickedQuantities] = useState<Record<string, number>>({});
+  const [pickedUnits, setPickedUnits] = useState<Record<string, string>>({});
   const [shortReasons, setShortReasons] = useState<Record<string, string>>({});
   const [shortageItem, setShortageItem] = useState<{
     id: string;
@@ -71,6 +79,14 @@ export default function FnbPicker() {
   } | null>(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showCompletedOrders, setShowCompletedOrders] = useState(false);
+
+const PICKER_UNITS = [
+  { value: 'pcs', label: 'Pcs' },
+  { value: 'kg', label: 'Kg' },
+  { value: 'lb', label: 'Lb' },
+  { value: 'oz', label: 'Oz' },
+  { value: 'case', label: 'Case' },
+];
 
   // Calculate session duration
   const getSessionDuration = () => {
@@ -347,18 +363,21 @@ export default function FnbPicker() {
     enabled: !!selectedQueue,
   });
 
-  // Initialize picked quantities when order items load
+  // Initialize picked quantities and units when order items load
   useEffect(() => {
     if (orderItems) {
       const initialQuantities: Record<string, number> = {};
+      const initialUnits: Record<string, string> = {};
       const initialReasons: Record<string, string> = {};
       orderItems.forEach((item: any) => {
         initialQuantities[item.id] = item.picked_quantity ?? item.quantity;
+        initialUnits[item.id] = item.picked_unit || item.order_unit || item.fnb_products?.unit || 'pcs';
         if (item.short_reason) {
           initialReasons[item.id] = item.short_reason;
         }
       });
       setPickedQuantities(initialQuantities);
+      setPickedUnits(initialUnits);
       setShortReasons(initialReasons);
     }
   }, [orderItems]);
@@ -526,10 +545,11 @@ export default function FnbPicker() {
       const queueItem = queueItems?.find((q: any) => q.id === queueId);
       if (!queueItem) throw new Error('Queue item not found');
 
-      // Update all items with current picked quantities
+      // Update all items with current picked quantities and units
       if (orderItems) {
         for (const item of orderItems) {
           const pickedQty = pickedQuantities[item.id] ?? item.quantity;
+          const pickedUnit = pickedUnits[item.id] || item.order_unit || item.fnb_products?.unit || 'pcs';
           const shortQty = Math.max(0, item.quantity - pickedQty);
           const isWeightBased = item.fnb_products?.is_weight_based || false;
           const isOverPicked = pickedQty > item.quantity;
@@ -540,6 +560,7 @@ export default function FnbPicker() {
               picked_quantity: pickedQty,
               picked_by: user?.id,
               picked_at: new Date().toISOString(),
+              picked_unit: pickedUnit,
               short_quantity: shortQty,
               short_reason: shortQty > 0 ? shortReasons[item.id] || 'other' : null,
               // For weight-based items, track if over-picked and actual weight
@@ -1113,12 +1134,25 @@ export default function FnbPicker() {
                                               [item.id]: Math.max(0, value),
                                             });
                                           }}
-                                          className="w-32 h-12 text-center text-lg font-bold"
+                                          className="w-28 h-12 text-center text-lg font-bold"
                                           disabled={isReported && editingShortageItem !== item.id}
                                         />
-                                        <span className="text-sm text-muted-foreground">
-                                          {item.fnb_products?.weight_unit || 'kg'}
-                                        </span>
+                                        <Select
+                                          value={pickedUnits[item.id] || item.order_unit || item.fnb_products?.weight_unit || 'kg'}
+                                          onValueChange={(v) => setPickedUnits({ ...pickedUnits, [item.id]: v })}
+                                          disabled={isReported && editingShortageItem !== item.id}
+                                        >
+                                          <SelectTrigger className="w-20 h-12">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {PICKER_UNITS.map((u) => (
+                                              <SelectItem key={u.value} value={u.value}>
+                                                {u.label}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
                                       </div>
                                       
                                       {/* Weight Accuracy Indicator */}
@@ -1126,7 +1160,7 @@ export default function FnbPicker() {
                                         <WeightAccuracyIndicator
                                           expectedWeight={item.quantity}
                                           actualWeight={pickedQty}
-                                          unit={item.fnb_products?.weight_unit || 'kg'}
+                                          unit={pickedUnits[item.id] || item.fnb_products?.weight_unit || 'kg'}
                                           size="sm"
                                         />
                                       )}
@@ -1149,20 +1183,20 @@ export default function FnbPicker() {
                                         {pickedQty > item.quantity && (
                                           <>
                                             <Scale className="h-4 w-4" />
-                                            Over by {(pickedQty - item.quantity).toFixed(2)} {item.fnb_products?.weight_unit || 'kg'}
+                                            Over by {(pickedQty - item.quantity).toFixed(2)} {pickedUnits[item.id] || item.fnb_products?.weight_unit || 'kg'}
                                           </>
                                         )}
                                         {pickedQty < item.quantity && (
                                           <>
                                             <AlertTriangle className="h-4 w-4" />
-                                            Short by {(item.quantity - pickedQty).toFixed(2)} {item.fnb_products?.weight_unit || 'kg'}
+                                            Short by {(item.quantity - pickedQty).toFixed(2)} {pickedUnits[item.id] || item.fnb_products?.weight_unit || 'kg'}
                                           </>
                                         )}
                                       </div>
                                     )}
                                   </div>
                                 ) : (
-                                  /* Fixed quantity items: +/- buttons */
+                                  /* Fixed quantity items: +/- buttons with unit selector */
                                   <div className="flex items-center gap-3">
                                     <span className="text-sm font-medium w-16">Picked:</span>
                                     <div className="flex items-center gap-2">
@@ -1183,17 +1217,16 @@ export default function FnbPicker() {
                                       <Input
                                         type="number"
                                         min="0"
-                                        max={item.quantity}
-                                        step="1"
+                                        step="0.01"
                                         value={pickedQty}
                                         onChange={(e) => {
-                                          const value = parseInt(e.target.value) || 0;
+                                          const value = parseFloat(e.target.value) || 0;
                                           setPickedQuantities({
                                             ...pickedQuantities,
-                                            [item.id]: Math.max(0, Math.min(item.quantity, value)),
+                                            [item.id]: Math.max(0, value),
                                           });
                                         }}
-                                        className="w-24 h-12 text-center text-lg font-bold"
+                                        className="w-20 h-12 text-center text-lg font-bold"
                                         disabled={isReported && editingShortageItem !== item.id}
                                       />
                                       <Button
@@ -1203,13 +1236,29 @@ export default function FnbPicker() {
                                         onClick={() =>
                                           setPickedQuantities({
                                             ...pickedQuantities,
-                                            [item.id]: Math.min(item.quantity, pickedQty + 1),
+                                            [item.id]: pickedQty + 1,
                                           })
                                         }
                                         disabled={isReported && editingShortageItem !== item.id}
                                       >
                                         +
                                       </Button>
+                                      <Select
+                                        value={pickedUnits[item.id] || item.order_unit || item.fnb_products?.unit || 'pcs'}
+                                        onValueChange={(v) => setPickedUnits({ ...pickedUnits, [item.id]: v })}
+                                        disabled={isReported && editingShortageItem !== item.id}
+                                      >
+                                        <SelectTrigger className="w-20 h-12">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {PICKER_UNITS.map((u) => (
+                                            <SelectItem key={u.value} value={u.value}>
+                                              {u.label}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
                                     </div>
                                   </div>
                                 )}
