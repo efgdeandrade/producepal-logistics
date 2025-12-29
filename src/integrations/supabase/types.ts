@@ -1052,9 +1052,11 @@ export type Database = {
           id: string
           is_over_picked: boolean | null
           order_id: string | null
+          order_unit: string | null
           picked_at: string | null
           picked_by: string | null
           picked_quantity: number | null
+          picked_unit: string | null
           product_id: string | null
           quantity: number
           short_quantity: number | null
@@ -1075,9 +1077,11 @@ export type Database = {
           id?: string
           is_over_picked?: boolean | null
           order_id?: string | null
+          order_unit?: string | null
           picked_at?: string | null
           picked_by?: string | null
           picked_quantity?: number | null
+          picked_unit?: string | null
           product_id?: string | null
           quantity: number
           short_quantity?: number | null
@@ -1098,9 +1102,11 @@ export type Database = {
           id?: string
           is_over_picked?: boolean | null
           order_id?: string | null
+          order_unit?: string | null
           picked_at?: string | null
           picked_by?: string | null
           picked_quantity?: number | null
+          picked_unit?: string | null
           product_id?: string | null
           quantity?: number
           short_quantity?: number | null
