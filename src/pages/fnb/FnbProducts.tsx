@@ -48,6 +48,7 @@ interface FnbProduct {
   weight_unit: string;
   // Unit pricing
   price_per_kg: number | null;
+  price_per_gram: number | null;
   price_per_lb: number | null;
   price_per_case: number | null;
   price_per_piece: number | null;
@@ -69,6 +70,7 @@ const emptyProduct: Omit<FnbProduct, 'id'> = {
   is_weight_based: false,
   weight_unit: 'kg',
   price_per_kg: null,
+  price_per_gram: null,
   price_per_lb: null,
   price_per_case: null,
   price_per_piece: null,
@@ -162,6 +164,7 @@ export default function FnbProducts() {
       is_weight_based: product.is_weight_based ?? false,
       weight_unit: product.weight_unit || 'kg',
       price_per_kg: product.price_per_kg,
+      price_per_gram: product.price_per_gram,
       price_per_lb: product.price_per_lb,
       price_per_case: product.price_per_case,
       price_per_piece: product.price_per_piece,
@@ -239,10 +242,10 @@ export default function FnbProducts() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="kg">kg</SelectItem>
+                        <SelectItem value="g">grams</SelectItem>
                         <SelectItem value="piece">piece</SelectItem>
                         <SelectItem value="box">box</SelectItem>
                         <SelectItem value="tray">tray</SelectItem>
-                        <SelectItem value="gram">gram</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -337,6 +340,19 @@ export default function FnbProducts() {
                         value={formData.price_per_kg ?? ''}
                         onChange={(e) =>
                           setFormData({ ...formData, price_per_kg: e.target.value ? parseFloat(e.target.value) : null })
+                        }
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="price_per_gram" className="text-xs">Per Gram</Label>
+                      <Input
+                        id="price_per_gram"
+                        type="number"
+                        step="0.01"
+                        value={formData.price_per_gram ?? ''}
+                        onChange={(e) =>
+                          setFormData({ ...formData, price_per_gram: e.target.value ? parseFloat(e.target.value) : null })
                         }
                         placeholder="0.00"
                       />

@@ -1366,6 +1366,7 @@ export type Database = {
           name_nl: string | null
           name_pap: string | null
           price_per_case: number | null
+          price_per_gram: number | null
           price_per_kg: number | null
           price_per_lb: number | null
           price_per_piece: number | null
@@ -1390,6 +1391,7 @@ export type Database = {
           name_nl?: string | null
           name_pap?: string | null
           price_per_case?: number | null
+          price_per_gram?: number | null
           price_per_kg?: number | null
           price_per_lb?: number | null
           price_per_piece?: number | null
@@ -1414,6 +1416,7 @@ export type Database = {
           name_nl?: string | null
           name_pap?: string | null
           price_per_case?: number | null
+          price_per_gram?: number | null
           price_per_kg?: number | null
           price_per_lb?: number | null
           price_per_piece?: number | null
