@@ -48,6 +48,7 @@ interface OrderItem {
 const UNITS = [
   { value: 'pcs', label: 'Pieces' },
   { value: 'kg', label: 'Kg' },
+  { value: 'g', label: 'Grams' },
   { value: 'lb', label: 'Lb' },
   { value: 'oz', label: 'Oz' },
   { value: 'case', label: 'Case' },
@@ -462,6 +463,8 @@ export default function FnbNewOrder() {
   const getUnitPrice = (product: any, unit: string): number => {
     const unitPriceMap: Record<string, number | null> = {
       'kg': product.price_per_kg,
+      'g': product.price_per_gram,
+      'gram': product.price_per_gram,
       'lb': product.price_per_lb,
       'case': product.price_per_case,
       'pcs': product.price_per_piece,
