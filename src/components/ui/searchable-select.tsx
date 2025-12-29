@@ -34,6 +34,8 @@ interface SearchableSelectProps {
   addNewIcon?: React.ReactNode;
   disabled?: boolean;
   className?: string;
+  onSelectComplete?: () => void;
+  triggerRef?: React.Ref<HTMLButtonElement>;
 }
 
 export function SearchableSelect({
@@ -47,6 +49,8 @@ export function SearchableSelect({
   addNewIcon,
   disabled = false,
   className,
+  onSelectComplete,
+  triggerRef,
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -56,6 +60,7 @@ export function SearchableSelect({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          ref={triggerRef}
           variant="outline"
           role="combobox"
           aria-expanded={open}
@@ -102,6 +107,7 @@ export function SearchableSelect({
                   onSelect={() => {
                     onValueChange(option.value);
                     setOpen(false);
+                    onSelectComplete?.();
                   }}
                 >
                   <Check
