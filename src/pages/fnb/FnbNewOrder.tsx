@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -78,6 +78,11 @@ export default function FnbNewOrder() {
   const [orderNumber, setOrderNumber] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [isPickup, setIsPickup] = useState(false);
+  
+  // Refs for keyboard navigation
+  const quantityRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const priceRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const productSelectRefs = useRef<(HTMLButtonElement | null)[]>([]);
   
   // New customer dialog state
   const [isNewCustomerDialogOpen, setIsNewCustomerDialogOpen] = useState(false);
@@ -225,8 +230,74 @@ export default function FnbNewOrder() {
     }
   }, [existingOrder]);
 
-  const addItem = () => {
-    setItems([...items, { productId: '', quantity: 1, unit: 'pcs', unitPrice: 0, total: 0 }]);
+  const addItem = useCallback(() => {
+    setItems(prev => [...prev, { productId: '', quantity: 1, unit: 'pcs', unitPrice: 0, total: 0 }]);
+    // Focus new row's product select after render
+    setTimeout(() => {
+      productSelectRefs.current[items.length]?.focus();
+    }, 50);
+  }, [items.length]);
+
+  // Focus quantity input after product selection
+  const focusQuantity = useCallback((index: number) => {
+    setTimeout(() => {
+      quantityRefs.current[index]?.focus();
+      quantityRefs.current[index]?.select();
+    }, 50);
+  }, []);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + S = Save order
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSubmit();
+      }
+      // Ctrl/Cmd + N = Add new item row
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        addItem();
+      }
+    };
+    
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [addItem]);
+
+  // Keyboard navigation handler for quantity/price inputs
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number, field: 'quantity' | 'price') => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (field === 'quantity') {
+        // Move to price input
+        priceRefs.current[index]?.focus();
+        priceRefs.current[index]?.select();
+      } else {
+        // Move to next row's product or add new row
+        if (index === items.length - 1) {
+          addItem();
+        } else {
+          productSelectRefs.current[index + 1]?.focus();
+        }
+      }
+    }
+    if (e.key === 'ArrowUp' && index > 0) {
+      e.preventDefault();
+      if (field === 'quantity') {
+        quantityRefs.current[index - 1]?.focus();
+      } else {
+        priceRefs.current[index - 1]?.focus();
+      }
+    }
+    if (e.key === 'ArrowDown' && index < items.length - 1) {
+      e.preventDefault();
+      if (field === 'quantity') {
+        quantityRefs.current[index + 1]?.focus();
+      } else {
+        priceRefs.current[index + 1]?.focus();
+      }
+    }
   };
 
   // Handle customer selection
@@ -276,8 +347,8 @@ export default function FnbNewOrder() {
   });
 
   // Handle product selection
-  const handleProductChange = (index: number, value: string) => {
-    updateItem(index, 'productId', value);
+  const handleProductChange = (index: number, value: string, autoFocus = false) => {
+    updateItem(index, 'productId', value, autoFocus);
   };
 
   // Handle add new product click
@@ -328,7 +399,7 @@ export default function FnbNewOrder() {
     setItems(items.filter((_, i) => i !== index));
   };
 
-  const updateItem = (index: number, field: keyof OrderItem, value: any) => {
+  const updateItem = (index: number, field: keyof OrderItem, value: any, autoFocusQuantity = false) => {
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
 
@@ -344,6 +415,11 @@ export default function FnbNewOrder() {
       // Auto-add new blank row when selecting product on last item
       if (value && index === newItems.length - 1) {
         newItems.push({ productId: '', quantity: 1, unit: 'pcs', unitPrice: 0, total: 0 });
+      }
+      
+      // Auto-focus quantity after product selection
+      if (autoFocusQuantity && value) {
+        focusQuantity(index);
       }
     }
 
@@ -674,16 +750,19 @@ export default function FnbNewOrder() {
                               searchTerms: `${p.name} ${p.code}`,
                             })) || []}
                             value={item.productId}
-                            onValueChange={(v) => handleProductChange(index, v)}
+                            onValueChange={(v) => handleProductChange(index, v, true)}
                             placeholder="Select product"
                             emptyMessage="No products found"
                             addNewLabel="Add New Product"
                             onAddNew={() => handleAddNewProduct(index)}
                             addNewIcon={<Package className="mr-2 h-4 w-4" />}
+                            triggerRef={(el) => { productSelectRefs.current[index] = el; }}
+                            onSelectComplete={() => focusQuantity(index)}
                           />
                         </div>
                         <div className="w-20">
                           <Input
+                            ref={(el) => { quantityRefs.current[index] = el; }}
                             type="number"
                             min="0.01"
                             step="0.01"
@@ -691,6 +770,7 @@ export default function FnbNewOrder() {
                             onChange={(e) =>
                               updateItem(index, 'quantity', Number(e.target.value))
                             }
+                            onKeyDown={(e) => handleInputKeyDown(e, index, 'quantity')}
                             placeholder="Qty"
                           />
                         </div>
@@ -713,6 +793,7 @@ export default function FnbNewOrder() {
                         </div>
                         <div className="w-24">
                           <Input
+                            ref={(el) => { priceRefs.current[index] = el; }}
                             type="number"
                             min="0"
                             step="0.01"
@@ -720,6 +801,7 @@ export default function FnbNewOrder() {
                             onChange={(e) =>
                               updateItem(index, 'unitPrice', Number(e.target.value))
                             }
+                            onKeyDown={(e) => handleInputKeyDown(e, index, 'price')}
                             placeholder="Price"
                           />
                         </div>
