@@ -7,7 +7,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Trash2, ShoppingCart, Save, Banknote, CreditCard, Building2, FileText, UserPlus, Truck, Store, Package, Info } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ShoppingCart, Save, Banknote, CreditCard, Building2, FileText, UserPlus, Truck, Store, Package, Info, Sparkles, RotateCcw, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
+import { useFnbOrderSuggestions, OrderSuggestion } from '@/hooks/useFnbOrderSuggestions';
+import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Tooltip,
   TooltipContent,
@@ -84,11 +87,15 @@ export default function FnbNewOrder() {
   const [orderNumber, setOrderNumber] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [isPickup, setIsPickup] = useState(false);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(true);
   
   // Refs for keyboard navigation
   const quantityRefs = useRef<(HTMLInputElement | null)[]>([]);
   const priceRefs = useRef<(HTMLInputElement | null)[]>([]);
   const productSelectRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  
+  // Order suggestions hook
+  const { suggestions, lastOrderSuggestions, hasStandingOrder } = useFnbOrderSuggestions(customerId || null);
   
   // New customer dialog state
   const [isNewCustomerDialogOpen, setIsNewCustomerDialogOpen] = useState(false);
@@ -243,6 +250,52 @@ export default function FnbNewOrder() {
       productSelectRefs.current[items.length]?.focus();
     }, 50);
   }, [items.length]);
+
+  // Add suggestion to order
+  const addSuggestionToOrder = useCallback((suggestion: OrderSuggestion) => {
+    // Check if already in order
+    const existingIndex = items.findIndex(item => item.productId === suggestion.productId);
+    if (existingIndex >= 0) {
+      // Focus existing row
+      quantityRefs.current[existingIndex]?.focus();
+      quantityRefs.current[existingIndex]?.select();
+      return;
+    }
+    
+    // Find empty row or add new one
+    const emptyIndex = items.findIndex(item => !item.productId);
+    if (emptyIndex >= 0) {
+      // Use existing empty row
+      setItems(prev => prev.map((item, idx) => 
+        idx === emptyIndex 
+          ? {
+              productId: suggestion.productId,
+              quantity: suggestion.avgQuantity,
+              unit: suggestion.suggestedUnit,
+              unitPrice: suggestion.suggestedPrice,
+              total: suggestion.avgQuantity * suggestion.suggestedPrice,
+            }
+          : item
+      ));
+      // Add a new empty row
+      setTimeout(() => {
+        setItems(prev => [...prev, { productId: '', quantity: 1, unit: 'pcs', unitPrice: 0, total: 0 }]);
+      }, 10);
+    } else {
+      // Add new row with suggestion
+      setItems(prev => [
+        ...prev,
+        {
+          productId: suggestion.productId,
+          quantity: suggestion.avgQuantity,
+          unit: suggestion.suggestedUnit,
+          unitPrice: suggestion.suggestedPrice,
+          total: suggestion.avgQuantity * suggestion.suggestedPrice,
+        },
+        { productId: '', quantity: 1, unit: 'pcs', unitPrice: 0, total: 0 },
+      ]);
+    }
+  }, [items]);
 
   // Focus quantity input after product selection
   const focusQuantity = useCallback((index: number) => {
@@ -746,6 +799,102 @@ export default function FnbNewOrder() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Smart Suggestions */}
+            {customerId && suggestions.length > 0 && (
+              <Collapsible open={suggestionsOpen} onOpenChange={setSuggestionsOpen}>
+                <Card className="border-dashed border-primary/30 bg-primary/5">
+                  <CardHeader className="py-3">
+                    <div className="flex items-center justify-between">
+                      <CollapsibleTrigger asChild>
+                        <Button variant="ghost" className="flex items-center gap-2 p-0 h-auto hover:bg-transparent">
+                          <Sparkles className="h-4 w-4 text-primary" />
+                          <CardTitle className="text-sm font-medium">
+                            Quick Add ({suggestions.length} suggestions)
+                          </CardTitle>
+                          {suggestionsOpen ? (
+                            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </Button>
+                      </CollapsibleTrigger>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            suggestions.forEach(s => addSuggestionToOrder(s));
+                            toast.success(`Added ${suggestions.length} items`);
+                          }}
+                          className="text-xs h-7"
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          Add All
+                        </Button>
+                        {lastOrderSuggestions.length > 0 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              lastOrderSuggestions.forEach(s => addSuggestionToOrder(s));
+                              toast.success('Loaded items from last order');
+                            }}
+                            className="text-xs h-7"
+                          >
+                            <RotateCcw className="h-3 w-3 mr-1" />
+                            Copy Last
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CollapsibleContent>
+                    <CardContent className="pt-0 pb-3">
+                      <div className="flex flex-wrap gap-2">
+                        {suggestions.map((suggestion) => {
+                          const isInOrder = items.some(item => item.productId === suggestion.productId);
+                          return (
+                            <Button
+                              key={suggestion.productId}
+                              variant={isInOrder ? "secondary" : "outline"}
+                              size="sm"
+                              onClick={() => {
+                                if (isInOrder) {
+                                  // Flash the existing row
+                                  const idx = items.findIndex(i => i.productId === suggestion.productId);
+                                  if (idx >= 0) {
+                                    quantityRefs.current[idx]?.focus();
+                                    quantityRefs.current[idx]?.select();
+                                  }
+                                  toast.info(`${suggestion.productName} already in order`);
+                                } else {
+                                  addSuggestionToOrder(suggestion);
+                                  toast.success(`Added ${suggestion.productName}`);
+                                }
+                              }}
+                              className={`text-xs h-8 ${isInOrder ? 'opacity-60' : ''}`}
+                            >
+                              {suggestion.source === 'standing' && (
+                                <Calendar className="h-3 w-3 mr-1 text-primary" />
+                              )}
+                              {suggestion.source === 'pattern' && (
+                                <Sparkles className="h-3 w-3 mr-1 text-amber-500" />
+                              )}
+                              <span>{suggestion.productName}</span>
+                              <Badge variant="secondary" className="ml-1.5 text-[10px] h-4 px-1">
+                                {suggestion.avgQuantity} {suggestion.suggestedUnit}
+                              </Badge>
+                              {!isInOrder && <Plus className="h-3 w-3 ml-1" />}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </CollapsibleContent>
+                </Card>
+              </Collapsible>
+            )}
 
             {/* Order Items */}
             <Card>
