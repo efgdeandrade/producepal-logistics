@@ -121,14 +121,14 @@ export function PickerOrderCard({
 
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          {/* Order number */}
+          {/* Customer name - big and bold */}
           <p className="font-bold text-lg truncate">
-            {order.fnb_orders?.order_number}
+            {order.fnb_orders?.fnb_customers?.name}
           </p>
           
-          {/* Customer name */}
-          <p className="text-sm font-medium truncate">
-            {order.fnb_orders?.fnb_customers?.name}
+          {/* Order number - smaller */}
+          <p className="text-sm text-muted-foreground truncate">
+            {order.fnb_orders?.order_number}
           </p>
           
           {/* Delivery zone */}
@@ -150,10 +150,13 @@ export function PickerOrderCard({
             </div>
           )}
           
-          {/* Item count & estimate */}
-          <div className="flex items-center justify-end gap-1 text-xs text-muted-foreground">
-            <Package className="h-3 w-3" />
-            {itemCount} items • ~{estimatedMinutes} min
+          {/* Item count - larger */}
+          <div className="flex items-center justify-end gap-1.5 text-sm font-semibold">
+            <Package className="h-4 w-4" />
+            {itemCount} items
+          </div>
+          <div className="text-xs text-muted-foreground">
+            ~{estimatedMinutes} min
           </div>
         </div>
       </div>
