@@ -7,7 +7,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Trash2, ShoppingCart, Save, Banknote, CreditCard, Building2, FileText, UserPlus, Truck, Store, Package } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ShoppingCart, Save, Banknote, CreditCard, Building2, FileText, UserPlus, Truck, Store, Package, Info } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -399,6 +405,18 @@ export default function FnbNewOrder() {
     setItems(items.filter((_, i) => i !== index));
   };
 
+  // Helper to get unit-specific price
+  const getUnitPrice = (product: any, unit: string): number => {
+    const unitPriceMap: Record<string, number | null> = {
+      'kg': product.price_per_kg,
+      'lb': product.price_per_lb,
+      'case': product.price_per_case,
+      'pcs': product.price_per_piece,
+      'piece': product.price_per_piece,
+    };
+    return unitPriceMap[unit] ?? product.price_xcg;
+  };
+
   const updateItem = (index: number, field: keyof OrderItem, value: any, autoFocusQuantity = false) => {
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
@@ -407,9 +425,10 @@ export default function FnbNewOrder() {
     if (field === 'productId') {
       const product = products?.find((p: any) => p.id === value);
       if (product) {
-        newItems[index].unitPrice = product.price_xcg;
         newItems[index].unit = product.unit || 'pcs';
-        newItems[index].total = product.price_xcg * newItems[index].quantity;
+        const unitPrice = getUnitPrice(product, newItems[index].unit);
+        newItems[index].unitPrice = unitPrice;
+        newItems[index].total = unitPrice * newItems[index].quantity;
       }
       
       // Auto-add new blank row when selecting product on last item
@@ -420,6 +439,16 @@ export default function FnbNewOrder() {
       // Auto-focus quantity after product selection
       if (autoFocusQuantity && value) {
         focusQuantity(index);
+      }
+    }
+
+    // Auto-update price when unit changes
+    if (field === 'unit') {
+      const product = products?.find((p: any) => p.id === newItems[index].productId);
+      if (product) {
+        const newPrice = getUnitPrice(product, value);
+        newItems[index].unitPrice = newPrice;
+        newItems[index].total = newPrice * newItems[index].quantity;
       }
     }
 
@@ -742,7 +771,7 @@ export default function FnbNewOrder() {
                         key={index}
                         className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30"
                       >
-                        <div className="flex-1">
+                        <div className="flex-1 flex items-center gap-1">
                           <SearchableSelect
                             options={products?.map((p: any) => ({
                               value: p.id,
@@ -759,6 +788,47 @@ export default function FnbNewOrder() {
                             triggerRef={(el) => { productSelectRefs.current[index] = el; }}
                             onSelectComplete={() => focusQuantity(index)}
                           />
+                          {item.productId && (() => {
+                            const product = products?.find((p: any) => p.id === item.productId);
+                            if (!product) return null;
+                            const hasInfo = product.items_per_case || product.case_weight_kg || product.product_description || 
+                              product.price_per_kg || product.price_per_lb || product.price_per_case || product.price_per_piece;
+                            if (!hasInfo) return null;
+                            return (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                                      <Info className="h-4 w-4 text-muted-foreground" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="right" className="max-w-xs">
+                                    <div className="space-y-1 text-sm">
+                                      <p className="font-medium">{product.name}</p>
+                                      {product.product_description && (
+                                        <p className="text-xs text-muted-foreground">{product.product_description}</p>
+                                      )}
+                                      {(product.items_per_case || product.case_weight_kg) && (
+                                        <div className="border-t pt-1 mt-1">
+                                          {product.items_per_case && <p>Items/Case: {product.items_per_case}</p>}
+                                          {product.case_weight_kg && <p>Case Weight: {product.case_weight_kg} kg</p>}
+                                        </div>
+                                      )}
+                                      {(product.price_per_kg || product.price_per_lb || product.price_per_case || product.price_per_piece) && (
+                                        <div className="border-t pt-1 mt-1">
+                                          <p className="font-medium text-xs">Unit Prices:</p>
+                                          {product.price_per_piece && <p>Per Piece: {product.price_per_piece} XCG</p>}
+                                          {product.price_per_kg && <p>Per Kg: {product.price_per_kg} XCG</p>}
+                                          {product.price_per_lb && <p>Per Lb: {product.price_per_lb} XCG</p>}
+                                          {product.price_per_case && <p>Per Case: {product.price_per_case} XCG</p>}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            );
+                          })()}
                         </div>
                         <div className="w-20">
                           <Input
