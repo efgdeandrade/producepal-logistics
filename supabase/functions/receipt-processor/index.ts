@@ -13,6 +13,16 @@ serve(async (req) => {
   }
 
   try {
+    // Verify authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error("No authorization header provided");
+      return new Response(
+        JSON.stringify({ error: "Authentication required" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
@@ -20,6 +30,28 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    
+    // Create client with user's auth token to verify identity
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: { Authorization: authHeader }
+      }
+    });
+    
+    // Verify the user is authenticated
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    if (authError || !user) {
+      console.error("Auth error:", authError);
+      return new Response(
+        JSON.stringify({ error: "Invalid or expired authentication token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    console.log(`Authenticated user: ${user.id}`);
+    
+    // Service role client for privileged operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { receiptPath, orderId } = await req.json();
@@ -28,7 +60,23 @@ serve(async (req) => {
       throw new Error("Missing receiptPath or orderId");
     }
 
-    console.log(`Processing receipt for order ${orderId}, path: ${receiptPath}`);
+    // Verify user has permission to access this order
+    // Check if user is admin/management or the assigned driver
+    const { data: order, error: orderError } = await supabaseAuth
+      .from("fnb_orders")
+      .select("id, driver_id")
+      .eq("id", orderId)
+      .single();
+    
+    if (orderError || !order) {
+      console.error("Order access error:", orderError);
+      return new Response(
+        JSON.stringify({ error: "Order not found or access denied" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`Processing receipt for order ${orderId}, path: ${receiptPath}, by user: ${user.id}`);
 
     // Download the original receipt image from storage
     const { data: fileData, error: downloadError } = await supabase.storage
