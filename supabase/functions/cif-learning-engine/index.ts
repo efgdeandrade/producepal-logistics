@@ -1,7 +1,24 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
+// Allowed origins for CORS - production and staging domains
+const allowedOrigins = [
+  'https://fuik.io',
+  'https://www.fuik.io',
+  'https://dnxzpkbobzwjcuyfgdnh.lovable.app'
+];
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get('Origin') || '';
+  const allowedOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  };
+}
+
+// Default CORS headers for preflight
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': allowedOrigins[0],
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
