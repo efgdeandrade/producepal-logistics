@@ -9,8 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { ArrowLeft, Banknote, CheckCircle, Clock, User, Calendar } from "lucide-react";
+import { ArrowLeft, Banknote, CheckCircle, Clock, User, Calendar, Wallet, ArrowDownCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import {
@@ -35,6 +36,10 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import DriverWalletCard from "@/components/fnb/DriverWalletCard";
+import RecordDepositDialog from "@/components/fnb/RecordDepositDialog";
+import WalletTransactionHistory from "@/components/fnb/WalletTransactionHistory";
+import { useAllDriverWallets, useRecordDeposit } from "@/hooks/useDriverWallet";
 
 export default function FnbCODReconciliation() {
   const { user } = useAuth();
@@ -44,6 +49,15 @@ export default function FnbCODReconciliation() {
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [reconcileDialogOpen, setReconcileDialogOpen] = useState(false);
   const [reconcileNotes, setReconcileNotes] = useState("");
+  
+  // Wallet state
+  const [depositDialogWallet, setDepositDialogWallet] = useState<any>(null);
+  const [historyDriverId, setHistoryDriverId] = useState<string | null>(null);
+  const [historyDriverName, setHistoryDriverName] = useState<string>("");
+
+  // Wallet hooks
+  const { wallets, isLoading: walletsLoading, refetch: refetchWallets } = useAllDriverWallets();
+  const depositMutation = useRecordDeposit();
 
   // Get date range based on filter
   const getDateRange = () => {
@@ -154,6 +168,20 @@ export default function FnbCODReconciliation() {
     },
   });
 
+  // Handle deposit confirmation
+  const handleDepositConfirm = async (data: {
+    walletId: string;
+    driverId: string;
+    amount: number;
+    depositReference?: string;
+    notes?: string;
+  }) => {
+    await depositMutation.mutateAsync(data);
+    toast.success(`Deposit of ${data.amount.toFixed(2)} XCG recorded`);
+    setDepositDialogWallet(null);
+    refetchWallets();
+  };
+
   const handleSelectOrder = (orderId: string, checked: boolean) => {
     if (checked) {
       setSelectedOrders([...selectedOrders, orderId]);
@@ -252,135 +280,197 @@ export default function FnbCODReconciliation() {
           </Card>
         </div>
 
-        {/* Driver Summary */}
-        {driverSummary && Object.keys(driverSummary).length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Pending by Driver</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
-                {Object.entries(driverSummary).map(([driverId, summary]) => (
-                  <div key={driverId} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">{summary.name}</span>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold">{summary.total.toFixed(2)} XCG</p>
-                      <p className="text-xs text-muted-foreground">{summary.count} orders</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <Tabs defaultValue="wallets" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="wallets" className="flex items-center gap-2">
+              <Wallet className="h-4 w-4" />
+              Driver Wallets
+            </TabsTrigger>
+            <TabsTrigger value="orders" className="flex items-center gap-2">
+              <Banknote className="h-4 w-4" />
+              Order Reconciliation
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Filters and Actions */}
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col md:flex-row gap-4 justify-between">
-              <div className="flex gap-4">
-                <Select value={dateFilter} onValueChange={setDateFilter}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Date range" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="today">Today</SelectItem>
-                    <SelectItem value="yesterday">Yesterday</SelectItem>
-                    <SelectItem value="week">Last 7 days</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={driverFilter} onValueChange={setDriverFilter}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Filter by driver" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Drivers</SelectItem>
-                    {drivers?.map((driver) => (
-                      <SelectItem key={driver.user_id} value={driver.user_id}>
-                        {driver.profiles?.full_name || driver.profiles?.email}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button
-                onClick={() => setReconcileDialogOpen(true)}
-                disabled={selectedOrders.length === 0}
-              >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Reconcile {selectedOrders.length} Order(s)
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <p className="text-center py-8 text-muted-foreground">Loading...</p>
-            ) : codOrders?.length === 0 ? (
-              <p className="text-center py-8 text-muted-foreground">No pending COD orders to reconcile</p>
+          {/* Driver Wallets Tab */}
+          <TabsContent value="wallets" className="space-y-4">
+            {walletsLoading ? (
+              <p className="text-center py-8 text-muted-foreground">Loading wallets...</p>
+            ) : wallets.length === 0 ? (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  <Wallet className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No driver wallets yet</p>
+                  <p className="text-sm">Wallets are created when drivers collect COD payments</p>
+                </CardContent>
+              </Card>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">
-                      <Checkbox
-                        checked={selectedOrders.length === codOrders?.length && codOrders.length > 0}
-                        onCheckedChange={handleSelectAll}
-                      />
-                    </TableHead>
-                    <TableHead>Order</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Driver</TableHead>
-                    <TableHead>Payment</TableHead>
-                    <TableHead>Delivered</TableHead>
-                    <TableHead>Order Total</TableHead>
-                    <TableHead>Collected</TableHead>
-                    <TableHead>Difference</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {codOrders?.map((order) => {
-                    const diff = (order.cod_amount_collected || 0) - (order.total_xcg || 0);
-                    return (
-                      <TableRow key={order.id}>
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedOrders.includes(order.id)}
-                            onCheckedChange={(checked) => handleSelectOrder(order.id, checked as boolean)}
-                          />
-                        </TableCell>
-                        <TableCell className="font-mono">{order.order_number}</TableCell>
-                        <TableCell>{order.fnb_customers?.name}</TableCell>
-                        <TableCell>{order.driver_name || "-"}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="capitalize">
-                            {order.payment_method_used || order.payment_method || "cash"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {order.delivered_at && format(new Date(order.delivered_at), "MMM d, HH:mm")}
-                        </TableCell>
-                        <TableCell>{order.total_xcg?.toFixed(2)} XCG</TableCell>
-                        <TableCell className="font-medium">{order.cod_amount_collected?.toFixed(2)} XCG</TableCell>
-                        <TableCell>
-                          {diff !== 0 ? (
-                            <Badge variant={diff > 0 ? "default" : "destructive"}>
-                              {diff > 0 ? "+" : ""}{diff.toFixed(2)}
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary">Match</Badge>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+              <>
+                {/* Total outstanding */}
+                <Card className="bg-orange-500/5 border-orange-500/20">
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Wallet className="h-5 w-5 text-orange-600" />
+                        <span className="font-medium">Total Outstanding COD</span>
+                      </div>
+                      <span className="text-2xl font-bold text-orange-600">
+                        {wallets.reduce((sum, w) => sum + (w.current_balance || 0), 0).toFixed(2)} XCG
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Wallet cards */}
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {wallets.map((wallet: any) => (
+                    <DriverWalletCard
+                      key={wallet.id}
+                      wallet={wallet}
+                      onRecordDeposit={() => setDepositDialogWallet(wallet)}
+                      onViewHistory={() => {
+                        setHistoryDriverId(wallet.driver_id);
+                        setHistoryDriverName(wallet.profiles?.full_name || wallet.profiles?.email || "Driver");
+                      }}
+                    />
+                  ))}
+                </div>
+              </>
             )}
-          </CardContent>
-        </Card>
+          </TabsContent>
+
+          {/* Order Reconciliation Tab */}
+          <TabsContent value="orders" className="space-y-4">
+            {/* Driver Summary */}
+            {driverSummary && Object.keys(driverSummary).length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Pending by Driver</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
+                    {Object.entries(driverSummary).map(([driverId, summary]) => (
+                      <div key={driverId} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{summary.name}</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold">{summary.total.toFixed(2)} XCG</p>
+                          <p className="text-xs text-muted-foreground">{summary.count} orders</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            {/* Filters and Actions */}
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col md:flex-row gap-4 justify-between">
+                  <div className="flex gap-4">
+                    <Select value={dateFilter} onValueChange={setDateFilter}>
+                      <SelectTrigger className="w-40">
+                        <SelectValue placeholder="Date range" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="today">Today</SelectItem>
+                        <SelectItem value="yesterday">Yesterday</SelectItem>
+                        <SelectItem value="week">Last 7 days</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={driverFilter} onValueChange={setDriverFilter}>
+                      <SelectTrigger className="w-48">
+                        <SelectValue placeholder="Filter by driver" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Drivers</SelectItem>
+                        {drivers?.map((driver) => (
+                          <SelectItem key={driver.user_id} value={driver.user_id}>
+                            {driver.profiles?.full_name || driver.profiles?.email}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    onClick={() => setReconcileDialogOpen(true)}
+                    disabled={selectedOrders.length === 0}
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Reconcile {selectedOrders.length} Order(s)
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <p className="text-center py-8 text-muted-foreground">Loading...</p>
+                ) : codOrders?.length === 0 ? (
+                  <p className="text-center py-8 text-muted-foreground">No pending COD orders to reconcile</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12">
+                          <Checkbox
+                            checked={selectedOrders.length === codOrders?.length && codOrders.length > 0}
+                            onCheckedChange={handleSelectAll}
+                          />
+                        </TableHead>
+                        <TableHead>Order</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Driver</TableHead>
+                        <TableHead>Payment</TableHead>
+                        <TableHead>Delivered</TableHead>
+                        <TableHead>Order Total</TableHead>
+                        <TableHead>Collected</TableHead>
+                        <TableHead>Difference</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {codOrders?.map((order) => {
+                        const diff = (order.cod_amount_collected || 0) - (order.total_xcg || 0);
+                        return (
+                          <TableRow key={order.id}>
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedOrders.includes(order.id)}
+                                onCheckedChange={(checked) => handleSelectOrder(order.id, checked as boolean)}
+                              />
+                            </TableCell>
+                            <TableCell className="font-mono">{order.order_number}</TableCell>
+                            <TableCell>{order.fnb_customers?.name}</TableCell>
+                            <TableCell>{order.driver_name || "-"}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="capitalize">
+                                {order.payment_method_used || order.payment_method || "cash"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {order.delivered_at && format(new Date(order.delivered_at), "MMM d, HH:mm")}
+                            </TableCell>
+                            <TableCell>{order.total_xcg?.toFixed(2)} XCG</TableCell>
+                            <TableCell className="font-medium">{order.cod_amount_collected?.toFixed(2)} XCG</TableCell>
+                            <TableCell>
+                              {diff !== 0 ? (
+                                <Badge variant={diff > 0 ? "default" : "destructive"}>
+                                  {diff > 0 ? "+" : ""}{diff.toFixed(2)}
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary">Match</Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
 
         {/* Reconcile Dialog */}
         <Dialog open={reconcileDialogOpen} onOpenChange={setReconcileDialogOpen}>
@@ -415,6 +505,23 @@ export default function FnbCODReconciliation() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Deposit Dialog */}
+        <RecordDepositDialog
+          open={!!depositDialogWallet}
+          onOpenChange={(open) => !open && setDepositDialogWallet(null)}
+          wallet={depositDialogWallet}
+          onConfirm={handleDepositConfirm}
+          isLoading={depositMutation.isPending}
+        />
+
+        {/* Transaction History Sheet */}
+        <WalletTransactionHistory
+          open={!!historyDriverId}
+          onOpenChange={(open) => !open && setHistoryDriverId(null)}
+          driverId={historyDriverId}
+          driverName={historyDriverName}
+        />
       </main>
     </div>
   );

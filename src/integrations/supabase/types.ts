@@ -841,6 +841,127 @@ export type Database = {
           },
         ]
       }
+      driver_wallet_transactions: {
+        Row: {
+          amount: number
+          balance_after: number
+          balance_before: number
+          created_at: string
+          deposit_reference: string | null
+          driver_id: string
+          id: string
+          notes: string | null
+          order_id: string | null
+          payment_method: string | null
+          processed_by: string | null
+          transaction_type: string
+          wallet_id: string
+        }
+        Insert: {
+          amount: number
+          balance_after: number
+          balance_before: number
+          created_at?: string
+          deposit_reference?: string | null
+          driver_id: string
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          payment_method?: string | null
+          processed_by?: string | null
+          transaction_type: string
+          wallet_id: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          balance_before?: number
+          created_at?: string
+          deposit_reference?: string | null
+          driver_id?: string
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          payment_method?: string | null
+          processed_by?: string | null
+          transaction_type?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_wallet_transactions_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "driver_wallet_transactions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "driver_wallet_transactions_processed_by_fkey"
+            columns: ["processed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "driver_wallet_transactions_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "driver_wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      driver_wallets: {
+        Row: {
+          created_at: string
+          current_balance: number
+          driver_id: string
+          id: string
+          last_collection_at: string | null
+          last_deposit_at: string | null
+          total_collected: number
+          total_deposited: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_balance?: number
+          driver_id: string
+          id?: string
+          last_collection_at?: string | null
+          last_deposit_at?: string | null
+          total_collected?: number
+          total_deposited?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_balance?: number
+          driver_id?: string
+          id?: string
+          last_collection_at?: string | null
+          last_deposit_at?: string | null
+          total_collected?: number
+          total_deposited?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_wallets_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fnb_assistance_queue: {
         Row: {
           acknowledged_at: string | null
