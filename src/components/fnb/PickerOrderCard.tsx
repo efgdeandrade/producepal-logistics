@@ -15,6 +15,7 @@ interface PickerOrderCardProps {
       order_number: string;
       total_xcg: number;
       delivery_date: string | null;
+      delivery_station: string | null;
       notes: string | null;
       fnb_customers: {
         name: string;
@@ -130,6 +131,13 @@ export function PickerOrderCard({
           <p className="text-sm text-muted-foreground truncate">
             {order.fnb_orders?.order_number}
           </p>
+          
+          {/* Delivery station - prominent badge */}
+          {order.fnb_orders?.delivery_station && (
+            <Badge variant="secondary" className="mt-1 text-xs font-medium bg-primary/10 text-primary">
+              {order.fnb_orders.delivery_station}
+            </Badge>
+          )}
           
           {/* Delivery zone */}
           {order.fnb_orders?.fnb_customers?.delivery_zone && (

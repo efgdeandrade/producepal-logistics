@@ -18,6 +18,7 @@ interface ExtractedPOData {
   customer_code: string;
   po_number: string;
   delivery_date: string | null;
+  delivery_station: string | null;
   currency: string;
   items: ExtractedItem[];
 }
@@ -64,6 +65,11 @@ CRITICAL INSTRUCTIONS:
 4. Find the PO number
 5. Find the requested delivery date if present
 6. Identify the currency (NAf, XCG, USD, etc.)
+7. Look for DELIVERY STATION/DEPARTMENT/LOCATION info - this could be:
+   - "Ship To" section with department name (e.g., "Bar", "Main Kitchen", "Ballroom")
+   - "Department" or "Dept" field
+   - Building/wing/station identifiers
+   - Location names that indicate a specific area within the customer's premises
 
 Be thorough and extract every single line item. Do not miss any products.`;
 
@@ -74,6 +80,7 @@ Extract:
 - Customer code (like DRCUR, ZOCUR, etc.)
 - PO number
 - Delivery date (format as YYYY-MM-DD if found)
+- Delivery station/department (e.g., "Bar", "Main Kitchen", "Ballroom" - look in Ship To section or Department field)
 - Currency
 - ALL line items with: SKU, description, quantity, unit, unit_price`;
 
@@ -122,6 +129,10 @@ Extract:
             delivery_date: {
               type: "string",
               description: "Requested delivery date in YYYY-MM-DD format, or null if not specified"
+            },
+            delivery_station: {
+              type: "string",
+              description: "Delivery station, department, or location within the customer (e.g., Bar, Main Kitchen, Ballroom), or null if not specified"
             },
             currency: {
               type: "string",

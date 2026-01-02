@@ -24,8 +24,10 @@ interface POReviewDialogProps {
   products: any[];
   selectedCustomerId: string;
   selectedDeliveryDate: string;
+  selectedDeliveryStation: string;
   onCustomerChange: (customerId: string) => void;
   onDeliveryDateChange: (date: string) => void;
+  onDeliveryStationChange: (station: string) => void;
   onUpdateItem: (index: number, updates: Partial<MatchedItem>) => void;
   onRemoveItem: (index: number) => void;
   onConfirm: () => void;
@@ -42,8 +44,10 @@ export function POReviewDialog({
   products,
   selectedCustomerId,
   selectedDeliveryDate,
+  selectedDeliveryStation,
   onCustomerChange,
   onDeliveryDateChange,
+  onDeliveryStationChange,
   onUpdateItem,
   onRemoveItem,
   onConfirm,
@@ -112,7 +116,7 @@ export function POReviewDialog({
           </div>
 
           {/* Editable Fields */}
-          <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+          <div className="grid grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
             <div className="space-y-2">
               <Label>Customer *</Label>
               <SearchableSelect
@@ -129,6 +133,15 @@ export function POReviewDialog({
                 type="date"
                 value={selectedDeliveryDate}
                 onChange={(e) => onDeliveryDateChange(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Delivery Station</Label>
+              <Input
+                type="text"
+                value={selectedDeliveryStation}
+                onChange={(e) => onDeliveryStationChange(e.target.value)}
+                placeholder="e.g., Main Kitchen, Bar"
               />
             </div>
           </div>

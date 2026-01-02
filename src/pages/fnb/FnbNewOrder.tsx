@@ -91,6 +91,7 @@ export default function FnbNewOrder() {
   const [orderNumber, setOrderNumber] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [isPickup, setIsPickup] = useState(false);
+  const [deliveryStation, setDeliveryStation] = useState('');
   const [suggestionsOpen, setSuggestionsOpen] = useState(true);
   
   // PO Import state
@@ -234,6 +235,7 @@ export default function FnbNewOrder() {
     if (existingOrder) {
       setCustomerId(existingOrder.customer_id || '');
       setDeliveryDate(existingOrder.delivery_date || format(new Date(), 'yyyy-MM-dd'));
+      setDeliveryStation(existingOrder.delivery_station || '');
       setNotes(existingOrder.notes || '');
       setOrderNumber(existingOrder.order_number);
       setPaymentMethod((existingOrder.payment_method_used as PaymentMethod) || 'cash');
@@ -549,6 +551,7 @@ export default function FnbNewOrder() {
           order_number: newOrderNumber,
           order_date: new Date().toISOString().split('T')[0],
           delivery_date: deliveryDate,
+          delivery_station: deliveryStation || null,
           notes,
           total_xcg: orderTotal,
           status: 'pending',
@@ -608,6 +611,7 @@ export default function FnbNewOrder() {
       setNotes('');
       setPaymentMethod('cash');
       setIsPickup(false);
+      setDeliveryStation('');
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -628,6 +632,7 @@ export default function FnbNewOrder() {
         .update({
           customer_id: customerId,
           delivery_date: deliveryDate,
+          delivery_station: deliveryStation || null,
           notes,
           total_xcg: orderTotal,
           payment_method: paymentMethod,
@@ -708,9 +713,10 @@ export default function FnbNewOrder() {
       await poImport.saveMappings(poImport.selectedCustomerId, poImport.matchedItems);
     }
 
-    // Set customer and delivery date
+    // Set customer, delivery date, and station
     setCustomerId(poImport.selectedCustomerId);
     setDeliveryDate(poImport.selectedDeliveryDate || deliveryDate);
+    setDeliveryStation(poImport.selectedDeliveryStation || '');
 
     // Convert to order items
     const newItems: OrderItem[] = validItems.map(item => {
@@ -794,6 +800,7 @@ export default function FnbNewOrder() {
             products={products || []}
             selectedCustomerId={poImport.selectedCustomerId}
             selectedDeliveryDate={poImport.selectedDeliveryDate}
+            selectedDeliveryStation={poImport.selectedDeliveryStation}
             onCustomerChange={(id) => {
               poImport.setSelectedCustomerId(id);
               // Re-match products when customer changes
@@ -802,6 +809,7 @@ export default function FnbNewOrder() {
               }
             }}
             onDeliveryDateChange={poImport.setSelectedDeliveryDate}
+            onDeliveryStationChange={poImport.setSelectedDeliveryStation}
             onUpdateItem={poImport.updateMatchedItem}
             onRemoveItem={poImport.removeMatchedItem}
             onConfirm={handlePOConfirm}
@@ -848,6 +856,21 @@ export default function FnbNewOrder() {
                     />
                   </div>
                 </div>
+                
+                {/* Delivery Station */}
+                {!isPickup && (
+                  <div className="space-y-2">
+                    <Label>Delivery Station</Label>
+                    <Input
+                      value={deliveryStation}
+                      onChange={(e) => setDeliveryStation(e.target.value)}
+                      placeholder="e.g., Main Kitchen, Bar, Ballroom"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Optional: Specify department/location within customer
+                    </p>
+                  </div>
+                )}
                 
                 {/* Order Type Toggle */}
                 <div className="space-y-2">

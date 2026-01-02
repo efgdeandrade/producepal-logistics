@@ -51,6 +51,7 @@ interface OrderWithDetails {
   status: string;
   total_xcg: number | null;
   delivery_date: string | null;
+  delivery_station: string | null;
   driver_name: string | null;
   payment_method: string | null;
   receipt_photo_url: string | null;
@@ -146,6 +147,7 @@ export default function FnbOrders() {
           status,
           total_xcg,
           delivery_date,
+          delivery_station,
           driver_name,
           payment_method,
           receipt_photo_url,
@@ -261,7 +263,14 @@ export default function FnbOrders() {
             <CardContent className="p-3 cursor-pointer hover:bg-muted/50 transition-colors">
               <div className="space-y-1">
                 {/* Customer name on its own row */}
-                <p className="font-medium text-sm line-clamp-2">{order.fnb_customers?.name || 'Unknown'}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium text-sm line-clamp-1">{order.fnb_customers?.name || 'Unknown'}</p>
+                  {order.delivery_station && (
+                    <Badge variant="secondary" className="text-xs font-medium bg-primary/10 text-primary shrink-0">
+                      {order.delivery_station}
+                    </Badge>
+                  )}
+                </div>
                 
                 {/* Amount, items, status, and chevron - all aligned on one row */}
                 <div className="flex items-center justify-between gap-2">

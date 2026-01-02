@@ -15,6 +15,7 @@ interface OrderWithItems {
     order_number: string;
     total_xcg: number;
     delivery_date: string | null;
+    delivery_station: string | null;
     notes: string | null;
     fnb_customers: {
       name: string;
