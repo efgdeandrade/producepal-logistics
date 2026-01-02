@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Trash2, ShoppingCart, Save, Banknote, CreditCard, Building2, FileText, UserPlus, Truck, Store, Package, Info, Sparkles, RotateCcw, Calendar, ChevronDown, ChevronUp, Upload } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ShoppingCart, Save, Banknote, CreditCard, Building2, FileText, UserPlus, Truck, Store, Package, Info, Sparkles, RotateCcw, Calendar, ChevronDown, ChevronUp, Upload, AlertTriangle } from 'lucide-react';
 import { POUploadDialog } from '@/components/fnb/POUploadDialog';
 import { POReviewDialog } from '@/components/fnb/POReviewDialog';
 import { usePOImport, MatchedItem } from '@/hooks/usePOImport';
@@ -94,6 +94,7 @@ export default function FnbNewOrder() {
   const [deliveryStation, setDeliveryStation] = useState('');
   const [poNumber, setPoNumber] = useState<string | null>(null);
   const [suggestionsOpen, setSuggestionsOpen] = useState(true);
+  const [priority, setPriority] = useState<number>(0);
   
   // PO Import state
   const poImport = usePOImport();
@@ -253,6 +254,7 @@ export default function FnbNewOrder() {
       setOrderNumber(existingOrder.order_number);
       setPaymentMethod((existingOrder.payment_method_used as PaymentMethod) || 'cash');
       setIsPickup(existingOrder.is_pickup || false);
+      setPriority(existingOrder.priority || 0);
       
       const loadedItems: OrderItem[] = existingOrder.fnb_order_items?.map((item: any) => ({
         productId: item.product_id,
@@ -588,6 +590,7 @@ export default function FnbNewOrder() {
           cod_amount_due: paymentMethod === 'cash' ? orderTotal : null,
           is_pickup: isPickup,
           po_number: poNumber,
+          priority: priority,
         })
         .select()
         .single();
@@ -616,7 +619,7 @@ export default function FnbNewOrder() {
         .insert({
           order_id: order.id,
           status: 'queued',
-          priority: 0,
+          priority: priority,
         });
 
       if (queueError) throw queueError;
@@ -642,6 +645,7 @@ export default function FnbNewOrder() {
       setIsPickup(false);
       setDeliveryStation('');
       setPoNumber(null);
+      setPriority(0);
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -669,6 +673,7 @@ export default function FnbNewOrder() {
           payment_method_used: paymentMethod,
           cod_amount_due: paymentMethod === 'cash' ? orderTotal : null,
           is_pickup: isPickup,
+          priority: priority,
         })
         .eq('id', orderId);
 
@@ -946,6 +951,38 @@ export default function FnbNewOrder() {
                         <span className="hidden sm:inline">{method.label}</span>
                       </ToggleGroupItem>
                     ))}
+                  </ToggleGroup>
+                </div>
+                
+                {/* Urgency Toggle */}
+                <div className="space-y-2">
+                  <Label>Urgency</Label>
+                  <ToggleGroup 
+                    type="single" 
+                    value={priority.toString()} 
+                    onValueChange={(value) => value && setPriority(Number(value))}
+                    className="justify-start"
+                  >
+                    <ToggleGroupItem 
+                      value="0"
+                      className="flex items-center gap-2 data-[state=on]:bg-muted"
+                    >
+                      <span>Normal</span>
+                    </ToggleGroupItem>
+                    <ToggleGroupItem 
+                      value="1"
+                      className="flex items-center gap-2 data-[state=on]:bg-orange-100 data-[state=on]:text-orange-800 dark:data-[state=on]:bg-orange-900 dark:data-[state=on]:text-orange-200"
+                    >
+                      <AlertTriangle className="h-4 w-4" />
+                      <span>Urgent</span>
+                    </ToggleGroupItem>
+                    <ToggleGroupItem 
+                      value="2"
+                      className="flex items-center gap-2 data-[state=on]:bg-destructive data-[state=on]:text-destructive-foreground"
+                    >
+                      <AlertTriangle className="h-4 w-4" />
+                      <span>Critical</span>
+                    </ToggleGroupItem>
                   </ToggleGroup>
                 </div>
                 <div className="space-y-2">
