@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { format, startOfWeek, addDays, parseISO, isBefore, startOfDay } from 'date-fns';
+import { format, startOfWeek, addDays, parseISO, startOfDay } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 
 // Helper function to get the next occurrence of a weekday
@@ -159,6 +159,9 @@ export function useFnbStandingOrders() {
           .eq('template_id', templateId);
 
         if (deleteError) throw deleteError;
+
+        // SYNC: Update all pending future orders linked to this template
+        await syncPendingOrdersWithTemplate(templateId, name, items);
       } else {
         // Create new template
         const { data: newTemplate, error: createError } = await supabase
@@ -194,7 +197,7 @@ export function useFnbStandingOrders() {
         if (itemsError) throw itemsError;
       }
 
-      // Auto-generate orders for the next occurrence of this weekday
+      // Auto-generate order for the next occurrence (immediate feedback)
       let ordersCreated = 0;
       if (items.length > 0) {
         const nextDate = getNextOccurrence(dayOfWeek);
@@ -245,7 +248,7 @@ export function useFnbStandingOrders() {
             return sum + (price * item.default_quantity);
           }, 0);
 
-          // Create the order
+          // Create the order with template reference
           const { data: newOrder, error: orderError } = await supabase
             .from('fnb_orders')
             .insert({
@@ -255,6 +258,7 @@ export function useFnbStandingOrders() {
               delivery_date: nextDateStr,
               status: 'pending',
               total_xcg: total,
+              standing_order_template_id: templateId,
               notes: `Auto-generated from standing order: ${name}`,
             })
             .select()
@@ -307,8 +311,121 @@ export function useFnbStandingOrders() {
     }
   };
 
+  // Sync all pending future orders with updated template
+  const syncPendingOrdersWithTemplate = async (
+    templateId: string,
+    templateName: string,
+    newItems: TemplateItemInput[]
+  ): Promise<void> => {
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+
+    // Find all pending future orders linked to this template
+    const { data: pendingOrders, error: fetchError } = await supabase
+      .from('fnb_orders')
+      .select('id, customer_id')
+      .eq('standing_order_template_id', templateId)
+      .eq('status', 'pending')
+      .gte('delivery_date', todayStr);
+
+    if (fetchError) {
+      console.error('Error fetching pending orders for sync:', fetchError);
+      return;
+    }
+
+    if (!pendingOrders || pendingOrders.length === 0) return;
+
+    // Get product prices
+    const productIds = [...new Set(newItems.map(i => i.product_id))];
+    const { data: products } = await supabase
+      .from('fnb_products')
+      .select('id, price_xcg')
+      .in('id', productIds);
+
+    const productPrices = (products || []).reduce((acc, p) => {
+      acc[p.id] = p.price_xcg;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Group new items by customer
+    const itemsByCustomer = newItems.reduce((acc, item) => {
+      if (!acc[item.customer_id]) {
+        acc[item.customer_id] = [];
+      }
+      acc[item.customer_id].push(item);
+      return acc;
+    }, {} as Record<string, TemplateItemInput[]>);
+
+    for (const order of pendingOrders) {
+      const customerItems = itemsByCustomer[order.customer_id];
+
+      if (!customerItems || customerItems.length === 0) {
+        // Customer removed from template - cancel their order
+        await supabase
+          .from('fnb_orders')
+          .update({
+            status: 'cancelled',
+            notes: `Cancelled - customer removed from standing order template: ${templateName}`,
+          })
+          .eq('id', order.id);
+        continue;
+      }
+
+      // Delete old order items
+      await supabase
+        .from('fnb_order_items')
+        .delete()
+        .eq('order_id', order.id);
+
+      // Calculate new total
+      const total = customerItems.reduce((sum, item) => {
+        const price = item.default_price_xcg ?? productPrices[item.product_id] ?? 0;
+        return sum + (price * item.default_quantity);
+      }, 0);
+
+      // Update order total
+      await supabase
+        .from('fnb_orders')
+        .update({
+          total_xcg: total,
+          notes: `Auto-generated from standing order: ${templateName}`,
+        })
+        .eq('id', order.id);
+
+      // Insert new order items
+      const orderItems = customerItems.map(item => ({
+        order_id: order.id,
+        product_id: item.product_id,
+        quantity: item.default_quantity,
+        unit_price_xcg: item.default_price_xcg ?? productPrices[item.product_id] ?? 0,
+        total_xcg: (item.default_price_xcg ?? productPrices[item.product_id] ?? 0) * item.default_quantity,
+      }));
+
+      await supabase.from('fnb_order_items').insert(orderItems);
+    }
+
+    console.log(`Synced ${pendingOrders.length} pending orders with updated template`);
+  };
+
   const deleteTemplate = async (templateId: string): Promise<boolean> => {
     try {
+      const todayStr = format(new Date(), 'yyyy-MM-dd');
+
+      // Cancel all pending future orders from this template
+      const { error: cancelError } = await supabase
+        .from('fnb_orders')
+        .update({
+          status: 'cancelled',
+          notes: 'Cancelled - standing order template was deleted',
+        })
+        .eq('standing_order_template_id', templateId)
+        .eq('status', 'pending')
+        .gte('delivery_date', todayStr);
+
+      if (cancelError) {
+        console.error('Error cancelling orders:', cancelError);
+      }
+
+      // Delete the template
       const { error } = await supabase
         .from('fnb_standing_order_templates')
         .delete()
@@ -318,7 +435,7 @@ export function useFnbStandingOrders() {
 
       toast({
         title: 'Success',
-        description: 'Standing order template deleted',
+        description: 'Standing order template deleted and future orders cancelled',
       });
 
       await fetchTemplates();
@@ -405,7 +522,7 @@ export function useFnbStandingOrders() {
             return sum + (price * item.default_quantity);
           }, 0);
 
-          // Create the order
+          // Create the order with template reference
           const { data: newOrder, error: orderError } = await supabase
             .from('fnb_orders')
             .insert({
@@ -415,6 +532,7 @@ export function useFnbStandingOrders() {
               delivery_date: deliveryDateStr,
               status: 'pending',
               total_xcg: total,
+              standing_order_template_id: template.id,
               notes: `Auto-generated from standing order: ${template.template_name}`,
             })
             .select()
