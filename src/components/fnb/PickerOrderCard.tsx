@@ -107,9 +107,14 @@ export function PickerOrderCard({
     >
       {/* Priority/VIP indicators */}
       <div className="absolute top-0 right-0 flex gap-1">
-        {order.priority > 0 && (
-          <div className="bg-destructive text-destructive-foreground px-2 py-0.5 text-xs font-bold rounded-bl">
-            PRIORITY
+        {order.priority === 2 && (
+          <div className="bg-destructive text-destructive-foreground px-2 py-0.5 text-xs font-bold rounded-bl animate-pulse">
+            CRITICAL
+          </div>
+        )}
+        {order.priority === 1 && (
+          <div className="bg-orange-500 text-white px-2 py-0.5 text-xs font-bold rounded-bl">
+            URGENT
           </div>
         )}
         {isVIP && (
