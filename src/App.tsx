@@ -51,6 +51,8 @@ import FnbReceiptVerification from "./pages/fnb/FnbReceiptVerification";
 import FnbStandingOrders from "./pages/fnb/FnbStandingOrders";
 import FnbDriverMobile from "./pages/fnb/FnbDriverMobile";
 import FnbPricingTiers from "./pages/fnb/FnbPricingTiers";
+import FnbDriverSchedule from "./pages/fnb/FnbDriverSchedule";
+import FnbDispatch from "./pages/fnb/FnbDispatch";
 import Install from "./pages/Install";
 const queryClient = new QueryClient();
 
@@ -108,6 +110,8 @@ const App = () => (
               <Route path="/fnb/settings" element={<ProtectedRoute><PasswordChangeRequired><FnbSettings /></PasswordChangeRequired></ProtectedRoute>} />
               <Route path="/fnb/driver-mobile" element={<ProtectedRoute requiredRole="driver"><PasswordChangeRequired><FnbDriverMobile /></PasswordChangeRequired></ProtectedRoute>} />
               <Route path="/fnb/pricing-tiers" element={<ProtectedRoute><PasswordChangeRequired><FnbPricingTiers /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/fnb/driver-schedule" element={<ProtectedRoute><PasswordChangeRequired><FnbDriverSchedule /></PasswordChangeRequired></ProtectedRoute>} />
+              <Route path="/fnb/dispatch" element={<ProtectedRoute><PasswordChangeRequired><FnbDispatch /></PasswordChangeRequired></ProtectedRoute>} />
               <Route path="/install" element={<Install />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
