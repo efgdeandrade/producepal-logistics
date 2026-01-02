@@ -15,6 +15,7 @@ export interface ExtractedPOData {
   customer_code: string;
   po_number: string;
   delivery_date: string | null;
+  delivery_station: string | null;
   currency: string;
   items: ExtractedItem[];
 }
@@ -33,6 +34,7 @@ export interface POImportState {
   matchedItems: MatchedItem[];
   selectedCustomerId: string;
   selectedDeliveryDate: string;
+  selectedDeliveryStation: string;
   error: string | null;
 }
 
@@ -44,6 +46,7 @@ export function usePOImport() {
     matchedItems: [],
     selectedCustomerId: '',
     selectedDeliveryDate: '',
+    selectedDeliveryStation: '',
     error: null,
   });
 
@@ -85,6 +88,7 @@ export function usePOImport() {
         isParsing: false,
         extractedData,
         selectedDeliveryDate: extractedData.delivery_date || '',
+        selectedDeliveryStation: extractedData.delivery_station || '',
       }));
 
       return extractedData;
@@ -203,6 +207,10 @@ export function usePOImport() {
     setState(prev => ({ ...prev, selectedDeliveryDate: date }));
   };
 
+  const setSelectedDeliveryStation = (station: string) => {
+    setState(prev => ({ ...prev, selectedDeliveryStation: station }));
+  };
+
   const saveMappings = async (customerId: string, items: MatchedItem[]) => {
     const mappingsToSave = items.filter(
       item => item.save_mapping && item.matched_product_id && item.sku
@@ -237,6 +245,7 @@ export function usePOImport() {
       matchedItems: [],
       selectedCustomerId: '',
       selectedDeliveryDate: '',
+      selectedDeliveryStation: '',
       error: null,
     });
   };
@@ -249,6 +258,7 @@ export function usePOImport() {
     removeMatchedItem,
     setSelectedCustomerId,
     setSelectedDeliveryDate,
+    setSelectedDeliveryStation,
     saveMappings,
     reset,
   };

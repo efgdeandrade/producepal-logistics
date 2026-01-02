@@ -1246,6 +1246,7 @@ export type Database = {
           customer_id: string | null
           delivered_at: string | null
           delivery_date: string | null
+          delivery_station: string | null
           driver_id: string | null
           driver_name: string | null
           id: string
@@ -1281,6 +1282,7 @@ export type Database = {
           customer_id?: string | null
           delivered_at?: string | null
           delivery_date?: string | null
+          delivery_station?: string | null
           driver_id?: string | null
           driver_name?: string | null
           id?: string
@@ -1316,6 +1318,7 @@ export type Database = {
           customer_id?: string | null
           delivered_at?: string | null
           delivery_date?: string | null
+          delivery_station?: string | null
           driver_id?: string | null
           driver_name?: string | null
           id?: string
