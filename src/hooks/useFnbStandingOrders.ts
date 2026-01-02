@@ -1,8 +1,26 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { format, startOfWeek, addDays, parseISO } from 'date-fns';
+import { format, startOfWeek, addDays, parseISO, isBefore, startOfDay } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
+
+// Helper function to get the next occurrence of a weekday
+function getNextOccurrence(dayOfWeek: number): Date {
+  const today = startOfDay(new Date());
+  const currentDayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+  
+  // Convert our day_of_week (1 = Monday, 6 = Saturday) to JS day (0 = Sunday)
+  const targetJsDay = dayOfWeek === 7 ? 0 : dayOfWeek; // Handle Sunday if needed
+  
+  let daysToAdd = targetJsDay - currentDayOfWeek;
+  
+  // If today is that day or it's in the past, go to next week
+  if (daysToAdd <= 0) {
+    daysToAdd += 7;
+  }
+  
+  return addDays(today, daysToAdd);
+}
 
 export interface StandingOrderItem {
   id: string;
@@ -176,10 +194,105 @@ export function useFnbStandingOrders() {
         if (itemsError) throw itemsError;
       }
 
-      toast({
-        title: 'Success',
-        description: `Standing order template saved for ${getDayName(dayOfWeek)}`,
-      });
+      // Auto-generate orders for the next occurrence of this weekday
+      let ordersCreated = 0;
+      if (items.length > 0) {
+        const nextDate = getNextOccurrence(dayOfWeek);
+        const nextDateStr = format(nextDate, 'yyyy-MM-dd');
+
+        // Group items by customer
+        const itemsByCustomer = items.reduce((acc, item) => {
+          if (!acc[item.customer_id]) {
+            acc[item.customer_id] = [];
+          }
+          acc[item.customer_id].push(item);
+          return acc;
+        }, {} as Record<string, TemplateItemInput[]>);
+
+        // Fetch product details for pricing
+        const productIds = [...new Set(items.map(i => i.product_id))];
+        const { data: products } = await supabase
+          .from('fnb_products')
+          .select('id, price_xcg')
+          .in('id', productIds);
+
+        const productPrices = (products || []).reduce((acc, p) => {
+          acc[p.id] = p.price_xcg;
+          return acc;
+        }, {} as Record<string, number>);
+
+        // Create an order for each customer
+        for (const [customerId, customerItems] of Object.entries(itemsByCustomer)) {
+          // Check if order already exists for this customer on this date
+          const { data: existingOrder } = await supabase
+            .from('fnb_orders')
+            .select('id')
+            .eq('customer_id', customerId)
+            .eq('delivery_date', nextDateStr)
+            .neq('status', 'cancelled')
+            .maybeSingle();
+
+          if (existingOrder) {
+            continue; // Skip - order already exists
+          }
+
+          // Generate order number
+          const orderNumber = `FNB-${format(new Date(), 'yyyyMMddHHmmss')}-${String(ordersCreated + 1).padStart(3, '0')}`;
+
+          // Calculate total
+          const total = customerItems.reduce((sum, item) => {
+            const price = item.default_price_xcg ?? productPrices[item.product_id] ?? 0;
+            return sum + (price * item.default_quantity);
+          }, 0);
+
+          // Create the order
+          const { data: newOrder, error: orderError } = await supabase
+            .from('fnb_orders')
+            .insert({
+              order_number: orderNumber,
+              customer_id: customerId,
+              order_date: format(new Date(), 'yyyy-MM-dd'),
+              delivery_date: nextDateStr,
+              status: 'pending',
+              total_xcg: total,
+              notes: `Auto-generated from standing order: ${name}`,
+            })
+            .select()
+            .single();
+
+          if (orderError) throw orderError;
+
+          // Create order items
+          const orderItemsToInsert = customerItems.map(item => ({
+            order_id: newOrder.id,
+            product_id: item.product_id,
+            quantity: item.default_quantity,
+            unit_price_xcg: item.default_price_xcg ?? productPrices[item.product_id] ?? 0,
+            total_xcg: (item.default_price_xcg ?? productPrices[item.product_id] ?? 0) * item.default_quantity,
+          }));
+
+          const { error: orderItemsError } = await supabase
+            .from('fnb_order_items')
+            .insert(orderItemsToInsert);
+
+          if (orderItemsError) throw orderItemsError;
+
+          ordersCreated++;
+        }
+      }
+
+      const dayName = getDayName(dayOfWeek);
+      if (ordersCreated > 0) {
+        toast({
+          title: 'Success',
+          description: `Standing order saved and ${ordersCreated} order(s) created for next ${dayName}`,
+        });
+      } else {
+        toast({
+          title: 'Success',
+          description: `Standing order template saved for ${dayName}`,
+        });
+      }
 
       await fetchTemplates();
       return true;
