@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, Users, ShoppingCart, ClipboardList, MessageSquare, TrendingUp, Plus, Truck, Banknote, BarChart3, MapPin, Calendar, Camera, CalendarCheck } from 'lucide-react';
+import { Package, Users, ShoppingCart, ClipboardList, MessageSquare, TrendingUp, Plus, Truck, Banknote, BarChart3, MapPin, Calendar, Camera, CalendarCheck, DollarSign } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { FnbAlertsCard } from '@/components/fnb/FnbAlertsCard';
 
@@ -199,6 +199,12 @@ export default function FnbDashboard() {
             <Link to="/fnb/receipts">
               <Camera className="h-6 w-6" />
               <span>Receipts</span>
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="h-24 flex-col gap-2 border-yellow-500/50">
+            <Link to="/fnb/pricing-tiers">
+              <DollarSign className="h-6 w-6" />
+              <span>Pricing Tiers</span>
             </Link>
           </Button>
         </div>

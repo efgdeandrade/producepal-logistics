@@ -48,6 +48,7 @@ interface FnbCustomer {
   notes: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  pricing_tier_id?: string | null;
 }
 
 const emptyCustomer: Omit<FnbCustomer, 'id'> = {
@@ -58,6 +59,7 @@ const emptyCustomer: Omit<FnbCustomer, 'id'> = {
   delivery_zone: '',
   customer_type: 'regular',
   notes: '',
+  pricing_tier_id: null,
 };
 
 const languageLabels: Record<string, string> = {
@@ -291,6 +293,20 @@ export default function FnbCustomers() {
     },
   });
 
+  // Fetch pricing tiers
+  const { data: pricingTiers } = useQuery({
+    queryKey: ['fnb-pricing-tiers-active'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('fnb_pricing_tiers')
+        .select('id, name, is_default')
+        .eq('is_active', true)
+        .order('sort_order');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const allZones = deliveryZones || [];
 
   const createMutation = useMutation({
@@ -355,6 +371,7 @@ export default function FnbCustomers() {
       delivery_zone: customer.delivery_zone || '',
       customer_type: customer.customer_type || 'regular',
       notes: customer.notes || '',
+      pricing_tier_id: customer.pricing_tier_id || null,
     });
     setDetectedZoneInfo(null);
     setIsDialogOpen(true);
@@ -645,6 +662,30 @@ export default function FnbCustomers() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="pricing_tier_id">Pricing Tier</Label>
+                  <Select
+                    value={formData.pricing_tier_id || ''}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, pricing_tier_id: value || null })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select pricing tier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pricingTiers?.map((tier) => (
+                        <SelectItem key={tier.id} value={tier.id}>
+                          {tier.name} {tier.is_default && '(Default)'}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Determines product pricing for this customer
+                  </p>
                 </div>
 
                 <div className="space-y-2">

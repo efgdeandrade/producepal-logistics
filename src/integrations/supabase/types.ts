@@ -1012,6 +1012,7 @@ export type Database = {
           preferred_payment_method:
             | Database["public"]["Enums"]["payment_method_type"]
             | null
+          pricing_tier_id: string | null
           quickbooks_customer_id: string | null
           updated_at: string | null
           whatsapp_phone: string
@@ -1030,6 +1031,7 @@ export type Database = {
           preferred_payment_method?:
             | Database["public"]["Enums"]["payment_method_type"]
             | null
+          pricing_tier_id?: string | null
           quickbooks_customer_id?: string | null
           updated_at?: string | null
           whatsapp_phone: string
@@ -1048,11 +1050,20 @@ export type Database = {
           preferred_payment_method?:
             | Database["public"]["Enums"]["payment_method_type"]
             | null
+          pricing_tier_id?: string | null
           quickbooks_customer_id?: string | null
           updated_at?: string | null
           whatsapp_phone?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fnb_customers_pricing_tier_id_fkey"
+            columns: ["pricing_tier_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_pricing_tiers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fnb_delivery_zones: {
         Row: {
@@ -1461,6 +1472,81 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "fnb_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fnb_pricing_tiers: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fnb_product_tier_prices: {
+        Row: {
+          created_at: string
+          id: string
+          price_xcg: number
+          product_id: string
+          tier_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          price_xcg: number
+          product_id: string
+          tier_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          price_xcg?: number
+          product_id?: string
+          tier_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_product_tier_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_product_tier_prices_tier_id_fkey"
+            columns: ["tier_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_pricing_tiers"
             referencedColumns: ["id"]
           },
         ]

@@ -133,10 +133,22 @@ export default function FnbNewOrder() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('fnb_customers')
-        .select('*')
+        .select('*, fnb_pricing_tiers(id, name)')
         .order('name');
       if (error) throw error;
       return data;
+    },
+  });
+
+  // Fetch tier prices for products
+  const { data: tierPrices } = useQuery({
+    queryKey: ['fnb-product-tier-prices'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('fnb_product_tier_prices')
+        .select('product_id, tier_id, price_xcg');
+      if (error) throw error;
+      return data || [];
     },
   });
 
@@ -469,8 +481,23 @@ export default function FnbNewOrder() {
     setItems(items.filter((_, i) => i !== index));
   };
 
-  // Helper to get unit-specific price
+  // Helper to get unit-specific price with tier pricing support
   const getUnitPrice = (product: any, unit: string): number => {
+    // Check if customer has a pricing tier
+    const customer = customers?.find((c: any) => c.id === customerId);
+    const customerTierId = customer?.pricing_tier_id;
+    
+    // Check for tier-specific price
+    if (customerTierId && tierPrices) {
+      const tierPrice = tierPrices.find(
+        tp => tp.product_id === product.id && tp.tier_id === customerTierId
+      );
+      if (tierPrice) {
+        return tierPrice.price_xcg;
+      }
+    }
+    
+    // Fall back to unit-specific pricing
     const unitPriceMap: Record<string, number | null> = {
       'kg': product.price_per_kg,
       'g': product.price_per_gram,
