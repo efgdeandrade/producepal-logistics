@@ -794,6 +794,53 @@ export type Database = {
           },
         ]
       }
+      driver_availability: {
+        Row: {
+          created_at: string | null
+          date: string
+          driver_id: string
+          end_time: string | null
+          id: string
+          is_available: boolean | null
+          notes: string | null
+          start_time: string | null
+          updated_at: string | null
+          vehicle_capacity: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          date: string
+          driver_id: string
+          end_time?: string | null
+          id?: string
+          is_available?: boolean | null
+          notes?: string | null
+          start_time?: string | null
+          updated_at?: string | null
+          vehicle_capacity?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          date?: string
+          driver_id?: string
+          end_time?: string | null
+          id?: string
+          is_available?: boolean | null
+          notes?: string | null
+          start_time?: string | null
+          updated_at?: string | null
+          vehicle_capacity?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_availability_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fnb_assistance_queue: {
         Row: {
           acknowledged_at: string | null

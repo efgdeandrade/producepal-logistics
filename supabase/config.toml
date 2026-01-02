@@ -41,3 +41,9 @@ verify_jwt = true
 
 [functions.parse-purchase-order]
 verify_jwt = true
+
+[functions.optimize-routes]
+verify_jwt = true
+
+[functions.geocode-address]
+verify_jwt = true
