@@ -263,31 +263,11 @@ export default function FnbOrders() {
         >
           <CollapsibleTrigger asChild>
             <CardContent className="p-3 cursor-pointer hover:bg-muted/50 transition-colors">
-              <div className="space-y-1">
-                {/* Customer name on its own row */}
-                <div className="flex items-center gap-2">
-                  <p className="font-medium text-sm line-clamp-1">{order.fnb_customers?.name || 'Unknown'}</p>
-                  {order.delivery_station && (
-                    <Badge variant="secondary" className="text-xs font-medium bg-primary/10 text-primary shrink-0">
-                      {order.delivery_station}
-                    </Badge>
-                  )}
-                </div>
-                
-                {/* Amount, items, status, and chevron - all aligned on one row */}
+              <div className="space-y-2">
+                {/* Row 1: Customer name + Status + Chevron */}
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-sm">{order.total_xcg?.toFixed(2)} XCG</span>
-                    {totalItems > 0 && (
-                      <span className="text-xs text-muted-foreground">({totalItems} items)</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {order.is_pickup && (
-                      <Badge variant="outline" className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300 border-amber-300">
-                        Pickup
-                      </Badge>
-                    )}
+                  <p className="font-semibold text-base line-clamp-1 flex-1">{order.fnb_customers?.name || 'Unknown'}</p>
+                  <div className="flex items-center gap-2 shrink-0">
                     <Badge className={cn('text-xs', statusColors[order.status])}>
                       {order.status?.replace('_', ' ')}
                     </Badge>
@@ -297,6 +277,24 @@ export default function FnbOrders() {
                       <ChevronDown className="h-4 w-4 text-muted-foreground" />
                     )}
                   </div>
+                </div>
+                
+                {/* Row 2: Items count + Station + Pickup badge */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Package className="h-4 w-4" />
+                    <span className="font-medium text-sm">{totalItems} items</span>
+                  </div>
+                  {order.delivery_station && (
+                    <Badge variant="secondary" className="text-xs font-medium bg-primary/10 text-primary">
+                      {order.delivery_station}
+                    </Badge>
+                  )}
+                  {order.is_pickup && (
+                    <Badge variant="outline" className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300 border-amber-300">
+                      Pickup
+                    </Badge>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -549,7 +547,7 @@ export default function FnbOrders() {
         {isLoading ? (
           <p className="text-center py-8 text-muted-foreground">Loading orders...</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {weekDays.map((day) => {
               const dayOrders = getOrdersForDay(day);
               const stats = getDayStats(dayOrders);
