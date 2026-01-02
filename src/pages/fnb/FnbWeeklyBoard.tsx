@@ -282,7 +282,7 @@ export default function FnbWeeklyBoard() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="container py-6 space-y-6">
+      <main className="container max-w-screen-2xl py-6 space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
             <Link to="/fnb">
@@ -384,7 +384,7 @@ export default function FnbWeeklyBoard() {
         {isLoading ? (
           <p className="text-center py-8 text-muted-foreground">Loading...</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-6 gap-4">
             {weekDays.map((day) => {
               const dayOrders = getOrdersForDay(day);
               const stats = getDayStats(dayOrders);
@@ -394,7 +394,7 @@ export default function FnbWeeklyBoard() {
                 <Card
                   key={day.toISOString()}
                   className={cn(
-                    "min-h-[400px] cursor-pointer hover:shadow-lg transition-shadow",
+                    "min-h-[500px] cursor-pointer hover:shadow-lg transition-shadow",
                     isToday && "ring-2 ring-primary"
                   )}
                   onClick={() => setSelectedDay(day)}
@@ -437,7 +437,7 @@ export default function FnbWeeklyBoard() {
                       </div>
                     )}
                   </CardHeader>
-                  <CardContent className="space-y-2 overflow-y-auto max-h-[320px]">
+                  <CardContent className="space-y-2 overflow-y-auto max-h-[420px]">
                     {dayOrders.length === 0 ? (
                       <p className="text-center py-4 text-muted-foreground text-sm">
                         No orders
@@ -454,7 +454,7 @@ export default function FnbWeeklyBoard() {
 
         {/* Daily Drill-Down Dialog */}
         <Dialog open={!!selectedDay} onOpenChange={() => setSelectedDay(null)}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-4">
                 <span>{selectedDay && format(selectedDay, "EEEE, MMMM d, yyyy")}</span>
