@@ -27,6 +27,8 @@ import DriverMap from "@/components/driver/DriverMap";
 import DeliveryCard from "@/components/driver/DeliveryCard";
 import NavigationButton from "@/components/driver/NavigationButton";
 import CODDialog from "@/components/driver/CODDialog";
+import DriverMobileWallet from "@/components/fnb/DriverMobileWallet";
+import { useRecordCODCollection } from "@/hooks/useDriverWallet";
 
 type PaymentMethodType = "cash" | "swipe" | "transfer" | "credit";
 
@@ -145,6 +147,9 @@ export default function FnbDriverMobile() {
     enabled: !!user?.id,
   });
 
+  // Wallet mutation for recording COD collections
+  const recordCollectionMutation = useRecordCODCollection();
+
   // Mark delivered mutation
   const markDeliveredMutation = useMutation({
     mutationFn: async ({ 
@@ -170,6 +175,16 @@ export default function FnbDriverMobile() {
         })
         .eq("id", orderId);
       if (error) throw error;
+
+      // Record to driver wallet if COD collected > 0
+      if (codCollected > 0 && user?.id) {
+        await recordCollectionMutation.mutateAsync({
+          driverId: user.id,
+          orderId,
+          amount: codCollected,
+          paymentMethod,
+        });
+      }
     },
     onSuccess: () => {
       // Haptic feedback if available
@@ -253,8 +268,13 @@ export default function FnbDriverMobile() {
         </div>
       </header>
 
+      {/* Wallet Card */}
+      <div className="flex-shrink-0 px-4 py-2">
+        <DriverMobileWallet />
+      </div>
+
       {/* Map Section - Collapsible */}
-      <div className={`flex-shrink-0 transition-all duration-300 ${showMap ? 'h-[45vh]' : 'h-0'}`}>
+      <div className={`flex-shrink-0 transition-all duration-300 ${showMap ? 'h-[35vh]' : 'h-0'}`}>
         {showMap && (
           <DriverMap
             orders={orders}
