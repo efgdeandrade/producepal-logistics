@@ -160,8 +160,8 @@ export function POReviewTable({
                     const product = products.find(p => p.id === productId);
                     onUpdateItem(index, {
                       matched_product_id: productId,
-                      matched_product_name: product?.name || null,
-                      unit_price: product?.price_xcg || item.unit_price,
+                      matched_product_name: product?.name ?? null,
+                      unit_price: product?.price_xcg ?? item.unit_price,
                     });
                   }}
                 />
