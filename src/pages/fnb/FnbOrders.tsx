@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useFnbStandingOrdersSync } from '@/hooks/useFnbStandingOrdersSync';
 import { 
   ArrowLeft, 
   Search, 
@@ -120,12 +121,28 @@ const customerTypeLabels: Record<CustomerType, string> = {
 
 export default function FnbOrders() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [quickAddOrder, setQuickAddOrder] = useState<{ id: string; orderNumber: string } | null>(null);
+  
+  const { generateForDateRange } = useFnbStandingOrdersSync();
+
+  // Auto-generate standing orders for the visible week
+  useEffect(() => {
+    const syncStandingOrders = async () => {
+      const weekEnd = addDays(weekStart, 6);
+      const ordersCreated = await generateForDateRange(weekStart, weekEnd);
+      if (ordersCreated > 0) {
+        // Refetch orders if new ones were created
+        queryClient.invalidateQueries({ queryKey: ['fnb-orders-weekly'] });
+      }
+    };
+    syncStandingOrders();
+  }, [weekStart, generateForDateRange, queryClient]);
 
   const toggleOrderExpanded = (orderId: string) => {
     setExpandedOrders(prev => {

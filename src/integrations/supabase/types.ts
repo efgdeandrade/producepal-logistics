@@ -1447,6 +1447,7 @@ export type Database = {
           receipt_photo_url: string | null
           receipt_verified_at: string | null
           receipt_verified_by: string | null
+          standing_order_template_id: string | null
           status: string | null
           total_xcg: number | null
           updated_at: string | null
@@ -1485,6 +1486,7 @@ export type Database = {
           receipt_photo_url?: string | null
           receipt_verified_at?: string | null
           receipt_verified_by?: string | null
+          standing_order_template_id?: string | null
           status?: string | null
           total_xcg?: number | null
           updated_at?: string | null
@@ -1523,6 +1525,7 @@ export type Database = {
           receipt_photo_url?: string | null
           receipt_verified_at?: string | null
           receipt_verified_by?: string | null
+          standing_order_template_id?: string | null
           status?: string | null
           total_xcg?: number | null
           updated_at?: string | null
@@ -1533,6 +1536,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "fnb_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_orders_standing_order_template_id_fkey"
+            columns: ["standing_order_template_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_standing_order_templates"
             referencedColumns: ["id"]
           },
         ]

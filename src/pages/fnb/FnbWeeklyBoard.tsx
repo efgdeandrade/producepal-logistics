@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useFnbStandingOrdersSync } from "@/hooks/useFnbStandingOrdersSync";
 import { 
   Dialog,
   DialogContent,
@@ -102,6 +103,7 @@ export default function FnbWeeklyBoard() {
   const [isGenerating, setIsGenerating] = useState(false);
 
   const { templates, generateOrdersForWeek, getWeekGeneration } = useFnbStandingOrders();
+  const { generateForDateRange } = useFnbStandingOrdersSync();
 
   const weekDays = Array.from({ length: 6 }, (_, i) => addDays(weekStart, i)); // Mon-Sat
 
@@ -112,6 +114,20 @@ export default function FnbWeeklyBoard() {
   });
 
   const activeTemplatesCount = templates.filter(t => t.is_active && t.items.length > 0).length;
+
+  // Auto-generate standing orders for the visible week
+  useEffect(() => {
+    const syncStandingOrders = async () => {
+      const weekEnd = addDays(weekStart, 6);
+      const ordersCreated = await generateForDateRange(weekStart, weekEnd);
+      if (ordersCreated > 0) {
+        // Refetch orders if new ones were created
+        queryClient.invalidateQueries({ queryKey: ["fnb-weekly-orders"] });
+        refetchGeneration();
+      }
+    };
+    syncStandingOrders();
+  }, [weekStart, generateForDateRange, queryClient, refetchGeneration]);
 
   // Fetch orders for the week
   const { data: orders, isLoading } = useQuery({
