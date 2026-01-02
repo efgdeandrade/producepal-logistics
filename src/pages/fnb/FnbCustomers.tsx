@@ -287,7 +287,7 @@ export default function FnbCustomers() {
         .from('fnb_delivery_zones')
         .select('name')
         .eq('is_active', true)
-        .order('sort_order');
+        .order('name');
       if (error) throw error;
       return data?.map(z => z.name) || [];
     },
