@@ -7,7 +7,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Trash2, ShoppingCart, Save, Banknote, CreditCard, Building2, FileText, UserPlus, Truck, Store, Package, Info, Sparkles, RotateCcw, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ShoppingCart, Save, Banknote, CreditCard, Building2, FileText, UserPlus, Truck, Store, Package, Info, Sparkles, RotateCcw, Calendar, ChevronDown, ChevronUp, Upload } from 'lucide-react';
+import { POUploadDialog } from '@/components/fnb/POUploadDialog';
+import { POReviewDialog } from '@/components/fnb/POReviewDialog';
+import { usePOImport, MatchedItem } from '@/hooks/usePOImport';
 import { useFnbOrderSuggestions, OrderSuggestion } from '@/hooks/useFnbOrderSuggestions';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -89,6 +92,11 @@ export default function FnbNewOrder() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [isPickup, setIsPickup] = useState(false);
   const [suggestionsOpen, setSuggestionsOpen] = useState(true);
+  
+  // PO Import state
+  const poImport = usePOImport();
+  const [showPOUpload, setShowPOUpload] = useState(false);
+  const [showPOReview, setShowPOReview] = useState(false);
   
   // Refs for keyboard navigation
   const quantityRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -678,6 +686,54 @@ export default function FnbNewOrder() {
 
   const isPending = createOrderMutation.isPending || updateOrderMutation.isPending;
 
+  // PO Import handlers
+  const handlePOFileSelected = async (file: File) => {
+    const extracted = await poImport.parseFile(file);
+    if (extracted) {
+      setShowPOUpload(false);
+      // Match products
+      if (products) {
+        await poImport.matchProducts(extracted.items, poImport.selectedCustomerId, products);
+      }
+      setShowPOReview(true);
+    }
+  };
+
+  const handlePOConfirm = async () => {
+    const validItems = poImport.matchedItems.filter(i => i.matched_product_id);
+    if (validItems.length === 0) return;
+
+    // Save mappings
+    if (poImport.selectedCustomerId) {
+      await poImport.saveMappings(poImport.selectedCustomerId, poImport.matchedItems);
+    }
+
+    // Set customer and delivery date
+    setCustomerId(poImport.selectedCustomerId);
+    setDeliveryDate(poImport.selectedDeliveryDate || deliveryDate);
+
+    // Convert to order items
+    const newItems: OrderItem[] = validItems.map(item => {
+      const product = products?.find(p => p.id === item.matched_product_id);
+      const unitPrice = item.unit_price ?? product?.price_xcg ?? 0;
+      return {
+        productId: item.matched_product_id!,
+        quantity: item.quantity,
+        unit: item.unit || product?.unit || 'pcs',
+        unitPrice,
+        total: unitPrice * item.quantity,
+      };
+    });
+
+    // Add empty row at end
+    newItems.push({ productId: '', quantity: 1, unit: 'pcs', unitPrice: 0, total: 0 });
+
+    setItems(newItems);
+    setShowPOReview(false);
+    poImport.reset();
+    toast.success(`Imported ${validItems.length} items from PO`);
+  };
+
   if (isEditMode && isLoadingOrder) {
     return (
       <div className="min-h-screen bg-background">
@@ -707,7 +763,54 @@ export default function FnbNewOrder() {
               {isEditMode ? 'Update order details and items' : 'Manually create an order for F&B customers'}
             </p>
           </div>
+          {!isEditMode && (
+            <Button
+              variant="outline"
+              onClick={() => setShowPOUpload(true)}
+              className="gap-2"
+            >
+              <Upload className="h-4 w-4" />
+              Import from PO
+            </Button>
+          )}
         </div>
+
+        {/* PO Import Dialogs */}
+        <POUploadDialog
+          open={showPOUpload}
+          onOpenChange={setShowPOUpload}
+          onFileSelected={handlePOFileSelected}
+          isUploading={poImport.isUploading}
+          isParsing={poImport.isParsing}
+        />
+        
+        {poImport.extractedData && (
+          <POReviewDialog
+            open={showPOReview}
+            onOpenChange={setShowPOReview}
+            extractedData={poImport.extractedData}
+            matchedItems={poImport.matchedItems}
+            customers={customers || []}
+            products={products || []}
+            selectedCustomerId={poImport.selectedCustomerId}
+            selectedDeliveryDate={poImport.selectedDeliveryDate}
+            onCustomerChange={(id) => {
+              poImport.setSelectedCustomerId(id);
+              // Re-match products when customer changes
+              if (poImport.extractedData && products) {
+                poImport.matchProducts(poImport.extractedData.items, id, products);
+              }
+            }}
+            onDeliveryDateChange={poImport.setSelectedDeliveryDate}
+            onUpdateItem={poImport.updateMatchedItem}
+            onRemoveItem={poImport.removeMatchedItem}
+            onConfirm={handlePOConfirm}
+            onCancel={() => {
+              setShowPOReview(false);
+              poImport.reset();
+            }}
+          />
+        )}
 
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Order Form */}

@@ -38,3 +38,6 @@ verify_jwt = true
 
 [functions.receipt-processor]
 verify_jwt = true
+
+[functions.parse-purchase-order]
+verify_jwt = true

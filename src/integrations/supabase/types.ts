@@ -946,6 +946,57 @@ export type Database = {
           },
         ]
       }
+      fnb_customer_product_mappings: {
+        Row: {
+          confidence_score: number | null
+          created_at: string | null
+          customer_id: string
+          customer_product_name: string
+          customer_sku: string
+          id: string
+          is_verified: boolean | null
+          product_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string | null
+          customer_id: string
+          customer_product_name: string
+          customer_sku: string
+          id?: string
+          is_verified?: boolean | null
+          product_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string | null
+          customer_id?: string
+          customer_product_name?: string
+          customer_sku?: string
+          id?: string
+          is_verified?: boolean | null
+          product_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_customer_product_mappings_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_customer_product_mappings_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fnb_customers: {
         Row: {
           address: string | null
@@ -1344,6 +1395,66 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "fnb_picker_queue_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fnb_po_imports: {
+        Row: {
+          created_at: string | null
+          customer_id: string | null
+          delivery_date: string | null
+          id: string
+          imported_by: string | null
+          items_imported: number | null
+          items_matched: number | null
+          items_unmatched: number | null
+          order_id: string | null
+          po_file_url: string | null
+          po_number: string
+          raw_extracted_data: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id?: string | null
+          delivery_date?: string | null
+          id?: string
+          imported_by?: string | null
+          items_imported?: number | null
+          items_matched?: number | null
+          items_unmatched?: number | null
+          order_id?: string | null
+          po_file_url?: string | null
+          po_number: string
+          raw_extracted_data?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string | null
+          delivery_date?: string | null
+          id?: string
+          imported_by?: string | null
+          items_imported?: number | null
+          items_matched?: number | null
+          items_unmatched?: number | null
+          order_id?: string | null
+          po_file_url?: string | null
+          po_number?: string
+          raw_extracted_data?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_po_imports_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_po_imports_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "fnb_orders"
