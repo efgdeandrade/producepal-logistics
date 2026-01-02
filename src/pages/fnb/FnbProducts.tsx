@@ -79,10 +79,17 @@ const emptyProduct: Omit<FnbProduct, 'id'> = {
   product_description: null,
 };
 
+interface TierPrice {
+  tier_id: string;
+  tier_name: string;
+  price_xcg: number | null;
+}
+
 export default function FnbProducts() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<FnbProduct | null>(null);
   const [formData, setFormData] = useState<Omit<FnbProduct, 'id'>>(emptyProduct);
+  const [tierPrices, setTierPrices] = useState<TierPrice[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const queryClient = useQueryClient();
 
@@ -95,6 +102,20 @@ export default function FnbProducts() {
         .order('code');
       if (error) throw error;
       return data as FnbProduct[];
+    },
+  });
+
+  // Fetch pricing tiers
+  const { data: pricingTiers } = useQuery({
+    queryKey: ['fnb-pricing-tiers-active'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('fnb_pricing_tiers')
+        .select('id, name, is_default')
+        .eq('is_active', true)
+        .order('sort_order');
+      if (error) throw error;
+      return data || [];
     },
   });
 
@@ -118,9 +139,13 @@ export default function FnbProducts() {
     mutationFn: async ({ id, ...product }: FnbProduct) => {
       const { error } = await supabase.from('fnb_products').update(product).eq('id', id);
       if (error) throw error;
+      
+      // Save tier prices
+      await saveTierPrices(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fnb-products'] });
+      queryClient.invalidateQueries({ queryKey: ['fnb-product-tier-prices'] });
       toast.success('Product updated');
       setIsDialogOpen(false);
       resetForm();
@@ -129,6 +154,30 @@ export default function FnbProducts() {
       toast.error(error.message || 'Failed to update product');
     },
   });
+
+  const saveTierPrices = async (productId: string) => {
+    // Delete existing tier prices for this product
+    await supabase
+      .from('fnb_product_tier_prices')
+      .delete()
+      .eq('product_id', productId);
+    
+    // Insert new tier prices (only those with values)
+    const pricesToInsert = tierPrices
+      .filter(tp => tp.price_xcg !== null && tp.price_xcg > 0)
+      .map(tp => ({
+        product_id: productId,
+        tier_id: tp.tier_id,
+        price_xcg: tp.price_xcg,
+      }));
+    
+    if (pricesToInsert.length > 0) {
+      const { error } = await supabase
+        .from('fnb_product_tier_prices')
+        .insert(pricesToInsert);
+      if (error) throw error;
+    }
+  };
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -147,9 +196,19 @@ export default function FnbProducts() {
   const resetForm = () => {
     setFormData(emptyProduct);
     setEditingProduct(null);
+    // Initialize tier prices from available tiers
+    if (pricingTiers) {
+      setTierPrices(pricingTiers.map(tier => ({
+        tier_id: tier.id,
+        tier_name: tier.name,
+        price_xcg: null,
+      })));
+    } else {
+      setTierPrices([]);
+    }
   };
 
-  const handleEdit = (product: FnbProduct) => {
+  const handleEdit = async (product: FnbProduct) => {
     setEditingProduct(product);
     setFormData({
       code: product.code,
@@ -172,6 +231,23 @@ export default function FnbProducts() {
       case_weight_kg: product.case_weight_kg,
       product_description: product.product_description,
     });
+    
+    // Fetch existing tier prices for this product
+    const { data: existingPrices } = await supabase
+      .from('fnb_product_tier_prices')
+      .select('tier_id, price_xcg')
+      .eq('product_id', product.id);
+    
+    // Map to tier prices with all available tiers
+    if (pricingTiers) {
+      const priceMap = new Map(existingPrices?.map(p => [p.tier_id, p.price_xcg]) || []);
+      setTierPrices(pricingTiers.map(tier => ({
+        tier_id: tier.id,
+        tier_name: tier.name,
+        price_xcg: priceMap.get(tier.id) ?? null,
+      })));
+    }
+    
     setIsDialogOpen(true);
   };
 
@@ -442,6 +518,37 @@ export default function FnbProducts() {
                     />
                   </div>
                 </div>
+
+                {/* Tier Pricing Section */}
+                {tierPrices.length > 0 && (
+                  <div className="p-3 border rounded-lg bg-muted/50 space-y-3">
+                    <p className="text-sm font-medium">Tier Pricing (optional)</p>
+                    <p className="text-xs text-muted-foreground">
+                      Set specific prices for different customer tiers. Leave blank to use default price.
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {tierPrices.map((tp, index) => (
+                        <div key={tp.tier_id} className="space-y-1">
+                          <Label className="text-xs">{tp.tier_name}</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={tp.price_xcg ?? ''}
+                            onChange={(e) => {
+                              const newPrices = [...tierPrices];
+                              newPrices[index] = {
+                                ...tp,
+                                price_xcg: e.target.value ? parseFloat(e.target.value) : null,
+                              };
+                              setTierPrices(newPrices);
+                            }}
+                            placeholder={`Default: ${formData.price_xcg.toFixed(2)}`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Weight-based toggle */}
                 <div className="p-3 border rounded-lg bg-muted/50 space-y-3">
