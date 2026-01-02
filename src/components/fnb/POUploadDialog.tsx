@@ -43,8 +43,14 @@ export function POUploadDialog({
   };
 
   const isValidFile = (file: File): boolean => {
-    const validTypes = ['application/pdf', 'text/html'];
-    const validExtensions = ['.pdf', '.html', '.htm'];
+    const validTypes = [
+      'application/pdf',
+      'text/html',
+      'text/csv',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ];
+    const validExtensions = ['.pdf', '.html', '.htm', '.csv', '.xlsx', '.xls'];
     return (
       validTypes.includes(file.type) ||
       validExtensions.some(ext => file.name.toLowerCase().endsWith(ext))
@@ -85,7 +91,7 @@ export function POUploadDialog({
                 Drop your PO file here or click to browse
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Supports PDF and HTML files
+                Supports PDF, HTML, CSV, and Excel files
               </p>
             </>
           )}
@@ -93,7 +99,7 @@ export function POUploadDialog({
           <input
             ref={fileInputRef}
             type="file"
-            accept=".pdf,.html,.htm"
+            accept=".pdf,.html,.htm,.csv,.xlsx,.xls"
             onChange={handleFileChange}
             className="hidden"
             disabled={isProcessing}
