@@ -593,11 +593,16 @@ export default function FnbOrders() {
                 >
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm flex items-center justify-between">
-                      <div>
+                      <div className="flex items-center gap-2">
+                        {isToday && (
+                          <Badge className="bg-primary text-primary-foreground text-xs font-bold">
+                            TODAY
+                          </Badge>
+                        )}
                         <span className={cn('font-bold', isToday && 'text-primary')}>
                           {format(day, 'EEE')}
                         </span>
-                        <span className="ml-2 text-muted-foreground">
+                        <span className="text-muted-foreground">
                           {format(day, 'MMM d')}
                         </span>
                       </div>
