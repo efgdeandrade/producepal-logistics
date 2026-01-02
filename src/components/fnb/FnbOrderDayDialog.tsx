@@ -11,7 +11,8 @@ import {
   Truck,
   Camera,
   AlertCircle,
-  Eye
+  Eye,
+  Repeat
 } from 'lucide-react';
 import {
   Dialog,
@@ -38,6 +39,7 @@ interface OrderWithDetails {
   receipt_photo_url: string | null;
   receipt_verified_at: string | null;
   quickbooks_invoice_id: string | null;
+  notes: string | null;
   fnb_customers: {
     name: string;
     whatsapp_phone?: string;
@@ -46,6 +48,10 @@ interface OrderWithDetails {
   } | null;
   fnb_order_items?: { id: string }[];
 }
+
+const isStandingOrder = (order: OrderWithDetails) => {
+  return order.notes?.startsWith('Auto-generated from standing order:') ?? false;
+};
 
 const statusColors: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
@@ -138,7 +144,12 @@ export function FnbOrderDayDialog({ day, orders, open, onOpenChange }: FnbOrderD
         <CardContent className="p-3">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm truncate">{order.fnb_customers?.name || 'Unknown'}</p>
+              <div className="flex items-center gap-1.5">
+                {isStandingOrder(order) && (
+                  <Repeat className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                )}
+                <p className="font-medium text-sm truncate">{order.fnb_customers?.name || 'Unknown'}</p>
+              </div>
               <p className="text-xs text-muted-foreground">{order.order_number}</p>
             </div>
             <div className="flex flex-col items-end gap-1">

@@ -26,7 +26,8 @@ import {
   Edit,
   X,
   PlusCircle,
-  ClipboardList
+  ClipboardList,
+  Repeat
 } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Link, useNavigate } from 'react-router-dom';
@@ -59,6 +60,7 @@ interface OrderWithDetails {
   quickbooks_invoice_id: string | null;
   is_pickup: boolean | null;
   po_number: string | null;
+  notes: string | null;
   fnb_customers: {
     name: string;
     whatsapp_phone?: string;
@@ -77,6 +79,10 @@ interface OrderWithDetails {
     } | null;
   }[];
 }
+
+const isStandingOrder = (order: OrderWithDetails) => {
+  return order.notes?.startsWith('Auto-generated from standing order:') ?? false;
+};
 
 const statusColors: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
@@ -156,6 +162,7 @@ export default function FnbOrders() {
           quickbooks_invoice_id,
           is_pickup,
           po_number,
+          notes,
           fnb_customers (name, whatsapp_phone, delivery_zone, customer_type),
           fnb_order_items (id, quantity, picked_quantity, short_quantity, unit_price_xcg, fnb_products (name, code))
         `)
@@ -266,7 +273,12 @@ export default function FnbOrders() {
               <div className="space-y-2">
                 {/* Row 1: Customer name + Status + Chevron */}
                 <div className="flex items-center justify-between gap-2">
-                  <p className="font-semibold text-base line-clamp-1 flex-1">{order.fnb_customers?.name || 'Unknown'}</p>
+                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                    {isStandingOrder(order) && (
+                      <Repeat className="h-4 w-4 text-blue-500 shrink-0" />
+                    )}
+                    <p className="font-semibold text-base line-clamp-1">{order.fnb_customers?.name || 'Unknown'}</p>
+                  </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <Badge className={cn('text-xs', statusColors[order.status])}>
                       {order.status?.replace('_', ' ')}
