@@ -49,7 +49,11 @@ serve(async (req) => {
 
     // Determine media type
     let mediaType = 'application/pdf';
-    if (file_type === 'html' || file_name?.endsWith('.html')) {
+    const isSpreadsheet = file_type === 'spreadsheet';
+    
+    if (isSpreadsheet) {
+      mediaType = 'text/plain';
+    } else if (file_type === 'html' || file_name?.endsWith('.html')) {
       mediaType = 'text/html';
     } else if (file_type === 'pdf' || file_name?.endsWith('.pdf')) {
       mediaType = 'application/pdf';
@@ -71,6 +75,14 @@ CRITICAL INSTRUCTIONS:
    - Building/wing/station identifiers
    - Location names that indicate a specific area within the customer's premises
 
+SPECIAL HANDLING FOR SPREADSHEETS/WEEKLY ORDER TEMPLATES:
+- Some files are weekly order templates with columns for each day of the week (Monday-Friday)
+- Each day column may contain quantities in natural language like "3 tros", "2 kg", "250 gram", "1 stuk"
+- Parse natural language quantities: "3 tros" = 3, "2 kg" = 2, "250 gram" = 0.25, "1 kilo" = 1
+- If the file has day-of-week columns, combine ALL items that have any quantity across all days
+- Set quantity to the sum of quantities across all days, or just extract non-zero quantities
+- The unit should be normalized: "tros" = "bunch", "stuk" = "pcs", "gram" = "gram", "kg" = "kg"
+
 Be thorough and extract every single line item. Do not miss any products.`;
 
     const userPrompt = `Parse this purchase order and extract all data. The file is a ${file_type || 'document'}.
@@ -86,7 +98,14 @@ Extract:
 
     // Build content array based on file type
     let content: any[];
-    if (mediaType === 'text/html') {
+    if (isSpreadsheet) {
+      // For spreadsheets, decode the text content
+      const spreadsheetContent = decodeURIComponent(escape(atob(file_base64)));
+      content = [
+        { type: "text", text: userPrompt },
+        { type: "text", text: `\n\nSPREADSHEET CONTENT (pipe-delimited rows):\n${spreadsheetContent}` }
+      ];
+    } else if (mediaType === 'text/html') {
       // For HTML, decode and send as text
       const htmlContent = atob(file_base64);
       content = [

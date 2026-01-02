@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 
 export interface ExtractedItem {
   sku: string;
@@ -56,13 +57,38 @@ export function usePOImport() {
     setState(prev => ({ ...prev, isUploading: true, error: null }));
 
     try {
-      // Convert file to base64
       const buffer = await file.arrayBuffer();
-      const base64 = btoa(
-        new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-      );
+      let base64: string;
+      let fileType: string;
 
-      const fileType = file.name.endsWith('.html') ? 'html' : 'pdf';
+      // Check if it's a spreadsheet file
+      const isSpreadsheet = /\.(csv|xlsx|xls)$/i.test(file.name);
+
+      if (isSpreadsheet) {
+        // Parse spreadsheet locally and convert to text
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json<(string | number | null)[]>(sheet, { 
+          header: 1, 
+          defval: '' 
+        });
+
+        // Convert to pipe-delimited text for AI parsing
+        const textContent = rows
+          .map(row => (Array.isArray(row) ? row.join(' | ') : ''))
+          .join('\n');
+
+        // Encode as base64 (handle unicode)
+        base64 = btoa(unescape(encodeURIComponent(textContent)));
+        fileType = 'spreadsheet';
+      } else {
+        // Original handling for PDF/HTML
+        base64 = btoa(
+          new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+        );
+        fileType = file.name.endsWith('.html') || file.name.endsWith('.htm') ? 'html' : 'pdf';
+      }
 
       setState(prev => ({ ...prev, isUploading: false, isParsing: true }));
 
