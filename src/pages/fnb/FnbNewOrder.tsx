@@ -92,6 +92,7 @@ export default function FnbNewOrder() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [isPickup, setIsPickup] = useState(false);
   const [deliveryStation, setDeliveryStation] = useState('');
+  const [poNumber, setPoNumber] = useState<string | null>(null);
   const [suggestionsOpen, setSuggestionsOpen] = useState(true);
   
   // PO Import state
@@ -586,6 +587,7 @@ export default function FnbNewOrder() {
           payment_method_used: paymentMethod,
           cod_amount_due: paymentMethod === 'cash' ? orderTotal : null,
           is_pickup: isPickup,
+          po_number: poNumber,
         })
         .select()
         .single();
@@ -639,6 +641,7 @@ export default function FnbNewOrder() {
       setPaymentMethod('cash');
       setIsPickup(false);
       setDeliveryStation('');
+      setPoNumber(null);
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -740,10 +743,11 @@ export default function FnbNewOrder() {
       await poImport.saveMappings(poImport.selectedCustomerId, poImport.matchedItems);
     }
 
-    // Set customer, delivery date, and station
+    // Set customer, delivery date, station, and PO number
     setCustomerId(poImport.selectedCustomerId);
     setDeliveryDate(poImport.selectedDeliveryDate || deliveryDate);
     setDeliveryStation(poImport.selectedDeliveryStation || '');
+    setPoNumber(poImport.extractedData?.po_number || null);
 
     // Convert to order items
     const newItems: OrderItem[] = validItems.map(item => {

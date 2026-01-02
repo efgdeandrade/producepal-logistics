@@ -58,6 +58,7 @@ interface OrderWithDetails {
   receipt_verified_at: string | null;
   quickbooks_invoice_id: string | null;
   is_pickup: boolean | null;
+  po_number: string | null;
   fnb_customers: {
     name: string;
     whatsapp_phone?: string;
@@ -154,6 +155,7 @@ export default function FnbOrders() {
           receipt_verified_at,
           quickbooks_invoice_id,
           is_pickup,
+          po_number,
           fnb_customers (name, whatsapp_phone, delivery_zone, customer_type),
           fnb_order_items (id, quantity, picked_quantity, short_quantity, unit_price_xcg, fnb_products (name, code))
         `)
@@ -303,8 +305,13 @@ export default function FnbOrders() {
           <CollapsibleContent>
             <div className="px-3 pb-3 border-t pt-2 space-y-2">
               {/* Order details */}
-              <div className="text-xs text-muted-foreground">
-                Order: {order.order_number}
+              <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                <span>Order: {order.order_number}</span>
+                {order.po_number && (
+                  <Badge variant="outline" className="text-xs font-mono">
+                    PO: {order.po_number}
+                  </Badge>
+                )}
               </div>
 
               {/* Customer type and zone */}

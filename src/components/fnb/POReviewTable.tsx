@@ -1,7 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Trash2 } from 'lucide-react';
+import { Trash2, CheckCircle, Sparkles, AlertCircle } from 'lucide-react';
 import { ProductMatchDropdown } from './ProductMatchDropdown';
 import { MatchedItem } from '@/hooks/usePOImport';
 import {
@@ -19,6 +18,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 interface POReviewTableProps {
   items: MatchedItem[];
@@ -34,6 +40,75 @@ const UNITS = [
   { value: 'lb', label: 'Lb' },
   { value: 'case', label: 'Case' },
 ];
+
+const LearningStatus = ({ item }: { item: MatchedItem }) => {
+  if (item.confidence === 'high') {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center justify-center">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Previously verified - no action needed</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+  
+  if (item.was_manually_changed && item.matched_product_id) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center justify-center">
+              <Sparkles className="h-4 w-4 text-blue-500" />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Will be learned for future imports</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+  
+  if (!item.matched_product_id) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center justify-center">
+              <AlertCircle className="h-4 w-4 text-orange-500" />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Select a product to match</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+  
+  // Medium/Low confidence - AI suggested
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex items-center justify-center">
+            <Sparkles className="h-4 w-4 text-muted-foreground" />
+          </div>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>AI suggested match - will be learned if confirmed</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+};
 
 export function POReviewTable({
   items,
@@ -51,13 +126,20 @@ export function POReviewTable({
             <TableHead className="w-[100px]">Qty</TableHead>
             <TableHead className="w-[100px]">Unit</TableHead>
             <TableHead className="w-[100px]">Price</TableHead>
-            <TableHead className="w-[80px]">Save</TableHead>
+            <TableHead className="w-[50px]">Status</TableHead>
             <TableHead className="w-[50px]"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {items.map((item, index) => (
-            <TableRow key={index}>
+            <TableRow 
+              key={index}
+              className={cn(
+                item.confidence === 'high' && 'bg-green-50 dark:bg-green-950/20',
+                item.was_manually_changed && 'bg-blue-50 dark:bg-blue-950/20',
+                !item.matched_product_id && 'bg-orange-50 dark:bg-orange-950/20'
+              )}
+            >
               <TableCell>
                 <div className="text-sm">
                   <div className="font-medium truncate" title={item.description}>
@@ -73,12 +155,12 @@ export function POReviewTable({
                   products={products}
                   value={item.matched_product_id}
                   confidence={item.confidence}
+                  wasManuallyChanged={item.was_manually_changed}
                   onChange={(productId) => {
                     const product = products.find(p => p.id === productId);
                     onUpdateItem(index, {
                       matched_product_id: productId,
                       matched_product_name: product?.name || null,
-                      confidence: productId ? 'high' : 'none',
                       unit_price: product?.price_xcg || item.unit_price,
                     });
                   }}
@@ -123,12 +205,7 @@ export function POReviewTable({
                 />
               </TableCell>
               <TableCell>
-                <Checkbox
-                  checked={item.save_mapping}
-                  onCheckedChange={(checked) => onUpdateItem(index, { save_mapping: !!checked })}
-                  disabled={!item.matched_product_id || item.confidence === 'high'}
-                  title={item.confidence === 'high' ? 'Already verified' : 'Save this mapping for future imports'}
-                />
+                <LearningStatus item={item} />
               </TableCell>
               <TableCell>
                 <Button
