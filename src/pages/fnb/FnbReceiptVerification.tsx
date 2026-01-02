@@ -44,8 +44,11 @@ export default function FnbReceiptVerification() {
   const [dateFilter, setDateFilter] = useState<string>("today");
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [viewingReceipt, setViewingReceipt] = useState<string | null>(null);
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+  const [fullSizeUrl, setFullSizeUrl] = useState<string | null>(null);
   const [showOriginal, setShowOriginal] = useState(false);
   const [reprocessingOrder, setReprocessingOrder] = useState<string | null>(null);
+  const [loadingReceipt, setLoadingReceipt] = useState(false);
 
   // Get date range based on filter
   const getDateRange = () => {
@@ -137,9 +140,16 @@ export default function FnbReceiptVerification() {
     verifyReceiptMutation.mutate(orderId);
   };
 
-  const getReceiptUrl = (path: string) => {
-    const { data } = supabase.storage.from("delivery-receipts").getPublicUrl(path);
-    return data.publicUrl;
+  // Use signed URLs for secure access to receipts (1 hour expiry)
+  const getSignedReceiptUrl = async (path: string): Promise<string | null> => {
+    const { data, error } = await supabase.storage
+      .from("delivery-receipts")
+      .createSignedUrl(path, 3600); // 1 hour expiry
+    if (error) {
+      console.error("Failed to create signed URL:", error);
+      return null;
+    }
+    return data.signedUrl;
   };
 
   // Reprocess receipt with AI
@@ -170,22 +180,47 @@ export default function FnbReceiptVerification() {
   };
 
   // View receipt with option for processed/original
-  const handleViewReceipt = (order: any) => {
+  const handleViewReceipt = async (order: any) => {
     setSelectedOrder(order);
+    setLoadingReceipt(true);
     // Default to processed version if available
     const receiptToView = order.receipt_photo_processed_url || order.receipt_photo_url;
     setViewingReceipt(receiptToView);
     setShowOriginal(!order.receipt_photo_processed_url);
+    
+    // Get signed URL for display
+    const signedUrl = await getSignedReceiptUrl(receiptToView);
+    setReceiptUrl(signedUrl);
+    setFullSizeUrl(signedUrl);
+    setLoadingReceipt(false);
   };
 
-  const toggleOriginal = () => {
+  const toggleOriginal = async () => {
     if (!selectedOrder) return;
+    setLoadingReceipt(true);
+    
+    let newPath: string;
     if (showOriginal) {
-      setViewingReceipt(selectedOrder.receipt_photo_processed_url || selectedOrder.receipt_photo_url);
+      newPath = selectedOrder.receipt_photo_processed_url || selectedOrder.receipt_photo_url;
     } else {
-      setViewingReceipt(selectedOrder.receipt_photo_url);
+      newPath = selectedOrder.receipt_photo_url;
     }
+    setViewingReceipt(newPath);
     setShowOriginal(!showOriginal);
+    
+    const signedUrl = await getSignedReceiptUrl(newPath);
+    setReceiptUrl(signedUrl);
+    setFullSizeUrl(signedUrl);
+    setLoadingReceipt(false);
+  };
+  
+  // Reset state when closing dialog
+  const handleCloseDialog = () => {
+    setViewingReceipt(null);
+    setSelectedOrder(null);
+    setShowOriginal(false);
+    setReceiptUrl(null);
+    setFullSizeUrl(null);
   };
 
   // Render extracted data
@@ -459,7 +494,7 @@ export default function FnbReceiptVerification() {
         </Card>
 
         {/* Receipt Image Dialog */}
-        <Dialog open={!!viewingReceipt} onOpenChange={() => { setViewingReceipt(null); setSelectedOrder(null); setShowOriginal(false); }}>
+        <Dialog open={!!viewingReceipt} onOpenChange={handleCloseDialog}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -474,11 +509,21 @@ export default function FnbReceiptVerification() {
             </DialogHeader>
             {viewingReceipt && (
               <div className="flex flex-col items-center">
-                <img
-                  src={getReceiptUrl(viewingReceipt)}
-                  alt="Receipt"
-                  className="max-h-[50vh] object-contain rounded-lg"
-                />
+                {loadingReceipt ? (
+                  <div className="flex items-center justify-center h-[200px]">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : receiptUrl ? (
+                  <img
+                    src={receiptUrl}
+                    alt="Receipt"
+                    className="max-h-[50vh] object-contain rounded-lg"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-[200px] text-muted-foreground">
+                    Failed to load receipt image
+                  </div>
+                )}
                 
                 {/* Extracted Data */}
                 {selectedOrder?.receipt_extracted_data && renderExtractedData(selectedOrder.receipt_extracted_data)}
@@ -486,16 +531,16 @@ export default function FnbReceiptVerification() {
             )}
             <DialogFooter className="flex-wrap gap-2">
               {selectedOrder?.receipt_photo_processed_url && selectedOrder?.receipt_photo_url && (
-                <Button variant="outline" onClick={toggleOriginal}>
+                <Button variant="outline" onClick={toggleOriginal} disabled={loadingReceipt}>
                   {showOriginal ? "View Enhanced" : "View Original"}
                 </Button>
               )}
-              <Button variant="outline" onClick={() => { setViewingReceipt(null); setSelectedOrder(null); setShowOriginal(false); }}>
+              <Button variant="outline" onClick={handleCloseDialog}>
                 Close
               </Button>
-              {viewingReceipt && (
+              {fullSizeUrl && (
                 <Button asChild>
-                  <a href={getReceiptUrl(viewingReceipt)} target="_blank" rel="noopener noreferrer">
+                  <a href={fullSizeUrl} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="h-4 w-4 mr-2" />
                     Open Full Size
                   </a>
