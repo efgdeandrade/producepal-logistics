@@ -1270,6 +1270,7 @@ export type Database = {
           payment_method_used:
             | Database["public"]["Enums"]["payment_method_type"]
             | null
+          po_number: string | null
           quickbooks_invoice_id: string | null
           quickbooks_invoice_number: string | null
           receipt_extracted_data: Json | null
@@ -1306,6 +1307,7 @@ export type Database = {
           payment_method_used?:
             | Database["public"]["Enums"]["payment_method_type"]
             | null
+          po_number?: string | null
           quickbooks_invoice_id?: string | null
           quickbooks_invoice_number?: string | null
           receipt_extracted_data?: Json | null
@@ -1342,6 +1344,7 @@ export type Database = {
           payment_method_used?:
             | Database["public"]["Enums"]["payment_method_type"]
             | null
+          po_number?: string | null
           quickbooks_invoice_id?: string | null
           quickbooks_invoice_number?: string | null
           receipt_extracted_data?: Json | null

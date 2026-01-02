@@ -25,6 +25,8 @@ export interface MatchedItem extends ExtractedItem {
   matched_product_name: string | null;
   confidence: 'high' | 'medium' | 'low' | 'none';
   save_mapping: boolean;
+  was_manually_changed: boolean;
+  original_matched_product_id: string | null;
 }
 
 export interface POImportState {
@@ -132,6 +134,8 @@ export function usePOImport() {
           matched_product_name: product?.name || null,
           confidence: mapping.is_verified ? 'high' : 'medium',
           save_mapping: false,
+          was_manually_changed: false,
+          original_matched_product_id: mapping.product_id,
         });
         continue;
       }
@@ -167,6 +171,8 @@ export function usePOImport() {
           matched_product_name: bestMatch.product.name,
           confidence: bestMatch.score > 0.8 ? 'medium' : 'low',
           save_mapping: false,
+          was_manually_changed: false,
+          original_matched_product_id: bestMatch.product.id,
         });
       } else {
         matchedItems.push({
@@ -175,6 +181,8 @@ export function usePOImport() {
           matched_product_name: null,
           confidence: 'none',
           save_mapping: false,
+          was_manually_changed: false,
+          original_matched_product_id: null,
         });
       }
     }
@@ -186,9 +194,19 @@ export function usePOImport() {
   const updateMatchedItem = (index: number, updates: Partial<MatchedItem>) => {
     setState(prev => ({
       ...prev,
-      matchedItems: prev.matchedItems.map((item, i) =>
-        i === index ? { ...item, ...updates } : item
-      ),
+      matchedItems: prev.matchedItems.map((item, i) => {
+        if (i !== index) return item;
+        
+        const newItem = { ...item, ...updates };
+        
+        // Auto-set save_mapping when user manually changes the product
+        if (updates.matched_product_id !== undefined && updates.matched_product_id !== item.original_matched_product_id) {
+          newItem.was_manually_changed = true;
+          newItem.save_mapping = updates.matched_product_id !== null && item.confidence !== 'high';
+        }
+        
+        return newItem;
+      }),
     }));
   };
 
@@ -212,28 +230,41 @@ export function usePOImport() {
   };
 
   const saveMappings = async (customerId: string, items: MatchedItem[]) => {
+    // Save all items that were manually changed by user OR explicitly marked for saving
     const mappingsToSave = items.filter(
-      item => item.save_mapping && item.matched_product_id && item.sku
+      item => (item.save_mapping || item.was_manually_changed) && item.matched_product_id && item.sku
     );
 
     if (mappingsToSave.length === 0) return;
 
-    const { error } = await supabase
-      .from('fnb_customer_product_mappings')
-      .upsert(
-        mappingsToSave.map(item => ({
+    // For each mapping, check if it already exists and update confidence
+    for (const item of mappingsToSave) {
+      const { data: existing } = await supabase
+        .from('fnb_customer_product_mappings')
+        .select('confidence_score')
+        .eq('customer_id', customerId)
+        .eq('customer_sku', item.sku)
+        .single();
+      
+      const newConfidence = existing 
+        ? Math.min((existing.confidence_score || 1.0) + 0.5, 5.0) // Increase confidence on re-verification, max 5
+        : 1.0;
+
+      const { error } = await supabase
+        .from('fnb_customer_product_mappings')
+        .upsert({
           customer_id: customerId,
           customer_sku: item.sku,
           customer_product_name: item.description,
           product_id: item.matched_product_id!,
-          confidence_score: 1.0,
+          confidence_score: newConfidence,
           is_verified: true,
-        })),
-        { onConflict: 'customer_id,customer_sku' }
-      );
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'customer_id,customer_sku' });
 
-    if (error) {
-      console.error('Error saving mappings:', error);
+      if (error) {
+        console.error('Error saving mapping:', error);
+      }
     }
   };
 
