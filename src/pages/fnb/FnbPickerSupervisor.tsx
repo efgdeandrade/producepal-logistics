@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Trophy, AlertTriangle, Check, X, Activity, MapPin, Users } from 'lucide-react';
+import { ArrowLeft, Trophy, AlertTriangle, Check, X, Activity, MapPin, Users, Volume2, VolumeX } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,10 +13,21 @@ import { PickerLeaderboard } from '@/components/fnb/PickerLeaderboard';
 import { LivePickerStatusCards } from '@/components/fnb/LivePickerStatusCards';
 import { ZoneQueueOverview } from '@/components/fnb/ZoneQueueOverview';
 import { FnbAlertsCard } from '@/components/fnb/FnbAlertsCard';
+import { NewOrderToast } from '@/components/fnb/NewOrderToast';
+import { useNewOrderNotifications } from '@/hooks/useNewOrderNotifications';
+import { cn } from '@/lib/utils';
 
 export default function FnbPickerSupervisor() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  
+  // New order notifications
+  const {
+    notifications,
+    soundEnabled,
+    toggleSound,
+    dismissNotification,
+  } = useNewOrderNotifications();
 
   // Real-time subscriptions
   useEffect(() => {
@@ -243,6 +254,34 @@ export default function FnbPickerSupervisor() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
+      
+      {/* Floating notification stack */}
+      {notifications.length > 0 && (
+        <div className="fixed top-20 right-4 z-50 space-y-2 max-w-sm">
+          {notifications.slice(0, 3).map((notification) => (
+            <NewOrderToast
+              key={notification.id}
+              id={notification.id}
+              orderId={notification.orderId}
+              orderNumber={notification.orderNumber}
+              customerName={notification.customerName}
+              zone={notification.zone}
+              isUrgent={notification.isUrgent}
+              onView={() => {
+                dismissNotification(notification.id);
+                toast.info(`Order ${notification.orderNumber} ready for picking`);
+              }}
+              onDismiss={() => dismissNotification(notification.id)}
+            />
+          ))}
+          {notifications.length > 3 && (
+            <div className="text-center text-xs text-muted-foreground bg-muted/80 rounded-md py-1">
+              +{notifications.length - 3} more new orders
+            </div>
+          )}
+        </div>
+      )}
+      
       <main className="container py-6 max-w-7xl">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
@@ -255,6 +294,23 @@ export default function FnbPickerSupervisor() {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleSound}
+              className={cn(
+                "relative",
+                soundEnabled ? "text-primary" : "text-muted-foreground"
+              )}
+              title={soundEnabled ? "Sound notifications on" : "Sound notifications off"}
+            >
+              {soundEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+              {notifications.length > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground flex items-center justify-center">
+                  {notifications.length}
+                </span>
+              )}
+            </Button>
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-100 dark:bg-blue-900">
               <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
               <span className="font-semibold text-blue-600 dark:text-blue-400">{totalActive} Active</span>

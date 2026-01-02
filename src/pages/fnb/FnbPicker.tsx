@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, CheckCircle, Clock, User, Package, AlertTriangle, LogOut, Scale, Trophy, Edit, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Clock, User, Package, AlertTriangle, LogOut, Scale, Trophy, Edit, ChevronDown, ChevronUp, RefreshCw, Volume2, VolumeX } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,8 +26,10 @@ import { ShortageQuickButtons } from '@/components/fnb/ShortageQuickButtons';
 import { AssistanceButton } from '@/components/fnb/AssistanceButton';
 import { WeightAccuracyIndicator } from '@/components/fnb/WeightAccuracyIndicator';
 import { ItemsOverviewTable } from '@/components/fnb/ItemsOverviewTable';
+import { NewOrderToast } from '@/components/fnb/NewOrderToast';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
+import { useNewOrderNotifications } from '@/hooks/useNewOrderNotifications';
 
 const SHORT_REASONS = [
   { value: 'out_of_stock', label: 'Out of Stock' },
@@ -80,6 +82,14 @@ export default function FnbPicker() {
   } | null>(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showCompletedOrders, setShowCompletedOrders] = useState(false);
+  
+  // New order notifications
+  const {
+    notifications,
+    soundEnabled,
+    toggleSound,
+    dismissNotification,
+  } = useNewOrderNotifications();
 
 const PICKER_UNITS = [
   { value: 'pcs', label: 'Pcs' },
@@ -747,6 +757,41 @@ const PICKER_UNITS = [
   return (
     <div className="min-h-screen bg-background">
       <Header />
+      
+      {/* Floating notification stack */}
+      {notifications.length > 0 && (
+        <div className="fixed top-20 right-4 z-50 space-y-2 max-w-sm">
+          {notifications.slice(0, 3).map((notification) => (
+            <NewOrderToast
+              key={notification.id}
+              id={notification.id}
+              orderId={notification.orderId}
+              orderNumber={notification.orderNumber}
+              customerName={notification.customerName}
+              zone={notification.zone}
+              isUrgent={notification.isUrgent}
+              onView={() => {
+                // Find queue item and claim it
+                const queueItem = queueItems?.find((q: any) => q.order_id === notification.orderId);
+                if (queueItem) {
+                  if (queueItem.status === 'queued') {
+                    claimMutation.mutate(queueItem.id);
+                  }
+                  setSelectedQueue(queueItem.id);
+                }
+                dismissNotification(notification.id);
+              }}
+              onDismiss={() => dismissNotification(notification.id)}
+            />
+          ))}
+          {notifications.length > 3 && (
+            <div className="text-center text-xs text-muted-foreground bg-muted/80 rounded-md py-1">
+              +{notifications.length - 3} more new orders
+            </div>
+          )}
+        </div>
+      )}
+      
       <main className="container py-4 max-w-7xl">
         {/* Header with Session Info */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
@@ -777,6 +822,23 @@ const PICKER_UNITS = [
           </div>
           
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleSound}
+              className={cn(
+                "relative",
+                soundEnabled ? "text-primary" : "text-muted-foreground"
+              )}
+              title={soundEnabled ? "Sound notifications on" : "Sound notifications off"}
+            >
+              {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+              {notifications.length > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground flex items-center justify-center">
+                  {notifications.length}
+                </span>
+              )}
+            </Button>
             <Button
               variant="outline"
               size="sm"
