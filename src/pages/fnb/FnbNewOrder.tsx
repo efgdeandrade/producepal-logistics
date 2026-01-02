@@ -39,6 +39,17 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface OrderItem {
   productId: string;
@@ -100,6 +111,9 @@ export default function FnbNewOrder() {
   const poImport = usePOImport();
   const [showPOUpload, setShowPOUpload] = useState(false);
   const [showPOReview, setShowPOReview] = useState(false);
+  
+  // Duplicate order confirmation state
+  const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
   
   // Refs for keyboard navigation
   const quantityRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -197,6 +211,33 @@ export default function FnbNewOrder() {
       return data;
     },
     enabled: isEditMode,
+  });
+
+  // Duplicate order detection query
+  const { data: duplicateOrders } = useQuery({
+    queryKey: ['fnb-duplicate-check', customerId, deliveryDate],
+    queryFn: async () => {
+      if (!customerId || !deliveryDate) return [];
+      
+      const { data, error } = await supabase
+        .from('fnb_orders')
+        .select(`
+          id,
+          order_number,
+          total_xcg,
+          status,
+          created_at,
+          fnb_order_items(quantity, fnb_products(name))
+        `)
+        .eq('customer_id', customerId)
+        .eq('delivery_date', deliveryDate)
+        .neq('status', 'cancelled')
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!customerId && !!deliveryDate && !isEditMode,
   });
 
   // Smart pre-fill payment method when customer changes
@@ -719,9 +760,17 @@ export default function FnbNewOrder() {
   const handleSubmit = () => {
     if (isEditMode) {
       updateOrderMutation.mutate();
+    } else if (duplicateOrders && duplicateOrders.length > 0) {
+      // Show confirmation dialog if duplicates exist
+      setShowDuplicateConfirm(true);
     } else {
       createOrderMutation.mutate();
     }
+  };
+  
+  const handleConfirmCreate = () => {
+    setShowDuplicateConfirm(false);
+    createOrderMutation.mutate();
   };
 
   const isPending = createOrderMutation.isPending || updateOrderMutation.isPending;
@@ -996,6 +1045,39 @@ export default function FnbNewOrder() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Duplicate Order Warning */}
+            {duplicateOrders && duplicateOrders.length > 0 && !isEditMode && (
+              <Alert variant="destructive" className="border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertTitle>Existing Order Found</AlertTitle>
+                <AlertDescription>
+                  <p className="mb-2">
+                    This customer already has {duplicateOrders.length} order{duplicateOrders.length > 1 ? 's' : ''} for {format(new Date(deliveryDate), 'EEEE, MMM d')}:
+                  </p>
+                  <ul className="list-disc ml-4 space-y-1">
+                    {duplicateOrders.slice(0, 3).map((order: any) => (
+                      <li key={order.id}>
+                        <strong>{order.order_number}</strong> - {order.total_xcg?.toFixed(2)} XCG ({order.status})
+                      </li>
+                    ))}
+                    {duplicateOrders.length > 3 && (
+                      <li className="text-muted-foreground">...and {duplicateOrders.length - 3} more</li>
+                    )}
+                  </ul>
+                  <div className="flex gap-2 mt-3">
+                    <Button size="sm" variant="outline" asChild>
+                      <Link to={`/fnb/orders/${duplicateOrders[0].id}/edit`}>
+                        Edit Existing Order
+                      </Link>
+                    </Button>
+                    <Button size="sm" variant="ghost" asChild>
+                      <Link to="/fnb/orders">View All Orders</Link>
+                    </Button>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
 
             {/* Smart Suggestions */}
             {customerId && suggestions.length > 0 && (
@@ -1473,6 +1555,30 @@ export default function FnbNewOrder() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Duplicate Order Confirmation Dialog */}
+      <AlertDialog open={showDuplicateConfirm} onOpenChange={setShowDuplicateConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Create Duplicate Order?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This customer already has {duplicateOrders?.length} order{duplicateOrders && duplicateOrders.length > 1 ? 's' : ''} for this delivery date. 
+              Are you sure you want to create another order?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button variant="outline" asChild>
+              <Link to={duplicateOrders?.[0]?.id ? `/fnb/orders/${duplicateOrders[0].id}/edit` : '/fnb/orders'}>
+                Edit Existing Instead
+              </Link>
+            </Button>
+            <AlertDialogAction onClick={handleConfirmCreate}>
+              Create Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
