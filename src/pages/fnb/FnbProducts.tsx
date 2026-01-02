@@ -16,6 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Table,
   TableBody,
@@ -289,13 +290,14 @@ export default function FnbProducts() {
                 Add Product
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
               <DialogHeader>
                 <DialogTitle>
                   {editingProduct ? 'Edit Product' : 'Add New Product'}
                 </DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <ScrollArea className="flex-1 pr-4">
+                <form onSubmit={handleSubmit} className="space-y-4 pb-2">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="code">Product Code</Label>
@@ -613,7 +615,8 @@ export default function FnbProducts() {
                     {editingProduct ? 'Update' : 'Create'}
                   </Button>
                 </div>
-              </form>
+                </form>
+              </ScrollArea>
             </DialogContent>
           </Dialog>
         </div>
