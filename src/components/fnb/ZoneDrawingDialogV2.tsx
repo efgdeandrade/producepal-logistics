@@ -80,6 +80,18 @@ export default function ZoneDrawingDialogV2({
 
   const majorZones = zones.filter((z) => z.zone_type === "major");
 
+  // Generate distinct colors for major zones
+  const getMajorZoneColor = (zoneName: string): string => {
+    const name = zoneName.toLowerCase().trim();
+    if (name.includes("pariba")) return "#3b82f6"; // Blue
+    if (name.includes("pabou")) return "#22c55e"; // Green
+    if (name.includes("meimei")) return "#f59e0b"; // Amber
+    // Generate color from name hash for other zones
+    const colors = ["#8b5cf6", "#ec4899", "#14b8a6", "#f97316", "#06b6d4"];
+    const hash = zoneName.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+    return colors[hash % colors.length];
+  };
+
   // Reset form when dialog opens/closes or zone changes
   useEffect(() => {
     if (open) {
@@ -176,10 +188,11 @@ export default function ZoneDrawingDialogV2({
           <div className="lg:col-span-2 min-h-[400px] rounded-lg overflow-hidden border">
             {drawingMode === "polygon" ? (
               <PolygonDrawingMap
+                key={zone?.id || "new-zone"}
                 initialPolygon={polygonCoords}
                 customers={customers}
                 onPolygonChange={handlePolygonChange}
-                zoneColor={zoneType === "major" ? "#3b82f6" : "#22c55e"}
+                zoneColor={zoneType === "major" ? getMajorZoneColor(name) : "#22c55e"}
               />
             ) : (
               <ZoneMapView

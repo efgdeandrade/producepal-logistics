@@ -41,6 +41,17 @@ export default function PolygonDrawingMap({
   const [vertices, setVertices] = useState<[number, number][]>(initialPolygon || []);
   const [isDrawing, setIsDrawing] = useState(!initialPolygon || initialPolygon.length === 0);
 
+  // Sync vertices state with initialPolygon prop changes
+  useEffect(() => {
+    if (initialPolygon && initialPolygon.length > 0) {
+      setVertices(initialPolygon);
+      setIsDrawing(false);
+    } else {
+      setVertices([]);
+      setIsDrawing(true);
+    }
+  }, [initialPolygon]);
+
   // Initialize map
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
