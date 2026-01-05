@@ -217,7 +217,7 @@ export default function ZoneDrawingDialogV2({
             {drawingMode === "polygon" ? (
               <PolygonDrawingMap
                 key={zone?.id ?? `new-zone-${newZoneSessionId}`}
-                initialPolygon={polygonCoords}
+                initialPolygon={zone?.polygon_coordinates ?? polygonCoords}
                 customers={customers}
                 onPolygonChange={handlePolygonChange}
                 zoneColor={zoneType === "major" ? getMajorZoneColor(name) : "#22c55e"}
