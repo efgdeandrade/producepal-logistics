@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -325,9 +325,19 @@ export default function FnbCustomers() {
   });
 
   // Filter sub-zones based on selected major zone
-  const filteredSubZones = formData.major_zone_id
-    ? subZones?.filter(sz => sz.parent_zone_id === formData.major_zone_id)
-    : subZones;
+  // Falls back to all sub-zones if none are linked to the selected major zone
+  const filteredSubZones = useMemo(() => {
+    if (!formData.major_zone_id) return subZones;
+    const linkedZones = subZones?.filter(sz => sz.parent_zone_id === formData.major_zone_id);
+    return linkedZones && linkedZones.length > 0 ? linkedZones : subZones;
+  }, [formData.major_zone_id, subZones]);
+
+  // Check if sub-zones are unlinked (for warning display)
+  const subZonesUnlinked = useMemo(() => {
+    if (!formData.major_zone_id || !subZones) return false;
+    const linkedZones = subZones.filter(sz => sz.parent_zone_id === formData.major_zone_id);
+    return linkedZones.length === 0;
+  }, [formData.major_zone_id, subZones]);
 
   // Fetch pricing tiers
   const { data: pricingTiers } = useQuery({
@@ -699,6 +709,11 @@ export default function FnbCustomers() {
                         )}
                       </Button>
                     </div>
+                    {subZonesUnlinked && (
+                      <p className="text-xs text-amber-600">
+                        ⚠ Sub-zones not linked to this major zone. Showing all sub-zones.
+                      </p>
+                    )}
                     {detectedZoneInfo && (
                       <div className="text-xs mt-1">
                         {detectedZoneInfo.matchedZone ? (
