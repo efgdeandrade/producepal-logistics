@@ -8,9 +8,22 @@ const allowedOrigins = [
   'https://dnxzpkbobzwjcuyfgdnh.lovable.app'
 ];
 
+// Check if origin matches allowed patterns (including Lovable preview domains)
+function isAllowedOrigin(origin: string): boolean {
+  if (allowedOrigins.includes(origin)) return true;
+  
+  // Allow any lovableproject.com subdomain (preview environments)
+  if (origin.endsWith('.lovableproject.com')) return true;
+  
+  // Allow any lovable.app subdomain
+  if (origin.endsWith('.lovable.app')) return true;
+  
+  return false;
+}
+
 function getCorsHeaders(req: Request) {
   const origin = req.headers.get('Origin') || '';
-  const allowedOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+  const allowedOrigin = isAllowedOrigin(origin) ? origin : allowedOrigins[0];
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
