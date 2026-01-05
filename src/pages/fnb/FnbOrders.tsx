@@ -33,6 +33,9 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Link, useNavigate } from 'react-router-dom';
 import { format, addDays, startOfWeek, isSameDay, parseISO, getISOWeek } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -505,7 +508,7 @@ export default function FnbOrders() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
                 <Button variant="outline" size="icon" onClick={previousWeek}>
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -518,6 +521,22 @@ export default function FnbOrders() {
                       {format(weekStart, 'MMM d')} - {format(addDays(weekStart, 5), 'MMM d, yyyy')}
                     </h2>
                   </div>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="icon">
+                        <CalendarIcon className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={weekStart}
+                        onSelect={(date) => date && setWeekStart(startOfWeek(date, { weekStartsOn: 1 }))}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
                   <Button variant="outline" size="sm" onClick={goToToday}>
                     Today
                   </Button>
