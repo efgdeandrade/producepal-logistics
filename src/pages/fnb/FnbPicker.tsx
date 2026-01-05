@@ -4,11 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, CheckCircle, Clock, User, Package, AlertTriangle, LogOut, Scale, Trophy, Edit, ChevronDown, ChevronUp, RefreshCw, Volume2, VolumeX } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Clock, User, Package, AlertTriangle, LogOut, Scale, Trophy, Edit, ChevronDown, ChevronUp, RefreshCw, Volume2, VolumeX, CalendarIcon } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format, isToday, startOfDay, endOfDay } from 'date-fns';
 import {
   Select,
   SelectContent,
@@ -82,6 +85,7 @@ export default function FnbPicker() {
   } | null>(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showCompletedOrders, setShowCompletedOrders] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   
   // New order notifications
   const {
@@ -183,15 +187,18 @@ const PICKER_UNITS = [
     };
   }, [queryClient]);
 
-  // Fetch queue with item counts
+  // Fetch queue with item counts - filtered by selected date
   const { data: queueItems, isLoading } = useQuery({
-    queryKey: ['fnb-picker-queue'],
+    queryKey: ['fnb-picker-queue', format(selectedDate, 'yyyy-MM-dd')],
     queryFn: async () => {
+      const dayStart = startOfDay(selectedDate).toISOString();
+      const dayEnd = endOfDay(selectedDate).toISOString();
+      
       const { data, error } = await supabase
         .from('fnb_picker_queue')
         .select(`
           *,
-          fnb_orders(
+          fnb_orders!inner(
             id,
             order_number,
             total_xcg,
@@ -201,6 +208,8 @@ const PICKER_UNITS = [
           )
         `)
         .in('status', ['queued', 'in_progress'])
+        .gte('fnb_orders.delivery_date', dayStart)
+        .lte('fnb_orders.delivery_date', dayEnd)
         .order('priority', { ascending: false })
         .order('created_at', { ascending: true });
       if (error) throw error;
@@ -821,7 +830,37 @@ const PICKER_UNITS = [
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
+          {/* Date Picker and Actions Row */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Date Picker */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <CalendarIcon className="h-4 w-4" />
+                  {format(selectedDate, 'EEE, MMM d')}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => date && setSelectedDate(date)}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+            
+            {!isToday(selectedDate) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedDate(new Date())}
+                className="text-primary"
+              >
+                Today
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -869,7 +908,23 @@ const PICKER_UNITS = [
           </div>
         </div>
 
-        {/* Leaderboard Panel */}
+        {/* Date indicator banner when viewing non-today date */}
+        {!isToday(selectedDate) && (
+          <div className="mb-4 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-4 py-2 rounded-lg flex items-center justify-between">
+            <span className="font-medium">
+              Viewing orders for: {format(selectedDate, 'EEEE, MMMM d, yyyy')}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedDate(new Date())}
+              className="text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-800/50"
+            >
+              Back to Today
+            </Button>
+          </div>
+        )}
+
         {showLeaderboard && (
           <Card className="mb-4">
             <CardHeader className="pb-3">
