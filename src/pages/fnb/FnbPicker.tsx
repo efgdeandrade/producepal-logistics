@@ -77,7 +77,6 @@ export default function FnbPicker() {
   const [selectedQueue, setSelectedQueue] = useState<string | null>(null);
   const [pickedQuantities, setPickedQuantities] = useState<Record<string, number>>({});
   const [pickedUnits, setPickedUnits] = useState<Record<string, string>>({});
-  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
   const [shortReasons, setShortReasons] = useState<Record<string, string>>({});
   const [shortageItem, setShortageItem] = useState<{
     id: string;
@@ -593,6 +592,50 @@ const PICKER_UNITS = [
     },
     onError: () => {
       toast.error('Failed to update shortage');
+    },
+  });
+
+  // Mutation for checking/unchecking items (collaborative picking)
+  const checkItemMutation = useMutation({
+    mutationFn: async ({ itemId, checked }: { itemId: string; checked: boolean }) => {
+      if (checked) {
+        // Mark as picked by this picker
+        const { error } = await supabase
+          .from('fnb_order_items')
+          .update({
+            picked_by: user?.id,
+            picked_at: new Date().toISOString(),
+            picker_name: pickerName,
+          })
+          .eq('id', itemId);
+        if (error) throw error;
+      } else {
+        // Only allow unchecking if this picker checked it
+        const item = orderItems?.find((i: any) => i.id === itemId);
+        if (item?.picked_by === user?.id) {
+          const { error } = await supabase
+            .from('fnb_order_items')
+            .update({
+              picked_by: null,
+              picked_at: null,
+              picker_name: null,
+            })
+            .eq('id', itemId);
+          if (error) throw error;
+        } else {
+          throw new Error('Cannot uncheck item picked by another picker');
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['fnb-picker-items'] });
+    },
+    onError: (error: any) => {
+      if (error.message === 'Cannot uncheck item picked by another picker') {
+        toast.error('You can only uncheck items you picked');
+      } else {
+        toast.error('Failed to update item');
+      }
     },
   });
 
@@ -1219,6 +1262,49 @@ const PICKER_UNITS = [
                   {/* Items List with Quantity Adjustment */}
                   {isMyOrder && orderItems && (
                     <>
+                      {/* Active Pickers Banner - Show who is picking this order */}
+                      {(() => {
+                        const activePickers = orderItems
+                          .filter((item: any) => item.picked_by && item.picker_name)
+                          .reduce((acc: { name: string; count: number; isMe: boolean }[], item: any) => {
+                            const existing = acc.find(p => p.name === item.picker_name);
+                            if (existing) {
+                              existing.count++;
+                            } else {
+                              acc.push({ 
+                                name: item.picker_name, 
+                                count: 1, 
+                                isMe: item.picked_by === user?.id 
+                              });
+                            }
+                            return acc;
+                          }, []);
+                        
+                        if (activePickers.length > 0) {
+                          return (
+                            <div className="flex items-center gap-2 flex-wrap p-2 bg-muted/50 rounded-lg">
+                              <span className="text-xs font-medium text-muted-foreground">Picking:</span>
+                              {activePickers.map((picker, idx) => (
+                                <Badge 
+                                  key={idx}
+                                  variant="outline" 
+                                  className={cn(
+                                    "text-xs",
+                                    picker.isMe 
+                                      ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 border-green-400" 
+                                      : "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 border-purple-400"
+                                  )}
+                                >
+                                  <User className="h-3 w-3 mr-1" />
+                                  {picker.isMe ? 'You' : picker.name} ({picker.count})
+                                </Badge>
+                              ))}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+
                       {/* Progress Bar */}
                       <div className="space-y-1">
                         <div className="flex justify-between text-sm">
@@ -1268,7 +1354,11 @@ const PICKER_UNITS = [
                             return 'bg-card';
                           };
 
-                          const isChecked = checkedItems[item.id] || false;
+                          // Derive checked state from database (picked_by is set)
+                          const isCheckedByMe = item.picked_by === user?.id;
+                          const isCheckedByOther = item.picked_by && item.picked_by !== user?.id;
+                          const isChecked = !!item.picked_by;
+                          const pickerDisplayName = item.picker_name || 'Unknown';
 
                           return (
                             <div
@@ -1277,17 +1367,21 @@ const PICKER_UNITS = [
                                 'py-2 px-3 rounded-lg border-2 transition-colors',
                                 getBorderColor(),
                                 getBgColor(),
-                                isChecked && 'opacity-60'
+                                isChecked && 'opacity-70'
                               )}
                             >
                               <div className="flex items-center gap-3">
                                 {/* Picked Checkbox */}
                                 <Checkbox
                                   checked={isChecked}
-                                  onCheckedChange={(checked) => 
-                                    setCheckedItems(prev => ({ ...prev, [item.id]: !!checked }))
-                                  }
-                                  className="h-5 w-5 shrink-0"
+                                  onCheckedChange={(checked) => {
+                                    checkItemMutation.mutate({ itemId: item.id, checked: !!checked });
+                                  }}
+                                  disabled={isCheckedByOther || checkItemMutation.isPending}
+                                  className={cn(
+                                    "h-5 w-5 shrink-0",
+                                    isCheckedByOther && "opacity-50 cursor-not-allowed"
+                                  )}
                                 />
                                 
                                 <div className="flex items-start justify-between flex-1 min-w-0">
@@ -1301,6 +1395,19 @@ const PICKER_UNITS = [
                                         <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 shrink-0">
                                           <Scale className="h-3 w-3 mr-1" />
                                           Weight
+                                        </Badge>
+                                      )}
+                                      {/* Picker attribution badge */}
+                                      {isCheckedByMe && (
+                                        <Badge variant="outline" className="text-xs bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 border-green-400 shrink-0">
+                                          <User className="h-3 w-3 mr-1" />
+                                          You
+                                        </Badge>
+                                      )}
+                                      {isCheckedByOther && (
+                                        <Badge variant="outline" className="text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 border-purple-400 shrink-0">
+                                          <User className="h-3 w-3 mr-1" />
+                                          {pickerDisplayName}
                                         </Badge>
                                       )}
                                     </div>

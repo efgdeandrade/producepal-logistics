@@ -1356,6 +1356,7 @@ export type Database = {
           picked_by: string | null
           picked_quantity: number | null
           picked_unit: string | null
+          picker_name: string | null
           product_id: string | null
           quantity: number
           short_quantity: number | null
@@ -1381,6 +1382,7 @@ export type Database = {
           picked_by?: string | null
           picked_quantity?: number | null
           picked_unit?: string | null
+          picker_name?: string | null
           product_id?: string | null
           quantity: number
           short_quantity?: number | null
@@ -1406,6 +1408,7 @@ export type Database = {
           picked_by?: string | null
           picked_quantity?: number | null
           picked_unit?: string | null
+          picker_name?: string | null
           product_id?: string | null
           quantity?: number
           short_quantity?: number | null
