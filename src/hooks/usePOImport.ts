@@ -16,6 +16,7 @@ export interface ExtractedPOData {
   customer_code: string;
   po_number: string;
   delivery_date: string | null;
+  delivery_date_raw: string | null;
   delivery_station: string | null;
   currency: string;
   items: ExtractedItem[];
