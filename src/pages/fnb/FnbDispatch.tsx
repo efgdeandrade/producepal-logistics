@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { 
   Truck, MapPin, Clock, Package, Zap, Send, RefreshCw, 
-  AlertTriangle, ChevronRight, Route, Users, Calendar
+  AlertTriangle, ChevronRight, Route, Users, Lock, Unlock, GripVertical
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import mapboxgl from "mapbox-gl";
@@ -30,6 +31,7 @@ interface RouteAssignment {
     priority: number;
     sequence: number;
     estimated_arrival: string;
+    is_locked?: boolean;
   }[];
   total_stops: number;
   estimated_duration_minutes: number;
@@ -46,17 +48,13 @@ interface ReadyOrder {
   delivery_zone: string | null;
   priority: number;
   total_xcg: number;
+  assignment_locked: boolean;
+  driver_id: string | null;
 }
 
 const DRIVER_COLORS = [
-  "#3B82F6", // blue
-  "#10B981", // green
-  "#F59E0B", // amber
-  "#EF4444", // red
-  "#8B5CF6", // purple
-  "#EC4899", // pink
-  "#06B6D4", // cyan
-  "#F97316", // orange
+  "#3B82F6", "#10B981", "#F59E0B", "#EF4444", 
+  "#8B5CF6", "#EC4899", "#06B6D4", "#F97316"
 ];
 
 const FnbDispatch = () => {
@@ -70,6 +68,7 @@ const FnbDispatch = () => {
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState<string | null>(null);
+  const [draggedOrder, setDraggedOrder] = useState<{ orderId: string; fromDriver: string } | null>(null);
 
   // Fetch ready orders
   const { data: readyOrders = [], isLoading: ordersLoading } = useQuery({
@@ -78,10 +77,7 @@ const FnbDispatch = () => {
       const { data, error } = await supabase
         .from("fnb_orders")
         .select(`
-          id,
-          order_number,
-          total_xcg,
-          priority,
+          id, order_number, total_xcg, priority, assignment_locked, driver_id,
           fnb_customers!inner(name, address, latitude, longitude, delivery_zone)
         `)
         .eq("status", "ready")
@@ -98,26 +94,24 @@ const FnbDispatch = () => {
         longitude: o.fnb_customers.longitude,
         delivery_zone: o.fnb_customers.delivery_zone,
         priority: o.priority || 0,
-        total_xcg: o.total_xcg || 0
+        total_xcg: o.total_xcg || 0,
+        assignment_locked: o.assignment_locked || false,
+        driver_id: o.driver_id,
       })) as ReadyOrder[];
     }
   });
 
-  // Fetch available drivers for the date
+  // Fetch available drivers
   const { data: availableDrivers = [] } = useQuery({
     queryKey: ["dispatch-drivers", selectedDate],
     queryFn: async () => {
       const { data: avail } = await supabase
         .from("driver_availability")
-        .select(`
-          driver_id,
-          vehicle_capacity,
-          profiles!inner(id, email, full_name)
-        `)
+        .select(`driver_id, vehicle_capacity, profiles!inner(id, email, full_name)`)
         .eq("date", selectedDate)
         .eq("is_available", true);
       
-      if (avail && avail.length > 0) {
+      if (avail?.length) {
         return avail.map((a: any) => ({
           id: a.driver_id,
           name: a.profiles.full_name || a.profiles.email,
@@ -125,13 +119,9 @@ const FnbDispatch = () => {
         }));
       }
       
-      // Fall back to all drivers if no availability set
       const { data: allDrivers } = await supabase
         .from("user_roles")
-        .select(`
-          user_id,
-          profiles!inner(id, email, full_name)
-        `)
+        .select(`user_id, profiles!inner(id, email, full_name)`)
         .eq("role", "driver");
       
       return allDrivers?.map((d: any) => ({
@@ -155,7 +145,7 @@ const FnbDispatch = () => {
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
         style: "mapbox://styles/mapbox/light-v11",
-        center: [-68.9900, 12.1696], // Curacao center
+        center: [-68.9900, 12.1696],
         zoom: 11
       });
 
@@ -163,29 +153,22 @@ const FnbDispatch = () => {
     };
 
     initMap();
-
-    return () => {
-      map.current?.remove();
-      map.current = null;
-    };
+    return () => { map.current?.remove(); map.current = null; };
   }, []);
 
-  // Update map markers when assignments change
+  // Update map markers
   useEffect(() => {
     if (!map.current) return;
 
-    // Clear existing markers
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
 
-    // Clear existing route lines
     if (map.current.getSource("routes")) {
       map.current.removeLayer("routes-line");
       map.current.removeSource("routes");
     }
 
     if (assignments.length === 0) {
-      // Show unassigned orders
       readyOrders.forEach(order => {
         if (order.latitude && order.longitude) {
           const el = document.createElement("div");
@@ -207,13 +190,11 @@ const FnbDispatch = () => {
       return;
     }
 
-    // Show assigned routes
     const routeFeatures: any[] = [];
 
     assignments.forEach((assignment, driverIdx) => {
       const color = DRIVER_COLORS[driverIdx % DRIVER_COLORS.length];
       const isSelected = selectedDriver === null || selectedDriver === assignment.driver_id;
-      
       const coordinates: [number, number][] = [];
 
       assignment.stops.forEach((stop, stopIdx) => {
@@ -231,13 +212,17 @@ const FnbDispatch = () => {
           el.classList.add("animate-pulse");
           el.style.boxShadow = "0 0 10px red";
         }
+
+        if (stop.is_locked) {
+          el.style.border = "3px solid gold";
+        }
         
         const marker = new mapboxgl.Marker(el)
           .setLngLat([stop.longitude, stop.latitude])
           .setPopup(new mapboxgl.Popup().setHTML(`
             <strong>${stop.customer_name}</strong><br/>
             Order: ${stop.order_number}<br/>
-            Stop #${stop.sequence}<br/>
+            Stop #${stop.sequence}${stop.is_locked ? " 🔒" : ""}<br/>
             ETA: ${format(new Date(stop.estimated_arrival), "h:mm a")}
           `))
           .addTo(map.current!);
@@ -254,7 +239,6 @@ const FnbDispatch = () => {
       }
     });
 
-    // Add route lines
     if (routeFeatures.length > 0 && map.current) {
       map.current.addSource("routes", {
         type: "geojson",
@@ -298,29 +282,94 @@ const FnbDispatch = () => {
     }
   };
 
+  const toggleLockOrder = async (orderId: string, currentLocked: boolean) => {
+    const { error } = await supabase
+      .from("fnb_orders")
+      .update({ 
+        assignment_locked: !currentLocked,
+        manual_override_at: !currentLocked ? new Date().toISOString() : null 
+      })
+      .eq("id", orderId);
+
+    if (error) {
+      toast.error("Failed to update lock status");
+      return;
+    }
+
+    setAssignments(prev => prev.map(a => ({
+      ...a,
+      stops: a.stops.map(s => 
+        s.order_id === orderId ? { ...s, is_locked: !currentLocked } : s
+      )
+    })));
+
+    toast.success(currentLocked ? "Order unlocked" : "Order locked - won't be re-optimized");
+  };
+
+  const reassignOrder = (orderId: string, newDriverId: string) => {
+    const newDriver = availableDrivers.find(d => d.id === newDriverId);
+    if (!newDriver) return;
+
+    setAssignments(prev => {
+      // Remove from current driver
+      const updated = prev.map(a => ({
+        ...a,
+        stops: a.stops.filter(s => s.order_id !== orderId),
+        total_stops: a.stops.filter(s => s.order_id !== orderId).length
+      }));
+
+      // Find the stop data
+      let movedStop: any = null;
+      prev.forEach(a => {
+        const stop = a.stops.find(s => s.order_id === orderId);
+        if (stop) movedStop = stop;
+      });
+
+      if (!movedStop) return prev;
+
+      // Add to new driver
+      const targetIdx = updated.findIndex(a => a.driver_id === newDriverId);
+      if (targetIdx >= 0) {
+        updated[targetIdx].stops.push({
+          ...movedStop,
+          sequence: updated[targetIdx].stops.length + 1,
+          is_locked: true
+        });
+        updated[targetIdx].total_stops = updated[targetIdx].stops.length;
+      } else {
+        updated.push({
+          driver_id: newDriverId,
+          driver_name: newDriver.name,
+          stops: [{ ...movedStop, sequence: 1, is_locked: true }],
+          total_stops: 1,
+          estimated_duration_minutes: 15,
+          total_distance_km: 0
+        });
+      }
+
+      return updated.filter(a => a.stops.length > 0);
+    });
+
+    toast.success(`Order reassigned to ${newDriver.name}`);
+  };
+
   const dispatchMutation = useMutation({
     mutationFn: async () => {
-      const updates = assignments.flatMap(assignment => 
-        assignment.stops.map(stop => ({
-          order_id: stop.order_id,
-          driver_id: assignment.driver_id,
-          driver_name: assignment.driver_name,
-          sequence: stop.sequence
-        }))
-      );
-
-      for (const update of updates) {
-        const { error } = await supabase
-          .from("fnb_orders")
-          .update({
-            status: "out_for_delivery",
-            driver_id: update.driver_id,
-            driver_name: update.driver_name,
-            assigned_at: new Date().toISOString()
-          })
-          .eq("id", update.order_id);
-        
-        if (error) throw error;
+      for (const assignment of assignments) {
+        for (const stop of assignment.stops) {
+          const { error } = await supabase
+            .from("fnb_orders")
+            .update({
+              status: "out_for_delivery",
+              driver_id: assignment.driver_id,
+              driver_name: assignment.driver_name,
+              assigned_at: new Date().toISOString(),
+              assignment_locked: stop.is_locked || false
+            })
+            .eq("id", stop.order_id);
+          
+          if (error) throw error;
+        }
       }
     },
     onSuccess: () => {
@@ -336,12 +385,13 @@ const FnbDispatch = () => {
   const totalStops = assignments.reduce((sum, a) => sum + a.total_stops, 0);
   const totalDuration = assignments.reduce((sum, a) => sum + a.estimated_duration_minutes, 0);
   const totalDistance = assignments.reduce((sum, a) => sum + a.total_distance_km, 0);
+  const lockedCount = assignments.reduce((sum, a) => sum + a.stops.filter(s => s.is_locked).length, 0);
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
       <main className="h-[calc(100vh-4rem)] flex">
-        {/* Left Panel - Orders Pool */}
+        {/* Left Panel */}
         <div className="w-80 border-r flex flex-col">
           <div className="p-4 border-b">
             <div className="flex items-center justify-between mb-3">
@@ -370,19 +420,17 @@ const FnbDispatch = () => {
                   <Card key={order.id} className={cn(
                     "cursor-pointer hover:shadow-md transition-shadow",
                     order.priority === 2 && "border-red-500 bg-red-500/5",
-                    order.priority === 1 && "border-orange-500 bg-orange-500/5"
+                    order.priority === 1 && "border-orange-500 bg-orange-500/5",
+                    order.assignment_locked && "border-amber-400"
                   )}>
                     <CardContent className="p-3">
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-medium truncate">{order.customer_name}</span>
-                            {order.priority === 2 && (
-                              <Badge variant="destructive" className="text-[10px] px-1">CRITICAL</Badge>
-                            )}
-                            {order.priority === 1 && (
-                              <Badge className="bg-orange-500 text-[10px] px-1">URGENT</Badge>
-                            )}
+                            {order.assignment_locked && <Lock className="h-3 w-3 text-amber-500" />}
+                            {order.priority === 2 && <Badge variant="destructive" className="text-[10px] px-1">CRITICAL</Badge>}
+                            {order.priority === 1 && <Badge className="bg-orange-500 text-[10px] px-1">URGENT</Badge>}
                           </div>
                           <p className="text-xs text-muted-foreground">{order.order_number}</p>
                           <p className="text-xs text-muted-foreground truncate">{order.customer_address}</p>
@@ -427,7 +475,6 @@ const FnbDispatch = () => {
         <div className="flex-1 relative">
           <div ref={mapContainer} className="absolute inset-0" />
           
-          {/* AI Suggestions Overlay */}
           {aiSuggestions.length > 0 && (
             <div className="absolute top-4 left-4 right-4 max-w-md">
               <Card className="bg-background/95 backdrop-blur">
@@ -451,7 +498,6 @@ const FnbDispatch = () => {
             </div>
           )}
 
-          {/* Stats Overlay */}
           {assignments.length > 0 && (
             <div className="absolute bottom-4 left-4 right-4 flex justify-center">
               <Card className="bg-background/95 backdrop-blur">
@@ -471,6 +517,16 @@ const FnbDispatch = () => {
                     <Route className="h-4 w-4 text-muted-foreground" />
                     <span className="font-medium">{totalDistance.toFixed(1)} km</span>
                   </div>
+                  {lockedCount > 0 && (
+                    <>
+                      <Separator orientation="vertical" className="h-4" />
+                      <div className="flex items-center gap-2">
+                        <Lock className="h-4 w-4 text-amber-500" />
+                        <span className="font-medium">{lockedCount}</span>
+                        <span className="text-muted-foreground">locked</span>
+                      </div>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -478,12 +534,15 @@ const FnbDispatch = () => {
         </div>
 
         {/* Right Panel - Route Assignments */}
-        <div className="w-80 border-l flex flex-col">
+        <div className="w-96 border-l flex flex-col">
           <div className="p-4 border-b">
             <h2 className="font-semibold flex items-center gap-2">
               <Route className="h-4 w-4" />
               Route Assignments
             </h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              Drag stops to reassign • Lock to prevent re-optimization
+            </p>
           </div>
           
           <ScrollArea className="flex-1">
@@ -500,14 +559,16 @@ const FnbDispatch = () => {
                   <Card 
                     key={assignment.driver_id}
                     className={cn(
-                      "cursor-pointer transition-all",
+                      "transition-all",
                       selectedDriver === assignment.driver_id && "ring-2 ring-primary"
                     )}
-                    onClick={() => setSelectedDriver(
-                      selectedDriver === assignment.driver_id ? null : assignment.driver_id
-                    )}
                   >
-                    <CardHeader className="py-2 px-3">
+                    <CardHeader 
+                      className="py-2 px-3 cursor-pointer"
+                      onClick={() => setSelectedDriver(
+                        selectedDriver === assignment.driver_id ? null : assignment.driver_id
+                      )}
+                    >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div 
@@ -531,20 +592,57 @@ const FnbDispatch = () => {
                         </span>
                       </div>
                       <div className="space-y-1">
-                        {assignment.stops.slice(0, 3).map(stop => (
-                          <div key={stop.order_id} className="flex items-center gap-2 text-xs">
-                            <span className="w-4 h-4 rounded-full bg-muted flex items-center justify-center text-[10px] font-medium">
+                        {assignment.stops.map((stop) => (
+                          <div 
+                            key={stop.order_id} 
+                            className={cn(
+                              "flex items-center gap-2 text-xs p-1.5 rounded border",
+                              stop.is_locked && "border-amber-400 bg-amber-400/10"
+                            )}
+                          >
+                            <GripVertical className="h-3 w-3 text-muted-foreground cursor-move" />
+                            <span className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[10px] font-medium shrink-0">
                               {stop.sequence}
                             </span>
                             <span className="truncate flex-1">{stop.customer_name}</span>
-                            {stop.priority === 2 && <AlertTriangle className="h-3 w-3 text-red-500" />}
+                            <div className="flex items-center gap-1 shrink-0">
+                              {stop.priority === 2 && <AlertTriangle className="h-3 w-3 text-red-500" />}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleLockOrder(stop.order_id, stop.is_locked || false);
+                                }}
+                              >
+                                {stop.is_locked ? (
+                                  <Lock className="h-3 w-3 text-amber-500" />
+                                ) : (
+                                  <Unlock className="h-3 w-3 text-muted-foreground" />
+                                )}
+                              </Button>
+                              <Select
+                                value=""
+                                onValueChange={(newDriverId) => reassignOrder(stop.order_id, newDriverId)}
+                              >
+                                <SelectTrigger className="h-5 w-5 p-0 border-0">
+                                  <MapPin className="h-3 w-3 text-muted-foreground" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {availableDrivers
+                                    .filter(d => d.id !== assignment.driver_id)
+                                    .map(driver => (
+                                      <SelectItem key={driver.id} value={driver.id}>
+                                        Move to {driver.name}
+                                      </SelectItem>
+                                    ))
+                                  }
+                                </SelectContent>
+                              </Select>
+                            </div>
                           </div>
                         ))}
-                        {assignment.stops.length > 3 && (
-                          <p className="text-xs text-muted-foreground pl-6">
-                            +{assignment.stops.length - 3} more stops
-                          </p>
-                        )}
                       </div>
                     </CardContent>
                   </Card>
