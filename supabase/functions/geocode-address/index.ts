@@ -38,6 +38,8 @@ function getDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: numbe
 interface Zone {
   id: string;
   name: string;
+  zone_type: string;
+  parent_zone_id: string | null;
   center_latitude: number;
   center_longitude: number;
   radius_meters: number;
@@ -47,8 +49,10 @@ interface GeocodeResult {
   latitude: number;
   longitude: number;
   matchedZone: string | null;
+  matchedMajorZoneId: string | null;
+  matchedMajorZoneName: string | null;
   distance: number | null;
-  allZoneDistances: { name: string; distance: number; withinRadius: boolean }[];
+  allZoneDistances: { name: string; distance: number; withinRadius: boolean; majorZoneId?: string }[];
 }
 
 serve(async (req) => {
@@ -106,10 +110,10 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch active delivery zones
+    // Fetch active delivery zones (both major and sub)
     const { data: zones, error: zonesError } = await supabase
       .from('fnb_delivery_zones')
-      .select('id, name, center_latitude, center_longitude, radius_meters')
+      .select('id, name, zone_type, parent_zone_id, center_latitude, center_longitude, radius_meters')
       .eq('is_active', true)
       .not('center_latitude', 'is', null)
       .not('center_longitude', 'is', null);
@@ -119,43 +123,87 @@ serve(async (req) => {
       throw zonesError;
     }
 
+    // Create a map of zone IDs to zone data for quick lookup
+    const zoneMap = new Map((zones as Zone[]).map(z => [z.id, z]));
+
     // Calculate distance to each zone and find matches
-    const zoneDistances = (zones as Zone[]).map(zone => {
+    // Prioritize sub-zones over major zones for matching
+    const subZones = (zones as Zone[]).filter(z => z.zone_type === 'sub');
+    const majorZones = (zones as Zone[]).filter(z => z.zone_type === 'major');
+
+    const zoneDistances = [...subZones, ...majorZones].map(zone => {
       const distance = getDistanceMeters(
         latitude, 
         longitude, 
         zone.center_latitude, 
         zone.center_longitude
       );
+      
+      // Get parent major zone info if this is a sub-zone
+      let majorZoneId: string | undefined;
+      if (zone.zone_type === 'sub' && zone.parent_zone_id) {
+        majorZoneId = zone.parent_zone_id;
+      } else if (zone.zone_type === 'major') {
+        majorZoneId = zone.id;
+      }
+
       return {
+        id: zone.id,
         name: zone.name,
+        zoneType: zone.zone_type,
+        parentZoneId: zone.parent_zone_id,
+        majorZoneId,
         distance: Math.round(distance),
         withinRadius: distance <= (zone.radius_meters || 1000)
       };
     }).sort((a, b) => a.distance - b.distance);
 
-    // Find the closest zone that the address falls within
+    // Find the closest zone that the address falls within (prefer sub-zones)
     const matchingZone = zoneDistances.find(z => z.withinRadius);
     
-    // If no zone matches, suggest the closest one
-    const closestZone = zoneDistances[0];
+    // Determine the major zone
+    let matchedMajorZoneId: string | null = null;
+    let matchedMajorZoneName: string | null = null;
+    
+    if (matchingZone) {
+      if (matchingZone.zoneType === 'sub' && matchingZone.parentZoneId) {
+        matchedMajorZoneId = matchingZone.parentZoneId;
+        const parentZone = zoneMap.get(matchingZone.parentZoneId);
+        matchedMajorZoneName = parentZone?.name || null;
+      } else if (matchingZone.zoneType === 'major') {
+        matchedMajorZoneId = matchingZone.id;
+        matchedMajorZoneName = matchingZone.name;
+      }
+    }
 
     const result: GeocodeResult = {
       latitude,
       longitude,
       matchedZone: matchingZone?.name || null,
-      distance: matchingZone?.distance || closestZone?.distance || null,
-      allZoneDistances: zoneDistances.slice(0, 5) // Return top 5 closest zones
+      matchedMajorZoneId,
+      matchedMajorZoneName,
+      distance: matchingZone?.distance || zoneDistances[0]?.distance || null,
+      allZoneDistances: zoneDistances.slice(0, 5).map(z => ({
+        name: z.name,
+        distance: z.distance,
+        withinRadius: z.withinRadius,
+        majorZoneId: z.majorZoneId
+      }))
     };
 
-    // If customerId provided, update the customer record with coordinates
+    // If customerId provided, update the customer record with coordinates and zones
     if (customerId && result.latitude && result.longitude) {
       const updateData: Record<string, any> = {
         latitude: result.latitude,
         longitude: result.longitude
       };
       
-      // Only auto-assign zone if there's a match
+      // Set major zone if detected
+      if (matchedMajorZoneId) {
+        updateData.major_zone_id = matchedMajorZoneId;
+      }
+      
+      // Set sub-zone name if matched
       if (result.matchedZone) {
         updateData.delivery_zone = result.matchedZone;
       }
@@ -169,7 +217,7 @@ serve(async (req) => {
         console.error('Error updating customer:', updateError);
         // Don't fail the whole request, just log the error
       } else {
-        console.log(`Updated customer ${customerId} with coordinates and zone`);
+        console.log(`Updated customer ${customerId} with coordinates, major zone ${matchedMajorZoneName}, and sub-zone ${result.matchedZone}`);
       }
     }
 

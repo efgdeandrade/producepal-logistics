@@ -1219,6 +1219,7 @@ export type Database = {
           id: string
           latitude: number | null
           longitude: number | null
+          major_zone_id: string | null
           name: string
           notes: string | null
           preferred_language: string | null
@@ -1238,6 +1239,7 @@ export type Database = {
           id?: string
           latitude?: number | null
           longitude?: number | null
+          major_zone_id?: string | null
           name: string
           notes?: string | null
           preferred_language?: string | null
@@ -1257,6 +1259,7 @@ export type Database = {
           id?: string
           latitude?: number | null
           longitude?: number | null
+          major_zone_id?: string | null
           name?: string
           notes?: string | null
           preferred_language?: string | null
@@ -1269,6 +1272,13 @@ export type Database = {
           whatsapp_phone?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fnb_customers_major_zone_id_fkey"
+            columns: ["major_zone_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_delivery_zones"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fnb_customers_pricing_tier_id_fkey"
             columns: ["pricing_tier_id"]
