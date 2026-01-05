@@ -905,6 +905,7 @@ export default function FnbNewOrder() {
           />
         )}
 
+        {/* Top Section: Order Details + Summary */}
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Order Form */}
           <div className="lg:col-span-2 space-y-6">
@@ -1078,13 +1079,73 @@ export default function FnbNewOrder() {
                 </AlertDescription>
               </Alert>
             )}
+          </div>
 
-            {/* Smart Suggestions - Sticky for quick access */}
-            {customerId && suggestions.length > 0 && (
-              <div className="sticky top-4 z-10 bg-background/95 backdrop-blur-sm pb-2">
-                <Collapsible open={suggestionsOpen} onOpenChange={setSuggestionsOpen}>
-                  <Card className="border-dashed border-primary/30 bg-primary/5 shadow-md">
-                  <CardHeader className="py-3">
+          {/* Order Summary */}
+          <div>
+            <Card className="sticky top-6">
+              <CardHeader>
+                <CardTitle>Order Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Items</span>
+                    <span>{items.filter(i => i.productId).length}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Customer</span>
+                    <span>
+                      {customers?.find((c: any) => c.id === customerId)?.name || '-'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Delivery</span>
+                    <span>
+                      {deliveryDate
+                        ? format(new Date(deliveryDate), 'MMM d, yyyy')
+                        : '-'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="border-t pt-4">
+                  <div className="flex justify-between font-bold text-lg">
+                    <span>Total</span>
+                    <span>{orderTotal.toFixed(2)} XCG</span>
+                  </div>
+                </div>
+
+                <Button
+                  className="w-full"
+                  size="lg"
+                  onClick={handleSubmit}
+                  disabled={isPending || !customerId || items.length === 0}
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {isPending 
+                    ? (isEditMode ? 'Updating...' : 'Creating...') 
+                    : (isEditMode ? 'Update Order' : 'Create Order')}
+                </Button>
+
+                <p className="text-xs text-muted-foreground text-center">
+                  {isEditMode 
+                    ? 'Changes will be saved to the existing order'
+                    : 'Order will be automatically queued for picking'}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Full Width Section: Suggestions + Order Items */}
+        <div className="space-y-6 mt-6">
+          {/* Smart Suggestions - Sticky for quick access */}
+          {customerId && suggestions.length > 0 && (
+            <div className="sticky top-4 z-10 bg-background/95 backdrop-blur-sm pb-2">
+              <Collapsible open={suggestionsOpen} onOpenChange={setSuggestionsOpen}>
+                <Card className="border-dashed border-primary/30 bg-primary/5 shadow-md">
+                <CardHeader className="py-3">
                     <div className="flex items-center justify-between">
                       <CollapsibleTrigger asChild>
                         <Button variant="ghost" className="flex items-center gap-2 p-0 h-auto hover:bg-transparent">
@@ -1175,210 +1236,258 @@ export default function FnbNewOrder() {
                 </Card>
               </Collapsible>
               </div>
-            )}
+          )}
 
-            {/* Order Items */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <ShoppingCart className="h-5 w-5" />
-                  Order Items
-                </CardTitle>
-                <Button onClick={addItem} size="sm">
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Item
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {items.length === 0 ? (
-                  <p className="text-center py-8 text-muted-foreground">
-                    No items added yet. Click "Add Item" to start.
-                  </p>
-                ) : (
-                  <div className="space-y-3">
-                    {items.map((item, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30"
-                      >
-                        <div className="flex-1 flex items-center gap-1">
-                          <SearchableSelect
-                            options={products?.map((p: any) => ({
-                              value: p.id,
-                              label: `${p.name} (${p.code}) - ${p.price_xcg} XCG/${p.unit}`,
-                              searchTerms: `${p.name} ${p.code}`,
-                            })) || []}
-                            value={item.productId}
-                            onValueChange={(v) => handleProductChange(index, v, true)}
-                            placeholder="Select product"
-                            emptyMessage="No products found"
-                            addNewLabel="Add New Product"
-                            onAddNew={() => handleAddNewProduct(index)}
-                            addNewIcon={<Package className="mr-2 h-4 w-4" />}
-                            triggerRef={(el) => { productSelectRefs.current[index] = el; }}
-                            onSelectComplete={() => focusQuantity(index)}
-                          />
-                          {item.productId && (() => {
-                            const product = products?.find((p: any) => p.id === item.productId);
-                            if (!product) return null;
-                            const hasInfo = product.items_per_case || product.case_weight_kg || product.product_description || 
-                              product.price_per_kg || product.price_per_lb || product.price_per_case || product.price_per_piece;
-                            if (!hasInfo) return null;
-                            return (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                                      <Info className="h-4 w-4 text-muted-foreground" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="right" className="max-w-xs">
-                                    <div className="space-y-1 text-sm">
-                                      <p className="font-medium">{product.name}</p>
-                                      {product.product_description && (
-                                        <p className="text-xs text-muted-foreground">{product.product_description}</p>
-                                      )}
-                                      {(product.items_per_case || product.case_weight_kg) && (
-                                        <div className="border-t pt-1 mt-1">
-                                          {product.items_per_case && <p>Items/Case: {product.items_per_case}</p>}
-                                          {product.case_weight_kg && <p>Case Weight: {product.case_weight_kg} kg</p>}
-                                        </div>
-                                      )}
-                                      {(product.price_per_kg || product.price_per_lb || product.price_per_case || product.price_per_piece) && (
-                                        <div className="border-t pt-1 mt-1">
-                                          <p className="font-medium text-xs">Unit Prices:</p>
-                                          {product.price_per_piece && <p>Per Piece: {product.price_per_piece} XCG</p>}
-                                          {product.price_per_kg && <p>Per Kg: {product.price_per_kg} XCG</p>}
-                                          {product.price_per_lb && <p>Per Lb: {product.price_per_lb} XCG</p>}
-                                          {product.price_per_case && <p>Per Case: {product.price_per_case} XCG</p>}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            );
-                          })()}
-                        </div>
-                        <div className="w-20">
-                          <Input
-                            ref={(el) => { quantityRefs.current[index] = el; }}
-                            type="number"
-                            min="0.01"
-                            step="0.01"
-                            value={item.quantity}
-                            onChange={(e) =>
-                              updateItem(index, 'quantity', Number(e.target.value))
-                            }
-                            onKeyDown={(e) => handleInputKeyDown(e, index, 'quantity')}
-                            placeholder="Qty"
-                          />
-                        </div>
-                        <div className="w-20">
-                          <Select
-                            value={item.unit}
-                            onValueChange={(v) => updateItem(index, 'unit', v)}
-                          >
-                            <SelectTrigger className="h-10">
-                              <SelectValue placeholder="Unit" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {UNITS.map((u) => (
-                                <SelectItem key={u.value} value={u.value}>
-                                  {u.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="w-24">
-                          <Input
-                            ref={(el) => { priceRefs.current[index] = el; }}
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={item.unitPrice}
-                            onChange={(e) =>
-                              updateItem(index, 'unitPrice', Number(e.target.value))
-                            }
-                            onKeyDown={(e) => handleInputKeyDown(e, index, 'price')}
-                            placeholder="Price"
-                          />
-                        </div>
-                        <div className="w-28 text-right font-medium">
-                          {item.total.toFixed(2)} XCG
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeItem(index)}
-                          className="text-destructive hover:text-destructive"
+          {/* Order Items - Full Width */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5" />
+                Order Items
+              </CardTitle>
+              <Button onClick={addItem} size="sm">
+                <Plus className="h-4 w-4 mr-1" />
+                Add Item
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {items.length === 0 ? (
+                <p className="text-center py-8 text-muted-foreground">
+                  No items added yet. Click "Add Item" to start.
+                </p>
+              ) : (
+                <>
+                  {/* Desktop: Table-like layout with headers */}
+                  <div className="hidden md:block">
+                    {/* Column Headers */}
+                    <div className="flex items-center gap-3 px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide border-b mb-3">
+                      <div className="flex-1 min-w-[280px]">Product</div>
+                      <div className="w-24 text-center shrink-0">Qty</div>
+                      <div className="w-24 text-center shrink-0">Unit</div>
+                      <div className="w-28 text-center shrink-0">Price</div>
+                      <div className="w-32 text-right shrink-0">Total</div>
+                      <div className="w-10 shrink-0"></div>
+                    </div>
+                    <div className="space-y-3">
+                      {items.map((item, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30"
                         >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                          <div className="flex-1 min-w-[280px] flex items-center gap-1">
+                            <SearchableSelect
+                              options={products?.map((p: any) => ({
+                                value: p.id,
+                                label: `${p.name} (${p.code}) - ${p.price_xcg} XCG/${p.unit}`,
+                                searchTerms: `${p.name} ${p.code}`,
+                              })) || []}
+                              value={item.productId}
+                              onValueChange={(v) => handleProductChange(index, v, true)}
+                              placeholder="Select product"
+                              emptyMessage="No products found"
+                              addNewLabel="Add New Product"
+                              onAddNew={() => handleAddNewProduct(index)}
+                              addNewIcon={<Package className="mr-2 h-4 w-4" />}
+                              triggerRef={(el) => { productSelectRefs.current[index] = el; }}
+                              onSelectComplete={() => focusQuantity(index)}
+                            />
+                            {item.productId && (() => {
+                              const product = products?.find((p: any) => p.id === item.productId);
+                              if (!product) return null;
+                              const hasInfo = product.items_per_case || product.case_weight_kg || product.product_description || 
+                                product.price_per_kg || product.price_per_lb || product.price_per_case || product.price_per_piece;
+                              if (!hasInfo) return null;
+                              return (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                                        <Info className="h-4 w-4 text-muted-foreground" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="right" className="max-w-xs">
+                                      <div className="space-y-1 text-sm">
+                                        <p className="font-medium">{product.name}</p>
+                                        {product.product_description && (
+                                          <p className="text-xs text-muted-foreground">{product.product_description}</p>
+                                        )}
+                                        {(product.items_per_case || product.case_weight_kg) && (
+                                          <div className="border-t pt-1 mt-1">
+                                            {product.items_per_case && <p>Items/Case: {product.items_per_case}</p>}
+                                            {product.case_weight_kg && <p>Case Weight: {product.case_weight_kg} kg</p>}
+                                          </div>
+                                        )}
+                                        {(product.price_per_kg || product.price_per_lb || product.price_per_case || product.price_per_piece) && (
+                                          <div className="border-t pt-1 mt-1">
+                                            <p className="font-medium text-xs">Unit Prices:</p>
+                                            {product.price_per_piece && <p>Per Piece: {product.price_per_piece} XCG</p>}
+                                            {product.price_per_kg && <p>Per Kg: {product.price_per_kg} XCG</p>}
+                                            {product.price_per_lb && <p>Per Lb: {product.price_per_lb} XCG</p>}
+                                            {product.price_per_case && <p>Per Case: {product.price_per_case} XCG</p>}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              );
+                            })()}
+                          </div>
+                          <div className="w-24 shrink-0">
+                            <Input
+                              ref={(el) => { quantityRefs.current[index] = el; }}
+                              type="number"
+                              min="0.01"
+                              step="0.01"
+                              value={item.quantity}
+                              onChange={(e) =>
+                                updateItem(index, 'quantity', Number(e.target.value))
+                              }
+                              onKeyDown={(e) => handleInputKeyDown(e, index, 'quantity')}
+                              placeholder="Qty"
+                            />
+                          </div>
+                          <div className="w-24 shrink-0">
+                            <Select
+                              value={item.unit}
+                              onValueChange={(v) => updateItem(index, 'unit', v)}
+                            >
+                              <SelectTrigger className="h-10">
+                                <SelectValue placeholder="Unit" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {UNITS.map((u) => (
+                                  <SelectItem key={u.value} value={u.value}>
+                                    {u.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="w-28 shrink-0">
+                            <Input
+                              ref={(el) => { priceRefs.current[index] = el; }}
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={item.unitPrice}
+                              onChange={(e) =>
+                                updateItem(index, 'unitPrice', Number(e.target.value))
+                              }
+                              onKeyDown={(e) => handleInputKeyDown(e, index, 'price')}
+                              placeholder="Price"
+                            />
+                          </div>
+                          <div className="w-32 text-right font-medium shrink-0">
+                            {item.total.toFixed(2)} XCG
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeItem(index)}
+                            className="text-destructive hover:text-destructive shrink-0"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Mobile: Stacked card layout */}
+                  <div className="block md:hidden space-y-3">
+                    {items.map((item, index) => (
+                      <Card key={index} className="p-3 bg-muted/30">
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1">
+                              <SearchableSelect
+                                options={products?.map((p: any) => ({
+                                  value: p.id,
+                                  label: `${p.name} (${p.code})`,
+                                  searchTerms: `${p.name} ${p.code}`,
+                                })) || []}
+                                value={item.productId}
+                                onValueChange={(v) => handleProductChange(index, v, true)}
+                                placeholder="Select product"
+                                emptyMessage="No products found"
+                                addNewLabel="Add New Product"
+                                onAddNew={() => handleAddNewProduct(index)}
+                                addNewIcon={<Package className="mr-2 h-4 w-4" />}
+                                triggerRef={(el) => { productSelectRefs.current[index] = el; }}
+                                onSelectComplete={() => focusQuantity(index)}
+                              />
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeItem(index)}
+                              className="text-destructive hover:text-destructive shrink-0"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Qty</Label>
+                              <Input
+                                ref={(el) => { quantityRefs.current[index] = el; }}
+                                type="number"
+                                min="0.01"
+                                step="0.01"
+                                value={item.quantity}
+                                onChange={(e) =>
+                                  updateItem(index, 'quantity', Number(e.target.value))
+                                }
+                                onKeyDown={(e) => handleInputKeyDown(e, index, 'quantity')}
+                                placeholder="Qty"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Unit</Label>
+                              <Select
+                                value={item.unit}
+                                onValueChange={(v) => updateItem(index, 'unit', v)}
+                              >
+                                <SelectTrigger className="h-10">
+                                  <SelectValue placeholder="Unit" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {UNITS.map((u) => (
+                                    <SelectItem key={u.value} value={u.value}>
+                                      {u.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Price</Label>
+                              <Input
+                                ref={(el) => { priceRefs.current[index] = el; }}
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={item.unitPrice}
+                                onChange={(e) =>
+                                  updateItem(index, 'unitPrice', Number(e.target.value))
+                                }
+                                onKeyDown={(e) => handleInputKeyDown(e, index, 'price')}
+                                placeholder="Price"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex justify-end">
+                            <span className="font-medium text-lg">{item.total.toFixed(2)} XCG</span>
+                          </div>
+                        </div>
+                      </Card>
                     ))}
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Order Summary */}
-          <div>
-            <Card className="sticky top-6">
-              <CardHeader>
-                <CardTitle>Order Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Items</span>
-                    <span>{items.length}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Customer</span>
-                    <span>
-                      {customers?.find((c: any) => c.id === customerId)?.name || '-'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Delivery</span>
-                    <span>
-                      {deliveryDate
-                        ? format(new Date(deliveryDate), 'MMM d, yyyy')
-                        : '-'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="border-t pt-4">
-                  <div className="flex justify-between font-bold text-lg">
-                    <span>Total</span>
-                    <span>{orderTotal.toFixed(2)} XCG</span>
-                  </div>
-                </div>
-
-                <Button
-                  className="w-full"
-                  size="lg"
-                  onClick={handleSubmit}
-                  disabled={isPending || !customerId || items.length === 0}
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  {isPending 
-                    ? (isEditMode ? 'Updating...' : 'Creating...') 
-                    : (isEditMode ? 'Update Order' : 'Create Order')}
-                </Button>
-
-                <p className="text-xs text-muted-foreground text-center">
-                  {isEditMode 
-                    ? 'Changes will be saved to the existing order'
-                    : 'Order will be automatically queued for picking'}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </main>
 
