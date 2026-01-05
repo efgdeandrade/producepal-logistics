@@ -247,7 +247,7 @@ export default function FnbZoneManagement() {
     }
   };
 
-  const handleMapSave = (data: {
+  const handleMapSave = async (data: {
     name: string;
     description: string;
     is_active: boolean;
@@ -257,9 +257,11 @@ export default function FnbZoneManagement() {
     center_longitude: number | null;
     radius_meters: number | null;
     polygon_coordinates: [number, number][] | null;
+    assigned_sub_zone_ids?: string[];
   }) => {
     if (editingZone) {
-      updateMutation.mutate({
+      // Update the zone first
+      await updateMutation.mutateAsync({
         id: editingZone.id,
         data: {
           name: data.name,
@@ -273,6 +275,42 @@ export default function FnbZoneManagement() {
           polygon_coordinates: data.polygon_coordinates,
         },
       });
+
+      // If it's a major zone and we have sub-zone assignments, update them
+      if (data.zone_type === "major" && data.assigned_sub_zone_ids !== undefined) {
+        const currentSubZones = zones?.filter((z) => z.zone_type === "sub") || [];
+        
+        // Find sub-zones that need to be assigned to this major zone
+        const toAssign = data.assigned_sub_zone_ids;
+        
+        // Find sub-zones that were previously assigned but are now unassigned
+        const previouslyAssigned = currentSubZones
+          .filter((sz) => sz.parent_zone_id === editingZone.id)
+          .map((sz) => sz.id);
+        
+        const toUnassign = previouslyAssigned.filter((id) => !toAssign.includes(id));
+        const newlyAssigned = toAssign.filter((id) => !previouslyAssigned.includes(id));
+
+        // Update sub-zones that need to be assigned to this major zone
+        if (newlyAssigned.length > 0) {
+          await supabase
+            .from("fnb_delivery_zones")
+            .update({ parent_zone_id: editingZone.id })
+            .in("id", newlyAssigned);
+        }
+
+        // Update sub-zones that need to be unassigned
+        if (toUnassign.length > 0) {
+          await supabase
+            .from("fnb_delivery_zones")
+            .update({ parent_zone_id: null })
+            .in("id", toUnassign);
+        }
+
+        // Invalidate queries to refresh the data
+        queryClient.invalidateQueries({ queryKey: ["fnb-delivery-zones"] });
+        toast.success(`Zone updated with ${toAssign.length} sub-zones assigned`);
+      }
     } else {
       createMutation.mutate(data);
     }

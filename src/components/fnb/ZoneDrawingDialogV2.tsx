@@ -6,8 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { MapPin, Circle, Pentagon, Crown, Eye, EyeOff } from "lucide-react";
+import { MapPin, Circle, Pentagon, Crown, Eye, EyeOff, Check } from "lucide-react";
 import PolygonDrawingMap from "./PolygonDrawingMap";
 import ZoneMapView from "./ZoneMapView";
 
@@ -50,6 +53,7 @@ interface ZoneDrawingDialogV2Props {
     center_longitude: number | null;
     radius_meters: number | null;
     polygon_coordinates: [number, number][] | null;
+    assigned_sub_zone_ids?: string[];
   }) => void;
   isPending?: boolean;
 }
@@ -70,6 +74,7 @@ export default function ZoneDrawingDialogV2({
   const [parentZoneId, setParentZoneId] = useState<string | null>(null);
   const [drawingMode, setDrawingMode] = useState<"circle" | "polygon">("polygon");
   const [showReferenceZones, setShowReferenceZones] = useState(true);
+  const [assignedSubZoneIds, setAssignedSubZoneIds] = useState<string[]>([]);
   
   // Circle mode state
   const [centerLat, setCenterLat] = useState<number | null>(null);
@@ -110,6 +115,16 @@ export default function ZoneDrawingDialogV2({
         setCenterLng(zone.center_longitude || null);
         setRadius(zone.radius_meters || 1000);
         
+        // If editing a major zone, get currently assigned sub-zones
+        if (zone.zone_type === "major") {
+          const currentlyAssigned = subZones
+            .filter((sz) => sz.parent_zone_id === zone.id)
+            .map((sz) => sz.id);
+          setAssignedSubZoneIds(currentlyAssigned);
+        } else {
+          setAssignedSubZoneIds([]);
+        }
+        
         // Determine drawing mode based on existing data
         if (zone.polygon_coordinates && zone.polygon_coordinates.length >= 3) {
           setDrawingMode("polygon");
@@ -134,11 +149,12 @@ export default function ZoneDrawingDialogV2({
         setCenterLng(null);
         setRadius(1000);
         setPolygonCoords(null);
+        setAssignedSubZoneIds([]);
       }
       // Always show reference zones when opening dialog
       setShowReferenceZones(true);
     }
-  }, [open, zone]);
+  }, [open, zone, subZones]);
 
   const handleMapClick = (lng: number, lat: number) => {
     if (drawingMode === "circle") {
@@ -173,9 +189,29 @@ export default function ZoneDrawingDialogV2({
       center_longitude: drawingMode === "circle" ? centerLng : null,
       radius_meters: drawingMode === "circle" ? radius : null,
       polygon_coordinates: drawingMode === "polygon" ? polygonCoords : null,
+      assigned_sub_zone_ids: zoneType === "major" ? assignedSubZoneIds : undefined,
     };
 
     onSave(saveData);
+  };
+
+  const toggleSubZoneAssignment = (subZoneId: string) => {
+    setAssignedSubZoneIds((prev) =>
+      prev.includes(subZoneId)
+        ? prev.filter((id) => id !== subZoneId)
+        : [...prev, subZoneId]
+    );
+  };
+
+  const selectAllSubZones = () => {
+    const availableSubZones = subZones.filter(
+      (sz) => !sz.parent_zone_id || sz.parent_zone_id === zone?.id
+    );
+    setAssignedSubZoneIds(availableSubZones.map((sz) => sz.id));
+  };
+
+  const clearAllSubZones = () => {
+    setAssignedSubZoneIds([]);
   };
 
   // Other zones for display (excluding current)
@@ -268,6 +304,73 @@ export default function ZoneDrawingDialogV2({
                   : "Sub zones are neighborhoods within major zones"}
               </p>
             </div>
+
+            {/* Assigned Sub-Zones (for major zones) */}
+            {zoneType === "major" && subZones.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Assigned Sub-Zones</Label>
+                  <div className="flex gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={selectAllSubZones}
+                      className="h-6 text-xs"
+                    >
+                      Select All
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearAllSubZones}
+                      className="h-6 text-xs"
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                </div>
+                <ScrollArea className="h-[200px] border rounded-md p-2">
+                  <div className="space-y-1">
+                    {subZones.map((sz) => {
+                      const isAssigned = assignedSubZoneIds.includes(sz.id);
+                      const isAssignedToOther = sz.parent_zone_id && sz.parent_zone_id !== zone?.id;
+                      const otherMajorZone = isAssignedToOther
+                        ? majorZones.find((mz) => mz.id === sz.parent_zone_id)
+                        : null;
+
+                      return (
+                        <div
+                          key={sz.id}
+                          className={`flex items-center gap-2 p-2 rounded hover:bg-muted/50 cursor-pointer ${
+                            isAssigned ? "bg-primary/10" : ""
+                          }`}
+                          onClick={() => toggleSubZoneAssignment(sz.id)}
+                        >
+                          <Checkbox
+                            checked={isAssigned}
+                            onCheckedChange={() => toggleSubZoneAssignment(sz.id)}
+                          />
+                          <span className="flex-1 text-sm">{sz.name}</span>
+                          {isAssignedToOther && (
+                            <Badge variant="outline" className="text-xs">
+                              {otherMajorZone?.name}
+                            </Badge>
+                          )}
+                          {isAssigned && (
+                            <Check className="h-4 w-4 text-primary" />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+                <p className="text-xs text-muted-foreground">
+                  {assignedSubZoneIds.length} of {subZones.length} sub-zones selected
+                </p>
+              </div>
+            )}
 
             {/* Parent Zone (for sub-zones) */}
             {zoneType === "sub" && majorZones.length > 0 && (
