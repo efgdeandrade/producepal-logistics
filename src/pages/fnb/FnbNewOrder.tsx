@@ -1079,10 +1079,11 @@ export default function FnbNewOrder() {
               </Alert>
             )}
 
-            {/* Smart Suggestions */}
+            {/* Smart Suggestions - Sticky for quick access */}
             {customerId && suggestions.length > 0 && (
-              <Collapsible open={suggestionsOpen} onOpenChange={setSuggestionsOpen}>
-                <Card className="border-dashed border-primary/30 bg-primary/5">
+              <div className="sticky top-4 z-10 bg-background/95 backdrop-blur-sm pb-2">
+                <Collapsible open={suggestionsOpen} onOpenChange={setSuggestionsOpen}>
+                  <Card className="border-dashed border-primary/30 bg-primary/5 shadow-md">
                   <CardHeader className="py-3">
                     <div className="flex items-center justify-between">
                       <CollapsibleTrigger asChild>
@@ -1173,6 +1174,7 @@ export default function FnbNewOrder() {
                   </CollapsibleContent>
                 </Card>
               </Collapsible>
+              </div>
             )}
 
             {/* Order Items */}
