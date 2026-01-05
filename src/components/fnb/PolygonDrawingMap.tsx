@@ -46,6 +46,11 @@ export default function PolygonDrawingMap({
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const vertexMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  
+  // Track existing zone layers/markers for cleanup
+  const existingZoneSourceIdsRef = useRef<string[]>([]);
+  const existingZoneLabelMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  
   const [mapLoaded, setMapLoaded] = useState(false);
   const [vertices, setVertices] = useState<[number, number][]>(initialPolygon || []);
   const [isDrawing, setIsDrawing] = useState(!initialPolygon || initialPolygon.length === 0);
@@ -79,71 +84,6 @@ export default function PolygonDrawingMap({
 
     map.current.on("load", () => {
       setMapLoaded(true);
-      
-      // Draw existing zones as reference layers
-      existingZones.forEach((zone) => {
-        if (!zone.polygon_coordinates || zone.polygon_coordinates.length < 3) return;
-        
-        const sourceId = `existing-zone-${zone.id}`;
-        const closedCoords = [...zone.polygon_coordinates, zone.polygon_coordinates[0]];
-        
-        map.current!.addSource(sourceId, {
-          type: "geojson",
-          data: {
-            type: "Feature",
-            properties: { name: zone.name },
-            geometry: {
-              type: "Polygon",
-              coordinates: [closedCoords],
-            },
-          },
-        });
-        
-        // Add fill layer
-        map.current!.addLayer({
-          id: `${sourceId}-fill`,
-          type: "fill",
-          source: sourceId,
-          paint: {
-            "fill-color": zone.color,
-            "fill-opacity": 0.15,
-          },
-        });
-        
-        // Add outline layer
-        map.current!.addLayer({
-          id: `${sourceId}-outline`,
-          type: "line",
-          source: sourceId,
-          paint: {
-            "line-color": zone.color,
-            "line-width": 2,
-            "line-dasharray": [3, 2],
-          },
-        });
-        
-        // Add zone label
-        const centroid = calculateCentroid(zone.polygon_coordinates);
-        const labelEl = document.createElement("div");
-        labelEl.innerHTML = `
-          <div style="
-            background: ${zone.color};
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 600;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            white-space: nowrap;
-          ">
-            ${zone.name}
-          </div>
-        `;
-        
-        new mapboxgl.Marker({ element: labelEl })
-          .setLngLat(centroid)
-          .addTo(map.current!);
-      });
     });
 
     return () => {
@@ -151,6 +91,98 @@ export default function PolygonDrawingMap({
       map.current = null;
     };
   }, []);
+
+  // Render existing zones as reference layers (reactive effect)
+  useEffect(() => {
+    if (!map.current || !mapLoaded) return;
+
+    // Cleanup previous existing zone layers, sources, and label markers
+    existingZoneSourceIdsRef.current.forEach((sourceId) => {
+      if (map.current?.getLayer(`${sourceId}-fill`)) {
+        map.current.removeLayer(`${sourceId}-fill`);
+      }
+      if (map.current?.getLayer(`${sourceId}-outline`)) {
+        map.current.removeLayer(`${sourceId}-outline`);
+      }
+      if (map.current?.getSource(sourceId)) {
+        map.current.removeSource(sourceId);
+      }
+    });
+    existingZoneSourceIdsRef.current = [];
+
+    existingZoneLabelMarkersRef.current.forEach((marker) => marker.remove());
+    existingZoneLabelMarkersRef.current = [];
+
+    // Add fresh layers for current existingZones
+    existingZones.forEach((zone) => {
+      if (!zone.polygon_coordinates || zone.polygon_coordinates.length < 3) return;
+
+      const sourceId = `existing-zone-${zone.id}`;
+      const closedCoords = [...zone.polygon_coordinates, zone.polygon_coordinates[0]];
+
+      map.current!.addSource(sourceId, {
+        type: "geojson",
+        data: {
+          type: "Feature",
+          properties: { name: zone.name },
+          geometry: {
+            type: "Polygon",
+            coordinates: [closedCoords],
+          },
+        },
+      });
+
+      // Track source ID for cleanup
+      existingZoneSourceIdsRef.current.push(sourceId);
+
+      // Add fill layer
+      map.current!.addLayer({
+        id: `${sourceId}-fill`,
+        type: "fill",
+        source: sourceId,
+        paint: {
+          "fill-color": zone.color,
+          "fill-opacity": 0.15,
+        },
+      });
+
+      // Add outline layer
+      map.current!.addLayer({
+        id: `${sourceId}-outline`,
+        type: "line",
+        source: sourceId,
+        paint: {
+          "line-color": zone.color,
+          "line-width": 2,
+          "line-dasharray": [3, 2],
+        },
+      });
+
+      // Add zone label
+      const centroid = calculateCentroid(zone.polygon_coordinates);
+      const labelEl = document.createElement("div");
+      labelEl.innerHTML = `
+        <div style="
+          background: ${zone.color};
+          color: white;
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 12px;
+          font-weight: 600;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          white-space: nowrap;
+        ">
+          ${zone.name}
+        </div>
+      `;
+
+      const labelMarker = new mapboxgl.Marker({ element: labelEl })
+        .setLngLat(centroid)
+        .addTo(map.current!);
+
+      existingZoneLabelMarkersRef.current.push(labelMarker);
+    });
+  }, [mapLoaded, existingZones]);
 
   // Handle map clicks for drawing
   useEffect(() => {
