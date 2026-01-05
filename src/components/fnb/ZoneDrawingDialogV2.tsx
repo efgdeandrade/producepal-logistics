@@ -103,6 +103,8 @@ export default function ZoneDrawingDialogV2({
   };
 
   // Reset form when dialog opens/closes or zone changes
+  // Note: We use zone?.id instead of zone to avoid re-running on reference changes
+  // We compute subZones inside the effect to avoid dependency on a derived array
   useEffect(() => {
     if (open) {
       if (zone) {
@@ -117,7 +119,8 @@ export default function ZoneDrawingDialogV2({
         
         // If editing a major zone, get currently assigned sub-zones
         if (zone.zone_type === "major") {
-          const currentlyAssigned = subZones
+          const currentSubZones = zones.filter((z) => z.zone_type === "sub");
+          const currentlyAssigned = currentSubZones
             .filter((sz) => sz.parent_zone_id === zone.id)
             .map((sz) => sz.id);
           setAssignedSubZoneIds(currentlyAssigned);
@@ -154,7 +157,8 @@ export default function ZoneDrawingDialogV2({
       // Always show reference zones when opening dialog
       setShowReferenceZones(true);
     }
-  }, [open, zone, subZones]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, zone?.id]);
 
   const handleMapClick = (lng: number, lat: number) => {
     if (drawingMode === "circle") {
