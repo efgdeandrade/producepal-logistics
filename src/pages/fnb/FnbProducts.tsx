@@ -290,14 +290,14 @@ export default function FnbProducts() {
                 Add Product
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
+            <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
               <DialogHeader className="flex-shrink-0">
                 <DialogTitle>
                   {editingProduct ? 'Edit Product' : 'Add New Product'}
                 </DialogTitle>
               </DialogHeader>
-              <ScrollArea className="flex-1 min-h-0 pr-4">
-                <form onSubmit={handleSubmit} className="space-y-4 pb-2">
+              <ScrollArea className="flex-1 pr-4" style={{ maxHeight: 'calc(85vh - 140px)' }}>
+                <form id="product-form" onSubmit={handleSubmit} className="space-y-4 pb-2">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="code">Product Code</Label>
@@ -604,20 +604,20 @@ export default function FnbProducts() {
                   <Label htmlFor="is_active">Active</Label>
                 </div>
 
-                <div className="flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit">
-                    {editingProduct ? 'Update' : 'Create'}
-                  </Button>
-                </div>
                 </form>
               </ScrollArea>
+              <div className="flex justify-end gap-2 pt-4 border-t flex-shrink-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" form="product-form">
+                  {editingProduct ? 'Update' : 'Create'}
+                </Button>
+              </div>
             </DialogContent>
           </Dialog>
         </div>
