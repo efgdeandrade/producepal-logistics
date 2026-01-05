@@ -9,6 +9,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, isToday, startOfDay, endOfDay, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
@@ -76,6 +77,7 @@ export default function FnbPicker() {
   const [selectedQueue, setSelectedQueue] = useState<string | null>(null);
   const [pickedQuantities, setPickedQuantities] = useState<Record<string, number>>({});
   const [pickedUnits, setPickedUnits] = useState<Record<string, string>>({});
+  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
   const [shortReasons, setShortReasons] = useState<Record<string, string>>({});
   const [shortageItem, setShortageItem] = useState<{
     id: string;
@@ -1266,68 +1268,90 @@ const PICKER_UNITS = [
                             return 'bg-card';
                           };
 
+                          const isChecked = checkedItems[item.id] || false;
+
                           return (
                             <div
                               key={item.id}
                               className={cn(
-                                'p-4 rounded-lg border-2 transition-colors',
+                                'py-2 px-3 rounded-lg border-2 transition-colors',
                                 getBorderColor(),
-                                getBgColor()
+                                getBgColor(),
+                                isChecked && 'opacity-60'
                               )}
                             >
-                              <div className="flex items-start justify-between mb-2">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <p className="font-medium">{item.fnb_products?.name}</p>
-                                    {isWeightBased && (
-                                      <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-                                        <Scale className="h-3 w-3 mr-1" />
-                                        Weight
-                                      </Badge>
-                                    )}
+                              <div className="flex items-center gap-3">
+                                {/* Picked Checkbox */}
+                                <Checkbox
+                                  checked={isChecked}
+                                  onCheckedChange={(checked) => 
+                                    setCheckedItems(prev => ({ ...prev, [item.id]: !!checked }))
+                                  }
+                                  className="h-5 w-5 shrink-0"
+                                />
+                                
+                                <div className="flex items-start justify-between flex-1 min-w-0">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <p className={cn(
+                                        "text-sm font-medium truncate",
+                                        isChecked && "line-through text-muted-foreground"
+                                      )}>{item.fnb_products?.name}</p>
+                                      {isWeightBased && (
+                                        <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 shrink-0">
+                                          <Scale className="h-3 w-3 mr-1" />
+                                          Weight
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                      {item.fnb_products?.code}
+                                    </p>
                                   </div>
-                                  <p className="text-sm text-muted-foreground">
-                                    {item.fnb_products?.code}
-                                  </p>
+                                  <div className="text-right shrink-0 ml-2">
+                                    <p className="text-xs text-muted-foreground">Ordered</p>
+                                    <p className="text-sm font-bold">
+                                      {item.quantity} {item.fnb_products?.unit}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                              {/* Status badges - shown inline */}
+                              {(isReported || (isOverPicked && isWeightBased)) && (
+                                <div className="flex items-center gap-2 mt-1 ml-8">
                                   {isReported && editingShortageItem !== item.id && (
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <Badge variant="outline" className="text-blue-600 border-blue-400">
+                                    <>
+                                      <Badge variant="outline" className="text-xs text-blue-600 border-blue-400">
                                         Shortage Reported
                                       </Badge>
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700"
+                                        className="h-5 px-1.5 text-xs text-blue-600 hover:text-blue-700"
                                         onClick={() => setEditingShortageItem(item.id)}
                                       >
                                         <Edit className="h-3 w-3 mr-1" />
                                         Edit
                                       </Button>
-                                    </div>
+                                    </>
                                   )}
                                   {isOverPicked && isWeightBased && (
-                                    <Badge variant="outline" className="mt-1 text-blue-600 border-blue-400">
+                                    <Badge variant="outline" className="text-xs text-blue-600 border-blue-400">
                                       Over-picked (+{(pickedQty - item.quantity).toFixed(2)})
                                     </Badge>
                                   )}
                                 </div>
-                                <div className="text-right">
-                                  <p className="text-sm text-muted-foreground">Ordered</p>
-                                  <p className="font-bold">
-                                    {item.quantity} {item.fnb_products?.unit}
-                                  </p>
-                                </div>
-                              </div>
+                              )}
 
                               {/* Quantity/Weight Input */}
-                              <div className="mt-3">
+                              <div className="mt-2 ml-8">
                                 {isWeightBased ? (
                                   /* Weight-based items: Direct weight input */
-                                  <div className="space-y-2">
-                                    <div className="flex items-center gap-3">
-                                      <Scale className="h-5 w-5 text-blue-500" />
-                                      <span className="text-sm font-medium">Actual Weight:</span>
-                                      <div className="flex items-center gap-2 flex-1">
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <Scale className="h-4 w-4 text-blue-500" />
+                                      <span className="text-xs font-medium">Weight:</span>
+                                      <div className="flex items-center gap-1">
                                         <Input
                                           type="number"
                                           min="0"
@@ -1341,7 +1365,7 @@ const PICKER_UNITS = [
                                               [item.id]: Math.max(0, value),
                                             });
                                           }}
-                                          className="w-28 h-12 text-center text-lg font-bold"
+                                          className="w-20 h-9 text-center text-sm font-bold"
                                           disabled={isReported && editingShortageItem !== item.id}
                                         />
                                         <Select
@@ -1349,7 +1373,7 @@ const PICKER_UNITS = [
                                           onValueChange={(v) => setPickedUnits({ ...pickedUnits, [item.id]: v })}
                                           disabled={isReported && editingShortageItem !== item.id}
                                         >
-                                          <SelectTrigger className="w-20 h-12">
+                                          <SelectTrigger className="w-16 h-9 text-xs">
                                             <SelectValue />
                                           </SelectTrigger>
                                           <SelectContent>
@@ -1404,13 +1428,13 @@ const PICKER_UNITS = [
                                   </div>
                                 ) : (
                                   /* Fixed quantity items: +/- buttons with unit selector */
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-sm font-medium w-16">Picked:</span>
-                                    <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-xs font-medium">Picked:</span>
+                                    <div className="flex items-center gap-1">
                                       <Button
                                         variant="outline"
                                         size="sm"
-                                        className="h-12 w-12 text-lg touch-manipulation"
+                                        className="h-9 w-9 text-base touch-manipulation"
                                         onClick={() =>
                                           setPickedQuantities({
                                             ...pickedQuantities,
@@ -1433,13 +1457,13 @@ const PICKER_UNITS = [
                                             [item.id]: Math.max(0, value),
                                           });
                                         }}
-                                        className="w-20 h-12 text-center text-lg font-bold"
+                                        className="w-16 h-9 text-center text-sm font-bold"
                                         disabled={isReported && editingShortageItem !== item.id}
                                       />
                                       <Button
                                         variant="outline"
                                         size="sm"
-                                        className="h-12 w-12 text-lg touch-manipulation"
+                                        className="h-9 w-9 text-base touch-manipulation"
                                         onClick={() =>
                                           setPickedQuantities({
                                             ...pickedQuantities,
@@ -1455,7 +1479,7 @@ const PICKER_UNITS = [
                                         onValueChange={(v) => setPickedUnits({ ...pickedUnits, [item.id]: v })}
                                         disabled={isReported && editingShortageItem !== item.id}
                                       >
-                                        <SelectTrigger className="w-20 h-12">
+                                        <SelectTrigger className="w-16 h-9 text-xs">
                                           <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
