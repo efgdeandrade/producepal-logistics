@@ -754,7 +754,10 @@ const PICKER_UNITS = [
   });
 
   const selectedQueueItem = queueItems?.find((q: any) => q.id === selectedQueue);
-  const isMyOrder = selectedQueueItem?.picker_name === pickerName;
+  const isOwner = selectedQueueItem?.picker_name === pickerName || selectedQueueItem?.claimed_by === user?.id;
+  const canCollaborate = !!pickerName && selectedQueueItem?.status === 'in_progress';
+  // For backwards compatibility with existing code that uses isMyOrder
+  const isMyOrder = isOwner;
 
   // Check if any items have reported shortages (non-blocking, just visual)
   const hasReportedShortages = orderItems?.some(
@@ -1250,17 +1253,25 @@ const PICKER_UNITS = [
                     </>
                   )}
 
-                  {/* In progress by another picker */}
-                  {selectedQueueItem.status === 'in_progress' && !isMyOrder && (
-                    <div className="p-4 bg-purple-50 dark:bg-purple-950 rounded-lg text-center">
-                      <User className="h-8 w-8 mx-auto mb-2 text-purple-600 dark:text-purple-400" />
-                      <p className="font-medium">Being picked by {selectedQueueItem.picker_name}</p>
-                      <p className="text-sm text-muted-foreground">Select another order from the queue</p>
+                  {/* Collaboration banner - shown when helping another picker */}
+                  {selectedQueueItem.status === 'in_progress' && !isOwner && canCollaborate && (
+                    <div className="p-4 bg-purple-50 dark:bg-purple-950 rounded-lg border border-purple-200 dark:border-purple-800">
+                      <div className="flex items-center gap-3">
+                        <User className="h-8 w-8 text-purple-600 dark:text-purple-400 shrink-0" />
+                        <div>
+                          <p className="font-medium text-purple-800 dark:text-purple-200">
+                            Helping {selectedQueueItem.picker_name}
+                          </p>
+                          <p className="text-sm text-purple-700 dark:text-purple-300">
+                            You can pick any unpicked items. Items picked by others are locked.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   )}
 
-                  {/* Items List with Quantity Adjustment */}
-                  {isMyOrder && orderItems && (
+                  {/* Items List with Quantity Adjustment - Allow collaboration */}
+                  {(isOwner || canCollaborate) && orderItems && (
                     <>
                       {/* Active Pickers Banner - Show who is picking this order */}
                       {(() => {
@@ -1473,12 +1484,12 @@ const PICKER_UNITS = [
                                             });
                                           }}
                                           className="w-20 h-9 text-center text-sm font-bold"
-                                          disabled={isReported && editingShortageItem !== item.id}
+                                          disabled={isCheckedByOther || (isReported && editingShortageItem !== item.id)}
                                         />
                                         <Select
                                           value={pickedUnits[item.id] || item.order_unit || item.fnb_products?.weight_unit || 'kg'}
                                           onValueChange={(v) => setPickedUnits({ ...pickedUnits, [item.id]: v })}
-                                          disabled={isReported && editingShortageItem !== item.id}
+                                          disabled={isCheckedByOther || (isReported && editingShortageItem !== item.id)}
                                         >
                                           <SelectTrigger className="w-16 h-9 text-xs">
                                             <SelectValue />
@@ -1548,7 +1559,7 @@ const PICKER_UNITS = [
                                             [item.id]: Math.max(0, pickedQty - 1),
                                           })
                                         }
-                                        disabled={isReported && editingShortageItem !== item.id}
+                                        disabled={isCheckedByOther || (isReported && editingShortageItem !== item.id)}
                                       >
                                         -
                                       </Button>
@@ -1565,7 +1576,7 @@ const PICKER_UNITS = [
                                           });
                                         }}
                                         className="w-16 h-9 text-center text-sm font-bold"
-                                        disabled={isReported && editingShortageItem !== item.id}
+                                        disabled={isCheckedByOther || (isReported && editingShortageItem !== item.id)}
                                       />
                                       <Button
                                         variant="outline"
@@ -1577,14 +1588,14 @@ const PICKER_UNITS = [
                                             [item.id]: pickedQty + 1,
                                           })
                                         }
-                                        disabled={isReported && editingShortageItem !== item.id}
+                                        disabled={isCheckedByOther || (isReported && editingShortageItem !== item.id)}
                                       >
                                         +
                                       </Button>
                                       <Select
                                         value={pickedUnits[item.id] || item.order_unit || item.fnb_products?.unit || 'pcs'}
                                         onValueChange={(v) => setPickedUnits({ ...pickedUnits, [item.id]: v })}
-                                        disabled={isReported && editingShortageItem !== item.id}
+                                        disabled={isCheckedByOther || (isReported && editingShortageItem !== item.id)}
                                       >
                                         <SelectTrigger className="w-16 h-9 text-xs">
                                           <SelectValue />
@@ -1672,33 +1683,41 @@ const PICKER_UNITS = [
                         disabled={completeMutation.isPending}
                       />
 
-                      {/* Complete Button - Direct completion, weight already captured per-item */}
-                      <Button
-                        className="w-full h-16 text-lg"
-                        onClick={() => {
-                          // Calculate total weight from individual items
-                          const totalWeight = orderItems?.reduce((sum: number, item: any) => {
-                            const pickedQty = pickedQuantities[item.id] ?? item.quantity;
-                            const isWeightBased = item.fnb_products?.is_weight_based || false;
-                            return sum + (isWeightBased ? pickedQty : pickedQty * 0.5);
-                          }, 0) || 0;
-                          
-                          completeMutation.mutate({
-                            queueId: selectedQueue!,
-                            verifiedWeight: totalWeight,
-                          });
-                        }}
-                        disabled={
-                          !allItemsReviewed ||
-                          hasUnreasonedShorts ||
-                          completeMutation.isPending
-                        }
-                      >
-                        <CheckCircle className="mr-2 h-5 w-5" />
-                        Complete Order
-                      </Button>
+                      {/* Complete Button - Only owner can complete */}
+                      {isOwner ? (
+                        <Button
+                          className="w-full h-16 text-lg"
+                          onClick={() => {
+                            // Calculate total weight from individual items
+                            const totalWeight = orderItems?.reduce((sum: number, item: any) => {
+                              const pickedQty = pickedQuantities[item.id] ?? item.quantity;
+                              const isWeightBased = item.fnb_products?.is_weight_based || false;
+                              return sum + (isWeightBased ? pickedQty : pickedQty * 0.5);
+                            }, 0) || 0;
+                            
+                            completeMutation.mutate({
+                              queueId: selectedQueue!,
+                              verifiedWeight: totalWeight,
+                            });
+                          }}
+                          disabled={
+                            !allItemsReviewed ||
+                            hasUnreasonedShorts ||
+                            completeMutation.isPending
+                          }
+                        >
+                          <CheckCircle className="mr-2 h-5 w-5" />
+                          Complete Order
+                        </Button>
+                      ) : (
+                        <div className="p-3 bg-muted rounded-lg text-center">
+                          <p className="text-sm text-muted-foreground">
+                            Only <span className="font-medium">{selectedQueueItem?.picker_name}</span> can complete this order
+                          </p>
+                        </div>
+                      )}
 
-                      {hasUnreasonedShorts && (
+                      {hasUnreasonedShorts && isOwner && (
                         <p className="text-sm text-amber-600 dark:text-amber-400 text-center">
                           Please report shortages for items with reduced quantities
                         </p>
