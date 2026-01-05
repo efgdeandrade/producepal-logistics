@@ -3,11 +3,12 @@ import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useFnbStandingOrdersSync } from '@/hooks/useFnbStandingOrdersSync';
+import { toast } from 'sonner';
 import { 
-  ArrowLeft, 
+  ArrowLeft,
   Search, 
   Plus, 
   ChevronLeft, 
@@ -264,6 +265,67 @@ export default function FnbOrders() {
   const nextWeek = () => setWeekStart(addDays(weekStart, 7));
   const goToToday = () => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
 
+  // Confirm a single order - add to picker queue and update status
+  const confirmOrderMutation = useMutation({
+    mutationFn: async (orderId: string) => {
+      // Add to picker queue
+      const { error: queueError } = await supabase
+        .from('fnb_picker_queue')
+        .insert({
+          order_id: orderId,
+          status: 'queued',
+          priority: 0,
+        });
+      
+      if (queueError) throw queueError;
+      
+      // Update order status
+      const { error: updateError } = await supabase
+        .from('fnb_orders')
+        .update({ status: 'confirmed' })
+        .eq('id', orderId);
+      
+      if (updateError) throw updateError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['fnb-orders-weekly'] });
+      toast.success('Order confirmed and sent to picking queue');
+    },
+    onError: (error) => {
+      toast.error('Failed to confirm order');
+      console.error(error);
+    }
+  });
+
+  // Confirm all pending orders for a specific day
+  const confirmAllPendingMutation = useMutation({
+    mutationFn: async (date: Date) => {
+      const dayOrders = getOrdersForDay(date).filter(o => o.status === 'pending');
+      
+      for (const order of dayOrders) {
+        await supabase.from('fnb_picker_queue').insert({
+          order_id: order.id,
+          status: 'queued',
+          priority: 0,
+        });
+        
+        await supabase.from('fnb_orders')
+          .update({ status: 'confirmed' })
+          .eq('id', order.id);
+      }
+      
+      return dayOrders.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ['fnb-orders-weekly'] });
+      toast.success(`${count} orders confirmed and sent to picking queue`);
+    },
+    onError: (error) => {
+      toast.error('Failed to confirm orders');
+      console.error(error);
+    }
+  });
+
   const renderOrderCard = (order: OrderWithDetails) => {
     const customerType = order.fnb_customers?.customer_type || 'regular';
     const isSupermarket = customerType === 'supermarket';
@@ -272,6 +334,8 @@ export default function FnbOrders() {
     const isVerified = !!order.receipt_verified_at;
     const isExpanded = expandedOrders.has(order.id);
     const totalItems = order.fnb_order_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+
+    const isPendingStandingOrder = order.status === 'pending' && isStandingOrder(order);
 
     return (
       <Collapsible
@@ -284,10 +348,19 @@ export default function FnbOrders() {
             'mb-2 transition-shadow border-l-4',
             getZoneColor(order.fnb_customers?.delivery_zone || null),
             needsReceipt && 'ring-2 ring-orange-400',
+            isPendingStandingOrder && 'ring-2 ring-amber-400 animate-pulse',
             isExpanded && 'shadow-md'
           )}
           onClick={(e) => e.stopPropagation()}
         >
+          {/* Needs Confirmation Banner for pending standing orders */}
+          {isPendingStandingOrder && (
+            <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 
+                            px-3 py-1.5 text-xs font-medium flex items-center gap-2 rounded-t-md">
+              <AlertCircle className="h-3.5 w-3.5" />
+              Standing order - needs confirmation before picking
+            </div>
+          )}
           <CollapsibleTrigger asChild>
             <CardContent className="p-3 cursor-pointer hover:bg-muted/50 transition-colors">
               <div className="space-y-2">
@@ -418,7 +491,23 @@ export default function FnbOrders() {
 
               {/* Actions */}
               <div className="flex items-center gap-2 pt-2 flex-wrap">
-                {['pending', 'confirmed', 'picking'].includes(order.status) && (
+                {/* Confirm Order button for pending orders */}
+                {order.status === 'pending' && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="text-xs h-7 bg-green-600 hover:bg-green-700"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      confirmOrderMutation.mutate(order.id);
+                    }}
+                    disabled={confirmOrderMutation.isPending}
+                  >
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    Confirm Order
+                  </Button>
+                )}
+                {['confirmed', 'picking'].includes(order.status) && (
                   <Button
                     variant="default"
                     size="sm"
@@ -628,6 +717,22 @@ export default function FnbOrders() {
                       <Badge variant={stats.total > 0 ? 'default' : 'secondary'}>
                         {stats.total}
                       </Badge>
+                      {/* Confirm All Pending button */}
+                      {stats.pending > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs h-6 text-green-600 border-green-300 hover:bg-green-50 dark:hover:bg-green-900/20"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            confirmAllPendingMutation.mutate(day);
+                          }}
+                          disabled={confirmAllPendingMutation.isPending}
+                        >
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Confirm All ({stats.pending})
+                        </Button>
+                      )}
                     </CardTitle>
                     {/* Day Stats */}
                     {stats.total > 0 && (
