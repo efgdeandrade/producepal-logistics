@@ -66,6 +66,7 @@ const UNITS = [
   { value: 'lb', label: 'Lb' },
   { value: 'oz', label: 'Oz' },
   { value: 'case', label: 'Case' },
+  { value: 'tros', label: 'Tros' },
 ];
 
 type PaymentMethod = 'cash' | 'swipe' | 'transfer' | 'credit';

@@ -324,6 +324,7 @@ export default function FnbProducts() {
                         <SelectItem value="piece">piece</SelectItem>
                         <SelectItem value="box">box</SelectItem>
                         <SelectItem value="tray">tray</SelectItem>
+                        <SelectItem value="tros">tros</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
