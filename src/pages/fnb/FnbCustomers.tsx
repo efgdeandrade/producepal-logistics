@@ -44,11 +44,23 @@ interface FnbCustomer {
   preferred_language: string;
   address: string | null;
   delivery_zone: string | null;
+  major_zone_id: string | null;
   customer_type: CustomerType;
   notes: string | null;
   latitude?: number | null;
   longitude?: number | null;
   pricing_tier_id?: string | null;
+}
+
+interface MajorZone {
+  id: string;
+  name: string;
+}
+
+interface SubZone {
+  id: string;
+  name: string;
+  parent_zone_id: string | null;
 }
 
 const emptyCustomer: Omit<FnbCustomer, 'id'> = {
@@ -57,6 +69,7 @@ const emptyCustomer: Omit<FnbCustomer, 'id'> = {
   preferred_language: 'pap',
   address: '',
   delivery_zone: '',
+  major_zone_id: null,
   customer_type: 'regular',
   notes: '',
   pricing_tier_id: null,
@@ -87,8 +100,10 @@ interface GeocodeResult {
   latitude: number;
   longitude: number;
   matchedZone: string | null;
+  matchedMajorZoneId: string | null;
+  matchedMajorZoneName: string | null;
   distance: number | null;
-  allZoneDistances: { name: string; distance: number; withinRadius: boolean }[];
+  allZoneDistances: { name: string; distance: number; withinRadius: boolean; majorZoneId?: string }[];
 }
 
 export default function FnbCustomers() {
@@ -279,19 +294,40 @@ export default function FnbCustomers() {
     },
   });
 
-  // Fetch delivery zones from database
-  const { data: deliveryZones } = useQuery({
-    queryKey: ['fnb-delivery-zones-names'],
+  // Fetch Major Zones
+  const { data: majorZones } = useQuery({
+    queryKey: ['fnb-major-zones'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('fnb_delivery_zones')
-        .select('name')
+        .select('id, name')
+        .eq('zone_type', 'major')
         .eq('is_active', true)
         .order('name');
       if (error) throw error;
-      return data?.map(z => z.name) || [];
+      return (data || []) as MajorZone[];
     },
   });
+
+  // Fetch Sub-zones (all active sub-zones)
+  const { data: subZones } = useQuery({
+    queryKey: ['fnb-sub-zones'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('fnb_delivery_zones')
+        .select('id, name, parent_zone_id')
+        .eq('zone_type', 'sub')
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return (data || []) as SubZone[];
+    },
+  });
+
+  // Filter sub-zones based on selected major zone
+  const filteredSubZones = formData.major_zone_id
+    ? subZones?.filter(sz => sz.parent_zone_id === formData.major_zone_id)
+    : subZones;
 
   // Fetch pricing tiers
   const { data: pricingTiers } = useQuery({
@@ -307,7 +343,9 @@ export default function FnbCustomers() {
     },
   });
 
-  const allZones = deliveryZones || [];
+  // Create zone name lookup for display
+  const majorZoneMap = new Map(majorZones?.map(z => [z.id, z.name]) || []);
+  const subZoneNames = subZones?.map(z => z.name) || [];
 
   const createMutation = useMutation({
     mutationFn: async (customer: Omit<FnbCustomer, 'id'>) => {
@@ -369,6 +407,7 @@ export default function FnbCustomers() {
       preferred_language: customer.preferred_language,
       address: customer.address || '',
       delivery_zone: customer.delivery_zone || '',
+      major_zone_id: customer.major_zone_id || null,
       customer_type: customer.customer_type || 'regular',
       notes: customer.notes || '',
       pricing_tier_id: customer.pricing_tier_id || null,
@@ -410,8 +449,13 @@ export default function FnbCustomers() {
       setDetectedZoneInfo(result);
 
       if (result.matchedZone) {
-        setFormData(prev => ({ ...prev, delivery_zone: result.matchedZone! }));
-        toast.success(`Zone detected: ${result.matchedZone} (${result.distance}m from center)`);
+        setFormData(prev => ({ 
+          ...prev, 
+          delivery_zone: result.matchedZone!,
+          major_zone_id: result.matchedMajorZoneId || prev.major_zone_id
+        }));
+        const majorInfo = result.matchedMajorZoneName ? ` (${result.matchedMajorZoneName})` : '';
+        toast.success(`Zone detected: ${result.matchedZone}${majorInfo} - ${result.distance}m from center`);
       } else if (result.allZoneDistances?.length > 0) {
         const closest = result.allZoneDistances[0];
         toast.warning(`Address outside all zones. Closest: ${closest.name} (${closest.distance}m away)`);
@@ -485,8 +529,10 @@ export default function FnbCustomers() {
   const filteredCustomers = customers?.filter((c) => {
     const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.whatsapp_phone.includes(searchTerm);
+    // Support filtering by major zone id or sub-zone name
     const matchesZone = zoneFilter === 'all' || 
-      (zoneFilter === 'unassigned' ? !c.delivery_zone : c.delivery_zone === zoneFilter);
+      (zoneFilter === 'unassigned' ? (!c.delivery_zone && !c.major_zone_id) : 
+        (c.delivery_zone === zoneFilter || c.major_zone_id === zoneFilter));
     return matchesSearch && matchesZone;
   });
 
@@ -591,8 +637,35 @@ export default function FnbCustomers() {
                     </Select>
                   </div>
 
-                  <div className="space-y-2 col-span-2">
-                    <Label htmlFor="delivery_zone">Delivery Zone</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="major_zone">Major Zone</Label>
+                    <Select
+                      value={formData.major_zone_id || ''}
+                      onValueChange={(value) =>
+                        setFormData({ 
+                          ...formData, 
+                          major_zone_id: value || null,
+                          // Clear sub-zone if major zone changes
+                          delivery_zone: '' 
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select major zone" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {majorZones?.map((zone) => (
+                          <SelectItem key={zone.id} value={zone.id}>
+                            {zone.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">Primary delivery region</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="delivery_zone">Sub-Zone</Label>
                     <div className="flex gap-2">
                       <Select
                         value={formData.delivery_zone || ''}
@@ -601,12 +674,12 @@ export default function FnbCustomers() {
                         }
                       >
                         <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Select zone" />
+                          <SelectValue placeholder="Select sub-zone" />
                         </SelectTrigger>
                         <SelectContent>
-                          {allZones.map((zone) => (
-                            <SelectItem key={zone} value={zone}>
-                              {zone}
+                          {filteredSubZones?.map((zone) => (
+                            <SelectItem key={zone.id} value={zone.name}>
+                              {zone.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -630,7 +703,9 @@ export default function FnbCustomers() {
                       <div className="text-xs mt-1">
                         {detectedZoneInfo.matchedZone ? (
                           <span className="text-green-600">
-                            ✓ Detected: {detectedZoneInfo.matchedZone} ({detectedZoneInfo.distance}m from center)
+                            ✓ Detected: {detectedZoneInfo.matchedZone}
+                            {detectedZoneInfo.matchedMajorZoneName && ` (${detectedZoneInfo.matchedMajorZoneName})`}
+                            {` - ${detectedZoneInfo.distance}m from center`}
                           </span>
                         ) : detectedZoneInfo.allZoneDistances?.length > 0 ? (
                           <span className="text-amber-600">
@@ -642,7 +717,9 @@ export default function FnbCustomers() {
                       </div>
                     )}
                   </div>
+                </div>
 
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="customer_type">Customer Type</Label>
                     <Select
@@ -662,30 +739,30 @@ export default function FnbCustomers() {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="pricing_tier_id">Pricing Tier</Label>
-                  <Select
-                    value={formData.pricing_tier_id || ''}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, pricing_tier_id: value || null })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select pricing tier" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {pricingTiers?.map((tier) => (
-                        <SelectItem key={tier.id} value={tier.id}>
-                          {tier.name} {tier.is_default && '(Default)'}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Determines product pricing for this customer
-                  </p>
+                  <div className="space-y-2">
+                    <Label htmlFor="pricing_tier_id">Pricing Tier</Label>
+                    <Select
+                      value={formData.pricing_tier_id || ''}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, pricing_tier_id: value || null })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select pricing tier" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {pricingTiers?.map((tier) => (
+                          <SelectItem key={tier.id} value={tier.id}>
+                            {tier.name} {tier.is_default && '(Default)'}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Determines product pricing for this customer
+                    </p>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -810,15 +887,20 @@ export default function FnbCustomers() {
                 />
               </div>
               <Select value={zoneFilter} onValueChange={setZoneFilter}>
-                <SelectTrigger className="w-48">
+                <SelectTrigger className="w-56">
                   <SelectValue placeholder="Filter by zone" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Zones</SelectItem>
                   <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {allZones.map((zone) => (
+                  {majorZones?.map((zone) => (
+                    <SelectItem key={zone.id} value={zone.id}>
+                      📍 {zone.name} (Major)
+                    </SelectItem>
+                  ))}
+                  {subZoneNames.map((zone) => (
                     <SelectItem key={zone} value={zone}>
-                      {zone}
+                      └ {zone}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -851,14 +933,21 @@ export default function FnbCustomers() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {customer.delivery_zone ? (
-                          <Badge variant="secondary" className="text-xs">
-                            <Route className="h-3 w-3 mr-1" />
-                            {customer.delivery_zone}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">-</span>
-                        )}
+                        <div className="flex flex-col gap-0.5">
+                          {customer.major_zone_id && majorZoneMap.get(customer.major_zone_id) && (
+                            <Badge variant="outline" className="text-xs w-fit">
+                              📍 {majorZoneMap.get(customer.major_zone_id)}
+                            </Badge>
+                          )}
+                          {customer.delivery_zone ? (
+                            <Badge variant="secondary" className="text-xs w-fit">
+                              <Route className="h-3 w-3 mr-1" />
+                              {customer.delivery_zone}
+                            </Badge>
+                          ) : !customer.major_zone_id ? (
+                            <span className="text-muted-foreground text-xs">-</span>
+                          ) : null}
+                        </div>
                       </TableCell>
                       <TableCell>{languageLabels[customer.preferred_language]}</TableCell>
                       <TableCell className="max-w-xs truncate">

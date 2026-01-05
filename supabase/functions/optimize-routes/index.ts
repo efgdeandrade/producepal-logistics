@@ -15,6 +15,8 @@ interface Order {
   latitude: number | null;
   longitude: number | null;
   delivery_zone: string | null;
+  major_zone_id: string | null;
+  major_zone_name: string | null;
   total_xcg: number;
   priority: number;
   item_count: number;
@@ -32,6 +34,7 @@ interface Driver {
 interface RouteAssignment {
   driver_id: string;
   driver_name: string;
+  major_zone: string | null;
   stops: {
     order_id: string;
     order_number: string;
@@ -42,6 +45,8 @@ interface RouteAssignment {
     priority: number;
     sequence: number;
     estimated_arrival: string;
+    major_zone: string | null;
+    sub_zone: string | null;
   }[];
   total_stops: number;
   estimated_duration_minutes: number;
@@ -272,7 +277,7 @@ serve(async (req) => {
       );
     }
 
-    // 2. Get ready orders for the date
+    // 2. Get ready orders for the date - now including major_zone_id
     const { data: ordersData, error: ordersError } = await supabase
       .from("fnb_orders")
       .select(`
@@ -282,7 +287,7 @@ serve(async (req) => {
         total_xcg,
         priority,
         delivery_date,
-        fnb_customers!inner(id, name, address, latitude, longitude, delivery_zone),
+        fnb_customers!inner(id, name, address, latitude, longitude, delivery_zone, major_zone_id),
         fnb_order_items(id)
       `)
       .eq("status", "ready")
@@ -293,6 +298,15 @@ serve(async (req) => {
       throw new Error("Failed to fetch orders");
     }
 
+    // Fetch major zones for name lookup
+    const { data: majorZonesData } = await supabase
+      .from("fnb_delivery_zones")
+      .select("id, name")
+      .eq("zone_type", "major")
+      .eq("is_active", true);
+
+    const majorZoneMap = new Map((majorZonesData || []).map((z: any) => [z.id, z.name]));
+
     const orders: Order[] = (ordersData || []).map((o: any) => ({
       id: o.id,
       order_number: o.order_number,
@@ -302,6 +316,8 @@ serve(async (req) => {
       latitude: o.fnb_customers.latitude,
       longitude: o.fnb_customers.longitude,
       delivery_zone: o.fnb_customers.delivery_zone,
+      major_zone_id: o.fnb_customers.major_zone_id,
+      major_zone_name: o.fnb_customers.major_zone_id ? majorZoneMap.get(o.fnb_customers.major_zone_id) || null : null,
       total_xcg: o.total_xcg || 0,
       priority: o.priority || 0,
       item_count: o.fnb_order_items?.length || 1
@@ -321,95 +337,182 @@ serve(async (req) => {
       );
     }
 
-    // 3. Cluster orders by zone and assign to drivers
-    const ordersByZone = new Map<string, Order[]>();
+    // 3. Cluster orders by MAJOR ZONE first (new primary clustering)
+    const ordersByMajorZone = new Map<string, Order[]>();
     const unzonedOrders: Order[] = [];
     
     for (const order of orders) {
-      const zone = order.delivery_zone || "unzoned";
-      if (zone === "unzoned") {
+      const majorZone = order.major_zone_name || "unzoned";
+      if (majorZone === "unzoned") {
         unzonedOrders.push(order);
       } else {
-        if (!ordersByZone.has(zone)) {
-          ordersByZone.set(zone, []);
+        if (!ordersByMajorZone.has(majorZone)) {
+          ordersByMajorZone.set(majorZone, []);
         }
-        ordersByZone.get(zone)!.push(order);
+        ordersByMajorZone.get(majorZone)!.push(order);
       }
     }
 
-    // Sort zones by total orders (descending)
-    const sortedZones = Array.from(ordersByZone.entries())
+    console.log(`Orders clustered into ${ordersByMajorZone.size} major zones plus ${unzonedOrders.length} unzoned`);
+
+    // Sort major zones by total orders (descending)
+    const sortedMajorZones = Array.from(ordersByMajorZone.entries())
       .sort((a, b) => b[1].length - a[1].length);
 
-    // Assign zones to drivers based on capacity
+    // Assign major zones to drivers based on capacity
     const assignments: RouteAssignment[] = [];
-    const driverLoads = new Map<string, Order[]>();
+    const driverLoads = new Map<string, { orders: Order[], majorZone: string | null }>();
     
     for (const driver of drivers) {
-      driverLoads.set(driver.id, []);
+      driverLoads.set(driver.id, { orders: [], majorZone: null });
     }
 
-    // Round-robin assignment of zones to drivers
+    // Strategy: Try to assign each major zone to a dedicated driver
     let driverIndex = 0;
-    for (const [zone, zoneOrders] of sortedZones) {
+    for (const [majorZone, majorZoneOrders] of sortedMajorZones) {
       const driver = drivers[driverIndex % drivers.length];
       const currentLoad = driverLoads.get(driver.id)!;
       
-      // Check capacity
-      if (currentLoad.length + zoneOrders.length <= driver.vehicle_capacity) {
-        currentLoad.push(...zoneOrders);
-      } else {
-        // Split if over capacity
-        const remaining = driver.vehicle_capacity - currentLoad.length;
-        currentLoad.push(...zoneOrders.slice(0, remaining));
+      // If driver already has orders from a different major zone, try next driver
+      if (currentLoad.majorZone && currentLoad.majorZone !== majorZone && drivers.length > 1) {
+        // Find a driver without a major zone assigned yet
+        let assignedDriver = driver;
+        for (let i = 0; i < drivers.length; i++) {
+          const candidateDriver = drivers[(driverIndex + i) % drivers.length];
+          const candidateLoad = driverLoads.get(candidateDriver.id)!;
+          if (!candidateLoad.majorZone || candidateLoad.majorZone === majorZone) {
+            assignedDriver = candidateDriver;
+            break;
+          }
+        }
+        const load = driverLoads.get(assignedDriver.id)!;
         
-        // Assign rest to next driver
-        const overflow = zoneOrders.slice(remaining);
-        if (overflow.length > 0) {
-          const nextDriver = drivers[(driverIndex + 1) % drivers.length];
-          driverLoads.get(nextDriver.id)!.push(...overflow);
+        // Check capacity
+        if (load.orders.length + majorZoneOrders.length <= assignedDriver.vehicle_capacity) {
+          load.orders.push(...majorZoneOrders);
+          load.majorZone = majorZone;
+        } else {
+          // Split if over capacity
+          const remaining = assignedDriver.vehicle_capacity - load.orders.length;
+          load.orders.push(...majorZoneOrders.slice(0, remaining));
+          load.majorZone = majorZone;
+          
+          // Assign rest to next driver
+          const overflow = majorZoneOrders.slice(remaining);
+          if (overflow.length > 0) {
+            const nextDriver = drivers[(driverIndex + 1) % drivers.length];
+            const nextLoad = driverLoads.get(nextDriver.id)!;
+            nextLoad.orders.push(...overflow);
+            nextLoad.majorZone = majorZone;
+          }
+        }
+      } else {
+        // Check capacity
+        if (currentLoad.orders.length + majorZoneOrders.length <= driver.vehicle_capacity) {
+          currentLoad.orders.push(...majorZoneOrders);
+          currentLoad.majorZone = majorZone;
+        } else {
+          // Split if over capacity
+          const remaining = driver.vehicle_capacity - currentLoad.orders.length;
+          currentLoad.orders.push(...majorZoneOrders.slice(0, remaining));
+          currentLoad.majorZone = majorZone;
+          
+          // Assign rest to next driver
+          const overflow = majorZoneOrders.slice(remaining);
+          if (overflow.length > 0) {
+            const nextDriver = drivers[(driverIndex + 1) % drivers.length];
+            const nextLoad = driverLoads.get(nextDriver.id)!;
+            nextLoad.orders.push(...overflow);
+            if (!nextLoad.majorZone) nextLoad.majorZone = majorZone;
+          }
         }
       }
       driverIndex++;
     }
 
-    // Distribute unzoned orders
+    // Distribute unzoned orders to drivers with least load
     for (const order of unzonedOrders) {
       // Find driver with least load
       let minLoadDriver = drivers[0];
-      let minLoad = driverLoads.get(drivers[0].id)!.length;
+      let minLoad = driverLoads.get(drivers[0].id)!.orders.length;
       
       for (const driver of drivers) {
-        const load = driverLoads.get(driver.id)!.length;
+        const load = driverLoads.get(driver.id)!.orders.length;
         if (load < minLoad && load < driver.vehicle_capacity) {
           minLoad = load;
           minLoadDriver = driver;
         }
       }
       
-      driverLoads.get(minLoadDriver.id)!.push(order);
+      driverLoads.get(minLoadDriver.id)!.orders.push(order);
     }
 
-    // 4. Optimize each driver's route and create assignments
+    // 4. Optimize each driver's route - within each major zone, sort by sub-zone proximity
     const curacaoCenter = { lat: 12.1696, lon: -68.9900 };
     
     for (const driver of drivers) {
-      const driverOrders = driverLoads.get(driver.id)!;
+      const loadInfo = driverLoads.get(driver.id)!;
+      const driverOrders = loadInfo.orders;
       
       if (driverOrders.length === 0) continue;
       
-      // Optimize stop sequence
-      const optimizedStops = optimizeStopSequence(driverOrders, curacaoCenter.lat, curacaoCenter.lon);
+      // Group by sub-zone within the major zone for better clustering
+      const ordersBySubZone = new Map<string, Order[]>();
+      for (const order of driverOrders) {
+        const subZone = order.delivery_zone || "no-subzone";
+        if (!ordersBySubZone.has(subZone)) {
+          ordersBySubZone.set(subZone, []);
+        }
+        ordersBySubZone.get(subZone)!.push(order);
+      }
+
+      // Optimize within each sub-zone cluster, then connect clusters
+      const clusteredOrders: Order[] = [];
+      let currentLat = curacaoCenter.lat;
+      let currentLon = curacaoCenter.lon;
+
+      // Sort sub-zone clusters by distance from current position
+      const subZoneClusters = Array.from(ordersBySubZone.values());
+      while (subZoneClusters.length > 0) {
+        let nearestClusterIdx = 0;
+        let nearestDist = Infinity;
+
+        for (let i = 0; i < subZoneClusters.length; i++) {
+          const cluster = subZoneClusters[i];
+          // Find centroid of cluster
+          const validOrders = cluster.filter(o => o.latitude && o.longitude);
+          if (validOrders.length > 0) {
+            const centroidLat = validOrders.reduce((sum, o) => sum + o.latitude!, 0) / validOrders.length;
+            const centroidLon = validOrders.reduce((sum, o) => sum + o.longitude!, 0) / validOrders.length;
+            const dist = getDistanceKm(currentLat, currentLon, centroidLat, centroidLon);
+            if (dist < nearestDist) {
+              nearestDist = dist;
+              nearestClusterIdx = i;
+            }
+          }
+        }
+
+        const nearestCluster = subZoneClusters.splice(nearestClusterIdx, 1)[0];
+        const optimizedCluster = optimizeStopSequence(nearestCluster, currentLat, currentLon);
+        clusteredOrders.push(...optimizedCluster);
+
+        // Update current position to last stop in cluster
+        const lastStop = optimizedCluster[optimizedCluster.length - 1];
+        if (lastStop?.latitude && lastStop?.longitude) {
+          currentLat = lastStop.latitude;
+          currentLon = lastStop.longitude;
+        }
+      }
       
       // Calculate metrics
-      const metrics = calculateRouteMetrics(optimizedStops);
+      const metrics = calculateRouteMetrics(clusteredOrders);
       
       // Calculate ETAs
       const startTime = new Date(`${targetDate}T${driver.start_time}`);
       let currentTime = new Date(startTime);
-      const avgTimePerStop = metrics.duration / optimizedStops.length;
+      const avgTimePerStop = clusteredOrders.length > 0 ? metrics.duration / clusteredOrders.length : 0;
       
-      const stops = optimizedStops.map((order, idx) => {
+      const stops = clusteredOrders.map((order, idx) => {
         const eta = new Date(currentTime);
         currentTime = new Date(currentTime.getTime() + avgTimePerStop * 60000);
         
@@ -422,13 +525,16 @@ serve(async (req) => {
           longitude: order.longitude || curacaoCenter.lon,
           priority: order.priority,
           sequence: idx + 1,
-          estimated_arrival: eta.toISOString()
+          estimated_arrival: eta.toISOString(),
+          major_zone: order.major_zone_name,
+          sub_zone: order.delivery_zone
         };
       });
       
       assignments.push({
         driver_id: driver.id,
         driver_name: driver.name,
+        major_zone: loadInfo.majorZone,
         stops,
         total_stops: stops.length,
         estimated_duration_minutes: metrics.duration,
@@ -441,14 +547,16 @@ serve(async (req) => {
     try {
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
       if (LOVABLE_API_KEY && assignments.length > 0) {
+        const majorZonesSummary = Array.from(ordersByMajorZone.keys()).join(", ") || "none";
         const prompt = `Analyze these delivery route assignments and provide 2-3 brief optimization suggestions:
         
-${assignments.map(a => `Driver: ${a.driver_name} - ${a.total_stops} stops, ${a.estimated_duration_minutes} min, ${a.total_distance_km} km`).join("\n")}
+${assignments.map(a => `Driver: ${a.driver_name} - Major Zone: ${a.major_zone || 'Mixed'} - ${a.total_stops} stops, ${a.estimated_duration_minutes} min, ${a.total_distance_km} km`).join("\n")}
 
 Total orders: ${orders.length}
-Zones covered: ${Array.from(ordersByZone.keys()).join(", ")}
+Major Zones covered: ${majorZonesSummary}
+Unzoned orders: ${unzonedOrders.length}
 
-Provide actionable suggestions to improve efficiency.`;
+Provide actionable suggestions to improve efficiency, especially regarding major zone assignments.`;
 
         const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
@@ -477,7 +585,7 @@ Provide actionable suggestions to improve efficiency.`;
       console.log("AI suggestions unavailable:", e);
     }
 
-    console.log(`Created ${assignments.length} route assignments`);
+    console.log(`Created ${assignments.length} route assignments clustered by major zone`);
 
     return new Response(
       JSON.stringify({
@@ -486,7 +594,9 @@ Provide actionable suggestions to improve efficiency.`;
         summary: {
           total_orders: orders.length,
           total_drivers: drivers.length,
-          assignments_created: assignments.length
+          assignments_created: assignments.length,
+          major_zones: Array.from(ordersByMajorZone.keys()),
+          unzoned_orders: unzonedOrders.length
         },
         assignments,
         ai_suggestions: aiSuggestions
