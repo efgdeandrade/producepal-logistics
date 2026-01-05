@@ -351,6 +351,7 @@ export default function ZoneDrawingDialogV2({
                           <Checkbox
                             checked={isAssigned}
                             onCheckedChange={() => toggleSubZoneAssignment(sz.id)}
+                            onClick={(e) => e.stopPropagation()}
                           />
                           <span className="flex-1 text-sm">{sz.name}</span>
                           {isAssignedToOther && (
