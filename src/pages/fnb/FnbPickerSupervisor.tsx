@@ -24,8 +24,11 @@ export default function FnbPickerSupervisor() {
   // New order notifications
   const {
     notifications,
+    isMinimized: notificationsMinimized,
     soundEnabled,
     toggleSound,
+    minimize: minimizeNotifications,
+    expand: expandNotifications,
     dismissNotification,
   } = useNewOrderNotifications();
 
@@ -256,31 +259,17 @@ export default function FnbPickerSupervisor() {
       <Header />
       
       {/* Floating notification stack */}
-      {notifications.length > 0 && (
-        <div className="fixed top-20 right-4 z-50 space-y-2 max-w-sm">
-          {notifications.slice(0, 3).map((notification) => (
-            <NewOrderToast
-              key={notification.id}
-              id={notification.id}
-              orderId={notification.orderId}
-              orderNumber={notification.orderNumber}
-              customerName={notification.customerName}
-              zone={notification.zone}
-              isUrgent={notification.isUrgent}
-              onView={() => {
-                dismissNotification(notification.id);
-                toast.info(`Order ${notification.orderNumber} ready for picking`);
-              }}
-              onDismiss={() => dismissNotification(notification.id)}
-            />
-          ))}
-          {notifications.length > 3 && (
-            <div className="text-center text-xs text-muted-foreground bg-muted/80 rounded-md py-1">
-              +{notifications.length - 3} more new orders
-            </div>
-          )}
-        </div>
-      )}
+      <NewOrderToast
+        notifications={notifications}
+        isMinimized={notificationsMinimized}
+        onMinimize={minimizeNotifications}
+        onExpand={expandNotifications}
+        onPickOrder={(notification) => {
+          dismissNotification(notification.id);
+          toast.info(`Order for ${notification.customerName} ready for picking`);
+        }}
+        onDismiss={dismissNotification}
+      />
       
       <main className="container py-6 max-w-7xl">
         <div className="flex items-center justify-between mb-6">

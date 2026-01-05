@@ -94,8 +94,11 @@ export default function FnbPicker() {
   // New order notifications
   const {
     notifications,
+    isMinimized: notificationsMinimized,
     soundEnabled,
     toggleSound,
+    minimize: minimizeNotifications,
+    expand: expandNotifications,
     dismissNotification,
   } = useNewOrderNotifications();
 
@@ -775,38 +778,24 @@ const PICKER_UNITS = [
       <Header />
       
       {/* Floating notification stack */}
-      {notifications.length > 0 && (
-        <div className="fixed top-20 right-4 z-50 space-y-2 max-w-sm">
-          {notifications.slice(0, 3).map((notification) => (
-            <NewOrderToast
-              key={notification.id}
-              id={notification.id}
-              orderId={notification.orderId}
-              orderNumber={notification.orderNumber}
-              customerName={notification.customerName}
-              zone={notification.zone}
-              isUrgent={notification.isUrgent}
-              onView={() => {
-                // Find queue item and claim it
-                const queueItem = queueItems?.find((q: any) => q.order_id === notification.orderId);
-                if (queueItem) {
-                  if (queueItem.status === 'queued') {
-                    claimMutation.mutate(queueItem.id);
-                  }
-                  setSelectedQueue(queueItem.id);
-                }
-                dismissNotification(notification.id);
-              }}
-              onDismiss={() => dismissNotification(notification.id)}
-            />
-          ))}
-          {notifications.length > 3 && (
-            <div className="text-center text-xs text-muted-foreground bg-muted/80 rounded-md py-1">
-              +{notifications.length - 3} more new orders
-            </div>
-          )}
-        </div>
-      )}
+      <NewOrderToast
+        notifications={notifications}
+        isMinimized={notificationsMinimized}
+        onMinimize={minimizeNotifications}
+        onExpand={expandNotifications}
+        onPickOrder={(notification) => {
+          // Find queue item and claim it
+          const queueItem = queueItems?.find((q: any) => q.order_id === notification.orderId);
+          if (queueItem) {
+            if (queueItem.status === 'queued') {
+              claimMutation.mutate(queueItem.id);
+            }
+            setSelectedQueue(queueItem.id);
+          }
+          dismissNotification(notification.id);
+        }}
+        onDismiss={dismissNotification}
+      />
       
       <main className="container py-4 max-w-7xl">
         {/* Header with Session Info */}
