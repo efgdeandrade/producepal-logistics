@@ -53,6 +53,7 @@ interface FnbProduct {
   price_per_lb: number | null;
   price_per_case: number | null;
   price_per_piece: number | null;
+  price_per_tros: number | null;
   items_per_case: number | null;
   case_weight_kg: number | null;
   product_description: string | null;
@@ -75,6 +76,7 @@ const emptyProduct: Omit<FnbProduct, 'id'> = {
   price_per_lb: null,
   price_per_case: null,
   price_per_piece: null,
+  price_per_tros: null,
   items_per_case: null,
   case_weight_kg: null,
   product_description: null,
@@ -228,6 +230,7 @@ export default function FnbProducts() {
       price_per_lb: product.price_per_lb,
       price_per_case: product.price_per_case,
       price_per_piece: product.price_per_piece,
+      price_per_tros: product.price_per_tros,
       items_per_case: product.items_per_case,
       case_weight_kg: product.case_weight_kg,
       product_description: product.product_description,
@@ -471,6 +474,19 @@ export default function FnbProducts() {
                         value={formData.price_per_piece ?? ''}
                         onChange={(e) =>
                           setFormData({ ...formData, price_per_piece: e.target.value ? parseFloat(e.target.value) : null })
+                        }
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="price_per_tros" className="text-xs">Per Tros</Label>
+                      <Input
+                        id="price_per_tros"
+                        type="number"
+                        step="0.01"
+                        value={formData.price_per_tros ?? ''}
+                        onChange={(e) =>
+                          setFormData({ ...formData, price_per_tros: e.target.value ? parseFloat(e.target.value) : null })
                         }
                         placeholder="0.00"
                       />
