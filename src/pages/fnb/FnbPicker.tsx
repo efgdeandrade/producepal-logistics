@@ -842,7 +842,17 @@ const PICKER_UNITS = [
             {/* Date Range Picker */}
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
+                <Button 
+                  variant={dateRange?.from && !(isToday(dateRange.from) && (!dateRange.to || isToday(dateRange.to))) ? "destructive" : "outline"} 
+                  size="sm" 
+                  className={cn(
+                    "gap-2",
+                    dateRange?.from && !(isToday(dateRange.from) && (!dateRange.to || isToday(dateRange.to))) && "animate-pulse"
+                  )}
+                >
+                  {dateRange?.from && !(isToday(dateRange.from) && (!dateRange.to || isToday(dateRange.to))) && (
+                    <AlertTriangle className="h-4 w-4" />
+                  )}
                   <CalendarIcon className="h-4 w-4" />
                   {dateRange?.from ? (
                     dateRange.to && dateRange.from.getTime() !== dateRange.to.getTime() ? (
@@ -871,10 +881,13 @@ const PICKER_UNITS = [
             
             {/* Quick range buttons */}
             <Button
-              variant="ghost"
+              variant={dateRange?.from && !(isToday(dateRange.from) && (!dateRange.to || isToday(dateRange.to))) ? "default" : "ghost"}
               size="sm"
               onClick={() => setDateRange({ from: new Date(), to: new Date() })}
-              className="text-primary"
+              className={cn(
+                "text-primary",
+                dateRange?.from && !(isToday(dateRange.from) && (!dateRange.to || isToday(dateRange.to))) && "ring-2 ring-primary ring-offset-2"
+              )}
             >
               Today
             </Button>
@@ -951,23 +964,33 @@ const PICKER_UNITS = [
           </div>
         </div>
 
-        {/* Date indicator banner when viewing non-today date range */}
+        {/* Critical warning banner when viewing non-today date range */}
         {dateRange?.from && !(isToday(dateRange.from) && (!dateRange.to || isToday(dateRange.to))) && (
-          <div className="mb-4 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-4 py-2 rounded-lg flex items-center justify-between">
-            <span className="font-medium">
-              Viewing orders for: {format(dateRange.from, 'EEEE, MMM d')}
-              {dateRange.to && dateRange.from.getTime() !== dateRange.to.getTime() && (
-                <> - {format(dateRange.to, 'EEEE, MMM d')}</>
-              )}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setDateRange({ from: new Date(), to: new Date() })}
-              className="text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-800/50"
-            >
-              Back to Today
-            </Button>
+          <div className="mb-4 bg-destructive/10 border-2 border-destructive rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-8 w-8 text-destructive flex-shrink-0 animate-bounce" />
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-destructive uppercase tracking-wide">
+                  ⚠️ Caution: Not Today's Orders
+                </h3>
+                <p className="text-destructive/80 mt-1">
+                  You are viewing orders from: <strong>{format(dateRange.from, 'EEEE, MMMM d, yyyy')}</strong>
+                  {dateRange.to && dateRange.from.getTime() !== dateRange.to.getTime() && (
+                    <strong> - {format(dateRange.to, 'EEEE, MMMM d, yyyy')}</strong>
+                  )}
+                </p>
+                <p className="text-sm text-destructive/70 mt-1">
+                  Do NOT pick these orders unless specifically instructed.
+                </p>
+              </div>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setDateRange({ from: new Date(), to: new Date() })}
+              >
+                ← Return to Today
+              </Button>
+            </div>
           </div>
         )}
 
