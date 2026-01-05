@@ -77,6 +77,9 @@ export default function ZoneDrawingDialogV2({
   
   // Polygon mode state
   const [polygonCoords, setPolygonCoords] = useState<[number, number][] | null>(null);
+  
+  // Session ID for new zones - forces fresh map mount each time dialog opens for new zone
+  const [newZoneSessionId, setNewZoneSessionId] = useState(0);
 
   const majorZones = zones.filter((z) => z.zone_type === "major");
 
@@ -117,7 +120,8 @@ export default function ZoneDrawingDialogV2({
           setPolygonCoords(null);
         }
       } else {
-        // Reset for new zone
+        // Reset for new zone - increment session ID to force map remount
+        setNewZoneSessionId((prev) => prev + 1);
         setName("");
         setDescription("");
         setIsActive(true);
@@ -199,7 +203,7 @@ export default function ZoneDrawingDialogV2({
           <div className="lg:col-span-2 min-h-[400px] rounded-lg overflow-hidden border">
             {drawingMode === "polygon" ? (
               <PolygonDrawingMap
-                key={zone?.id || "new-zone"}
+                key={zone?.id ?? `new-zone-${newZoneSessionId}`}
                 initialPolygon={polygonCoords}
                 customers={customers}
                 onPolygonChange={handlePolygonChange}
