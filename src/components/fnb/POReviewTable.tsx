@@ -39,6 +39,7 @@ const UNITS = [
   { value: 'g', label: 'Grams' },
   { value: 'lb', label: 'Lb' },
   { value: 'case', label: 'Case' },
+  { value: 'tros', label: 'Tros' },
 ];
 
 const LearningStatus = ({ item }: { item: MatchedItem }) => {
