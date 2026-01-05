@@ -173,6 +173,17 @@ export default function ZoneDrawingDialogV2({
   // Other zones for display (excluding current)
   const otherZones = zone ? zones.filter((z) => z.id !== zone.id) : zones;
 
+  // Get other major zones for reference when creating/editing a major zone
+  const existingMajorZonesForReference = majorZones
+    .filter((mz) => mz.id !== zone?.id) // Exclude current zone if editing
+    .filter((mz) => mz.polygon_coordinates && mz.polygon_coordinates.length >= 3)
+    .map((mz) => ({
+      id: mz.id,
+      name: mz.name,
+      polygon_coordinates: mz.polygon_coordinates as [number, number][],
+      color: getMajorZoneColor(mz.name),
+    }));
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl h-[90vh] flex flex-col">
@@ -193,6 +204,7 @@ export default function ZoneDrawingDialogV2({
                 customers={customers}
                 onPolygonChange={handlePolygonChange}
                 zoneColor={zoneType === "major" ? getMajorZoneColor(name) : "#22c55e"}
+                existingZones={zoneType === "major" ? existingMajorZonesForReference : []}
               />
             ) : (
               <ZoneMapView

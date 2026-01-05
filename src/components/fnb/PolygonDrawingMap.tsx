@@ -20,11 +20,19 @@ interface Customer {
   delivery_zone?: string | null;
 }
 
+interface ExistingZone {
+  id: string;
+  name: string;
+  polygon_coordinates: [number, number][];
+  color: string;
+}
+
 interface PolygonDrawingMapProps {
   initialPolygon?: [number, number][] | null;
   customers: Customer[];
   onPolygonChange: (polygon: [number, number][] | null) => void;
   zoneColor?: string;
+  existingZones?: ExistingZone[];
 }
 
 export default function PolygonDrawingMap({
@@ -32,6 +40,7 @@ export default function PolygonDrawingMap({
   customers,
   onPolygonChange,
   zoneColor = "#3b82f6",
+  existingZones = [],
 }: PolygonDrawingMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -70,6 +79,71 @@ export default function PolygonDrawingMap({
 
     map.current.on("load", () => {
       setMapLoaded(true);
+      
+      // Draw existing zones as reference layers
+      existingZones.forEach((zone) => {
+        if (!zone.polygon_coordinates || zone.polygon_coordinates.length < 3) return;
+        
+        const sourceId = `existing-zone-${zone.id}`;
+        const closedCoords = [...zone.polygon_coordinates, zone.polygon_coordinates[0]];
+        
+        map.current!.addSource(sourceId, {
+          type: "geojson",
+          data: {
+            type: "Feature",
+            properties: { name: zone.name },
+            geometry: {
+              type: "Polygon",
+              coordinates: [closedCoords],
+            },
+          },
+        });
+        
+        // Add fill layer
+        map.current!.addLayer({
+          id: `${sourceId}-fill`,
+          type: "fill",
+          source: sourceId,
+          paint: {
+            "fill-color": zone.color,
+            "fill-opacity": 0.15,
+          },
+        });
+        
+        // Add outline layer
+        map.current!.addLayer({
+          id: `${sourceId}-outline`,
+          type: "line",
+          source: sourceId,
+          paint: {
+            "line-color": zone.color,
+            "line-width": 2,
+            "line-dasharray": [3, 2],
+          },
+        });
+        
+        // Add zone label
+        const centroid = calculateCentroid(zone.polygon_coordinates);
+        const labelEl = document.createElement("div");
+        labelEl.innerHTML = `
+          <div style="
+            background: ${zone.color};
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            white-space: nowrap;
+          ">
+            ${zone.name}
+          </div>
+        `;
+        
+        new mapboxgl.Marker({ element: labelEl })
+          .setLngLat(centroid)
+          .addTo(map.current!);
+      });
     });
 
     return () => {
@@ -397,6 +471,16 @@ function isPointInPolygon(point: [number, number], polygon: [number, number][]):
   }
 
   return inside;
+}
+
+// Calculate centroid of a polygon
+function calculateCentroid(polygon: [number, number][]): [number, number] {
+  let x = 0, y = 0;
+  polygon.forEach(([lng, lat]) => {
+    x += lng;
+    y += lat;
+  });
+  return [x / polygon.length, y / polygon.length];
 }
 
 // Export for use in other components
