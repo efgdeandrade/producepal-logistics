@@ -290,13 +290,13 @@ export default function FnbProducts() {
                 Add Product
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
+            <DialogContent className="max-w-lg h-[85vh] max-h-[85vh] flex flex-col overflow-hidden">
               <DialogHeader className="flex-shrink-0">
                 <DialogTitle>
                   {editingProduct ? 'Edit Product' : 'Add New Product'}
                 </DialogTitle>
               </DialogHeader>
-              <ScrollArea className="flex-1 pr-4" style={{ maxHeight: 'calc(85vh - 140px)' }}>
+              <ScrollArea className="flex-1 min-h-0 pr-4">
                 <form id="product-form" onSubmit={handleSubmit} className="space-y-4 pb-2">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
