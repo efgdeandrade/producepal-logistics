@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { playOrderNotificationSound, playUrgentNotificationSound } from '@/utils/audioNotification';
 
 const SOUND_STORAGE_KEY = 'fnb_picker_sound_enabled';
+const MINIMIZED_STORAGE_KEY = 'fnb_picker_notifications_minimized';
+const REMINDER_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes
 
 export interface OrderNotification {
   id: string;
@@ -17,6 +19,10 @@ export interface OrderNotification {
 
 export function useNewOrderNotifications() {
   const [notifications, setNotifications] = useState<OrderNotification[]>([]);
+  const [isMinimized, setIsMinimized] = useState(() => {
+    const stored = localStorage.getItem(MINIMIZED_STORAGE_KEY);
+    return stored === 'true';
+  });
   const [soundEnabled, setSoundEnabled] = useState(() => {
     const stored = localStorage.getItem(SOUND_STORAGE_KEY);
     return stored !== 'false';
@@ -24,6 +30,7 @@ export function useNewOrderNotifications() {
   
   // Track processed queue IDs to avoid duplicate notifications
   const processedIds = useRef<Set<string>>(new Set());
+  const reminderInterval = useRef<NodeJS.Timeout | null>(null);
 
   const toggleSound = useCallback(() => {
     setSoundEnabled(prev => {
@@ -31,6 +38,16 @@ export function useNewOrderNotifications() {
       localStorage.setItem(SOUND_STORAGE_KEY, String(newValue));
       return newValue;
     });
+  }, []);
+
+  const minimize = useCallback(() => {
+    setIsMinimized(true);
+    localStorage.setItem(MINIMIZED_STORAGE_KEY, 'true');
+  }, []);
+
+  const expand = useCallback(() => {
+    setIsMinimized(false);
+    localStorage.setItem(MINIMIZED_STORAGE_KEY, 'false');
   }, []);
 
   const dismissNotification = useCallback((id: string) => {
@@ -112,22 +129,42 @@ export function useNewOrderNotifications() {
     };
   }, [soundEnabled]);
 
-  // Clean up old notifications after 1 minute
+  // Reminder sound every 3 minutes for unattended orders
   useEffect(() => {
-    const cleanup = setInterval(() => {
-      const oneMinuteAgo = new Date(Date.now() - 60000);
-      setNotifications(prev => 
-        prev.filter(n => n.createdAt > oneMinuteAgo)
-      );
-    }, 10000);
+    // Clear existing interval
+    if (reminderInterval.current) {
+      clearInterval(reminderInterval.current);
+      reminderInterval.current = null;
+    }
 
-    return () => clearInterval(cleanup);
-  }, []);
+    // Set up new interval if there are notifications and sound is enabled
+    if (notifications.length > 0 && soundEnabled) {
+      reminderInterval.current = setInterval(() => {
+        // Play reminder sound
+        const hasUrgent = notifications.some(n => n.isUrgent);
+        if (hasUrgent) {
+          playUrgentNotificationSound();
+        } else {
+          playOrderNotificationSound();
+        }
+      }, REMINDER_INTERVAL_MS);
+    }
+
+    return () => {
+      if (reminderInterval.current) {
+        clearInterval(reminderInterval.current);
+        reminderInterval.current = null;
+      }
+    };
+  }, [notifications.length, soundEnabled, notifications]);
 
   return {
     notifications,
+    isMinimized,
     soundEnabled,
     toggleSound,
+    minimize,
+    expand,
     dismissNotification,
     dismissAll,
   };
