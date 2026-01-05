@@ -1754,6 +1754,7 @@ export type Database = {
           price_per_kg: number | null
           price_per_lb: number | null
           price_per_piece: number | null
+          price_per_tros: number | null
           price_xcg: number
           product_description: string | null
           quickbooks_item_id: string | null
@@ -1779,6 +1780,7 @@ export type Database = {
           price_per_kg?: number | null
           price_per_lb?: number | null
           price_per_piece?: number | null
+          price_per_tros?: number | null
           price_xcg: number
           product_description?: string | null
           quickbooks_item_id?: string | null
@@ -1804,6 +1806,7 @@ export type Database = {
           price_per_kg?: number | null
           price_per_lb?: number | null
           price_per_piece?: number | null
+          price_per_tros?: number | null
           price_xcg?: number
           product_description?: string | null
           quickbooks_item_id?: string | null
