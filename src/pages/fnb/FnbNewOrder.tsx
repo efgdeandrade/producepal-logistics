@@ -1102,9 +1102,9 @@ export default function FnbNewOrder() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Delivery</span>
-                    <span>
+                    <span className="text-right">
                       {deliveryDate
-                        ? format(new Date(deliveryDate), 'MMM d, yyyy')
+                        ? format(new Date(deliveryDate + 'T00:00:00'), 'EEE, MMM d, yyyy')
                         : '-'}
                     </span>
                   </div>

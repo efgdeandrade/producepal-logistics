@@ -18,6 +18,7 @@ interface ExtractedPOData {
   customer_code: string;
   po_number: string;
   delivery_date: string | null;
+  delivery_date_raw: string | null;
   delivery_station: string | null;
   currency: string;
   items: ExtractedItem[];
@@ -148,6 +149,10 @@ Extract:
             delivery_date: {
               type: "string",
               description: "Requested delivery date in YYYY-MM-DD format, or null if not specified"
+            },
+            delivery_date_raw: {
+              type: "string",
+              description: "The original delivery date text EXACTLY as it appears in the document (e.g., '01/02/2026', '2 Jan 2026', '02-01-26'). Keep the original format without modification."
             },
             delivery_station: {
               type: "string",
