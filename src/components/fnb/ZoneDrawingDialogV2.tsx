@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { MapPin, Circle, Pentagon, Crown } from "lucide-react";
+import { MapPin, Circle, Pentagon, Crown, Eye, EyeOff } from "lucide-react";
 import PolygonDrawingMap from "./PolygonDrawingMap";
 import ZoneMapView from "./ZoneMapView";
 
@@ -69,6 +69,7 @@ export default function ZoneDrawingDialogV2({
   const [zoneType, setZoneType] = useState<"major" | "sub">("sub");
   const [parentZoneId, setParentZoneId] = useState<string | null>(null);
   const [drawingMode, setDrawingMode] = useState<"circle" | "polygon">("polygon");
+  const [showReferenceZones, setShowReferenceZones] = useState(true);
   
   // Circle mode state
   const [centerLat, setCenterLat] = useState<number | null>(null);
@@ -82,6 +83,7 @@ export default function ZoneDrawingDialogV2({
   const [newZoneSessionId, setNewZoneSessionId] = useState(0);
 
   const majorZones = zones.filter((z) => z.zone_type === "major");
+  const subZones = zones.filter((z) => z.zone_type === "sub");
 
   // Generate distinct colors for major zones
   const getMajorZoneColor = (zoneName: string): string => {
@@ -133,6 +135,8 @@ export default function ZoneDrawingDialogV2({
         setRadius(1000);
         setPolygonCoords(null);
       }
+      // Always show reference zones when opening dialog
+      setShowReferenceZones(true);
     }
   }, [open, zone]);
 
@@ -177,16 +181,25 @@ export default function ZoneDrawingDialogV2({
   // Other zones for display (excluding current)
   const otherZones = zone ? zones.filter((z) => z.id !== zone.id) : zones;
 
-  // Get other major zones for reference when creating/editing a major zone
-  const existingMajorZonesForReference = majorZones
-    .filter((mz) => mz.id !== zone?.id) // Exclude current zone if editing
-    .filter((mz) => mz.polygon_coordinates && mz.polygon_coordinates.length >= 3)
-    .map((mz) => ({
-      id: mz.id,
-      name: mz.name,
-      polygon_coordinates: mz.polygon_coordinates as [number, number][],
-      color: getMajorZoneColor(mz.name),
-    }));
+  // Build reference zones list for PolygonDrawingMap
+  // Include all zones with polygons EXCEPT the one being edited
+  const referenceZonesForMap = zones
+    .filter((z) => z.id !== zone?.id) // Exclude current zone if editing
+    .filter((z) => z.polygon_coordinates && z.polygon_coordinates.length >= 3)
+    .map((z) => {
+      // Major zones get their distinctive colors, sub-zones get a muted color
+      const isMajor = z.zone_type === "major";
+      const color = isMajor 
+        ? getMajorZoneColor(z.name)
+        : "#6b7280"; // Gray for sub-zones
+      
+      return {
+        id: z.id,
+        name: z.name,
+        polygon_coordinates: z.polygon_coordinates as [number, number][],
+        color,
+      };
+    });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -208,7 +221,7 @@ export default function ZoneDrawingDialogV2({
                 customers={customers}
                 onPolygonChange={handlePolygonChange}
                 zoneColor={zoneType === "major" ? getMajorZoneColor(name) : "#22c55e"}
-                existingZones={zoneType === "major" ? existingMajorZonesForReference : []}
+                existingZones={showReferenceZones ? referenceZonesForMap : []}
               />
             ) : (
               <ZoneMapView
@@ -309,6 +322,19 @@ export default function ZoneDrawingDialogV2({
                 onCheckedChange={setIsActive}
               />
               <Label htmlFor="zone-active">Active</Label>
+            </div>
+
+            {/* Show Reference Zones Toggle */}
+            <div className="flex items-center gap-2 pt-2 border-t">
+              <Switch
+                id="show-reference-zones"
+                checked={showReferenceZones}
+                onCheckedChange={setShowReferenceZones}
+              />
+              <Label htmlFor="show-reference-zones" className="flex items-center gap-2">
+                {showReferenceZones ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                Show other zones on map
+              </Label>
             </div>
 
             {/* Drawing Mode */}
