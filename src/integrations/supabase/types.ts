@@ -962,6 +962,51 @@ export type Database = {
           },
         ]
       }
+      driver_zone_assignments: {
+        Row: {
+          created_at: string
+          date: string
+          driver_id: string
+          id: string
+          is_primary: boolean
+          updated_at: string
+          zone_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          driver_id: string
+          id?: string
+          is_primary?: boolean
+          updated_at?: string
+          zone_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          driver_id?: string
+          id?: string
+          is_primary?: boolean
+          updated_at?: string
+          zone_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_zone_assignments_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "driver_zone_assignments_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_delivery_zones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fnb_assistance_queue: {
         Row: {
           acknowledged_at: string | null
@@ -1242,10 +1287,12 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          parent_zone_id: string | null
           polygon_coordinates: Json | null
           radius_meters: number | null
           sort_order: number
           updated_at: string
+          zone_type: string
         }
         Insert: {
           center_latitude?: number | null
@@ -1255,10 +1302,12 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          parent_zone_id?: string | null
           polygon_coordinates?: Json | null
           radius_meters?: number | null
           sort_order?: number
           updated_at?: string
+          zone_type?: string
         }
         Update: {
           center_latitude?: number | null
@@ -1268,12 +1317,22 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          parent_zone_id?: string | null
           polygon_coordinates?: Json | null
           radius_meters?: number | null
           sort_order?: number
           updated_at?: string
+          zone_type?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fnb_delivery_zones_parent_zone_id_fkey"
+            columns: ["parent_zone_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_delivery_zones"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fnb_order_items: {
         Row: {
@@ -1415,6 +1474,7 @@ export type Database = {
       fnb_orders: {
         Row: {
           assigned_at: string | null
+          assignment_locked: boolean
           cod_amount_collected: number | null
           cod_amount_due: number | null
           cod_collected_at: string | null
@@ -1431,6 +1491,8 @@ export type Database = {
           id: string
           is_pickup: boolean | null
           language_used: string | null
+          manual_override_at: string | null
+          manual_override_by: string | null
           notes: string | null
           order_date: string
           order_number: string
@@ -1454,6 +1516,7 @@ export type Database = {
         }
         Insert: {
           assigned_at?: string | null
+          assignment_locked?: boolean
           cod_amount_collected?: number | null
           cod_amount_due?: number | null
           cod_collected_at?: string | null
@@ -1470,6 +1533,8 @@ export type Database = {
           id?: string
           is_pickup?: boolean | null
           language_used?: string | null
+          manual_override_at?: string | null
+          manual_override_by?: string | null
           notes?: string | null
           order_date?: string
           order_number: string
@@ -1493,6 +1558,7 @@ export type Database = {
         }
         Update: {
           assigned_at?: string | null
+          assignment_locked?: boolean
           cod_amount_collected?: number | null
           cod_amount_due?: number | null
           cod_collected_at?: string | null
@@ -1509,6 +1575,8 @@ export type Database = {
           id?: string
           is_pickup?: boolean | null
           language_used?: string | null
+          manual_override_at?: string | null
+          manual_override_by?: string | null
           notes?: string | null
           order_date?: string
           order_number?: string
@@ -1536,6 +1604,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "fnb_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_orders_manual_override_by_fkey"
+            columns: ["manual_override_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {

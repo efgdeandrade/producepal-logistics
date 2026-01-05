@@ -7,13 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Pencil, Trash2, MapPin, Users, GripVertical, ArrowUp, ArrowDown, Map, List } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, MapPin, Users, GripVertical, ArrowUp, ArrowDown, Map, List, Crown, ChevronDown, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import ZoneMapView from "@/components/fnb/ZoneMapView";
-import ZoneDrawingDialog from "@/components/fnb/ZoneDrawingDialog";
+import ZoneHierarchyMapView from "@/components/fnb/ZoneHierarchyMapView";
+import ZoneDrawingDialogV2 from "@/components/fnb/ZoneDrawingDialogV2";
+import { cn } from "@/lib/utils";
 
 interface Zone {
   id: string;
@@ -21,10 +23,12 @@ interface Zone {
   description: string | null;
   sort_order: number;
   is_active: boolean;
-  created_at?: string;
+  zone_type: "major" | "sub";
+  parent_zone_id: string | null;
   center_latitude?: number | null;
   center_longitude?: number | null;
   radius_meters?: number | null;
+  polygon_coordinates?: [number, number][] | null;
   customer_count?: number;
 }
 
@@ -54,6 +58,7 @@ export default function FnbZoneManagement() {
   const [zoneToDelete, setZoneToDelete] = useState<Zone | null>(null);
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
   const [formData, setFormData] = useState(emptyZone);
+  const [expandedMajorZones, setExpandedMajorZones] = useState<Set<string>>(new Set());
 
   // Fetch zones with customer counts
   const { data: zones, isLoading } = useQuery({
@@ -80,6 +85,8 @@ export default function FnbZoneManagement() {
 
       return zonesData?.map((zone) => ({
         ...zone,
+        zone_type: (zone.zone_type as "major" | "sub") || "sub",
+        polygon_coordinates: zone.polygon_coordinates as [number, number][] | null,
         customer_count: zoneCounts[zone.name] || 0,
       })) as Zone[];
     },
@@ -102,9 +109,12 @@ export default function FnbZoneManagement() {
       name: string;
       description: string;
       is_active: boolean;
+      zone_type: "major" | "sub";
+      parent_zone_id: string | null;
       center_latitude: number | null;
       center_longitude: number | null;
-      radius_meters: number;
+      radius_meters: number | null;
+      polygon_coordinates: [number, number][] | null;
     }) => {
       const maxOrder = zones?.reduce((max, z) => Math.max(max, z.sort_order), 0) || 0;
       const { error } = await supabase.from("fnb_delivery_zones").insert({
@@ -112,9 +122,12 @@ export default function FnbZoneManagement() {
         description: data.description || null,
         sort_order: maxOrder + 1,
         is_active: data.is_active,
+        zone_type: data.zone_type,
+        parent_zone_id: data.parent_zone_id,
         center_latitude: data.center_latitude,
         center_longitude: data.center_longitude,
         radius_meters: data.radius_meters,
+        polygon_coordinates: data.polygon_coordinates,
       });
       if (error) throw error;
     },
@@ -224,9 +237,12 @@ export default function FnbZoneManagement() {
     } else {
       createMutation.mutate({
         ...formData,
+        zone_type: "sub",
+        parent_zone_id: null,
         center_latitude: null,
         center_longitude: null,
         radius_meters: 1000,
+        polygon_coordinates: null,
       });
     }
   };
@@ -235,9 +251,12 @@ export default function FnbZoneManagement() {
     name: string;
     description: string;
     is_active: boolean;
+    zone_type: "major" | "sub";
+    parent_zone_id: string | null;
     center_latitude: number | null;
     center_longitude: number | null;
-    radius_meters: number;
+    radius_meters: number | null;
+    polygon_coordinates: [number, number][] | null;
   }) => {
     if (editingZone) {
       updateMutation.mutate({
@@ -246,9 +265,12 @@ export default function FnbZoneManagement() {
           name: data.name,
           description: data.description || null,
           is_active: data.is_active,
+          zone_type: data.zone_type,
+          parent_zone_id: data.parent_zone_id,
           center_latitude: data.center_latitude,
           center_longitude: data.center_longitude,
           radius_meters: data.radius_meters,
+          polygon_coordinates: data.polygon_coordinates,
         },
       });
     } else {
@@ -260,8 +282,120 @@ export default function FnbZoneManagement() {
     updateMutation.mutate({ id: zone.id, data: { is_active: !zone.is_active } });
   };
 
+  const toggleMajorZone = (zoneId: string) => {
+    setExpandedMajorZones((prev) => {
+      const next = new Set(prev);
+      if (next.has(zoneId)) {
+        next.delete(zoneId);
+      } else {
+        next.add(zoneId);
+      }
+      return next;
+    });
+  };
+
+  const majorZones = zones?.filter((z) => z.zone_type === "major") || [];
+  const subZones = zones?.filter((z) => z.zone_type === "sub") || [];
+  const unassignedSubZones = subZones.filter((z) => !z.parent_zone_id);
   const activeZones = zones?.filter((z) => z.is_active) || [];
   const inactiveZones = zones?.filter((z) => !z.is_active) || [];
+
+  const getSubZonesForMajor = (majorZoneId: string) => {
+    return subZones.filter((z) => z.parent_zone_id === majorZoneId);
+  };
+
+  const getZoneTypeColor = (zone: Zone) => {
+    if (zone.zone_type === "major") {
+      return zone.name === "Pariba" ? "bg-blue-500" : zone.name === "Pabou" ? "bg-green-500" : "bg-amber-500";
+    }
+    return "bg-muted";
+  };
+
+  const renderZoneRow = (zone: Zone, index: number, isChild = false) => (
+    <div
+      key={zone.id}
+      className={cn(
+        "flex items-center gap-4 p-4 rounded-lg border",
+        zone.is_active ? "bg-card" : "bg-muted/50 opacity-60",
+        isChild && "ml-8 border-l-4",
+        isChild && zone.parent_zone_id && zones?.find((z) => z.id === zone.parent_zone_id)?.name === "Pariba" && "border-l-blue-500",
+        isChild && zone.parent_zone_id && zones?.find((z) => z.id === zone.parent_zone_id)?.name === "Pabou" && "border-l-green-500",
+        isChild && zone.parent_zone_id && zones?.find((z) => z.id === zone.parent_zone_id)?.name === "Meimei" && "border-l-amber-500"
+      )}
+    >
+      <div className="flex flex-col gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          disabled={index === 0}
+          onClick={() => moveZone(zone, "up")}
+        >
+          <ArrowUp className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          disabled={index === (zones?.length || 0) - 1}
+          onClick={() => moveZone(zone, "down")}
+        >
+          <ArrowDown className="h-4 w-4" />
+        </Button>
+      </div>
+      <GripVertical className="h-5 w-5 text-muted-foreground" />
+      <div className="flex-1">
+        <div className="flex items-center gap-2">
+          {zone.zone_type === "major" && (
+            <Crown className="h-4 w-4 text-amber-500" />
+          )}
+          <span className="font-medium">{zone.name}</span>
+          {zone.zone_type === "major" && (
+            <Badge className="bg-primary/20 text-primary text-xs">Major</Badge>
+          )}
+          {!zone.is_active && (
+            <Badge variant="secondary" className="text-xs">Inactive</Badge>
+          )}
+          {(zone.polygon_coordinates || (zone.center_latitude && zone.center_longitude)) && (
+            <Badge variant="outline" className="text-xs">
+              <MapPin className="h-3 w-3 mr-1" />
+              {zone.polygon_coordinates ? "Polygon" : "Circle"}
+            </Badge>
+          )}
+        </div>
+        {zone.description && (
+          <p className="text-sm text-muted-foreground">{zone.description}</p>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        <Badge variant="outline" className="flex items-center gap-1">
+          <Users className="h-3 w-3" />
+          {zone.customer_count} customers
+        </Badge>
+      </div>
+      <div className="flex items-center gap-2">
+        <Switch
+          checked={zone.is_active}
+          onCheckedChange={() => toggleActive(zone)}
+          aria-label="Toggle zone active status"
+        />
+        <Button variant="ghost" size="icon" onClick={() => handleEditOnMap(zone)}>
+          <Map className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="icon" onClick={() => handleEdit(zone)}>
+          <Pencil className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => handleDelete(zone)}
+          disabled={(zone.customer_count || 0) > 0 || (zone.zone_type === "major" && getSubZonesForMajor(zone.id).length > 0)}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-6">
@@ -272,7 +406,7 @@ export default function FnbZoneManagement() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold">Zone Management</h1>
-            <p className="text-muted-foreground">Manage delivery zones for F&B customers</p>
+            <p className="text-muted-foreground">Manage delivery zones with major zones (Pariba, Pabou, Meimei) and sub-zones</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -309,23 +443,29 @@ export default function FnbZoneManagement() {
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold">{zones?.length || 0}</div>
-            <div className="text-sm text-muted-foreground">Total Zones</div>
+            <div className="text-2xl font-bold">{majorZones.length}</div>
+            <div className="text-sm text-muted-foreground">Major Zones</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold">{subZones.length}</div>
+            <div className="text-sm text-muted-foreground">Sub Zones</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold">{activeZones.length}</div>
-            <div className="text-sm text-muted-foreground">Active Zones</div>
+            <div className="text-sm text-muted-foreground">Active</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold">{inactiveZones.length}</div>
-            <div className="text-sm text-muted-foreground">Inactive Zones</div>
+            <div className="text-2xl font-bold">{unassignedSubZones.length}</div>
+            <div className="text-sm text-muted-foreground">Unassigned</div>
           </CardContent>
         </Card>
         <Card>
@@ -348,7 +488,7 @@ export default function FnbZoneManagement() {
             </CardTitle>
           </CardHeader>
           <CardContent className="h-[600px]">
-            <ZoneMapView
+            <ZoneHierarchyMapView
               zones={zones || []}
               customers={customers || []}
               selectedZone={selectedZone}
@@ -362,7 +502,7 @@ export default function FnbZoneManagement() {
           </CardContent>
         </Card>
       ) : (
-        /* List View */
+        /* Hierarchical List View */
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -374,100 +514,132 @@ export default function FnbZoneManagement() {
             {isLoading ? (
               <p className="text-center py-8 text-muted-foreground">Loading zones...</p>
             ) : zones?.length === 0 ? (
-              <p className="text-center py-8 text-muted-foreground">No zones configured</p>
+              <div className="text-center py-8">
+                <p className="text-muted-foreground mb-4">No zones configured. Start by creating the 3 major zones.</p>
+                <div className="flex gap-2 justify-center">
+                  {["Pariba", "Pabou", "Meimei"].map((name) => (
+                    <Button
+                      key={name}
+                      variant="outline"
+                      onClick={() => {
+                        setEditingZone(null);
+                        setMapDialogOpen(true);
+                      }}
+                    >
+                      <Crown className="h-4 w-4 mr-2" />
+                      Create {name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
             ) : (
               <div className="space-y-2">
-                {zones?.map((zone, index) => (
-                  <div
-                    key={zone.id}
-                    className={`flex items-center gap-4 p-4 rounded-lg border ${
-                      zone.is_active ? "bg-card" : "bg-muted/50 opacity-60"
-                    }`}
-                  >
-                    <div className="flex flex-col gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        disabled={index === 0}
-                        onClick={() => moveZone(zone, "up")}
-                      >
-                        <ArrowUp className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        disabled={index === zones.length - 1}
-                        onClick={() => moveZone(zone, "down")}
-                      >
-                        <ArrowDown className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <GripVertical className="h-5 w-5 text-muted-foreground" />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{zone.name}</span>
-                        {!zone.is_active && (
-                          <Badge variant="secondary" className="text-xs">
-                            Inactive
-                          </Badge>
+                {/* Major Zones with their sub-zones */}
+                {majorZones.map((major, majorIndex) => {
+                  const children = getSubZonesForMajor(major.id);
+                  const isExpanded = expandedMajorZones.has(major.id);
+
+                  return (
+                    <div key={major.id}>
+                      {/* Major Zone Row with expand toggle */}
+                      <div
+                        className={cn(
+                          "flex items-center gap-4 p-4 rounded-lg border-2",
+                          major.is_active ? "bg-card" : "bg-muted/50 opacity-60",
+                          major.name === "Pariba" && "border-blue-500/50",
+                          major.name === "Pabou" && "border-green-500/50",
+                          major.name === "Meimei" && "border-amber-500/50"
                         )}
-                        {zone.center_latitude && zone.center_longitude && (
-                          <Badge variant="outline" className="text-xs">
-                            <MapPin className="h-3 w-3 mr-1" />
-                            On Map
-                          </Badge>
+                      >
+                        {children.length > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => toggleMajorZone(major.id)}
+                          >
+                            {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          </Button>
                         )}
+                        <Crown className={cn(
+                          "h-5 w-5",
+                          major.name === "Pariba" && "text-blue-500",
+                          major.name === "Pabou" && "text-green-500",
+                          major.name === "Meimei" && "text-amber-500"
+                        )} />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-lg">{major.name}</span>
+                            <Badge className="bg-primary/20 text-primary text-xs">Major Zone</Badge>
+                            {!major.is_active && (
+                              <Badge variant="secondary" className="text-xs">Inactive</Badge>
+                            )}
+                          </div>
+                          {major.description && (
+                            <p className="text-sm text-muted-foreground">{major.description}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {children.length} sub-zones
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            {major.customer_count} direct + {children.reduce((sum, c) => sum + (c.customer_count || 0), 0)} in sub-zones
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={major.is_active}
+                            onCheckedChange={() => toggleActive(major)}
+                          />
+                          <Button variant="ghost" size="icon" onClick={() => handleEditOnMap(major)}>
+                            <Map className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleEdit(major)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(major)}
+                            disabled={(major.customer_count || 0) > 0 || children.length > 0}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
-                      {zone.description && (
-                        <p className="text-sm text-muted-foreground">{zone.description}</p>
-                      )}
-                      {zone.radius_meters && zone.center_latitude && (
-                        <p className="text-xs text-muted-foreground">
-                          Radius: {zone.radius_meters >= 1000 
-                            ? `${(zone.radius_meters / 1000).toFixed(1)} km` 
-                            : `${zone.radius_meters} m`}
-                        </p>
+
+                      {/* Sub-zones */}
+                      {isExpanded && children.length > 0 && (
+                        <div className="ml-8 mt-2 space-y-2">
+                          {children.map((sub, subIndex) => renderZoneRow(sub, subIndex, true))}
+                        </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="flex items-center gap-1">
-                        <Users className="h-3 w-3" />
-                        {zone.customer_count} customers
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={zone.is_active}
-                        onCheckedChange={() => toggleActive(zone)}
-                        aria-label="Toggle zone active status"
-                      />
-                      <Button variant="ghost" size="icon" onClick={() => handleEditOnMap(zone)}>
-                        <Map className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(zone)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(zone)}
-                        disabled={(zone.customer_count || 0) > 0}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                  );
+                })}
+
+                {/* Unassigned Sub-zones */}
+                {unassignedSubZones.length > 0 && (
+                  <div className="border-t pt-4 mt-4">
+                    <h3 className="font-medium mb-2 text-muted-foreground flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      Unassigned Sub-zones ({unassignedSubZones.length})
+                    </h3>
+                    <div className="space-y-2">
+                      {unassignedSubZones.map((zone, index) => renderZoneRow(zone, index))}
                     </div>
                   </div>
-                ))}
+                )}
               </div>
             )}
           </CardContent>
         </Card>
       )}
 
-      {/* Map Drawing Dialog */}
-      <ZoneDrawingDialog
+      {/* Map Drawing Dialog V2 */}
+      <ZoneDrawingDialogV2
         open={mapDialogOpen}
         onOpenChange={(open) => {
           setMapDialogOpen(open);
@@ -540,6 +712,11 @@ export default function FnbZoneManagement() {
                   Cannot delete "{zoneToDelete?.name}" because it has {zoneToDelete?.customer_count}{" "}
                   customer(s) assigned to it. Please reassign customers before deleting.
                 </>
+              ) : zoneToDelete?.zone_type === "major" && getSubZonesForMajor(zoneToDelete.id).length > 0 ? (
+                <>
+                  Cannot delete "{zoneToDelete?.name}" because it has sub-zones. 
+                  Please reassign or delete sub-zones first.
+                </>
               ) : (
                 <>
                   Are you sure you want to delete "{zoneToDelete?.name}"? This action cannot be undone.
@@ -549,7 +726,8 @@ export default function FnbZoneManagement() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            {(!zoneToDelete?.customer_count || zoneToDelete.customer_count === 0) && (
+            {(!zoneToDelete?.customer_count || zoneToDelete.customer_count === 0) && 
+             (zoneToDelete?.zone_type !== "major" || getSubZonesForMajor(zoneToDelete?.id || "").length === 0) && (
               <AlertDialogAction
                 onClick={() => zoneToDelete && deleteMutation.mutate(zoneToDelete.id)}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
