@@ -1683,39 +1683,51 @@ const PICKER_UNITS = [
                         disabled={completeMutation.isPending}
                       />
 
-                      {/* Complete Button - Only owner can complete */}
-                      {isOwner ? (
-                        <Button
-                          className="w-full h-16 text-lg"
-                          onClick={() => {
-                            // Calculate total weight from individual items
-                            const totalWeight = orderItems?.reduce((sum: number, item: any) => {
-                              const pickedQty = pickedQuantities[item.id] ?? item.quantity;
-                              const isWeightBased = item.fnb_products?.is_weight_based || false;
-                              return sum + (isWeightBased ? pickedQty : pickedQty * 0.5);
-                            }, 0) || 0;
-                            
-                            completeMutation.mutate({
-                              queueId: selectedQueue!,
-                              verifiedWeight: totalWeight,
-                            });
-                          }}
-                          disabled={
-                            !allItemsReviewed ||
-                            hasUnreasonedShorts ||
-                            completeMutation.isPending
-                          }
-                        >
-                          <CheckCircle className="mr-2 h-5 w-5" />
-                          Complete Order
-                        </Button>
-                      ) : (
-                        <div className="p-3 bg-muted rounded-lg text-center">
-                          <p className="text-sm text-muted-foreground">
-                            Only <span className="font-medium">{selectedQueueItem?.picker_name}</span> can complete this order
-                          </p>
-                        </div>
-                      )}
+                      {/* Complete Button - anyone can complete once all items are picked */}
+                      {(() => {
+                        const allItemsPicked = orderItems?.every(item => item.picked_by !== null) ?? false;
+                        const canComplete = isOwner || allItemsPicked;
+                        
+                        if (canComplete) {
+                          return (
+                            <Button
+                              className="w-full h-16 text-lg"
+                              onClick={() => {
+                                // Calculate total weight from individual items
+                                const totalWeight = orderItems?.reduce((sum: number, item: any) => {
+                                  const pickedQty = pickedQuantities[item.id] ?? item.quantity;
+                                  const isWeightBased = item.fnb_products?.is_weight_based || false;
+                                  return sum + (isWeightBased ? pickedQty : pickedQty * 0.5);
+                                }, 0) || 0;
+                                
+                                completeMutation.mutate({
+                                  queueId: selectedQueue!,
+                                  verifiedWeight: totalWeight,
+                                });
+                              }}
+                              disabled={
+                                !allItemsReviewed ||
+                                hasUnreasonedShorts ||
+                                completeMutation.isPending
+                              }
+                            >
+                              <CheckCircle className="mr-2 h-5 w-5" />
+                              Complete Order
+                            </Button>
+                          );
+                        }
+                        
+                        const pickedCount = orderItems?.filter(item => item.picked_by !== null).length || 0;
+                        const totalCount = orderItems?.length || 0;
+                        
+                        return (
+                          <div className="p-3 bg-muted rounded-lg text-center">
+                            <p className="text-sm text-muted-foreground">
+                              Pick remaining items to enable completion ({pickedCount}/{totalCount} picked)
+                            </p>
+                          </div>
+                        );
+                      })()}
 
                       {hasUnreasonedShorts && isOwner && (
                         <p className="text-sm text-amber-600 dark:text-amber-400 text-center">
