@@ -1338,7 +1338,7 @@ export default function FnbNewOrder() {
                               ref={(el) => { quantityRefs.current[index] = el; }}
                               type="number"
                               min="0.01"
-                              step="0.01"
+                              step="1"
                               value={item.quantity}
                               onChange={(e) =>
                                 updateItem(index, 'quantity', Number(e.target.value))
@@ -1434,7 +1434,7 @@ export default function FnbNewOrder() {
                                 ref={(el) => { quantityRefs.current[index] = el; }}
                                 type="number"
                                 min="0.01"
-                                step="0.01"
+                                step="1"
                                 value={item.quantity}
                                 onChange={(e) =>
                                   updateItem(index, 'quantity', Number(e.target.value))
