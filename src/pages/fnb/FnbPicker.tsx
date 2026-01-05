@@ -11,7 +11,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { format, isToday, startOfDay, endOfDay } from 'date-fns';
+import { format, isToday, startOfDay, endOfDay, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
+import { DateRange } from 'react-day-picker';
 import {
   Select,
   SelectContent,
@@ -85,7 +86,10 @@ export default function FnbPicker() {
   } | null>(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showCompletedOrders, setShowCompletedOrders] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: new Date(),
+    to: new Date()
+  });
   
   // New order notifications
   const {
@@ -187,12 +191,15 @@ const PICKER_UNITS = [
     };
   }, [queryClient]);
 
-  // Fetch queue with item counts - filtered by selected date
+  // Fetch queue with item counts - filtered by selected date range
   const { data: queueItems, isLoading } = useQuery({
-    queryKey: ['fnb-picker-queue', format(selectedDate, 'yyyy-MM-dd')],
+    queryKey: ['fnb-picker-queue', 
+      dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : '',
+      dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : ''
+    ],
     queryFn: async () => {
-      const dayStart = startOfDay(selectedDate).toISOString();
-      const dayEnd = endOfDay(selectedDate).toISOString();
+      const rangeStart = startOfDay(dateRange?.from || new Date()).toISOString();
+      const rangeEnd = endOfDay(dateRange?.to || dateRange?.from || new Date()).toISOString();
       
       const { data, error } = await supabase
         .from('fnb_picker_queue')
@@ -208,8 +215,8 @@ const PICKER_UNITS = [
           )
         `)
         .in('status', ['queued', 'in_progress'])
-        .gte('fnb_orders.delivery_date', dayStart)
-        .lte('fnb_orders.delivery_date', dayEnd)
+        .gte('fnb_orders.delivery_date', rangeStart)
+        .lte('fnb_orders.delivery_date', rangeEnd)
         .order('priority', { ascending: false })
         .order('created_at', { ascending: true });
       if (error) throw error;
@@ -830,37 +837,73 @@ const PICKER_UNITS = [
             </div>
           </div>
           
-          {/* Date Picker and Actions Row */}
+          {/* Date Range Picker and Actions Row */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Date Picker */}
+            {/* Date Range Picker */}
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">
                   <CalendarIcon className="h-4 w-4" />
-                  {format(selectedDate, 'EEE, MMM d')}
+                  {dateRange?.from ? (
+                    dateRange.to && dateRange.from.getTime() !== dateRange.to.getTime() ? (
+                      <>
+                        {format(dateRange.from, 'MMM d')} - {format(dateRange.to, 'MMM d')}
+                      </>
+                    ) : (
+                      format(dateRange.from, 'EEE, MMM d')
+                    )
+                  ) : (
+                    'Select dates'
+                  )}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(date) => date && setSelectedDate(date)}
+                  mode="range"
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                  numberOfMonths={1}
                   initialFocus
                   className="pointer-events-auto"
                 />
               </PopoverContent>
             </Popover>
             
-            {!isToday(selectedDate) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedDate(new Date())}
-                className="text-primary"
-              >
-                Today
-              </Button>
-            )}
+            {/* Quick range buttons */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDateRange({ from: new Date(), to: new Date() })}
+              className="text-primary"
+            >
+              Today
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const now = new Date();
+                setDateRange({
+                  from: startOfWeek(now, { weekStartsOn: 1 }),
+                  to: endOfWeek(now, { weekStartsOn: 1 })
+                });
+              }}
+            >
+              This Week
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const lastWeek = subWeeks(new Date(), 1);
+                setDateRange({
+                  from: startOfWeek(lastWeek, { weekStartsOn: 1 }),
+                  to: endOfWeek(lastWeek, { weekStartsOn: 1 })
+                });
+              }}
+            >
+              Last Week
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -908,16 +951,19 @@ const PICKER_UNITS = [
           </div>
         </div>
 
-        {/* Date indicator banner when viewing non-today date */}
-        {!isToday(selectedDate) && (
+        {/* Date indicator banner when viewing non-today date range */}
+        {dateRange?.from && !(isToday(dateRange.from) && (!dateRange.to || isToday(dateRange.to))) && (
           <div className="mb-4 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-4 py-2 rounded-lg flex items-center justify-between">
             <span className="font-medium">
-              Viewing orders for: {format(selectedDate, 'EEEE, MMMM d, yyyy')}
+              Viewing orders for: {format(dateRange.from, 'EEEE, MMM d')}
+              {dateRange.to && dateRange.from.getTime() !== dateRange.to.getTime() && (
+                <> - {format(dateRange.to, 'EEEE, MMM d')}</>
+              )}
             </span>
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setSelectedDate(new Date())}
+              onClick={() => setDateRange({ from: new Date(), to: new Date() })}
               className="text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-800/50"
             >
               Back to Today
