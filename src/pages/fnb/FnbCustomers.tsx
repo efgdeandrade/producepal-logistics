@@ -762,9 +762,16 @@ export default function FnbCustomers() {
                       <div className="flex gap-2">
                         <Select
                           value={formData.delivery_zone || ''}
-                          onValueChange={(value) =>
-                            setFormData({ ...formData, delivery_zone: value || null })
-                          }
+                          onValueChange={(value) => {
+                            // Find the sub-zone to get its parent
+                            const selectedSubZone = subZones?.find(sz => sz.name === value);
+                            setFormData(prev => ({ 
+                              ...prev, 
+                              delivery_zone: value || null,
+                              // Auto-fill major zone if sub-zone has a parent and major zone is not set
+                              major_zone_id: selectedSubZone?.parent_zone_id || prev.major_zone_id
+                            }));
+                          }}
                         >
                           <SelectTrigger className="flex-1">
                             <SelectValue placeholder="Select sub-zone" />

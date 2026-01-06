@@ -205,22 +205,26 @@ export function CustomerLocationPicker({
     }
   }, [mapLoaded, initialLocation]);
 
-  // Draw zones on map
+  // Draw zones on map - draw sub-zones as circles (since they use radius-based matching)
   useEffect(() => {
     if (!mapLoaded || !map.current || !zones) return;
 
-    const majorZones = zones.filter(z => z.zone_type === 'major');
     const subZones = zones.filter(z => z.zone_type === 'sub');
 
-    // Draw sub-zones with polygons
+    // Draw sub-zones as circles based on their center and radius
     subZones.forEach((zone) => {
-      if (!zone.polygon_coordinates || !Array.isArray(zone.polygon_coordinates)) return;
+      if (!zone.center_latitude || !zone.center_longitude) return;
       
       const sourceId = `zone-${zone.id}`;
       
       if (map.current?.getSource(sourceId)) return;
 
       try {
+        // Create a circle polygon from center and radius
+        const center: [number, number] = [zone.center_longitude, zone.center_latitude];
+        const radius = zone.radius_meters || 1000;
+        const circleCoords = createCirclePolygon(center, radius);
+
         map.current?.addSource(sourceId, {
           type: 'geojson',
           data: {
@@ -228,7 +232,7 @@ export function CustomerLocationPicker({
             properties: { name: zone.name },
             geometry: {
               type: 'Polygon',
-              coordinates: [zone.polygon_coordinates],
+              coordinates: [circleCoords],
             },
           },
         });
@@ -253,98 +257,78 @@ export function CustomerLocationPicker({
             'line-opacity': 0.6,
           },
         });
+
+        // Add zone label
+        map.current?.addLayer({
+          id: `${sourceId}-label`,
+          type: 'symbol',
+          source: sourceId,
+          layout: {
+            'text-field': zone.name,
+            'text-size': 12,
+            'text-anchor': 'center',
+          },
+          paint: {
+            'text-color': '#1e40af',
+            'text-halo-color': '#ffffff',
+            'text-halo-width': 1,
+          },
+        });
       } catch (e) {
         console.error('Error adding zone layer:', e);
       }
     });
-
-    // Draw major zone centers as circles
-    majorZones.forEach((zone) => {
-      if (!zone.center_latitude || !zone.center_longitude) return;
-      
-      const sourceId = `major-zone-${zone.id}`;
-      
-      if (map.current?.getSource(sourceId)) return;
-
-      try {
-        map.current?.addSource(sourceId, {
-          type: 'geojson',
-          data: {
-            type: 'Feature',
-            properties: { name: zone.name },
-            geometry: {
-              type: 'Point',
-              coordinates: [zone.center_longitude, zone.center_latitude],
-            },
-          },
-        });
-
-        map.current?.addLayer({
-          id: `${sourceId}-circle`,
-          type: 'circle',
-          source: sourceId,
-          paint: {
-            'circle-radius': 8,
-            'circle-color': '#f59e0b',
-            'circle-stroke-width': 2,
-            'circle-stroke-color': '#ffffff',
-          },
-        });
-      } catch (e) {
-        console.error('Error adding major zone layer:', e);
-      }
-    });
   }, [mapLoaded, zones]);
 
-  // Detect zone when location changes
+  // Detect zone when location changes - use radius-based matching for sub-zones (matching geocode-address logic)
   useEffect(() => {
     if (!selectedLocation || !zones) {
       setDetectedZone(null);
       return;
     }
 
-    const point: [number, number] = [selectedLocation.lng, selectedLocation.lat];
+    const subZones = zones.filter(z => z.zone_type === 'sub');
     
-    // Check sub-zones with polygons first
-    for (const zone of zones.filter(z => z.zone_type === 'sub')) {
-      if (!zone.polygon_coordinates || !Array.isArray(zone.polygon_coordinates)) continue;
-      
-      if (isPointInPolygon(point, zone.polygon_coordinates as [number, number][])) {
-        const parent = zones.find(z => z.id === zone.parent_zone_id);
-        setDetectedZone({
-          name: zone.name,
-          majorZoneId: parent?.id,
-          majorZoneName: parent?.name,
-        });
-        return;
-      }
-    }
+    // Calculate distance to each sub-zone and find the closest one within radius
+    const zoneDistances = subZones
+      .filter(z => z.center_latitude && z.center_longitude)
+      .map(zone => {
+        const distance = getDistanceMeters(
+          selectedLocation.lat,
+          selectedLocation.lng,
+          zone.center_latitude!,
+          zone.center_longitude!
+        );
+        return {
+          zone,
+          distance,
+          withinRadius: distance <= (zone.radius_meters || 1000)
+        };
+      })
+      .sort((a, b) => a.distance - b.distance);
 
-    // Check major zones by radius
-    let closestZone: { zone: DeliveryZone; distance: number } | null = null;
+    // Find the closest sub-zone that the location falls within
+    const matchingSubZone = zoneDistances.find(z => z.withinRadius);
     
-    for (const zone of zones.filter(z => z.zone_type === 'major')) {
-      if (!zone.center_latitude || !zone.center_longitude) continue;
-      
-      const distance = getDistanceMeters(
-        selectedLocation.lat,
-        selectedLocation.lng,
-        zone.center_latitude,
-        zone.center_longitude
-      );
-
-      if (zone.radius_meters && distance <= zone.radius_meters) {
-        if (!closestZone || distance < closestZone.distance) {
-          closestZone = { zone, distance };
-        }
-      }
-    }
-
-    if (closestZone) {
+    if (matchingSubZone) {
+      const parent = zones.find(z => z.id === matchingSubZone.zone.parent_zone_id);
       setDetectedZone({
-        name: closestZone.zone.name,
-        majorZoneId: closestZone.zone.id,
-        majorZoneName: closestZone.zone.name,
+        name: matchingSubZone.zone.name,
+        majorZoneId: parent?.id,
+        majorZoneName: parent?.name,
+      });
+      return;
+    }
+
+    // No sub-zone matched - check if there's a close one to suggest
+    if (zoneDistances.length > 0 && zoneDistances[0].distance < 5000) {
+      // Within 5km of a zone but not inside - still set it as a suggestion
+      const closest = zoneDistances[0];
+      const parent = zones.find(z => z.id === closest.zone.parent_zone_id);
+      setDetectedZone({
+        name: closest.zone.name,
+        majorZoneId: parent?.id,
+        majorZoneName: parent?.name,
       });
     } else {
       setDetectedZone(null);
@@ -491,4 +475,23 @@ function getDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: numbe
       Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
+}
+
+// Utility: Create a circle polygon from center point and radius in meters
+function createCirclePolygon(center: [number, number], radiusMeters: number, points = 64): [number, number][] {
+  const coords: [number, number][] = [];
+  const [lng, lat] = center;
+  
+  // Convert radius from meters to degrees (approximate)
+  const latRadius = radiusMeters / 111320;
+  const lngRadius = radiusMeters / (111320 * Math.cos(lat * Math.PI / 180));
+  
+  for (let i = 0; i <= points; i++) {
+    const angle = (i / points) * 2 * Math.PI;
+    const x = lng + lngRadius * Math.cos(angle);
+    const y = lat + latRadius * Math.sin(angle);
+    coords.push([x, y]);
+  }
+  
+  return coords;
 }
