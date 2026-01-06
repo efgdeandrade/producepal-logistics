@@ -1007,6 +1007,122 @@ export type Database = {
           },
         ]
       }
+      employee_documents: {
+        Row: {
+          created_at: string | null
+          document_type: string
+          employee_id: string
+          expiry_date: string | null
+          file_path: string
+          file_size: number | null
+          id: string
+          notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string | null
+          title: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          document_type: string
+          employee_id: string
+          expiry_date?: string | null
+          file_path: string
+          file_size?: number | null
+          id?: string
+          notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          title: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          document_type?: string
+          employee_id?: string
+          expiry_date?: string | null
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          title?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_documents_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employees: {
+        Row: {
+          address: string | null
+          created_at: string | null
+          department: string | null
+          email: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          employee_number: string
+          full_name: string
+          hire_date: string | null
+          hourly_rate: number | null
+          id: string
+          phone: string | null
+          position: string | null
+          profile_photo_url: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string | null
+          department?: string | null
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          employee_number: string
+          full_name: string
+          hire_date?: string | null
+          hourly_rate?: number | null
+          id?: string
+          phone?: string | null
+          position?: string | null
+          profile_photo_url?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string | null
+          department?: string | null
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          employee_number?: string
+          full_name?: string
+          hire_date?: string | null
+          hourly_rate?: number | null
+          id?: string
+          phone?: string | null
+          position?: string | null
+          profile_photo_url?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       fnb_assistance_queue: {
         Row: {
           acknowledged_at: string | null
@@ -3259,6 +3375,62 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      time_entries: {
+        Row: {
+          approved_by: string | null
+          break_minutes: number | null
+          clock_in: string
+          clock_in_photo_url: string | null
+          clock_out: string | null
+          clock_out_photo_url: string | null
+          created_at: string | null
+          employee_id: string
+          id: string
+          location_lat: number | null
+          location_lng: number | null
+          notes: string | null
+          status: string | null
+        }
+        Insert: {
+          approved_by?: string | null
+          break_minutes?: number | null
+          clock_in: string
+          clock_in_photo_url?: string | null
+          clock_out?: string | null
+          clock_out_photo_url?: string | null
+          created_at?: string | null
+          employee_id: string
+          id?: string
+          location_lat?: number | null
+          location_lng?: number | null
+          notes?: string | null
+          status?: string | null
+        }
+        Update: {
+          approved_by?: string | null
+          break_minutes?: number | null
+          clock_in?: string
+          clock_in_photo_url?: string | null
+          clock_out?: string | null
+          clock_out_photo_url?: string | null
+          created_at?: string | null
+          employee_id?: string
+          id?: string
+          location_lat?: number | null
+          location_lng?: number | null
+          notes?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_activity: {
         Row: {

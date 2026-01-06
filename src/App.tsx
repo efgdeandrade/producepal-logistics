@@ -60,6 +60,13 @@ import ProductionDashboard from "./pages/ProductionDashboard";
 import ProductionInput from "./pages/ProductionInput";
 import ProductionEdit from "./pages/ProductionEdit";
 
+// HR Department
+import HRDashboard from "./pages/hr/HRDashboard";
+import Employees from "./pages/hr/Employees";
+import TimeAttendance from "./pages/hr/TimeAttendance";
+import Timesheets from "./pages/hr/Timesheets";
+import Documents from "./pages/hr/Documents";
+
 // Settings & Admin
 import Auth from "./pages/Auth";
 import UserManagement from "./pages/UserManagement";
@@ -146,8 +153,12 @@ const App = () => (
               <Route path="/production/input" element={<ProtectedWithLayout><ProductionInput /></ProtectedWithLayout>} />
               <Route path="/production/edit/:orderId" element={<ProtectedWithLayout><ProductionEdit /></ProtectedWithLayout>} />
 
-              {/* ========== HR DEPARTMENT (Coming Soon) ========== */}
-              {/* HR routes will be added when HR module is built */}
+              {/* ========== HR DEPARTMENT ========== */}
+              <Route path="/hr" element={<ProtectedWithLayout><HRDashboard /></ProtectedWithLayout>} />
+              <Route path="/hr/employees" element={<ProtectedWithLayout><Employees /></ProtectedWithLayout>} />
+              <Route path="/hr/attendance" element={<ProtectedWithLayout><TimeAttendance /></ProtectedWithLayout>} />
+              <Route path="/hr/timesheets" element={<ProtectedWithLayout><Timesheets /></ProtectedWithLayout>} />
+              <Route path="/hr/documents" element={<ProtectedWithLayout><Documents /></ProtectedWithLayout>} />
 
               {/* ========== SETTINGS & ADMIN ========== */}
               <Route path="/settings" element={<ProtectedWithLayout requiredRole="admin"><Settings /></ProtectedWithLayout>} />
