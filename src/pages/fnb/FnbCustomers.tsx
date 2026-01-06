@@ -10,8 +10,9 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Pencil, Trash2, ArrowLeft, Search, MessageSquare, Route, Upload, FileSpreadsheet, Loader2, MapPin, Wand2, GitMerge, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, ArrowLeft, Search, MessageSquare, Route, Upload, FileSpreadsheet, Loader2, MapPin, Wand2, GitMerge, X, Map as MapIcon } from 'lucide-react';
 import { CustomerMergeDialog } from '@/components/fnb/CustomerMergeDialog';
+import { CustomerLocationPicker } from '@/components/fnb/CustomerLocationPicker';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -125,6 +126,7 @@ export default function FnbCustomers() {
   const [isMergeMode, setIsMergeMode] = useState(false);
   const [selectedForMerge, setSelectedForMerge] = useState<Set<string>>(new Set());
   const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
+  const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
@@ -753,6 +755,15 @@ export default function FnbCustomers() {
                           ) : (
                             <MapPin className="h-4 w-4" />
                           )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setIsLocationPickerOpen(true)}
+                          title="Pick location on map"
+                        >
+                          <MapIcon className="h-4 w-4" />
                         </Button>
                       </div>
                       {subZonesUnlinked && (
