@@ -17,6 +17,9 @@ import {
   CheckCircle,
   ArrowUpRight,
   ArrowDownRight,
+  FileCheck,
+  UserCog,
+  Zap,
 } from "lucide-react";
 import {
   AreaChart,
@@ -32,7 +35,8 @@ import {
   BarChart,
   Bar,
 } from "recharts";
-import { format, subDays, startOfDay, endOfDay } from "date-fns";
+import { format, subDays, startOfDay, endOfDay, startOfWeek, endOfWeek } from "date-fns";
+import { useExecutiveDashboardRealtime } from "@/hooks/useRealtimeUpdates";
 
 // Fetch dashboard stats
 const useDashboardStats = () => {
@@ -96,6 +100,65 @@ const useDashboardStats = () => {
       };
     },
     refetchInterval: 30000, // Refresh every 30 seconds
+  });
+};
+
+// Fetch HR metrics
+const useHRMetrics = () => {
+  return useQuery({
+    queryKey: ["hr-dashboard-stats"],
+    queryFn: async () => {
+      const today = new Date();
+      const todayStart = startOfDay(today).toISOString();
+      const todayEnd = endOfDay(today).toISOString();
+      const weekStart = startOfWeek(today, { weekStartsOn: 1 }).toISOString();
+      const weekEnd = endOfWeek(today, { weekStartsOn: 1 }).toISOString();
+
+      // Employees currently clocked in
+      const { count: clockedIn } = await supabase
+        .from("time_entries")
+        .select("*", { count: "exact", head: true })
+        .is("clock_out", null);
+
+      // Total hours this week
+      const { data: weeklyEntries } = await supabase
+        .from("time_entries")
+        .select("clock_in, clock_out")
+        .gte("clock_in", weekStart)
+        .lte("clock_in", weekEnd);
+
+      const totalMinutes = weeklyEntries?.reduce((acc, entry) => {
+        if (entry.clock_out) {
+          const start = new Date(entry.clock_in).getTime();
+          const end = new Date(entry.clock_out).getTime();
+          return acc + (end - start) / 60000;
+        }
+        return acc;
+      }, 0) || 0;
+
+      // Pending document reviews
+      const { count: pendingDocs } = await supabase
+        .from("employee_documents")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "pending");
+
+      // Expiring documents (within 30 days)
+      const thirtyDaysFromNow = new Date();
+      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+      const { count: expiringDocs } = await supabase
+        .from("employee_documents")
+        .select("*", { count: "exact", head: true })
+        .lte("expiry_date", thirtyDaysFromNow.toISOString())
+        .gte("expiry_date", today.toISOString());
+
+      return {
+        clockedIn: clockedIn || 0,
+        weeklyHours: Math.round(totalMinutes / 60),
+        pendingDocs: pendingDocs || 0,
+        expiringDocs: expiringDocs || 0,
+      };
+    },
+    refetchInterval: 60000, // Refresh every minute
   });
 };
 
@@ -272,6 +335,8 @@ function DepartmentHealthCard({
 export default function ExecutiveDashboard() {
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: health, isLoading: healthLoading } = useDepartmentHealth();
+  const { data: hrMetrics, isLoading: hrLoading } = useHRMetrics();
+  const { lastUpdate } = useExecutiveDashboardRealtime();
 
   // Process weekly data for chart
   const chartData = (() => {
@@ -301,13 +366,21 @@ export default function ExecutiveDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Executive Dashboard</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold tracking-tight">Executive Dashboard</h1>
+          {lastUpdate && (
+            <Badge variant="outline" className="gap-1 text-xs">
+              <Zap className="h-3 w-3 text-green-500" />
+              Live • {format(lastUpdate, "h:mm:ss a")}
+            </Badge>
+          )}
+        </div>
         <p className="text-muted-foreground">
           Overview of all business operations • {format(new Date(), "EEEE, MMMM d, yyyy")}
         </p>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards Row 1 - Operations */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <KPICard
           title="Import Orders Today"
@@ -339,6 +412,39 @@ export default function ExecutiveDashboard() {
           icon={AlertTriangle}
           loading={statsLoading}
           trend={stats?.pendingIssues ? "down" : "neutral"}
+        />
+      </div>
+
+      {/* KPI Cards Row 2 - HR Metrics */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <KPICard
+          title="Employees Working"
+          value={hrMetrics?.clockedIn || 0}
+          subtitle="currently clocked in"
+          icon={UserCog}
+          loading={hrLoading}
+        />
+        <KPICard
+          title="Weekly Hours"
+          value={`${hrMetrics?.weeklyHours || 0}h`}
+          subtitle="logged this week"
+          icon={Clock}
+          loading={hrLoading}
+        />
+        <KPICard
+          title="Pending Documents"
+          value={hrMetrics?.pendingDocs || 0}
+          subtitle="need review"
+          icon={FileCheck}
+          loading={hrLoading}
+        />
+        <KPICard
+          title="Expiring Soon"
+          value={hrMetrics?.expiringDocs || 0}
+          subtitle="documents within 30 days"
+          icon={AlertTriangle}
+          loading={hrLoading}
+          trend={hrMetrics?.expiringDocs ? "down" : "neutral"}
         />
       </div>
 
@@ -416,7 +522,7 @@ export default function ExecutiveDashboard() {
       {/* Department Health */}
       <div>
         <h2 className="text-xl font-semibold mb-4">Department Health</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <DepartmentHealthCard
             title="Import"
             icon={Package}
@@ -457,6 +563,16 @@ export default function ExecutiveDashboard() {
               { label: "Completion Rate", value: "—" },
             ]}
           />
+          <DepartmentHealthCard
+            title="HR & Team"
+            icon={UserCog}
+            color="bg-pink-500"
+            loading={hrLoading}
+            metrics={[
+              { label: "Working Now", value: hrMetrics?.clockedIn || 0 },
+              { label: "Weekly Hours", value: `${hrMetrics?.weeklyHours || 0}h` },
+            ]}
+          />
         </div>
       </div>
 
@@ -470,8 +586,8 @@ export default function ExecutiveDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {stats?.pendingIssues ? (
-              <div className="space-y-3">
+            <div className="space-y-3">
+              {stats?.pendingIssues ? (
                 <div className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg">
                   <div className="flex items-center gap-3">
                     <AlertTriangle className="h-4 w-4 text-amber-500" />
@@ -479,13 +595,32 @@ export default function ExecutiveDashboard() {
                   </div>
                   <Badge variant="secondary">{stats.pendingIssues}</Badge>
                 </div>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center py-8 text-muted-foreground">
-                <CheckCircle className="h-5 w-5 mr-2 text-green-500" />
-                No active alerts
-              </div>
-            )}
+              ) : null}
+              {hrMetrics?.expiringDocs ? (
+                <div className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <FileCheck className="h-4 w-4 text-red-500" />
+                    <span className="text-sm">Documents expiring soon</span>
+                  </div>
+                  <Badge variant="destructive">{hrMetrics.expiringDocs}</Badge>
+                </div>
+              ) : null}
+              {hrMetrics?.pendingDocs ? (
+                <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <FileCheck className="h-4 w-4 text-blue-500" />
+                    <span className="text-sm">Pending document reviews</span>
+                  </div>
+                  <Badge variant="secondary">{hrMetrics.pendingDocs}</Badge>
+                </div>
+              ) : null}
+              {!stats?.pendingIssues && !hrMetrics?.expiringDocs && !hrMetrics?.pendingDocs && (
+                <div className="flex items-center justify-center py-8 text-muted-foreground">
+                  <CheckCircle className="h-5 w-5 mr-2 text-green-500" />
+                  No active alerts
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
