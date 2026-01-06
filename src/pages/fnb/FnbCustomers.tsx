@@ -498,28 +498,36 @@ export default function FnbCustomers() {
       const { data, error } = await supabase.functions.invoke('geocode-address', {
         body: { 
           address: formData.address,
-          customerId: editingCustomer?.id // Will save coordinates if editing
+          // Don't save to customer yet - let user confirm on map first
         }
       });
 
       if (error) throw error;
 
       const result = data as GeocodeResult;
-      setDetectedZoneInfo(result);
-
-      if (result.matchedZone) {
+      
+      if (result.latitude && result.longitude) {
+        // Update form with geocoded coordinates and zone
         setFormData(prev => ({ 
           ...prev, 
-          delivery_zone: result.matchedZone!,
+          latitude: result.latitude,
+          longitude: result.longitude,
+          delivery_zone: result.matchedZone || prev.delivery_zone,
           major_zone_id: result.matchedMajorZoneId || prev.major_zone_id
         }));
-        const majorInfo = result.matchedMajorZoneName ? ` (${result.matchedMajorZoneName})` : '';
-        toast.success(`Zone detected: ${result.matchedZone}${majorInfo} - ${result.distance}m from center`);
-      } else if (result.allZoneDistances?.length > 0) {
-        const closest = result.allZoneDistances[0];
-        toast.warning(`Address outside all zones. Closest: ${closest.name} (${closest.distance}m away)`);
+        
+        setDetectedZoneInfo(result);
+        
+        // Show success message and open map for verification
+        const zoneInfo = result.matchedZone 
+          ? `Zone: ${result.matchedZone}` 
+          : 'No zone matched';
+        toast.success(`Address located. ${zoneInfo}. Verify on map.`);
+        
+        // Open the map picker so user can verify/adjust the location
+        setIsLocationPickerOpen(true);
       } else {
-        toast.error('Could not determine zone');
+        toast.error('Could not locate address');
       }
     } catch (error: any) {
       console.error('Geocoding error:', error);
