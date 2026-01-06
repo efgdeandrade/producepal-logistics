@@ -129,6 +129,7 @@ export default function FnbCustomers() {
   const [selectedForMerge, setSelectedForMerge] = useState<Set<string>>(new Set());
   const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
   const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
+  const [pendingLocation, setPendingLocation] = useState<{ lat: number; lng: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
@@ -471,6 +472,7 @@ export default function FnbCustomers() {
       ...(location.detectedZone && { delivery_zone: location.detectedZone }),
       ...(location.detectedMajorZoneId && { major_zone_id: location.detectedMajorZoneId }),
     }));
+    setPendingLocation(null);
     setIsLocationPickerOpen(false);
     toast.success('Location set successfully');
   };
@@ -507,6 +509,9 @@ export default function FnbCustomers() {
       const result = data as GeocodeResult;
       
       if (result.latitude && result.longitude) {
+        // Set pending location FIRST (before async state updates)
+        setPendingLocation({ lat: result.latitude, lng: result.longitude });
+        
         // Update form with geocoded coordinates and zone
         setFormData(prev => ({ 
           ...prev, 
@@ -1114,11 +1119,14 @@ export default function FnbCustomers() {
         {/* Location Picker Dialog */}
         <CustomerLocationPicker
           open={isLocationPickerOpen}
-          onOpenChange={setIsLocationPickerOpen}
+          onOpenChange={(open) => {
+            setIsLocationPickerOpen(open);
+            if (!open) setPendingLocation(null);
+          }}
           initialLocation={
-            formData.latitude && formData.longitude
+            pendingLocation || (formData.latitude && formData.longitude
               ? { lat: formData.latitude, lng: formData.longitude }
-              : null
+              : null)
           }
           customerName={formData.name || 'New Customer'}
           onLocationSelect={handleLocationSelect}
