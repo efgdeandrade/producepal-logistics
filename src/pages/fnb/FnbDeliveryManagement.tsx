@@ -8,18 +8,37 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { ArrowLeft, Truck, Package, User, MapPin, Clock, Route } from "lucide-react";
+import { ArrowLeft, Truck, Package, User, MapPin, Clock, Route, UserPlus, Copy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type GroupBy = "date" | "zone";
 
 export default function FnbDeliveryManagement() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { isAdmin } = useAuth();
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [selectedDriver, setSelectedDriver] = useState<string>("");
   const [groupBy, setGroupBy] = useState<GroupBy>("zone");
+
+  // Add Driver Dialog state
+  const [addDriverOpen, setAddDriverOpen] = useState(false);
+  const [driverForm, setDriverForm] = useState({ fullName: "", email: "" });
+  const [resetLink, setResetLink] = useState("");
+  const [showResetLink, setShowResetLink] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Fetch ready orders with customer zone info
   const { data: readyOrders, isLoading: loadingReady } = useQuery({
@@ -96,6 +115,63 @@ export default function FnbDeliveryManagement() {
       toast.error("Failed to assign driver: " + error.message);
     },
   });
+
+  // Create driver mutation
+  const createDriverMutation = useMutation({
+    mutationFn: async ({ email, fullName }: { email: string; fullName: string }) => {
+      const { data, error } = await supabase.functions.invoke("create-user-direct", {
+        body: { email, fullName, role: "driver" },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data) => {
+      setResetLink(data.resetLink);
+      setShowResetLink(true);
+      queryClient.invalidateQueries({ queryKey: ["drivers"] });
+      toast.success("Driver created successfully!");
+    },
+    onError: (error) => {
+      toast.error("Failed to create driver: " + error.message);
+    },
+  });
+
+  const handleCreateDriver = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormErrors({});
+
+    const errors: Record<string, string> = {};
+    if (!driverForm.fullName || driverForm.fullName.trim().length < 2) {
+      errors.fullName = "Name must be at least 2 characters";
+    }
+    if (!driverForm.email || !driverForm.email.includes("@")) {
+      errors.email = "Valid email is required";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
+    createDriverMutation.mutate({
+      fullName: driverForm.fullName.trim(),
+      email: driverForm.email.trim().toLowerCase(),
+    });
+  };
+
+  const handleCloseDriverDialog = () => {
+    setAddDriverOpen(false);
+    setDriverForm({ fullName: "", email: "" });
+    setResetLink("");
+    setShowResetLink(false);
+    setFormErrors({});
+  };
+
+  const handleCopyLink = async () => {
+    await navigator.clipboard.writeText(resetLink);
+    toast.success("Reset link copied to clipboard!");
+  };
 
   const handleSelectOrder = (orderId: string, checked: boolean) => {
     if (checked) {
@@ -284,18 +360,30 @@ export default function FnbDeliveryManagement() {
               <div className="flex flex-col md:flex-row gap-4 items-end">
                 <div className="flex-1">
                   <label className="text-sm font-medium mb-2 block">Assign Driver</label>
-                  <Select value={selectedDriver} onValueChange={setSelectedDriver}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a driver" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {drivers?.map((driver) => (
-                        <SelectItem key={driver.user_id} value={driver.user_id}>
-                          {driver.profiles?.full_name || driver.profiles?.email}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2">
+                    <Select value={selectedDriver} onValueChange={setSelectedDriver}>
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Select a driver" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {drivers?.map((driver) => (
+                          <SelectItem key={driver.user_id} value={driver.user_id}>
+                            {driver.profiles?.full_name || driver.profiles?.email}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {isAdmin() && (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setAddDriverOpen(true)}
+                        title="Add Driver"
+                      >
+                        <UserPlus className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="text-sm font-medium mb-2 block">Group By</label>
@@ -382,6 +470,78 @@ export default function FnbDeliveryManagement() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Add Driver Dialog */}
+      <Dialog open={addDriverOpen} onOpenChange={(open) => !open && handleCloseDriverDialog()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Driver</DialogTitle>
+            <DialogDescription>
+              Create a new driver account. They will receive a password reset link to set up their account.
+            </DialogDescription>
+          </DialogHeader>
+
+          {!showResetLink ? (
+            <form onSubmit={handleCreateDriver} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Full Name</Label>
+                <Input
+                  id="fullName"
+                  value={driverForm.fullName}
+                  onChange={(e) => setDriverForm({ ...driverForm, fullName: e.target.value })}
+                  placeholder="Enter driver's full name"
+                />
+                {formErrors.fullName && (
+                  <p className="text-sm text-destructive">{formErrors.fullName}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={driverForm.email}
+                  onChange={(e) => setDriverForm({ ...driverForm, email: e.target.value })}
+                  placeholder="Enter driver's email"
+                />
+                {formErrors.email && (
+                  <p className="text-sm text-destructive">{formErrors.email}</p>
+                )}
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={handleCloseDriverDialog}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={createDriverMutation.isPending}>
+                  {createDriverMutation.isPending ? "Creating..." : "Create Driver"}
+                </Button>
+              </DialogFooter>
+            </form>
+          ) : (
+            <div className="space-y-4">
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="text-sm font-medium mb-2">Password Reset Link</p>
+                <div className="flex gap-2">
+                  <Input
+                    value={resetLink}
+                    readOnly
+                    className="text-xs"
+                  />
+                  <Button size="icon" variant="outline" onClick={handleCopyLink}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Share this link with the driver to set their password.
+                </p>
+              </div>
+              <DialogFooter>
+                <Button onClick={handleCloseDriverDialog}>Done</Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
