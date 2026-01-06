@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -54,6 +54,13 @@ export function CustomerMergeDialog({
   const queryClient = useQueryClient();
   const { logActivity } = useActivityLogger();
 
+  // Sync primaryId when customers change or dialog opens
+  useEffect(() => {
+    if (open && customers.length > 0 && !primaryId) {
+      setPrimaryId(customers[0].id);
+    }
+  }, [open, customers, primaryId]);
+
   // Fetch stats for both customers
   const { data: customerStats, isLoading: isLoadingStats } = useQuery({
     queryKey: ['customer-merge-stats', customers.map(c => c.id)],
@@ -85,6 +92,9 @@ export function CustomerMergeDialog({
 
   const mergeMutation = useMutation({
     mutationFn: async () => {
+      if (!primaryId) {
+        throw new Error('Please select a primary customer to keep');
+      }
       const secondaryId = customers.find(c => c.id !== primaryId)?.id;
       if (!secondaryId) throw new Error('Could not determine secondary customer');
 
@@ -256,7 +266,7 @@ export function CustomerMergeDialog({
               </Button>
               <Button
                 onClick={() => mergeMutation.mutate()}
-                disabled={mergeMutation.isPending}
+                disabled={mergeMutation.isPending || !primaryId}
               >
                 {mergeMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Merge Customers
