@@ -1781,6 +1781,44 @@ export type Database = {
         }
         Relationships: []
       }
+      fnb_product_aliases: {
+        Row: {
+          alias: string
+          confidence_score: number | null
+          created_at: string | null
+          id: string
+          language: string | null
+          product_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          alias: string
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          language?: string | null
+          product_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          alias?: string
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          language?: string | null
+          product_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_product_aliases_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fnb_product_tier_prices: {
         Row: {
           created_at: string
