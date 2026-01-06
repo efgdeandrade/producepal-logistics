@@ -47,3 +47,6 @@ verify_jwt = true
 
 [functions.geocode-address]
 verify_jwt = true
+
+[functions.parse-whatsapp-order]
+verify_jwt = true

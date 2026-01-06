@@ -7,11 +7,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Trash2, ShoppingCart, Save, Banknote, CreditCard, Building2, FileText, UserPlus, Truck, Store, Package, Info, Sparkles, RotateCcw, Calendar, ChevronDown, ChevronUp, Upload, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ShoppingCart, Save, Banknote, CreditCard, Building2, FileText, UserPlus, Truck, Store, Package, Info, Sparkles, RotateCcw, Calendar, ChevronDown, ChevronUp, Upload, AlertTriangle, MessageSquare } from 'lucide-react';
 import { POUploadDialog } from '@/components/fnb/POUploadDialog';
 import { POReviewDialog } from '@/components/fnb/POReviewDialog';
+import { QuickPasteOrder } from '@/components/fnb/QuickPasteOrder';
 import { usePOImport, MatchedItem } from '@/hooks/usePOImport';
 import { useFnbOrderSuggestions, OrderSuggestion } from '@/hooks/useFnbOrderSuggestions';
+import { MatchedConversationItem } from '@/hooks/useConversationImport';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
@@ -112,6 +114,9 @@ export default function FnbNewOrder() {
   const poImport = usePOImport();
   const [showPOUpload, setShowPOUpload] = useState(false);
   const [showPOReview, setShowPOReview] = useState(false);
+  
+  // Quick Paste state
+  const [showQuickPaste, setShowQuickPaste] = useState(false);
   
   // Duplicate order confirmation state
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
@@ -856,14 +861,24 @@ export default function FnbNewOrder() {
             </p>
           </div>
           {!isEditMode && (
-            <Button
-              variant="outline"
-              onClick={() => setShowPOUpload(true)}
-              className="gap-2"
-            >
-              <Upload className="h-4 w-4" />
-              Import from PO
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="default"
+                onClick={() => setShowQuickPaste(true)}
+                className="gap-2"
+              >
+                <MessageSquare className="h-4 w-4" />
+                Paste Order
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowPOUpload(true)}
+                className="gap-2"
+              >
+                <Upload className="h-4 w-4" />
+                Import PO
+              </Button>
+            </div>
           )}
         </div>
 
@@ -905,6 +920,37 @@ export default function FnbNewOrder() {
             }}
           />
         )}
+
+        {/* Quick Paste Dialog */}
+        <QuickPasteOrder
+          open={showQuickPaste}
+          onOpenChange={setShowQuickPaste}
+          products={products || []}
+          customerId={customerId}
+          onConfirm={(matchedItems, parsedDeliveryDate, parsedNotes) => {
+            // Convert matched items to order items
+            const newItems: OrderItem[] = matchedItems.map(item => {
+              const product = products?.find(p => p.id === item.matched_product_id);
+              const unitPrice = item.suggested_price ?? product?.price_xcg ?? 0;
+              return {
+                productId: item.matched_product_id!,
+                quantity: item.quantity,
+                unit: item.unit || product?.unit || 'pcs',
+                unitPrice,
+                total: unitPrice * item.quantity,
+              };
+            });
+            
+            // Add empty row at end
+            newItems.push({ productId: '', quantity: 1, unit: 'pcs', unitPrice: 0, total: 0 });
+            
+            setItems(newItems);
+            if (parsedDeliveryDate) setDeliveryDate(parsedDeliveryDate);
+            if (parsedNotes) setNotes(prev => prev ? `${prev}\n${parsedNotes}` : parsedNotes);
+            
+            toast.success(`Imported ${matchedItems.length} items from conversation`);
+          }}
+        />
 
         {/* Top Section: Order Details + Summary */}
         <div className="grid lg:grid-cols-3 gap-6">
