@@ -77,6 +77,7 @@ import Auth from "./pages/Auth";
 import UserManagement from "./pages/UserManagement";
 import UserActivity from "./pages/UserActivity";
 import PredictionsAnalytics from "./pages/PredictionsAnalytics";
+import ExecutiveReports from "./pages/ExecutiveReports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import Install from "./pages/Install";
@@ -174,6 +175,7 @@ const App = () => (
               <Route path="/users" element={<ProtectedWithLayout requiredRole="admin"><UserManagement /></ProtectedWithLayout>} />
               <Route path="/user-activity" element={<ProtectedWithLayout><UserActivity /></ProtectedWithLayout>} />
               <Route path="/analytics" element={<ProtectedWithLayout><PredictionsAnalytics /></ProtectedWithLayout>} />
+              <Route path="/reports" element={<ProtectedWithLayout><ExecutiveReports /></ProtectedWithLayout>} />
 
               {/* ========== LEGACY ROUTES (redirects for backwards compatibility) ========== */}
               {/* These can be removed after transition period */}
