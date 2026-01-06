@@ -17,8 +17,9 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Search, Plus, Edit, Trash2, User } from "lucide-react";
+import { Search, Plus, Edit, Trash2, User, Eye } from "lucide-react";
 import { format } from "date-fns";
+import { EmployeeDetailDialog } from "@/components/hr/EmployeeDetailDialog";
 
 interface Employee {
   id: string;
@@ -45,6 +46,7 @@ export default function Employees() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
   const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState({
@@ -470,7 +472,16 @@ export default function Employees() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        onClick={() => setViewingEmployee(employee)}
+                        title="View details"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={() => handleEdit(employee)}
+                        title="Edit"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -482,6 +493,7 @@ export default function Employees() {
                             deleteMutation.mutate(employee.id);
                           }
                         }}
+                        title="Delete"
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -497,6 +509,13 @@ export default function Employees() {
           )}
         </CardContent>
       </Card>
+
+      {/* Employee Detail Dialog */}
+      <EmployeeDetailDialog
+        employee={viewingEmployee as any}
+        open={!!viewingEmployee}
+        onOpenChange={(open) => !open && setViewingEmployee(null)}
+      />
     </div>
   );
 }

@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Clock, LogIn, LogOut, MapPin, Users } from "lucide-react";
+import { Clock, LogIn, LogOut, MapPin, Users, Coffee } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
+import { BreakTimer } from "@/components/hr/BreakTimer";
 
 export default function TimeAttendance() {
   const { user } = useAuth();
@@ -168,14 +169,20 @@ export default function TimeAttendance() {
                   {currentEmployee.department} • {currentEmployee.position}
                 </p>
                 {activeEntry ? (
-                  <div className="mt-2">
+                  <div className="mt-2 space-y-2">
                     <Badge variant="default" className="bg-green-500">
                       <Clock className="h-3 w-3 mr-1" />
                       Working since {format(new Date(activeEntry.clock_in), "h:mm a")}
                     </Badge>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="text-sm text-muted-foreground">
                       Duration: {calculateDuration(activeEntry.clock_in, null)}
                     </p>
+                    <BreakTimer
+                      timeEntryId={activeEntry.id}
+                      breakMinutes={(activeEntry as any).break_minutes || 0}
+                      isOnBreak={!!(activeEntry as any).break_started_at}
+                      breakStartedAt={(activeEntry as any).break_started_at}
+                    />
                   </div>
                 ) : (
                   <Badge variant="secondary" className="mt-2">Not clocked in</Badge>
@@ -188,7 +195,7 @@ export default function TimeAttendance() {
                     size="lg" 
                     variant="destructive"
                     onClick={() => clockOutMutation.mutate()}
-                    disabled={clockOutMutation.isPending}
+                    disabled={clockOutMutation.isPending || !!(activeEntry as any).break_started_at}
                     className="min-w-[160px]"
                   >
                     <LogOut className="h-5 w-5 mr-2" />
@@ -209,6 +216,12 @@ export default function TimeAttendance() {
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <MapPin className="h-3 w-3" />
                     Location captured
+                  </p>
+                )}
+                {(activeEntry as any)?.break_started_at && (
+                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                    <Coffee className="h-3 w-3" />
+                    End break before clocking out
                   </p>
                 )}
               </div>

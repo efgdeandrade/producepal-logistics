@@ -47,7 +47,7 @@ export function BreakTimer({
         .from("time_entries")
         .update({ 
           break_started_at: new Date().toISOString() 
-        })
+        } as any)
         .eq("id", timeEntryId);
       
       if (error) throw error;
@@ -76,7 +76,7 @@ export function BreakTimer({
         .update({ 
           break_minutes: newBreakMinutes,
           break_started_at: null
-        })
+        } as any)
         .eq("id", timeEntryId);
       
       if (error) throw error;

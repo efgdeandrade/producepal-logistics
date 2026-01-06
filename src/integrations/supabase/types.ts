@@ -3380,6 +3380,7 @@ export type Database = {
         Row: {
           approved_by: string | null
           break_minutes: number | null
+          break_started_at: string | null
           clock_in: string
           clock_in_photo_url: string | null
           clock_out: string | null
@@ -3395,6 +3396,7 @@ export type Database = {
         Insert: {
           approved_by?: string | null
           break_minutes?: number | null
+          break_started_at?: string | null
           clock_in: string
           clock_in_photo_url?: string | null
           clock_out?: string | null
@@ -3410,6 +3412,7 @@ export type Database = {
         Update: {
           approved_by?: string | null
           break_minutes?: number | null
+          break_started_at?: string | null
           clock_in?: string
           clock_in_photo_url?: string | null
           clock_out?: string | null
