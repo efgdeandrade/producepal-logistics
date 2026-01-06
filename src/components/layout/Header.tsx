@@ -18,6 +18,7 @@ import { format, getWeek } from 'date-fns';
 import { getVersionDisplay } from '@/lib/version';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
+import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 
 export const Header = () => {
   const location = useLocation();
@@ -71,6 +72,7 @@ export const Header = () => {
             </span>
           </div>
           <OfflineIndicator />
+          <NotificationCenter />
           <Separator orientation="vertical" className="hidden md:block h-8" />
         </div>
         
