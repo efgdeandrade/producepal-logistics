@@ -83,6 +83,13 @@ import NotFound from "./pages/NotFound";
 import Install from "./pages/Install";
 import Offline from "./pages/Offline";
 
+// Integrations
+import IntegrationHub from "./pages/integrations/IntegrationHub";
+import WhatsAppSettings from "./pages/integrations/WhatsAppSettings";
+import QuickBooksSync from "./pages/integrations/QuickBooksSync";
+import WebhookManager from "./pages/integrations/WebhookManager";
+import ApiConnectors from "./pages/integrations/ApiConnectors";
+
 const queryClient = new QueryClient();
 
 // Wrapper for protected routes with layout
@@ -172,6 +179,11 @@ const App = () => (
 
               {/* ========== SETTINGS & ADMIN ========== */}
               <Route path="/settings" element={<ProtectedWithLayout requiredRole="admin"><Settings /></ProtectedWithLayout>} />
+              <Route path="/settings/integrations" element={<ProtectedWithLayout requiredRole="admin"><IntegrationHub /></ProtectedWithLayout>} />
+              <Route path="/settings/integrations/whatsapp" element={<ProtectedWithLayout requiredRole="admin"><WhatsAppSettings /></ProtectedWithLayout>} />
+              <Route path="/settings/integrations/quickbooks" element={<ProtectedWithLayout requiredRole="admin"><QuickBooksSync /></ProtectedWithLayout>} />
+              <Route path="/settings/integrations/webhooks" element={<ProtectedWithLayout requiredRole="admin"><WebhookManager /></ProtectedWithLayout>} />
+              <Route path="/settings/integrations/api" element={<ProtectedWithLayout requiredRole="admin"><ApiConnectors /></ProtectedWithLayout>} />
               <Route path="/users" element={<ProtectedWithLayout requiredRole="admin"><UserManagement /></ProtectedWithLayout>} />
               <Route path="/user-activity" element={<ProtectedWithLayout><UserActivity /></ProtectedWithLayout>} />
               <Route path="/analytics" element={<ProtectedWithLayout><PredictionsAnalytics /></ProtectedWithLayout>} />
