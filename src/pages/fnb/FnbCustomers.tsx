@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo } from 'react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -636,229 +637,230 @@ export default function FnbCustomers() {
                 Add Customer
               </Button>
             </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
+            <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+              <DialogHeader className="flex-shrink-0">
                 <DialogTitle>
                   {editingCustomer ? 'Edit Customer' : 'Add New Customer'}
                 </DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Name</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Restaurant Name"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="whatsapp_phone">WhatsApp Phone</Label>
-                  <Input
-                    id="whatsapp_phone"
-                    value={formData.whatsapp_phone}
-                    onChange={(e) =>
-                      setFormData({ ...formData, whatsapp_phone: e.target.value })
-                    }
-                    placeholder="+5999XXXXXXX"
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Include country code (e.g., +5999 for Curaçao)
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
+              <ScrollArea className="flex-1 min-h-0 pr-4">
+                <form onSubmit={handleSubmit} className="space-y-4 pb-2" id="customer-form">
                   <div className="space-y-2">
-                    <Label htmlFor="preferred_language">Preferred Language</Label>
-                    <Select
-                      value={formData.preferred_language}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, preferred_language: value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pap">Papiamento</SelectItem>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="nl">Dutch</SelectItem>
-                        <SelectItem value="es">Spanish</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="name">Name</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="Restaurant Name"
+                      required
+                    />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="major_zone">Major Zone</Label>
-                    <Select
-                      value={formData.major_zone_id || ''}
-                      onValueChange={(value) =>
-                        setFormData({ 
-                          ...formData, 
-                          major_zone_id: value || null,
-                          // Clear sub-zone if major zone changes
-                          delivery_zone: '' 
-                        })
+                    <Label htmlFor="whatsapp_phone">WhatsApp Phone</Label>
+                    <Input
+                      id="whatsapp_phone"
+                      value={formData.whatsapp_phone}
+                      onChange={(e) =>
+                        setFormData({ ...formData, whatsapp_phone: e.target.value })
                       }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select major zone" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {majorZones?.map((zone) => (
-                          <SelectItem key={zone.id} value={zone.id}>
-                            {zone.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">Primary delivery region</p>
+                      placeholder="+5999XXXXXXX"
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Include country code (e.g., +5999 for Curaçao)
+                    </p>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="delivery_zone">Sub-Zone</Label>
-                    <div className="flex gap-2">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="preferred_language">Preferred Language</Label>
                       <Select
-                        value={formData.delivery_zone || ''}
+                        value={formData.preferred_language}
                         onValueChange={(value) =>
-                          setFormData({ ...formData, delivery_zone: value || null })
+                          setFormData({ ...formData, preferred_language: value })
                         }
                       >
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Select sub-zone" />
+                        <SelectTrigger>
+                          <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {filteredSubZones?.map((zone) => (
-                            <SelectItem key={zone.id} value={zone.name}>
+                          <SelectItem value="pap">Papiamento</SelectItem>
+                          <SelectItem value="en">English</SelectItem>
+                          <SelectItem value="nl">Dutch</SelectItem>
+                          <SelectItem value="es">Spanish</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="major_zone">Major Zone</Label>
+                      <Select
+                        value={formData.major_zone_id || ''}
+                        onValueChange={(value) =>
+                          setFormData({ 
+                            ...formData, 
+                            major_zone_id: value || null,
+                            // Clear sub-zone if major zone changes
+                            delivery_zone: '' 
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select major zone" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {majorZones?.map((zone) => (
+                            <SelectItem key={zone.id} value={zone.id}>
                               {zone.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={handleAutoDetectZone}
-                        disabled={isDetectingZone || !formData.address}
-                        title="Auto-detect zone from address"
-                      >
-                        {isDetectingZone ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <MapPin className="h-4 w-4" />
-                        )}
-                      </Button>
+                      <p className="text-xs text-muted-foreground">Primary delivery region</p>
                     </div>
-                    {subZonesUnlinked && (
-                      <p className="text-xs text-amber-600">
-                        ⚠ Sub-zones not linked to this major zone. Showing all sub-zones.
-                      </p>
-                    )}
-                    {detectedZoneInfo && (
-                      <div className="text-xs mt-1">
-                        {detectedZoneInfo.matchedZone ? (
-                          <span className="text-green-600">
-                            ✓ Detected: {detectedZoneInfo.matchedZone}
-                            {detectedZoneInfo.matchedMajorZoneName && ` (${detectedZoneInfo.matchedMajorZoneName})`}
-                            {` - ${detectedZoneInfo.distance}m from center`}
-                          </span>
-                        ) : detectedZoneInfo.allZoneDistances?.length > 0 ? (
-                          <span className="text-amber-600">
-                            ⚠ Outside zones. Closest: {detectedZoneInfo.allZoneDistances[0].name} ({detectedZoneInfo.allZoneDistances[0].distance}m)
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">Could not determine zone</span>
-                        )}
+
+                    <div className="space-y-2">
+                      <Label htmlFor="delivery_zone">Sub-Zone</Label>
+                      <div className="flex gap-2">
+                        <Select
+                          value={formData.delivery_zone || ''}
+                          onValueChange={(value) =>
+                            setFormData({ ...formData, delivery_zone: value || null })
+                          }
+                        >
+                          <SelectTrigger className="flex-1">
+                            <SelectValue placeholder="Select sub-zone" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {filteredSubZones?.map((zone) => (
+                              <SelectItem key={zone.id} value={zone.name}>
+                                {zone.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={handleAutoDetectZone}
+                          disabled={isDetectingZone || !formData.address}
+                          title="Auto-detect zone from address"
+                        >
+                          {isDetectingZone ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <MapPin className="h-4 w-4" />
+                          )}
+                        </Button>
                       </div>
-                    )}
+                      {subZonesUnlinked && (
+                        <p className="text-xs text-amber-600">
+                          ⚠ Sub-zones not linked to this major zone. Showing all sub-zones.
+                        </p>
+                      )}
+                      {detectedZoneInfo && (
+                        <div className="text-xs mt-1">
+                          {detectedZoneInfo.matchedZone ? (
+                            <span className="text-green-600">
+                              ✓ Detected: {detectedZoneInfo.matchedZone}
+                              {detectedZoneInfo.matchedMajorZoneName && ` (${detectedZoneInfo.matchedMajorZoneName})`}
+                              {` - ${detectedZoneInfo.distance}m from center`}
+                            </span>
+                          ) : detectedZoneInfo.allZoneDistances?.length > 0 ? (
+                            <span className="text-amber-600">
+                              ⚠ Outside zones. Closest: {detectedZoneInfo.allZoneDistances[0].name} ({detectedZoneInfo.allZoneDistances[0].distance}m)
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">Could not determine zone</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="customer_type">Customer Type</Label>
+                      <Select
+                        value={formData.customer_type}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, customer_type: value as CustomerType })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="regular">Regular</SelectItem>
+                          <SelectItem value="supermarket">Supermarket (Receipt Required)</SelectItem>
+                          <SelectItem value="cod">COD (Cash on Delivery)</SelectItem>
+                          <SelectItem value="credit">Credit Account</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="pricing_tier_id">Pricing Tier</Label>
+                      <Select
+                        value={formData.pricing_tier_id || ''}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, pricing_tier_id: value || null })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select pricing tier" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {pricingTiers?.map((tier) => (
+                            <SelectItem key={tier.id} value={tier.id}>
+                              {tier.name} {tier.is_default && '(Default)'}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Determines product pricing for this customer
+                      </p>
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
-                    <Label htmlFor="customer_type">Customer Type</Label>
-                    <Select
-                      value={formData.customer_type}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, customer_type: value as CustomerType })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="regular">Regular</SelectItem>
-                        <SelectItem value="supermarket">Supermarket (Receipt Required)</SelectItem>
-                        <SelectItem value="cod">COD (Cash on Delivery)</SelectItem>
-                        <SelectItem value="credit">Credit Account</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="address">Address</Label>
+                    <Textarea
+                      id="address"
+                      value={formData.address || ''}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      placeholder="Delivery address..."
+                      rows={2}
+                    />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="pricing_tier_id">Pricing Tier</Label>
-                    <Select
-                      value={formData.pricing_tier_id || ''}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, pricing_tier_id: value || null })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select pricing tier" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {pricingTiers?.map((tier) => (
-                          <SelectItem key={tier.id} value={tier.id}>
-                            {tier.name} {tier.is_default && '(Default)'}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Determines product pricing for this customer
-                    </p>
+                    <Label htmlFor="notes">Notes</Label>
+                    <Textarea
+                      id="notes"
+                      value={formData.notes || ''}
+                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                      placeholder="Special instructions, preferences..."
+                      rows={2}
+                    />
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="address">Address</Label>
-                  <Textarea
-                    id="address"
-                    value={formData.address || ''}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    placeholder="Delivery address..."
-                    rows={2}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea
-                    id="notes"
-                    value={formData.notes || ''}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    placeholder="Special instructions, preferences..."
-                    rows={2}
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit">
-                    {editingCustomer ? 'Update' : 'Create'}
-                  </Button>
-                </div>
-              </form>
+                </form>
+              </ScrollArea>
+              <div className="flex justify-end gap-2 pt-4 border-t flex-shrink-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" form="customer-form">
+                  {editingCustomer ? 'Update' : 'Create'}
+                </Button>
+              </div>
             </DialogContent>
           </Dialog>
 
