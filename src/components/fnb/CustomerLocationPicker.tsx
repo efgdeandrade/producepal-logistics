@@ -11,7 +11,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { MapPin, Loader2 } from 'lucide-react';
+import { MapPin, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface DeliveryZone {
   id: string;
@@ -56,6 +56,9 @@ export function CustomerLocationPicker({
   const map = useRef<mapboxgl.Map | null>(null);
   const marker = useRef<mapboxgl.Marker | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapToken, setMapToken] = useState<string | null>(null);
+  const [mapError, setMapError] = useState<string | null>(null);
+  const [tokenLoading, setTokenLoading] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(
     initialLocation || null
   );
@@ -78,19 +81,58 @@ export function CustomerLocationPicker({
     },
   });
 
+  // Fetch Mapbox token when dialog opens
+  const fetchMapToken = async () => {
+    setTokenLoading(true);
+    setMapError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('get-mapbox-token');
+      if (error) {
+        console.error('Error fetching mapbox token:', error);
+        setMapError('Failed to load map configuration. Please try again.');
+        return;
+      }
+      if (data?.token) {
+        setMapToken(data.token);
+      } else if (data?.error) {
+        console.error('Token error:', data.error);
+        setMapError(data.error);
+      } else {
+        setMapError('Invalid token response');
+      }
+    } catch (err) {
+      console.error('Token fetch error:', err);
+      setMapError('Failed to connect to map service');
+    } finally {
+      setTokenLoading(false);
+    }
+  };
+
   // Reset state when dialog opens
   useEffect(() => {
     if (open) {
       setSelectedLocation(initialLocation || null);
       setDetectedZone(null);
+      setMapError(null);
+      // Fetch token if we don't have one
+      if (!mapToken) {
+        fetchMapToken();
+      }
+    } else {
+      // Cleanup when closing
+      marker.current?.remove();
+      marker.current = null;
+      map.current?.remove();
+      map.current = null;
+      setMapLoaded(false);
     }
   }, [open, initialLocation]);
 
-  // Initialize map
+  // Initialize map when token is available
   useEffect(() => {
-    if (!open || !mapContainer.current || map.current) return;
+    if (!open || !mapContainer.current || map.current || !mapToken) return;
 
-    mapboxgl.accessToken = 'pk.eyJ1IjoibG92YWJsZS1kZXYiLCJhIjoiY200aGx5bWx1MDJyMTJrcjFqdGhlOTU1bCJ9.aQqBnLgKqbeJCE8Xv8fdYA';
+    mapboxgl.accessToken = mapToken;
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
@@ -104,6 +146,15 @@ export function CustomerLocationPicker({
 
     map.current.on('load', () => {
       setMapLoaded(true);
+      // Force resize after dialog animation settles
+      requestAnimationFrame(() => {
+        map.current?.resize();
+      });
+    });
+
+    map.current.on('error', (e) => {
+      console.error('Mapbox error:', e);
+      setMapError('Map failed to load. Check token or network.');
     });
 
     // Click to place marker
@@ -120,7 +171,7 @@ export function CustomerLocationPicker({
       map.current = null;
       setMapLoaded(false);
     };
-  }, [open]);
+  }, [open, mapToken]);
 
   // Update marker position
   const updateMarker = (lat: number, lng: number) => {
@@ -326,16 +377,41 @@ export function CustomerLocationPicker({
         <div className="flex-1 min-h-[400px] relative rounded-lg overflow-hidden border">
           <div ref={mapContainer} className="absolute inset-0" />
           
-          {!mapLoaded && (
+          {/* Loading state */}
+          {(tokenLoading || (!mapLoaded && !mapError && mapToken)) && (
             <div className="absolute inset-0 flex items-center justify-center bg-muted">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">
+                  {tokenLoading ? 'Loading map configuration...' : 'Initializing map...'}
+                </span>
+              </div>
             </div>
           )}
 
-          {/* Instructions overlay */}
-          <div className="absolute top-3 left-3 bg-background/90 backdrop-blur-sm px-3 py-2 rounded-md text-sm shadow">
-            Click on the map to place a pin, or drag the marker to adjust
-          </div>
+          {/* Error state */}
+          {mapError && (
+            <div className="absolute inset-0 flex items-center justify-center bg-muted">
+              <div className="flex flex-col items-center gap-3 text-center p-4">
+                <AlertTriangle className="h-10 w-10 text-destructive" />
+                <div className="space-y-1">
+                  <p className="font-medium text-destructive">Map Failed to Load</p>
+                  <p className="text-sm text-muted-foreground max-w-xs">{mapError}</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={fetchMapToken}>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Retry
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Instructions overlay - only show when map is loaded */}
+          {mapLoaded && !mapError && (
+            <div className="absolute top-3 left-3 bg-background/90 backdrop-blur-sm px-3 py-2 rounded-md text-sm shadow">
+              Click on the map to place a pin, or drag the marker to adjust
+            </div>
+          )}
         </div>
 
         {/* Location info */}
