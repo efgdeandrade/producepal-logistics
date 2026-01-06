@@ -2943,6 +2943,39 @@ export type Database = {
         }
         Relationships: []
       }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string | null
+          device_info: Json | null
+          endpoint: string
+          expires_at: string | null
+          id: string
+          p256dh: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string | null
+          device_info?: Json | null
+          endpoint: string
+          expires_at?: string | null
+          id?: string
+          p256dh: string
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string | null
+          device_info?: Json | null
+          endpoint?: string
+          expires_at?: string | null
+          id?: string
+          p256dh?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       quickbooks_sync_log: {
         Row: {
           bill_id: string
