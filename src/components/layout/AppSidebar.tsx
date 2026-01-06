@@ -178,6 +178,7 @@ export function AppSidebar() {
         { title: "Dashboard", url: "/hr", icon: LayoutDashboard },
         { title: "Employees", url: "/hr/employees", icon: Users },
         { title: "Time & Attendance", url: "/hr/attendance", icon: Clock },
+        { title: "Timesheets", url: "/hr/timesheets", icon: FileText },
         { title: "Documents", url: "/hr/documents", icon: FileCheck },
       ],
     },
