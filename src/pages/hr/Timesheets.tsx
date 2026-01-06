@@ -6,8 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, Download, Clock } from "lucide-react";
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, eachDayOfInterval, isSameDay } from "date-fns";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar, Download, Clock, CheckSquare, MapPin } from "lucide-react";
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths } from "date-fns";
+import { TimesheetApproval } from "@/components/hr/TimesheetApproval";
+import { AttendanceMap } from "@/components/hr/AttendanceMap";
 
 type DateRange = "this_week" | "last_week" | "this_month" | "last_month";
 
@@ -161,7 +164,7 @@ export default function Timesheets() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Timesheets</h1>
           <p className="text-muted-foreground">
-            {format(start, "MMM d")} - {format(end, "MMM d, yyyy")}
+            Manage employee time tracking and approvals
           </p>
         </div>
         <Button variant="outline" onClick={exportToCSV}>
@@ -169,6 +172,27 @@ export default function Timesheets() {
           Export CSV
         </Button>
       </div>
+
+      <Tabs defaultValue="timesheets" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="timesheets" className="gap-2">
+            <Clock className="h-4 w-4" />
+            Timesheets
+          </TabsTrigger>
+          <TabsTrigger value="approvals" className="gap-2">
+            <CheckSquare className="h-4 w-4" />
+            Approvals
+          </TabsTrigger>
+          <TabsTrigger value="map" className="gap-2">
+            <MapPin className="h-4 w-4" />
+            Location Map
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="timesheets" className="space-y-4">
+          <div className="text-sm text-muted-foreground mb-2">
+            {format(start, "MMM d")} - {format(end, "MMM d, yyyy")}
+          </div>
 
       {/* Filters */}
       <Card>
@@ -285,39 +309,16 @@ export default function Timesheets() {
       </Card>
 
       {/* Detailed Entries */}
-      {filterEmployee && filterEmployee !== "all" && data.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Detailed Entries - {data[0]?.name}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Clock In</TableHead>
-                  <TableHead>Clock Out</TableHead>
-                  <TableHead>Break</TableHead>
-                  <TableHead className="text-right">Hours</TableHead>
-                  <TableHead>Notes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data[0]?.entries.map((entry: any) => (
-                  <TableRow key={entry.id}>
-                    <TableCell>{format(new Date(entry.clock_in), "EEE, MMM d")}</TableCell>
-                    <TableCell>{format(new Date(entry.clock_in), "h:mm a")}</TableCell>
-                    <TableCell>{format(new Date(entry.clock_out), "h:mm a")}</TableCell>
-                    <TableCell>{entry.break_minutes || 0}m</TableCell>
-                    <TableCell className="text-right">{formatHours(entry.minutes)}</TableCell>
-                    <TableCell className="max-w-[200px] truncate">{entry.notes || "-"}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
+        </TabsContent>
+
+        <TabsContent value="approvals">
+          <TimesheetApproval />
+        </TabsContent>
+
+        <TabsContent value="map">
+          <AttendanceMap />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
