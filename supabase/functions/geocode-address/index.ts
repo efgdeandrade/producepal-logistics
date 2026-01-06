@@ -1,38 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Allowed origins for CORS - production and staging domains
-const allowedOrigins = [
-  'https://fuik.io',
-  'https://www.fuik.io',
-  'https://dnxzpkbobzwjcuyfgdnh.lovable.app'
-];
-
-// Check if origin matches allowed patterns (including Lovable preview domains)
-function isAllowedOrigin(origin: string): boolean {
-  if (allowedOrigins.includes(origin)) return true;
-  
-  // Allow any lovableproject.com subdomain (preview environments)
-  if (origin.endsWith('.lovableproject.com')) return true;
-  
-  // Allow any lovable.app subdomain
-  if (origin.endsWith('.lovable.app')) return true;
-  
-  return false;
-}
-
-function getCorsHeaders(req: Request) {
-  const origin = req.headers.get('Origin') || '';
-  const allowedOrigin = isAllowedOrigin(origin) ? origin : allowedOrigins[0];
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  };
-}
-
-// Default CORS headers for preflight
 const corsHeaders = {
-  'Access-Control-Allow-Origin': allowedOrigins[0],
+  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
