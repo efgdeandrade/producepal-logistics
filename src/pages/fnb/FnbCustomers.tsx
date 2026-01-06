@@ -77,6 +77,8 @@ const emptyCustomer: Omit<FnbCustomer, 'id'> = {
   customer_type: 'regular',
   notes: '',
   pricing_tier_id: null,
+  latitude: null,
+  longitude: null,
 };
 
 const languageLabels: Record<string, string> = {
@@ -448,9 +450,29 @@ export default function FnbCustomers() {
       customer_type: customer.customer_type || 'regular',
       notes: customer.notes || '',
       pricing_tier_id: customer.pricing_tier_id || null,
+      latitude: customer.latitude || null,
+      longitude: customer.longitude || null,
     });
     setDetectedZoneInfo(null);
     setIsDialogOpen(true);
+  };
+
+  const handleLocationSelect = (location: {
+    latitude: number;
+    longitude: number;
+    detectedZone?: string;
+    detectedMajorZoneId?: string;
+    detectedMajorZoneName?: string;
+  }) => {
+    setFormData(prev => ({
+      ...prev,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      ...(location.detectedZone && { delivery_zone: location.detectedZone }),
+      ...(location.detectedMajorZoneId && { major_zone_id: location.detectedMajorZoneId }),
+    }));
+    setIsLocationPickerOpen(false);
+    toast.success('Location set successfully');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -1079,6 +1101,19 @@ export default function FnbCustomers() {
           onOpenChange={setIsMergeDialogOpen}
           customers={selectedCustomersForMerge}
           onMergeComplete={exitMergeMode}
+        />
+
+        {/* Location Picker Dialog */}
+        <CustomerLocationPicker
+          open={isLocationPickerOpen}
+          onOpenChange={setIsLocationPickerOpen}
+          initialLocation={
+            formData.latitude && formData.longitude
+              ? { lat: formData.latitude, lng: formData.longitude }
+              : null
+          }
+          customerName={formData.name || 'New Customer'}
+          onLocationSelect={handleLocationSelect}
         />
       </main>
     </div>
