@@ -1123,6 +1123,39 @@ export type Database = {
         }
         Relationships: []
       }
+      export_logs: {
+        Row: {
+          created_at: string | null
+          entity_type: string
+          export_type: string
+          file_size_bytes: number | null
+          filters_applied: Json | null
+          id: string
+          record_count: number | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          entity_type: string
+          export_type: string
+          file_size_bytes?: number | null
+          filters_applied?: Json | null
+          id?: string
+          record_count?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          entity_type?: string
+          export_type?: string
+          file_size_bytes?: number | null
+          filters_applied?: Json | null
+          id?: string
+          record_count?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       fnb_assistance_queue: {
         Row: {
           acknowledged_at: string | null
@@ -3077,6 +3110,86 @@ export type Database = {
           },
         ]
       }
+      report_executions: {
+        Row: {
+          error_message: string | null
+          executed_at: string | null
+          execution_time_ms: number | null
+          file_url: string | null
+          id: string
+          metadata: Json | null
+          recipients_sent: string[] | null
+          report_id: string | null
+          status: string
+        }
+        Insert: {
+          error_message?: string | null
+          executed_at?: string | null
+          execution_time_ms?: number | null
+          file_url?: string | null
+          id?: string
+          metadata?: Json | null
+          recipients_sent?: string[] | null
+          report_id?: string | null
+          status: string
+        }
+        Update: {
+          error_message?: string | null
+          executed_at?: string | null
+          execution_time_ms?: number | null
+          file_url?: string | null
+          id?: string
+          metadata?: Json | null
+          recipients_sent?: string[] | null
+          report_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_executions_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      report_templates: {
+        Row: {
+          config: Json
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_public: boolean | null
+          name: string
+          template_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          config: Json
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          name: string
+          template_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          config?: Json
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          name?: string
+          template_type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       role_permissions: {
         Row: {
           can_create: boolean
@@ -3231,6 +3344,66 @@ export type Database = {
           status?: string
           truck_identifier?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      scheduled_reports: {
+        Row: {
+          chart_config: Json | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          filters: Json | null
+          id: string
+          is_active: boolean | null
+          last_error: string | null
+          last_run_at: string | null
+          last_run_status: string | null
+          name: string
+          next_run_at: string | null
+          recipients: string[] | null
+          report_type: string
+          schedule_cron: string
+          timezone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          chart_config?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          filters?: Json | null
+          id?: string
+          is_active?: boolean | null
+          last_error?: string | null
+          last_run_at?: string | null
+          last_run_status?: string | null
+          name: string
+          next_run_at?: string | null
+          recipients?: string[] | null
+          report_type: string
+          schedule_cron: string
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          chart_config?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          filters?: Json | null
+          id?: string
+          is_active?: boolean | null
+          last_error?: string | null
+          last_run_at?: string | null
+          last_run_status?: string | null
+          name?: string
+          next_run_at?: string | null
+          recipients?: string[] | null
+          report_type?: string
+          schedule_cron?: string
+          timezone?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
