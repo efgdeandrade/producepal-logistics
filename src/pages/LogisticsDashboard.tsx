@@ -42,8 +42,8 @@ export default function LogisticsDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("routes")
-        .select("*")
-        .eq("is_active", true);
+        .select("id, route_number, status")
+        .neq("status", "completed");
       if (error) throw error;
       return data || [];
     },

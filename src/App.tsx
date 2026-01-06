@@ -15,6 +15,7 @@ import ExecutiveDashboard from "./pages/ExecutiveDashboard";
 
 // Import Department (formerly Dashboard, Orders, etc.)
 import Dashboard from "./pages/Dashboard";
+import ImportDashboard from "./pages/ImportDashboard";
 import NewOrder from "./pages/NewOrder";
 import History from "./pages/History";
 import OrderDetails from "./pages/OrderDetails";
@@ -27,6 +28,7 @@ import ConsolidationGroups from "./pages/ConsolidationGroups";
 import StandingOrders from "./pages/StandingOrders";
 
 // Distribution Department (formerly F&B)
+import DistributionDashboard from "./pages/DistributionDashboard";
 import FnbDashboard from "./pages/fnb/FnbDashboard";
 import FnbProducts from "./pages/fnb/FnbProducts";
 import FnbCustomers from "./pages/fnb/FnbCustomers";
@@ -45,6 +47,7 @@ import FnbPricingTiers from "./pages/fnb/FnbPricingTiers";
 import FnbSettings from "./pages/fnb/FnbSettings";
 
 // Logistics Department
+import LogisticsDashboard from "./pages/LogisticsDashboard";
 import RoutesPage from "./pages/Routes";
 import DriverPortal from "./pages/DriverPortal";
 import DeliveryManagement from "./pages/DeliveryManagement";
@@ -57,6 +60,7 @@ import FnbDriverZones from "./pages/fnb/FnbDriverZones";
 
 // Production Department
 import ProductionDashboard from "./pages/ProductionDashboard";
+import ProductionDashboardNew from "./pages/ProductionDashboardNew";
 import ProductionInput from "./pages/ProductionInput";
 import ProductionEdit from "./pages/ProductionEdit";
 
@@ -105,7 +109,7 @@ const App = () => (
               <Route path="/" element={<ProtectedWithLayout><ExecutiveDashboard /></ProtectedWithLayout>} />
 
               {/* ========== IMPORT DEPARTMENT ========== */}
-              <Route path="/import" element={<ProtectedWithLayout><Dashboard /></ProtectedWithLayout>} />
+              <Route path="/import" element={<ProtectedWithLayout><ImportDashboard /></ProtectedWithLayout>} />
               <Route path="/import/orders" element={<ProtectedWithLayout><History /></ProtectedWithLayout>} />
               <Route path="/import/orders/new" element={<ProtectedWithLayout><NewOrder /></ProtectedWithLayout>} />
               <Route path="/import/orders/edit/:orderId" element={<ProtectedWithLayout><NewOrder /></ProtectedWithLayout>} />
@@ -119,7 +123,7 @@ const App = () => (
               <Route path="/import/consolidation" element={<ProtectedWithLayout><ConsolidationGroups /></ProtectedWithLayout>} />
 
               {/* ========== DISTRIBUTION DEPARTMENT (formerly F&B) ========== */}
-              <Route path="/distribution" element={<ProtectedWithLayout><FnbDashboard /></ProtectedWithLayout>} />
+              <Route path="/distribution" element={<ProtectedWithLayout><DistributionDashboard /></ProtectedWithLayout>} />
               <Route path="/distribution/orders" element={<ProtectedWithLayout><FnbOrders /></ProtectedWithLayout>} />
               <Route path="/distribution/orders/new" element={<ProtectedWithLayout><FnbNewOrder /></ProtectedWithLayout>} />
               <Route path="/distribution/orders/edit/:orderId" element={<ProtectedWithLayout><FnbNewOrder /></ProtectedWithLayout>} />
@@ -138,7 +142,7 @@ const App = () => (
               <Route path="/distribution/settings" element={<ProtectedWithLayout><FnbSettings /></ProtectedWithLayout>} />
 
               {/* ========== LOGISTICS DEPARTMENT ========== */}
-              <Route path="/logistics" element={<ProtectedWithLayout><FnbDeliveryManagement /></ProtectedWithLayout>} />
+              <Route path="/logistics" element={<ProtectedWithLayout><LogisticsDashboard /></ProtectedWithLayout>} />
               <Route path="/logistics/dispatch" element={<ProtectedWithLayout><FnbDispatch /></ProtectedWithLayout>} />
               <Route path="/logistics/routes" element={<ProtectedWithLayout><RoutesPage /></ProtectedWithLayout>} />
               <Route path="/logistics/schedule" element={<ProtectedWithLayout><FnbDriverSchedule /></ProtectedWithLayout>} />
@@ -149,7 +153,8 @@ const App = () => (
               <Route path="/logistics/driver-mobile" element={<ProtectedWithLayout requiredRole="driver"><FnbDriverMobile /></ProtectedWithLayout>} />
 
               {/* ========== PRODUCTION DEPARTMENT ========== */}
-              <Route path="/production" element={<ProtectedWithLayout><ProductionDashboard /></ProtectedWithLayout>} />
+              <Route path="/production" element={<ProtectedWithLayout><ProductionDashboardNew /></ProtectedWithLayout>} />
+              <Route path="/production/dashboard" element={<ProtectedWithLayout><ProductionDashboard /></ProtectedWithLayout>} />
               <Route path="/production/input" element={<ProtectedWithLayout><ProductionInput /></ProtectedWithLayout>} />
               <Route path="/production/edit/:orderId" element={<ProtectedWithLayout><ProductionEdit /></ProtectedWithLayout>} />
 
