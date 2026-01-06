@@ -3494,6 +3494,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      merge_fnb_customers: {
+        Args: { primary_id: string; secondary_id: string }
+        Returns: undefined
+      }
       update_user_roles: {
         Args: {
           new_roles: Database["public"]["Enums"]["app_role"][]
