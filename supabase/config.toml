@@ -50,3 +50,12 @@ verify_jwt = true
 
 [functions.parse-whatsapp-order]
 verify_jwt = true
+
+[functions.send-notification-email]
+verify_jwt = true
+
+[functions.send-push-notification]
+verify_jwt = true
+
+[functions.process-alert-rules]
+verify_jwt = true

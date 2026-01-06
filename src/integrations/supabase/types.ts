@@ -14,6 +14,92 @@ export type Database = {
   }
   public: {
     Tables: {
+      alert_executions: {
+        Row: {
+          alert_rule_id: string
+          created_at: string
+          error_message: string | null
+          id: string
+          notifications_sent: number | null
+          status: string
+          trigger_data: Json | null
+          triggered_by: string
+        }
+        Insert: {
+          alert_rule_id: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          notifications_sent?: number | null
+          status?: string
+          trigger_data?: Json | null
+          triggered_by: string
+        }
+        Update: {
+          alert_rule_id?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          notifications_sent?: number | null
+          status?: string
+          trigger_data?: Json | null
+          triggered_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_executions_alert_rule_id_fkey"
+            columns: ["alert_rule_id"]
+            isOneToOne: false
+            referencedRelation: "alert_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      alert_rules: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          last_triggered_at: string | null
+          name: string
+          notification_channels: string[]
+          recipients: Json
+          trigger_config: Json
+          trigger_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          last_triggered_at?: string | null
+          name: string
+          notification_channels?: string[]
+          recipients?: Json
+          trigger_config?: Json
+          trigger_type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          last_triggered_at?: string | null
+          name?: string
+          notification_channels?: string[]
+          recipients?: Json
+          trigger_config?: Json
+          trigger_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bill_approvals: {
         Row: {
           approved_at: string | null
@@ -2405,6 +2491,54 @@ export type Database = {
           source_url?: string | null
           supply_demand_index?: number | null
           wholesale_conversion_factor?: number | null
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          action_url: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          message: string
+          metadata: Json | null
+          read_at: string | null
+          related_entity_id: string | null
+          related_entity_type: string | null
+          severity: string
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          action_url?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          message: string
+          metadata?: Json | null
+          read_at?: string | null
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          severity?: string
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          action_url?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          message?: string
+          metadata?: Json | null
+          read_at?: string | null
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          severity?: string
+          title?: string
+          type?: string
+          user_id?: string
         }
         Relationships: []
       }
