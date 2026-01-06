@@ -2030,6 +2030,76 @@ export type Database = {
         }
         Relationships: []
       }
+      fnb_unmatched_items: {
+        Row: {
+          added_as_global_alias: boolean | null
+          conversation_id: string | null
+          created_at: string | null
+          customer_id: string | null
+          detected_language: string | null
+          detected_quantity: number | null
+          detected_unit: string | null
+          id: string
+          is_resolved: boolean | null
+          raw_text: string
+          resolved_at: string | null
+          resolved_by: string | null
+          resolved_product_id: string | null
+        }
+        Insert: {
+          added_as_global_alias?: boolean | null
+          conversation_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          detected_language?: string | null
+          detected_quantity?: number | null
+          detected_unit?: string | null
+          id?: string
+          is_resolved?: boolean | null
+          raw_text: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolved_product_id?: string | null
+        }
+        Update: {
+          added_as_global_alias?: boolean | null
+          conversation_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          detected_language?: string | null
+          detected_quantity?: number | null
+          detected_unit?: string | null
+          id?: string
+          is_resolved?: boolean | null
+          raw_text?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolved_product_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_unmatched_items_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_unmatched_items_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_unmatched_items_resolved_product_id_fkey"
+            columns: ["resolved_product_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fnb_week_generations: {
         Row: {
           generated_at: string
