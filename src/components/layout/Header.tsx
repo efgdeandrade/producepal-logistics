@@ -17,6 +17,7 @@ import { useState, useEffect } from 'react';
 import { format, getWeek } from 'date-fns';
 import { getVersionDisplay } from '@/lib/version';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { OfflineIndicator } from '@/components/OfflineIndicator';
 
 export const Header = () => {
   const location = useLocation();
@@ -69,6 +70,7 @@ export const Header = () => {
               W{getWeek(currentTime)}
             </span>
           </div>
+          <OfflineIndicator />
           <Separator orientation="vertical" className="hidden md:block h-8" />
         </div>
         

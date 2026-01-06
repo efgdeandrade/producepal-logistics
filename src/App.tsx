@@ -9,6 +9,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PasswordChangeRequired } from "@/components/PasswordChangeRequired";
 import { VersionUpdateToast } from "@/components/VersionUpdateToast";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { BottomNavigation } from "@/components/mobile/BottomNavigation";
 
 // Executive
 import ExecutiveDashboard from "./pages/ExecutiveDashboard";
@@ -79,6 +80,7 @@ import PredictionsAnalytics from "./pages/PredictionsAnalytics";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import Install from "./pages/Install";
+import Offline from "./pages/Offline";
 
 const queryClient = new QueryClient();
 
@@ -100,10 +102,12 @@ const App = () => (
           <Sonner />
           <VersionUpdateToast />
           <BrowserRouter>
+            <BottomNavigation />
             <Routes>
               {/* Auth - No layout */}
               <Route path="/auth" element={<Auth />} />
               <Route path="/install" element={<Install />} />
+              <Route path="/offline" element={<Offline />} />
 
               {/* Executive Dashboard */}
               <Route path="/" element={<ProtectedWithLayout><ExecutiveDashboard /></ProtectedWithLayout>} />
