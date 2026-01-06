@@ -6,9 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Pencil, Trash2, ArrowLeft, Search, MessageSquare, Route, Upload, FileSpreadsheet, Loader2, MapPin, Wand2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, ArrowLeft, Search, MessageSquare, Route, Upload, FileSpreadsheet, Loader2, MapPin, Wand2, GitMerge, X } from 'lucide-react';
+import { CustomerMergeDialog } from '@/components/fnb/CustomerMergeDialog';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -119,8 +121,28 @@ export default function FnbCustomers() {
   const [detectedZoneInfo, setDetectedZoneInfo] = useState<GeocodeResult | null>(null);
   const [isBulkAssigning, setIsBulkAssigning] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0, matched: 0, failed: 0 });
+  const [isMergeMode, setIsMergeMode] = useState(false);
+  const [selectedForMerge, setSelectedForMerge] = useState<Set<string>>(new Set());
+  const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+
+  const toggleMergeSelection = (customerId: string) => {
+    setSelectedForMerge(prev => {
+      const next = new Set(prev);
+      if (next.has(customerId)) {
+        next.delete(customerId);
+      } else if (next.size < 2) {
+        next.add(customerId);
+      }
+      return next;
+    });
+  };
+
+  const exitMergeMode = () => {
+    setIsMergeMode(false);
+    setSelectedForMerge(new Set());
+  };
 
   const normalizePhone = (raw: string) => {
     const trimmed = raw.trim();
@@ -293,6 +315,8 @@ export default function FnbCustomers() {
       return data as FnbCustomer[];
     },
   });
+
+  const selectedCustomersForMerge = customers?.filter(c => selectedForMerge.has(c.id)) || [];
 
   // Fetch Major Zones
   const { data: majorZones } = useQuery({
@@ -585,6 +609,26 @@ export default function FnbCustomers() {
             )}
             {isBulkAssigning ? `${bulkProgress.current}/${bulkProgress.total}` : 'Auto-Assign Zones'}
           </Button>
+          {isMergeMode ? (
+            <>
+              <Button variant="outline" onClick={exitMergeMode}>
+                <X className="mr-2 h-4 w-4" />
+                Cancel
+              </Button>
+              <Button
+                onClick={() => setIsMergeDialogOpen(true)}
+                disabled={selectedForMerge.size !== 2}
+              >
+                <GitMerge className="mr-2 h-4 w-4" />
+                Merge Selected ({selectedForMerge.size}/2)
+              </Button>
+            </>
+          ) : (
+            <Button variant="outline" onClick={() => setIsMergeMode(true)}>
+              <GitMerge className="mr-2 h-4 w-4" />
+              Merge Customers
+            </Button>
+          )}
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={resetForm}>
@@ -929,6 +973,7 @@ export default function FnbCustomers() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    {isMergeMode && <TableHead className="w-10"></TableHead>}
                     <TableHead>Name</TableHead>
                     <TableHead>WhatsApp</TableHead>
                     <TableHead>Zone</TableHead>
@@ -939,7 +984,19 @@ export default function FnbCustomers() {
                 </TableHeader>
                 <TableBody>
                   {filteredCustomers.map((customer) => (
-                    <TableRow key={customer.id}>
+                    <TableRow 
+                      key={customer.id}
+                      className={selectedForMerge.has(customer.id) ? 'bg-primary/5' : ''}
+                    >
+                      {isMergeMode && (
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedForMerge.has(customer.id)}
+                            onCheckedChange={() => toggleMergeSelection(customer.id)}
+                            disabled={!selectedForMerge.has(customer.id) && selectedForMerge.size >= 2}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell className="font-medium">{customer.name}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -1002,6 +1059,14 @@ export default function FnbCustomers() {
             )}
           </CardContent>
         </Card>
+
+        {/* Merge Dialog */}
+        <CustomerMergeDialog
+          open={isMergeDialogOpen}
+          onOpenChange={setIsMergeDialogOpen}
+          customers={selectedCustomersForMerge}
+          onMergeComplete={exitMergeMode}
+        />
       </main>
     </div>
   );
