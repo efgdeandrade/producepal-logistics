@@ -1242,6 +1242,48 @@ export type Database = {
         }
         Relationships: []
       }
+      external_integrations: {
+        Row: {
+          config: Json
+          created_at: string
+          created_by: string | null
+          error_message: string | null
+          id: string
+          is_active: boolean
+          last_sync_at: string | null
+          name: string
+          sync_status: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          error_message?: string | null
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          name: string
+          sync_status?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          error_message?: string | null
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          name?: string
+          sync_status?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       fnb_assistance_queue: {
         Row: {
           acknowledged_at: string | null
@@ -3896,6 +3938,98 @@ export type Database = {
           },
         ]
       }
+      webhook_configs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          events: string[]
+          headers: Json | null
+          id: string
+          is_active: boolean
+          last_triggered_at: string | null
+          name: string
+          retry_count: number
+          secret: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          events?: string[]
+          headers?: Json | null
+          id?: string
+          is_active?: boolean
+          last_triggered_at?: string | null
+          name: string
+          retry_count?: number
+          secret: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          events?: string[]
+          headers?: Json | null
+          id?: string
+          is_active?: boolean
+          last_triggered_at?: string | null
+          name?: string
+          retry_count?: number
+          secret?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
+      webhook_logs: {
+        Row: {
+          attempt_number: number
+          created_at: string
+          duration_ms: number | null
+          error_message: string | null
+          event_type: string
+          id: string
+          payload: Json
+          response_body: string | null
+          response_status: number | null
+          webhook_id: string
+        }
+        Insert: {
+          attempt_number?: number
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          event_type: string
+          id?: string
+          payload: Json
+          response_body?: string | null
+          response_status?: number | null
+          webhook_id: string
+        }
+        Update: {
+          attempt_number?: number
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          payload?: Json
+          response_body?: string | null
+          response_status?: number | null
+          webhook_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_logs_webhook_id_fkey"
+            columns: ["webhook_id"]
+            isOneToOne: false
+            referencedRelation: "webhook_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       weight_estimation_accuracy: {
         Row: {
           actual_actual_weight_kg: number | null
@@ -3990,6 +4124,66 @@ export type Database = {
           std_deviation?: number | null
         }
         Relationships: []
+      }
+      whatsapp_messages: {
+        Row: {
+          created_at: string
+          customer_id: string | null
+          direction: string
+          error_message: string | null
+          id: string
+          message_id: string | null
+          message_text: string | null
+          message_type: string
+          metadata: Json | null
+          order_id: string | null
+          phone_number: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id?: string | null
+          direction: string
+          error_message?: string | null
+          id?: string
+          message_id?: string | null
+          message_text?: string | null
+          message_type?: string
+          metadata?: Json | null
+          order_id?: string | null
+          phone_number: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string | null
+          direction?: string
+          error_message?: string | null
+          id?: string
+          message_id?: string | null
+          message_text?: string | null
+          message_type?: string
+          metadata?: Json | null
+          order_id?: string | null
+          phone_number?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

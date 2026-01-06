@@ -59,3 +59,12 @@ verify_jwt = true
 
 [functions.process-alert-rules]
 verify_jwt = true
+
+[functions.whatsapp-webhook]
+verify_jwt = false
+
+[functions.webhook-dispatcher]
+verify_jwt = true
+
+[functions.quickbooks-sync]
+verify_jwt = true
