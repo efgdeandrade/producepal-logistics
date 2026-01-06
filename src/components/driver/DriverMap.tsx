@@ -15,6 +15,13 @@ interface Order {
   } | null;
 }
 
+// Helper to escape HTML to prevent XSS
+function escapeHtml(text: string): string {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 interface DriverMapProps {
   orders: Order[];
   driverLocation: { lat: number; lng: number } | null;
@@ -158,8 +165,8 @@ export default function DriverMap({
           new mapboxgl.Popup({ offset: 25, closeButton: false })
             .setHTML(`
               <div class="p-2">
-                <p class="font-semibold">${customer.name}</p>
-                <p class="text-sm text-gray-600">${customer.address || 'No address'}</p>
+                <p class="font-semibold">${escapeHtml(customer.name)}</p>
+                <p class="text-sm text-gray-600">${escapeHtml(customer.address || 'No address')}</p>
               </div>
             `)
         )

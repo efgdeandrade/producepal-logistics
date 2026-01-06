@@ -57,6 +57,13 @@ const DRIVER_COLORS = [
   "#8B5CF6", "#EC4899", "#06B6D4", "#F97316"
 ];
 
+// Helper to escape HTML to prevent XSS
+function escapeHtml(text: string): string {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 const FnbDispatch = () => {
   const queryClient = useQueryClient();
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -178,9 +185,9 @@ const FnbDispatch = () => {
           const marker = new mapboxgl.Marker(el)
             .setLngLat([order.longitude, order.latitude])
             .setPopup(new mapboxgl.Popup().setHTML(`
-              <strong>${order.customer_name}</strong><br/>
-              ${order.order_number}<br/>
-              ${order.customer_address || "No address"}
+              <strong>${escapeHtml(order.customer_name)}</strong><br/>
+              ${escapeHtml(order.order_number)}<br/>
+              ${escapeHtml(order.customer_address || "No address")}
             `))
             .addTo(map.current!);
           
@@ -220,8 +227,8 @@ const FnbDispatch = () => {
         const marker = new mapboxgl.Marker(el)
           .setLngLat([stop.longitude, stop.latitude])
           .setPopup(new mapboxgl.Popup().setHTML(`
-            <strong>${stop.customer_name}</strong><br/>
-            Order: ${stop.order_number}<br/>
+            <strong>${escapeHtml(stop.customer_name)}</strong><br/>
+            Order: ${escapeHtml(stop.order_number)}<br/>
             Stop #${stop.sequence}${stop.is_locked ? " 🔒" : ""}<br/>
             ETA: ${format(new Date(stop.estimated_arrival), "h:mm a")}
           `))
