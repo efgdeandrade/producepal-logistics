@@ -4,6 +4,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Users, Crosshair } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 // Curaçao coordinates
 const CURACAO_CENTER: [number, number] = [-68.9900, 12.1696];
@@ -80,12 +81,31 @@ export default function ZoneMapView({
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [tokenLoaded, setTokenLoaded] = useState(false);
 
-  // Initialize map
+  // Fetch Mapbox token securely
   useEffect(() => {
-    if (!mapContainer.current || map.current) return;
+    async function fetchToken() {
+      try {
+        const { data, error } = await supabase.functions.invoke('get-mapbox-token');
+        if (error) {
+          console.error('Error fetching mapbox token:', error);
+          return;
+        }
+        if (data?.token) {
+          mapboxgl.accessToken = data.token;
+          setTokenLoaded(true);
+        }
+      } catch (err) {
+        console.error('Failed to fetch mapbox token:', err);
+      }
+    }
+    fetchToken();
+  }, []);
 
-    mapboxgl.accessToken = "pk.eyJ1IjoiZnVpayIsImEiOiJjbWppanJ1NmgxczhlM2VvdHVvYWdrdTk4In0.PMmNjfuH2z3Rg26Idf0mjg";
+  // Initialize map after token is loaded
+  useEffect(() => {
+    if (!mapContainer.current || map.current || !tokenLoaded) return;
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
@@ -118,7 +138,7 @@ export default function ZoneMapView({
       map.current?.remove();
       map.current = null;
     };
-  }, []);
+  }, [tokenLoaded]);
 
   // Handle map click callback updates
   useEffect(() => {
