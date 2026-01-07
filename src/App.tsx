@@ -10,6 +10,7 @@ import { PasswordChangeRequired } from "@/components/PasswordChangeRequired";
 import { VersionUpdateToast } from "@/components/VersionUpdateToast";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { BottomNavigation } from "@/components/mobile/BottomNavigation";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Executive
 import ExecutiveDashboard from "./pages/ExecutiveDashboard";
@@ -106,12 +107,13 @@ const App = () => (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <Toaster />
-          <Sonner />
-          <VersionUpdateToast />
-          <BrowserRouter>
-            <BottomNavigation />
-            <Routes>
+          <ErrorBoundary>
+            <Toaster />
+            <Sonner />
+            <VersionUpdateToast />
+            <BrowserRouter>
+              <BottomNavigation />
+              <Routes>
               {/* Auth - No layout */}
               <Route path="/auth" element={<Auth />} />
               <Route path="/install" element={<Install />} />
@@ -238,6 +240,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
+          </ErrorBoundary>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
