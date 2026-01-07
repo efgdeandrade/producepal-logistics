@@ -337,10 +337,15 @@ Return the amount as a number with the currency code.`;
     const status = errorMessage.includes('Forbidden') ? 403 : 
                    errorMessage.includes('Invalid') || errorMessage.includes('Missing') ? 401 : 500;
     
+    // Return generic errors for 500, specific for auth issues
+    const clientMessage = status === 403 ? 'Forbidden: Insufficient permissions' :
+                          status === 401 ? 'Authentication required' :
+                          'Failed to process document. Please try again.';
+    
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: errorMessage
+        error: clientMessage
       }),
       { 
         status,

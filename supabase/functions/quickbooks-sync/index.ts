@@ -42,8 +42,8 @@ Deno.serve(async (req) => {
     });
   } catch (error: unknown) {
     console.error('QuickBooks sync error:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(JSON.stringify({ error: message }), {
+    // Return generic error to client, keep details in server logs
+    return new Response(JSON.stringify({ error: 'Sync operation failed. Please try again.' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
