@@ -82,19 +82,19 @@ export function MobileQuantityInput({
   };
 
   return (
-    <div className={cn("flex items-center gap-3", className)}>
+    <div className={cn("flex items-center gap-2", className)}>
       <Button
         type="button"
         variant="outline"
         size="icon"
-        className="h-12 w-12 rounded-full shrink-0 touch-manipulation"
+        className="h-10 w-10 rounded-full shrink-0 touch-manipulation"
         onClick={handleDecrement}
         disabled={value <= min}
       >
-        <Minus className="h-5 w-5" />
+        <Minus className="h-4 w-4" />
       </Button>
       
-      <div className="flex-1 flex items-center justify-center gap-2">
+      <div className="flex items-center justify-center gap-1.5 min-w-0">
         {isEditing ? (
           <Input
             ref={inputRef}
@@ -104,7 +104,7 @@ export function MobileQuantityInput({
             onChange={handleInputChange}
             onBlur={handleInputBlur}
             onKeyDown={handleKeyDown}
-            className="h-12 text-2xl font-semibold text-center tabular-nums w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            className="h-10 text-xl font-semibold text-center tabular-nums w-20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             min={min}
             max={max}
             step={step}
@@ -113,13 +113,13 @@ export function MobileQuantityInput({
           <button
             type="button"
             onClick={handleTapToEdit}
-            className="text-2xl font-semibold tabular-nums min-w-[3ch] text-center py-2 px-3 rounded-md hover:bg-muted/50 active:bg-muted transition-colors touch-manipulation"
+            className="text-xl font-semibold tabular-nums min-w-[3ch] text-center py-2 px-2 rounded-md hover:bg-muted/50 active:bg-muted transition-colors touch-manipulation"
           >
             {value}
           </button>
         )}
         {unit && (
-          <span className="text-base text-muted-foreground">{unit}</span>
+          <span className="text-sm text-muted-foreground">{unit}</span>
         )}
       </div>
       
@@ -127,11 +127,11 @@ export function MobileQuantityInput({
         type="button"
         variant="outline"
         size="icon"
-        className="h-12 w-12 rounded-full shrink-0 touch-manipulation"
+        className="h-10 w-10 rounded-full shrink-0 touch-manipulation"
         onClick={handleIncrement}
         disabled={value >= max}
       >
-        <Plus className="h-5 w-5" />
+        <Plus className="h-4 w-4" />
       </Button>
     </div>
   );
