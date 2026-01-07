@@ -5,13 +5,13 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+} from './ui/dialog';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
 import { Calendar, Copy, FileText, Plus, Users, Package } from 'lucide-react';
-import { useStandingOrders, DayTemplate } from '@/hooks/useStandingOrders';
-import { supabase } from '@/integrations/supabase/client';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { useStandingOrders, DayTemplate } from '../hooks/useStandingOrders';
+import { supabase } from '../integrations/supabase/client';
+import { ScrollArea } from './ui/scroll-area';
 
 interface CustomerOrderData {
   customerId: string;
