@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Header } from "@/components/layout/Header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "../../integrations/supabase/client";
+import { Header } from "../../components/layout/Header";
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { ArrowLeft, TrendingUp, Package, Users, Truck, DollarSign, Calendar, Clock, UserCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format, subDays, startOfWeek, startOfMonth, differenceInMinutes } from "date-fns";
@@ -440,7 +440,7 @@ export default function FnbAnalytics() {
                 </CardContent>
               </Card>
 
-              {/* Orders by Day */}
+              {/* Orders by Day of Week */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -449,166 +449,122 @@ export default function FnbAnalytics() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={dayOfWeekChartData}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis dataKey="day" tick={{ fill: "hsl(var(--muted-foreground))" }} />
-                      <YAxis tick={{ fill: "hsl(var(--muted-foreground))" }} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "hsl(var(--card))",
-                          border: "1px solid hsl(var(--border))",
-                        }}
-                      />
-                      <Bar dataKey="orders" fill="hsl(var(--primary))" radius={4} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  {dayOfWeekChartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={dayOfWeekChartData}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis dataKey="day" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
+                        <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "hsl(var(--card))",
+                            border: "1px solid hsl(var(--border))",
+                          }}
+                        />
+                        <Bar dataKey="orders" fill="hsl(var(--primary))" radius={4} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="text-center py-12 text-muted-foreground">No data</p>
+                  )}
                 </CardContent>
               </Card>
             </div>
 
-            {/* Driver Performance Section */}
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold flex items-center gap-2">
-                <UserCheck className="h-5 w-5" />
-                Driver Performance
-              </h2>
-              
-              <div className="grid gap-4 lg:grid-cols-2">
-                {/* Deliveries per Driver Chart */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Deliveries per Driver</CardTitle>
-                  </CardHeader>
-                  <CardContent>
+            {/* Driver Performance */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <UserCheck className="h-5 w-5" />
+                  Driver Performance
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <div>
+                    <h4 className="text-sm font-medium mb-4">Deliveries by Driver</h4>
                     {driverDeliveriesChartData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={driverDeliveriesChartData}>
+                      <ResponsiveContainer width="100%" height={200}>
+                        <BarChart data={driverDeliveriesChartData} layout="vertical">
                           <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                          <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
-                          <YAxis tick={{ fill: "hsl(var(--muted-foreground))" }} />
+                          <XAxis type="number" tick={{ fill: "hsl(var(--muted-foreground))" }} />
+                          <YAxis dataKey="name" type="category" width={100} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
                           <Tooltip
                             contentStyle={{
                               backgroundColor: "hsl(var(--card))",
                               border: "1px solid hsl(var(--border))",
                             }}
                           />
-                          <Bar dataKey="deliveries" fill="hsl(var(--primary))" radius={4} />
+                          <Bar dataKey="deliveries" fill="#10b981" radius={4} />
                         </BarChart>
                       </ResponsiveContainer>
                     ) : (
-                      <p className="text-center py-12 text-muted-foreground">No driver data</p>
+                      <p className="text-center py-8 text-muted-foreground">No driver data</p>
                     )}
-                  </CardContent>
-                </Card>
-
-                {/* Driver Performance Table */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Performance Details</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {driverPerformance.length > 0 ? (
-                        driverPerformance.map((driver, index) => (
-                          <div key={driver.name} className="flex items-center justify-between border-b border-border pb-2 last:border-0">
-                            <div className="flex items-center gap-3">
-                              <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
-                                {index + 1}
-                              </div>
-                              <div>
-                                <p className="font-medium text-sm">{driver.name}</p>
-                                <p className="text-xs text-muted-foreground">{driver.deliveries} deliveries</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-3 text-right">
-                              <div>
-                                <p className="text-sm font-medium">{driver.avgDeliveryTime} min</p>
-                                <p className="text-xs text-muted-foreground">avg time</p>
-                              </div>
-                              <Badge 
-                                variant={driver.codCollectionRate >= 90 ? "default" : driver.codCollectionRate >= 70 ? "secondary" : "destructive"}
-                              >
-                                {driver.codCollectionRate}% COD
-                              </Badge>
-                            </div>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium mb-4">Driver Stats</h4>
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                      {driverPerformance.slice(0, 5).map((driver) => (
+                        <div key={driver.name} className="flex items-center justify-between p-2 rounded border">
+                          <div>
+                            <p className="font-medium text-sm">{driver.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Avg: {driver.avgDeliveryTime} min • COD: {driver.codCollectionRate}%
+                            </p>
                           </div>
-                        ))
-                      ) : (
+                          <Badge variant="secondary">{driver.deliveries} deliveries</Badge>
+                        </div>
+                      ))}
+                      {driverPerformance.length === 0 && (
                         <p className="text-center py-4 text-muted-foreground">No driver data</p>
                       )}
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-
-            {/* Tables Row */}
-            <div className="grid gap-4 lg:grid-cols-2">
-              {/* Top Customers */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    Top Customers
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {topCustomers.length > 0 ? (
-                      topCustomers.map((customer, index) => (
-                        <div key={customer.name} className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
-                              {index + 1}
-                            </div>
-                            <div>
-                              <p className="font-medium text-sm">{customer.name}</p>
-                              <p className="text-xs text-muted-foreground">{customer.orders} orders</p>
-                            </div>
-                          </div>
-                          <Badge variant="secondary">{customer.revenue.toFixed(2)} XCG</Badge>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-center py-4 text-muted-foreground">No data</p>
-                    )}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </CardContent>
+            </Card>
 
-              {/* Top Products Table */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Package className="h-5 w-5" />
-                    Product Performance
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {topProducts.length > 0 ? (
-                      topProducts.map((product, index) => (
-                        <div key={product.name} className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
-                              {index + 1}
+            {/* Top Customers Table */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Top Customers
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-2">Customer</th>
+                        <th className="text-right p-2">Orders</th>
+                        <th className="text-right p-2">Revenue</th>
+                        <th className="text-right p-2">Avg Order</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {topCustomers.map((c, i) => (
+                        <tr key={c.name} className="border-b">
+                          <td className="p-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground">#{i + 1}</span>
+                              {c.name}
                             </div>
-                            <div>
-                              <p className="font-medium text-sm">{product.name}</p>
-                              <p className="text-xs text-muted-foreground">{product.quantity} units sold</p>
-                            </div>
-                          </div>
-                          <Badge variant="secondary">{product.revenue.toFixed(2)} XCG</Badge>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-center py-4 text-muted-foreground">No data</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                          </td>
+                          <td className="text-right p-2">{c.orders}</td>
+                          <td className="text-right p-2 font-medium">{c.revenue.toFixed(2)} XCG</td>
+                          <td className="text-right p-2 text-muted-foreground">
+                            {(c.revenue / c.orders).toFixed(2)} XCG
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
           </>
         )}
       </main>

@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { RevenueAnalytics } from "@/components/analytics/RevenueAnalytics";
-import { OperationalMetrics } from "@/components/analytics/OperationalMetrics";
-import { CustomerInsights } from "@/components/analytics/CustomerInsights";
-import { ProductAnalytics } from "@/components/analytics/ProductAnalytics";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Button } from "../components/ui/button";
+import { RevenueAnalytics } from "../components/analytics/RevenueAnalytics";
+import { OperationalMetrics } from "../components/analytics/OperationalMetrics";
+import { CustomerInsights } from "../components/analytics/CustomerInsights";
+import { ProductAnalytics } from "../components/analytics/ProductAnalytics";
 import { Download, FileSpreadsheet, Calendar, RefreshCw } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
