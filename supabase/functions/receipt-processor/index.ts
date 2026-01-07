@@ -277,9 +277,10 @@ IMPORTANT: Return ONLY the JSON object, no markdown formatting or explanation.`
     );
   } catch (error) {
     console.error("Error in receipt-processor:", error);
+    // Return generic error message to client, keep details in server logs
     return new Response(
       JSON.stringify({ 
-        error: error instanceof Error ? error.message : "Unknown error occurred" 
+        error: "Failed to process receipt. Please try again." 
       }),
       {
         status: 500,
