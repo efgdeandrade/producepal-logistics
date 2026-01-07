@@ -50,6 +50,7 @@ interface CustomerMapping {
 
 export function useConversationImport() {
   const [isParsing, setIsParsing] = useState(false);
+  const [parseStage, setParseStage] = useState<string>('');
   const [parsedData, setParsedData] = useState<ParsedConversation | null>(null);
   const [matchedItems, setMatchedItems] = useState<MatchedConversationItem[]>([]);
   const [originalText, setOriginalText] = useState('');
@@ -228,6 +229,65 @@ export function useConversationImport() {
     };
   }, []);
 
+  // Local pre-parsing to extract items without AI
+  const localPreParse = useCallback((text: string): ParsedItem[] => {
+    const items: ParsedItem[] = [];
+    const lines = text.split('\n').filter(l => l.trim());
+    
+    // Common patterns: "5 kg tomaat", "3 tros banana", "10 pcs lemon"
+    const patterns = [
+      /(\d+(?:[.,]\d+)?)\s*(kg|lb|gram|g|tros|bunch|case|kashi|stuk|pcs|pieces?|stuks?|dozen?)\s+(.+)/i,
+      /(.+?)\s*[-:]\s*(\d+(?:[.,]\d+)?)\s*(kg|lb|gram|g|tros|bunch|case|kashi|stuk|pcs|pieces?|stuks?|dozen?)?/i,
+      /(\d+(?:[.,]\d+)?)\s*[x×]\s*(.+)/i,
+    ];
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.length < 3) continue;
+      
+      for (const pattern of patterns) {
+        const match = trimmed.match(pattern);
+        if (match) {
+          const qty = parseFloat(match[1].replace(',', '.'));
+          if (!isNaN(qty) && qty > 0) {
+            items.push({
+              raw_text: trimmed,
+              interpreted_product: match[3]?.trim() || match[2]?.trim() || trimmed,
+              quantity: qty,
+              unit: match[2]?.toLowerCase() || 'pcs',
+              confidence: 'medium'
+            });
+            break;
+          }
+        }
+      }
+    }
+    
+    return items;
+  }, []);
+
+  // Try to match items locally before calling AI
+  const tryLocalMatch = useCallback((
+    items: ParsedItem[],
+    products: Product[],
+    customerMappings: CustomerMapping[],
+    globalAliases: { alias: string; product_id: string }[]
+  ): { matched: MatchedConversationItem[]; unmatched: ParsedItem[] } => {
+    const matched: MatchedConversationItem[] = [];
+    const unmatched: ParsedItem[] = [];
+    
+    for (const item of items) {
+      const result = matchItem(item, products, customerMappings, globalAliases);
+      if (result.matched_product_id && result.match_source !== 'unmatched') {
+        matched.push(result);
+      } else {
+        unmatched.push(item);
+      }
+    }
+    
+    return { matched, unmatched };
+  }, [matchItem]);
+
   // Parse conversation text
   const parseConversation = useCallback(async (
     text: string,
@@ -241,91 +301,157 @@ export function useConversationImport() {
 
     setIsParsing(true);
     setOriginalText(text);
+    setParseStage('Loading known mappings...');
 
     try {
-      // Fetch customer mappings if customer is known
-      let customerMappings: CustomerMapping[] = [];
-      if (customerId) {
-        const { data: mappings } = await supabase
-          .from('fnb_customer_product_mappings')
-          .select('customer_sku, customer_product_name, product_id, confidence_score, is_verified')
-          .eq('customer_id', customerId)
-          .order('confidence_score', { ascending: false });
-        customerMappings = mappings || [];
+      // Fetch customer mappings and global aliases in PARALLEL
+      const [mappingsResult, aliasesResult] = await Promise.all([
+        customerId 
+          ? supabase
+              .from('fnb_customer_product_mappings')
+              .select('customer_sku, customer_product_name, product_id, confidence_score, is_verified')
+              .eq('customer_id', customerId)
+              .order('confidence_score', { ascending: false })
+          : Promise.resolve({ data: [] }),
+        supabase
+          .from('fnb_product_aliases')
+          .select('alias, product_id')
+      ]);
+      
+      const customerMappings: CustomerMapping[] = mappingsResult.data || [];
+      const globalAliases = aliasesResult.data || [];
+
+      // Try local pre-parsing first
+      setParseStage('Quick matching...');
+      const localItems = localPreParse(text);
+      
+      let parsed: ParsedConversation;
+      let allMatched: MatchedConversationItem[] = [];
+      
+      if (localItems.length > 0) {
+        // Try to match locally first
+        const { matched: localMatched, unmatched } = tryLocalMatch(
+          localItems, products, customerMappings, globalAliases
+        );
+        
+        if (unmatched.length === 0 && localMatched.length > 0) {
+          // All items matched locally - no AI needed!
+          parsed = {
+            detected_language: 'mixed',
+            items: localItems
+          };
+          allMatched = localMatched;
+          setParseStage('');
+        } else {
+          // Some items need AI help
+          setParseStage(`AI parsing ${unmatched.length} items...`);
+          
+          // Only send top 80 products to AI (reduce context size)
+          const topProducts = products.slice(0, 80);
+          
+          const { data, error } = await supabase.functions.invoke('parse-whatsapp-order', {
+            body: {
+              conversationText: text,
+              products: topProducts.map(p => ({
+                code: p.code,
+                name: p.name,
+                name_pap: p.name_pap,
+                name_nl: p.name_nl,
+                name_es: p.name_es
+              })),
+              customerMappings: customerMappings.slice(0, 30).map(m => ({
+                customer_product_name: m.customer_product_name,
+                product_name: products.find(p => p.id === m.product_id)?.name || ''
+              }))
+            }
+          });
+
+          if (error) throw error;
+          if (data?.error) throw new Error(data.error);
+
+          parsed = data as ParsedConversation;
+          
+          // Match AI-parsed items
+          setParseStage('Matching products...');
+          for (const item of parsed.items) {
+            allMatched.push(matchItem(item, products, customerMappings, globalAliases));
+          }
+        }
+      } else {
+        // No local items parsed, use AI for everything
+        setParseStage('AI parsing order...');
+        
+        // Only send top 80 products to AI
+        const topProducts = products.slice(0, 80);
+        
+        const { data, error } = await supabase.functions.invoke('parse-whatsapp-order', {
+          body: {
+            conversationText: text,
+            products: topProducts.map(p => ({
+              code: p.code,
+              name: p.name,
+              name_pap: p.name_pap,
+              name_nl: p.name_nl,
+              name_es: p.name_es
+            })),
+            customerMappings: customerMappings.slice(0, 30).map(m => ({
+              customer_product_name: m.customer_product_name,
+              product_name: products.find(p => p.id === m.product_id)?.name || ''
+            }))
+          }
+        });
+
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+
+        parsed = data as ParsedConversation;
+        
+        setParseStage('Matching products...');
+        for (const item of parsed.items) {
+          allMatched.push(matchItem(item, products, customerMappings, globalAliases));
+        }
       }
 
-      // Fetch global aliases
-      const { data: aliases } = await supabase
-        .from('fnb_product_aliases')
-        .select('alias, product_id');
-      const globalAliases = aliases || [];
-
-      // Call AI to parse the conversation
-      const { data, error } = await supabase.functions.invoke('parse-whatsapp-order', {
-        body: {
-          conversationText: text,
-          products: products.map(p => ({
-            code: p.code,
-            name: p.name,
-            name_pap: p.name_pap,
-            name_nl: p.name_nl,
-            name_es: p.name_es
-          })),
-          customerMappings: customerMappings.map(m => ({
-            customer_product_name: m.customer_product_name,
-            product_name: products.find(p => p.id === m.product_id)?.name || ''
-          }))
-        }
-      });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      const parsed = data as ParsedConversation;
       setParsedData(parsed);
 
-      // Match all items and log to AI training database
-      const matched: MatchedConversationItem[] = [];
-      const newLogIds: string[] = [];
-      
-      for (const item of parsed.items) {
-        const matchedItem = matchItem(item, products, customerMappings, globalAliases);
+      // Batch insert AI logs (instead of one-by-one)
+      if (allMatched.length > 0 && customerId) {
+        setParseStage('Logging...');
+        const logEntries = allMatched.map(item => ({
+          raw_text: item.raw_text,
+          interpreted_text: item.interpreted_product,
+          customer_id: customerId,
+          matched_product_id: item.matched_product_id,
+          match_source: item.match_source,
+          confidence: item.confidence,
+          detected_language: parsed.detected_language,
+          detected_quantity: item.quantity,
+          detected_unit: item.unit,
+          needs_review: item.confidence === 'low' || item.match_source === 'unmatched',
+        }));
         
-        // Log this match to AI training database
         try {
-          const { data: logEntry, error: logError } = await supabase
+          const { data: logData } = await supabase
             .from('fnb_ai_match_logs')
-            .insert({
-              raw_text: item.raw_text,
-              interpreted_text: item.interpreted_product,
-              customer_id: customerId,
-              matched_product_id: matchedItem.matched_product_id,
-              match_source: matchedItem.match_source,
-              confidence: matchedItem.confidence,
-              detected_language: parsed.detected_language,
-              detected_quantity: item.quantity,
-              detected_unit: item.unit,
-              needs_review: matchedItem.confidence === 'low' || matchedItem.match_source === 'unmatched',
-            })
-            .select('id')
-            .single();
+            .insert(logEntries)
+            .select('id');
           
-          if (!logError && logEntry) {
-            matchedItem.log_id = logEntry.id;
-            newLogIds.push(logEntry.id);
+          if (logData) {
+            logData.forEach((log, i) => {
+              if (allMatched[i]) allMatched[i].log_id = log.id;
+            });
+            logIdsRef.current = logData.map(l => l.id);
           }
         } catch (e) {
-          console.error('Failed to log AI match:', e);
+          console.error('Failed to batch log AI matches:', e);
         }
-        
-        matched.push(matchedItem);
       }
       
-      logIdsRef.current = newLogIds;
-      setMatchedItems(matched);
+      setMatchedItems(allMatched);
+      setParseStage('');
 
-      // Count how many were learned matches (verified or customer_mapping)
-      const learned = matched.filter(m => 
+      // Count how many were learned matches
+      const learned = allMatched.filter(m => 
         m.match_source === 'verified' || m.match_source === 'customer_mapping'
       ).length;
       setLearnedCount(learned);
@@ -337,8 +463,9 @@ export function useConversationImport() {
       return null;
     } finally {
       setIsParsing(false);
+      setParseStage('');
     }
-  }, [matchItem]);
+  }, [matchItem, localPreParse, tryLocalMatch]);
 
   // Update a matched item (when user corrects a match)
   const updateMatchedItem = useCallback((index: number, updates: Partial<MatchedConversationItem>) => {
@@ -441,6 +568,7 @@ export function useConversationImport() {
 
   return {
     isParsing,
+    parseStage,
     parsedData,
     matchedItems,
     originalText,

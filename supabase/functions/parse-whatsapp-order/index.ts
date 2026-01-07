@@ -91,7 +91,7 @@ Extract ALL order items mentioned in the conversation, even if spread across mul
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: "google/gemini-2.5-flash-lite",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: `Parse this WhatsApp conversation and extract the order:\n\n${conversationText}` }
