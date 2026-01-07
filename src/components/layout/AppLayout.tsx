@@ -87,8 +87,8 @@ export function AppLayout({ children }: AppLayoutProps) {
         <SidebarInset className="flex-1">
           {/* Compact header with breadcrumb */}
           <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 lg:px-6">
-            <SidebarTrigger className="-ml-1 md:hidden" />
-            <Separator orientation="vertical" className="h-6 md:hidden" />
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="h-6" />
             
             <Breadcrumb className="hidden md:flex">
               <BreadcrumbList>
