@@ -86,14 +86,44 @@
       })();
     </script>
     
-    <!-- Dynamic module import with error catching -->
+    <!-- Dynamic module import with fetch diagnostics -->
     <script type="module">
-      import("/src/main.tsx").catch(function(err) {
-        console.error('[Module Load Failed]', err);
-        if (window.__showBootError) {
-          window.__showBootError('[Module Load Failed]\n' + (err.stack || err.message || err));
+      (async function() {
+        var modulePath = "./src/main.tsx";
+        
+        // Diagnostic: check what the server returns for this path
+        try {
+          var res = await fetch(modulePath);
+          var contentType = res.headers.get("content-type") || "unknown";
+          var statusInfo = "Status: " + res.status + " | Content-Type: " + contentType;
+          console.log("[BOOT DIAG] " + statusInfo);
+          
+          if (!res.ok) {
+            var body = await res.text();
+            window.__showBootError("[Fetch Failed] " + statusInfo + "\n\nResponse (first 500 chars):\n" + body.slice(0, 500));
+            return;
+          }
+          
+          if (contentType.includes("text/html")) {
+            var body = await res.text();
+            window.__showBootError("[Wrong Content-Type] Server returned HTML instead of JS.\n" + statusInfo + "\n\nResponse (first 500 chars):\n" + body.slice(0, 500));
+            return;
+          }
+        } catch (fetchErr) {
+          window.__showBootError("[Fetch Error] Could not fetch module.\n" + (fetchErr.message || fetchErr));
+          return;
         }
-      });
+        
+        // Now try the actual import with relative path
+        try {
+          await import(modulePath);
+        } catch (err) {
+          console.error('[Module Load Failed]', err);
+          if (window.__showBootError) {
+            window.__showBootError('[Module Load Failed]\n' + (err.stack || err.message || err));
+          }
+        }
+      })();
     </script>
   </body>
 </html>
