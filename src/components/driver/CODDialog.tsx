@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
 import { toast } from 'sonner';
 import { 
   X, 
@@ -19,8 +19,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { supabase } from '@/integrations/supabase/client';
+} from "../ui/select";
+import { supabase } from '../../integrations/supabase/client';
 
 type PaymentMethodType = "cash" | "swipe" | "transfer" | "credit";
 

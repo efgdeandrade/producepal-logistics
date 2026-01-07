@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
+import { supabase } from "../../integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Button } from "../ui/button";
 import { RefreshCw, Download } from "lucide-react";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { DriverOverviewCards } from "./DriverOverviewCards";
