@@ -247,41 +247,27 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
-      <SidebarHeader className="border-b border-sidebar-border p-4">
-        <div className="flex items-center justify-between">
-          <a
-            href="/"
-            onClick={(e) => {
-              e.preventDefault();
-              navigate("/");
+      <SidebarHeader className="border-b border-sidebar-border p-2">
+        <a
+          href="/"
+          onClick={(e) => {
+            e.preventDefault();
+            navigate("/");
+          }}
+          className="flex items-center justify-center gap-2"
+        >
+          <img 
+            src="/logo.png" 
+            alt="FUIK Logo" 
+            className="h-8 w-auto object-contain"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = '/favicon.png';
             }}
-            className="flex items-center gap-3"
-          >
-            <img 
-              src="/logo.png" 
-              alt="FUIK Logo" 
-              className="h-9 w-auto object-contain"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = '/favicon.png';
-              }}
-            />
-            {!collapsed && (
-              <span className="font-semibold text-sidebar-foreground">FUIK</span>
-            )}
-          </a>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleSidebar}
-            className="h-8 w-8"
-          >
-            {collapsed ? (
-              <PanelLeft className="h-4 w-4" />
-            ) : (
-              <PanelLeftClose className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
+          />
+          {!collapsed && (
+            <span className="font-semibold text-sidebar-foreground">FUIK</span>
+          )}
+        </a>
       </SidebarHeader>
 
       <SidebarContent className="px-2">
