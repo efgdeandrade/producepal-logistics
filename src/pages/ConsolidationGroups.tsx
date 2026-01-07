@@ -34,7 +34,7 @@ import {
 import { ArrowLeft, Plus, Pencil, Trash2, Package, Layers } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Header } from "@/components/layout/Header";
+
 
 interface Product {
   id: string;
@@ -264,19 +264,14 @@ const ConsolidationGroups = () => {
 
   if (productsLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <main className="container mx-auto px-4 py-8">
-          <div className="text-center text-muted-foreground">Loading...</div>
-        </main>
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center text-muted-foreground">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <Link to="/products">
@@ -518,9 +513,8 @@ const ConsolidationGroups = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </main>
-    </div>
-  );
+      </div>
+    );
 };
 
 export default ConsolidationGroups;

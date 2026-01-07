@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Header } from "@/components/layout/Header";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -193,9 +193,7 @@ const FnbDriverSchedule = () => {
   const hasPendingChanges = Object.keys(pendingChanges).length > 0;
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="container mx-auto px-4 py-6 max-w-7xl">
+    <div className="container mx-auto px-4 py-6 max-w-7xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -359,9 +357,8 @@ const FnbDriverSchedule = () => {
                 </CardContent>
               </Card>
             ))}
-          </div>
-        )}
-      </main>
+        </div>
+      )}
     </div>
   );
 };

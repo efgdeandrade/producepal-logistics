@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Header } from '@/components/layout/Header';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -574,11 +574,10 @@ export default function FnbOrders() {
   const selectedDayOrders = selectedDay ? getOrdersForDay(selectedDay) : [];
 
   return (
-    <div className="min-h-screen bg-background relative">
+    <div className="relative">
       {/* Quick Order FAB for mobile */}
       <QuickOrderFAB />
-      <Header />
-      <main className="container py-6 space-y-6">
+      <div className="container py-6 space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
             <Link to="/distribution">

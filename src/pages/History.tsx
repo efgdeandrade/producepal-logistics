@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Header } from '@/components/layout/Header';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -70,18 +70,14 @@ const History = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <main className="container py-8">
-          <LoadingBox />
-        </main>
+      <div className="container py-8">
+        <LoadingBox />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
+    <div className="container py-8">
       
       <main className="container py-8">
         <div className="flex items-center gap-4 mb-8">

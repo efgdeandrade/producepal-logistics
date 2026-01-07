@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Header } from '@/components/layout/Header';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -191,10 +191,7 @@ const Invoices = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-
-      <main className="container py-8">
+    <div className="container py-8">
         <div className="mb-8 flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
             <ArrowLeft className="h-6 w-6" />
@@ -334,8 +331,7 @@ const Invoices = () => {
               </div>
             </div>
           </DialogContent>
-        </Dialog>
-      </main>
+      </Dialog>
     </div>
   );
 };

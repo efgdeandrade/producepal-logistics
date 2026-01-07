@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Header } from '@/components/layout/Header';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -1003,9 +1003,7 @@ export default function CIFCalculator() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="container mx-auto py-8 px-4">
+    <div className="container mx-auto py-8 px-4">
         <div className="flex items-center gap-4 mb-8">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
             <ArrowLeft className="h-4 w-4" />
@@ -1451,8 +1449,7 @@ export default function CIFCalculator() {
               </Tabs>
             </div>
           </TabsContent>
-        </Tabs>
-      </main>
+      </Tabs>
     </div>
   );
 }

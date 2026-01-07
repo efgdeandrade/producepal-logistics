@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Header } from '@/components/layout/Header';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -404,20 +404,14 @@ export default function StandingOrders() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="container py-8 text-center">
-          <p className="text-muted-foreground">Loading standing orders...</p>
-        </div>
+      <div className="container py-8 text-center">
+        <p className="text-muted-foreground">Loading standing orders...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      
-      <main className="container py-8">
+    <div className="container py-8">
         <div className="mb-8">
           <div className="flex items-center gap-4 mb-2">
             <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>

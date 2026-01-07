@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Header } from '@/components/layout/Header';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -338,26 +338,21 @@ export default function UserManagement() {
 
   if (!isAdmin()) {
     return (
-      <>
-        <Header />
-        <div className="container mx-auto p-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Access Denied</CardTitle>
-              <CardDescription>
-                You don't have permission to access this page.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
-      </>
+      <div className="container mx-auto p-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Access Denied</CardTitle>
+            <CardDescription>
+              You don't have permission to access this page.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <>
-      <Header />
-      <div className="container mx-auto p-8">
+    <div className="container mx-auto p-8">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>

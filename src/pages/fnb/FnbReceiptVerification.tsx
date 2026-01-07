@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Header } from "@/components/layout/Header";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -262,9 +262,7 @@ export default function FnbReceiptVerification() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="container py-6 space-y-6">
+    <div className="container py-6 space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
             <Link to="/fnb">
@@ -549,7 +547,6 @@ export default function FnbReceiptVerification() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </main>
-    </div>
-  );
+      </div>
+    );
 }

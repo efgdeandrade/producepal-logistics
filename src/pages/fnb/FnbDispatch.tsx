@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Header } from "@/components/layout/Header";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -395,9 +395,7 @@ const FnbDispatch = () => {
   const lockedCount = assignments.reduce((sum, a) => sum + a.stops.filter(s => s.is_locked).length, 0);
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="h-[calc(100vh-4rem)] flex">
+    <div className="h-[calc(100vh-8rem)] flex">
         {/* Left Panel */}
         <div className="w-80 border-r flex flex-col">
           <div className="p-4 border-b">
@@ -679,9 +677,8 @@ const FnbDispatch = () => {
                 )}
               </Button>
             </div>
-          )}
-        </div>
-      </main>
+        )}
+      </div>
     </div>
   );
 };

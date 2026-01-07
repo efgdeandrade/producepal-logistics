@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Header } from '@/components/layout/Header';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -802,8 +802,7 @@ const PICKER_UNITS = [
   // Show session modal if no picker name or switching
   if (!pickerName || showSwitchPicker) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
+      <div className="space-y-6">
         <PickerSessionModal 
           open={true} 
           onSessionStart={handleSessionStart} 
@@ -822,8 +821,7 @@ const PICKER_UNITS = [
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
+    <div className="space-y-6">
       
       {/* Floating notification stack */}
       <NewOrderToast

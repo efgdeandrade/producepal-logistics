@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Header } from '@/components/layout/Header';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Package, TrendingUp, Users, Calendar, PlusCircle } from 'lucide-react';
@@ -312,10 +312,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      
-      <main className="container py-8">
+    <div className="container py-8">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-foreground mb-2">Dashboard</h1>
           <p className="text-muted-foreground">Welcome back! Here's your order overview.</p>
@@ -494,11 +491,10 @@ const Dashboard = () => {
                 </div>
               </TabsContent>
             </Tabs>
-          </CardContent>
-        </Card>
-      </main>
-    </div>
-  );
+      </CardContent>
+    </Card>
+  </div>
+);
 };
 
 export default Dashboard;
