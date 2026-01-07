@@ -32,6 +32,58 @@ const versionPlugin = () => ({
   }
 });
 
+// Workaround for environments where the @/ alias is not applied during import analysis.
+// Rewrites @/foo -> /src/foo at transform-time so Vite can resolve modules reliably.
+const rewriteAtAliasPlugin = () => ({
+  name: "rewrite-at-alias",
+  enforce: "pre" as const,
+  transform(code: string, id: string) {
+    // Only rewrite our app source files.
+    if (!id.includes("/src/")) return;
+
+    const hasAliasImport =
+      code.includes('"@/') ||
+      code.includes("'@/") ||
+      code.includes('"@lib/') ||
+      code.includes("'@lib/") ||
+      code.includes('"@components/') ||
+      code.includes("'@components/") ||
+      code.includes('"@hooks/') ||
+      code.includes("'@hooks/") ||
+      code.includes('"@contexts/') ||
+      code.includes("'@contexts/");
+
+    if (!hasAliasImport) return;
+
+    const rewritten = code
+      // static imports/exports
+      .replaceAll('from "@/', 'from "/src/')
+      .replaceAll("from '@/", "from '/src/")
+      .replaceAll('export * from "@/', 'export * from "/src/')
+      .replaceAll("export * from '@/", "export * from '/src/")
+      // static imports/exports - other aliases
+      .replaceAll('from "@components/', 'from "/src/components/')
+      .replaceAll("from '@components/", "from '/src/components/")
+      .replaceAll('from "@lib/', 'from "/src/lib/')
+      .replaceAll("from '@lib/", "from '/src/lib/")
+      .replaceAll('from "@hooks/', 'from "/src/hooks/')
+      .replaceAll("from '@hooks/", "from '/src/hooks/")
+      .replaceAll('from "@contexts/', 'from "/src/contexts/')
+      .replaceAll("from '@contexts/", "from '/src/contexts/")
+      // dynamic imports
+      .replaceAll('import("@/', 'import("/src/')
+      .replaceAll("import('@/", "import('/src/")
+      .replaceAll('import("@components/', 'import("/src/components/')
+      .replaceAll("import('@components/", "import('/src/components/")
+      .replaceAll('import("@lib/', 'import("/src/lib/')
+      .replaceAll("import('@lib/", "import('/src/lib/");
+
+    if (rewritten === code) return;
+
+    return { code: rewritten, map: null };
+  },
+});
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
@@ -42,7 +94,8 @@ export default defineConfig(({ mode }) => ({
     __BUILD_TIMESTAMP__: JSON.stringify(BUILD_TIMESTAMP),
   },
   plugins: [
-    react(), 
+    rewriteAtAliasPlugin(),
+    react(),
     mode === "development" && componentTagger(),
     versionPlugin(),
     VitePWA({
@@ -149,7 +202,18 @@ export default defineConfig(({ mode }) => ({
   ].filter(Boolean),
   resolve: {
     alias: [
-      { find: /^@\//, replacement: path.resolve(__dirname, "src") + "/" }
+      // Primary alias
+      { find: /^@\//, replacement: path.resolve(__dirname, "src") + "/" },
+
+      // Additional aliases seen in some generated/rewritten files
+      { find: /^@components\//, replacement: path.resolve(__dirname, "src/components") + "/" },
+      { find: /^@lib\//, replacement: path.resolve(__dirname, "src/lib") + "/" },
+      { find: /^@hooks\//, replacement: path.resolve(__dirname, "src/hooks") + "/" },
+      { find: /^@contexts\//, replacement: path.resolve(__dirname, "src/contexts") + "/" },
+      { find: /^@integrations\//, replacement: path.resolve(__dirname, "src/integrations") + "/" },
+      { find: /^@pages\//, replacement: path.resolve(__dirname, "src/pages") + "/" },
+      { find: /^@utils\//, replacement: path.resolve(__dirname, "src/utils") + "/" },
+      { find: /^@types\//, replacement: path.resolve(__dirname, "src/types") + "/" },
     ],
   },
   test: {
