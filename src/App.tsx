@@ -4,15 +4,15 @@ import { TooltipProvider } from "./components/ui/tooltip";
 import { lazy, Suspense, useState, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { ThemeProvider } from "@/components/ThemeProvider";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { PasswordChangeRequired } from "@/components/PasswordChangeRequired";
-import { VersionUpdateToast } from "@/components/VersionUpdateToast";
-import { AppLayout } from "@/components/layout/AppLayout";
-import { BottomNavigation } from "@/components/mobile/BottomNavigation";
-import { InstallBanner } from "@/components/pwa/InstallBanner";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { AuthProvider } from "./contexts/AuthContext";
+import { ThemeProvider } from "./components/ThemeProvider";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+import { PasswordChangeRequired } from "./components/PasswordChangeRequired";
+import { VersionUpdateToast } from "./components/VersionUpdateToast";
+import { AppLayout } from "./components/layout/AppLayout";
+import { BottomNavigation } from "./components/mobile/BottomNavigation";
+import { InstallBanner } from "./components/pwa/InstallBanner";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 // Loading fallback component
 const PageLoader = () => (
