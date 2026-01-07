@@ -49,6 +49,7 @@ import FnbReceiptVerification from "./pages/fnb/FnbReceiptVerification";
 import FnbStandingOrders from "./pages/fnb/FnbStandingOrders";
 import FnbPricingTiers from "./pages/fnb/FnbPricingTiers";
 import FnbSettings from "./pages/fnb/FnbSettings";
+import FnbQuickPaste from "./pages/fnb/FnbQuickPaste";
 
 // Logistics Department
 import LogisticsDashboard from "./pages/LogisticsDashboard";
@@ -183,6 +184,9 @@ const App = () => (
               <Route path="/distribution/cod" element={<ProtectedWithLayout><FnbCODReconciliation /></ProtectedWithLayout>} />
               <Route path="/distribution/analytics" element={<ProtectedWithLayout><FnbAnalytics /></ProtectedWithLayout>} />
               <Route path="/distribution/settings" element={<ProtectedWithLayout><FnbSettings /></ProtectedWithLayout>} />
+              
+              {/* Quick Paste - Direct mobile order entry */}
+              <Route path="/quick-paste" element={<ProtectedWithLayout><FnbQuickPaste /></ProtectedWithLayout>} />
 
               {/* ========== LOGISTICS DEPARTMENT ========== */}
               <Route path="/logistics" element={<ProtectedWithLayout><LogisticsDashboard /></ProtectedWithLayout>} />
