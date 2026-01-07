@@ -59,7 +59,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/ThemeToggle";
+
 import { Separator } from "@/components/ui/separator";
 import {
   DropdownMenu,
@@ -139,6 +139,12 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
 
   const [signingOut, setSigningOut] = useState(false);
+  const { theme, setTheme } = useTheme();
+  const isDark = theme === "dark";
+
+  const toggleTheme = () => {
+    setTheme(isDark ? "light" : "dark");
+  };
 
   const isActive = (path: string) => location.pathname === path;
   const isInSection = (basePath: string) => location.pathname.startsWith(basePath);
@@ -488,7 +494,15 @@ export function AppSidebar() {
               </div>
             </div>
             <div className="flex items-center gap-1">
-              <ThemeToggle />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleTheme}
+                className="h-8 w-8"
+                title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+              >
+                {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
