@@ -867,7 +867,6 @@ const OrderDetails = () => {
           </TabsContent>
         </Tabs>
         </div>
-      </main>
 
       <Dialog open={showFormatDialog} onOpenChange={setShowFormatDialog}>
         <DialogContent>

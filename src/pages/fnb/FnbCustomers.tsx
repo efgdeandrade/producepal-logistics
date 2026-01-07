@@ -1150,7 +1150,6 @@ export default function FnbCustomers() {
           customerName={formData.name || 'New Customer'}
           onLocationSelect={handleLocationSelect}
         />
-      </main>
     </div>
   );
 }

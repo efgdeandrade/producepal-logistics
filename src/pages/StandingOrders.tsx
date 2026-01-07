@@ -742,7 +742,6 @@ export default function StandingOrders() {
             </TabsContent>
           ))}
         </Tabs>
-      </main>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

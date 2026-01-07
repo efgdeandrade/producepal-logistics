@@ -609,7 +609,6 @@ export default function FnbAnalytics() {
             </div>
           </>
         )}
-      </main>
     </div>
   );
 }

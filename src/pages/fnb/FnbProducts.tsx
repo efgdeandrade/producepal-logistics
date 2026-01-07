@@ -737,7 +737,6 @@ export default function FnbProducts() {
             )}
           </CardContent>
         </Card>
-      </main>
     </div>
   );
 }
