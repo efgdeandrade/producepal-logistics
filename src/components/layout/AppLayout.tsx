@@ -14,6 +14,8 @@ import { useLocation } from "react-router-dom";
 import { format, getWeek } from "date-fns";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -63,6 +65,7 @@ const routeLabels: Record<string, string> = {
 export function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -116,28 +119,28 @@ export function AppLayout({ children }: AppLayoutProps) {
             </div>
 
             {/* Time/Date/Week Display + Notifications */}
-            <div className="ml-auto flex items-center gap-3">
+            <div className="ml-auto flex items-center gap-2 sm:gap-3">
               <div className="flex flex-col text-right">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-foreground">
-                    {format(currentTime, 'MMM do')}
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <span className="text-xs sm:text-sm font-medium text-foreground">
+                    {format(currentTime, 'MMM d')}
                   </span>
-                  <span className="text-sm text-muted-foreground font-mono">
+                  <span className="text-xs sm:text-sm text-muted-foreground font-mono">
                     {format(currentTime, 'HH:mm')}
                   </span>
                 </div>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-[10px] sm:text-xs text-muted-foreground hidden xs:block">
                   Week {getWeek(currentTime)}
                 </span>
               </div>
-              <Separator orientation="vertical" className="h-6" />
+              <Separator orientation="vertical" className="h-6 hidden sm:block" />
               <NotificationCenter />
               <OfflineIndicator />
             </div>
           </header>
 
           {/* Main content */}
-          <main className="flex-1 p-4 lg:p-6">
+          <main className={cn("flex-1 p-4 lg:p-6", isMobile && "pb-20")}>
             {children}
           </main>
         </SidebarInset>

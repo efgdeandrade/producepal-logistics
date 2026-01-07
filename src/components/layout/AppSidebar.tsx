@@ -28,10 +28,10 @@ import {
   DollarSign,
   Eye,
   Loader2,
-  PanelLeftClose,
-  PanelLeft,
   FileBarChart,
   CalendarClock,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -61,6 +61,14 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Separator } from "@/components/ui/separator";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useTheme } from "next-themes";
 
 interface MenuItem {
   title: string;
@@ -77,6 +85,49 @@ interface MenuSection {
   role?: string;
   items: MenuItem[];
   defaultOpen?: boolean;
+}
+
+// Collapsed footer with dropdown menu
+function CollapsedFooter({ 
+  getInitials, 
+  userEmail, 
+  onSignOut, 
+  signingOut 
+}: { 
+  getInitials: () => string; 
+  userEmail?: string; 
+  onSignOut: () => void; 
+  signingOut: boolean;
+}) {
+  const { theme, setTheme } = useTheme();
+  
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="w-full h-10">
+          <Avatar className="h-8 w-8">
+            <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+              {getInitials()}
+            </AvatarFallback>
+          </Avatar>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="right" align="end" className="w-48">
+        <DropdownMenuItem disabled className="text-xs opacity-70">
+          {userEmail}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+          {theme === 'dark' ? <Sun className="h-4 w-4 mr-2" /> : <Moon className="h-4 w-4 mr-2" />}
+          Toggle Theme
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onSignOut} disabled={signingOut}>
+          <LogOut className="h-4 w-4 mr-2" />
+          {signingOut ? 'Signing out...' : 'Sign Out'}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 export function AppSidebar() {
@@ -414,23 +465,28 @@ export function AppSidebar() {
         )}
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border p-4">
-        <div className={cn("flex items-center", collapsed ? "justify-center" : "justify-between")}>
-          <div className="flex items-center gap-3">
-            <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                {getInitials()}
-              </AvatarFallback>
-            </Avatar>
-            {!collapsed && (
+      <SidebarFooter className="border-t border-sidebar-border p-2">
+        {collapsed ? (
+          <CollapsedFooter 
+            getInitials={getInitials} 
+            userEmail={user?.email} 
+            onSignOut={handleSignOut} 
+            signingOut={signingOut} 
+          />
+        ) : (
+          <div className="flex items-center justify-between p-2">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                  {getInitials()}
+                </AvatarFallback>
+              </Avatar>
               <div className="flex flex-col">
                 <span className="text-sm font-medium text-sidebar-foreground truncate max-w-[120px]">
                   {user?.email}
                 </span>
               </div>
-            )}
-          </div>
-          {!collapsed && (
+            </div>
             <div className="flex items-center gap-1">
               <ThemeToggle />
               <Button
@@ -447,8 +503,8 @@ export function AppSidebar() {
                 )}
               </Button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </SidebarFooter>
     </Sidebar>
   );
