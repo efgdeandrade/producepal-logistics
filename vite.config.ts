@@ -94,7 +94,7 @@ export default defineConfig(({ mode }) => ({
     __BUILD_TIMESTAMP__: JSON.stringify(BUILD_TIMESTAMP),
   },
   plugins: [
-    rewriteAtAliasPlugin(),
+    // rewriteAtAliasPlugin(), // Disabled - using relative imports instead
     react(),
     mode === "development" && componentTagger(),
     versionPlugin(),

@@ -1,17 +1,17 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Header } from '@/components/layout/Header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Header } from '../../components/layout/Header';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '../../integrations/supabase/client';
 import { ArrowLeft, CheckCircle, Clock, User, Package, AlertTriangle, LogOut, Scale, Trophy, Edit, ChevronDown, ChevronUp, RefreshCw, Volume2, VolumeX, CalendarIcon } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext';
-import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useAuth } from '../../contexts/AuthContext';
+import { Input } from '../../components/ui/input';
+import { Checkbox } from '../../components/ui/checkbox';
+import { Calendar } from '../../components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover';
 import { format, isToday, startOfDay, endOfDay, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import {
@@ -20,21 +20,21 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { PickerSessionModal } from '@/components/fnb/PickerSessionModal';
-import { PickerQueueZone } from '@/components/fnb/PickerQueueZone';
-import { ShortageRequestDialog } from '@/components/fnb/ShortageRequestDialog';
-import { PickerLeaderboard } from '@/components/fnb/PickerLeaderboard';
-import { ShortageQuickButtons } from '@/components/fnb/ShortageQuickButtons';
-import { AssistanceButton } from '@/components/fnb/AssistanceButton';
-import { WeightAccuracyIndicator } from '@/components/fnb/WeightAccuracyIndicator';
-import { ItemsOverviewTable } from '@/components/fnb/ItemsOverviewTable';
-import { NewOrderToast } from '@/components/fnb/NewOrderToast';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { cn } from '@/lib/utils';
-import { useNewOrderNotifications } from '@/hooks/useNewOrderNotifications';
+} from '../../components/ui/select';
+import { Badge } from '../../components/ui/badge';
+import { Progress } from '../../components/ui/progress';
+import { PickerSessionModal } from '../../components/fnb/PickerSessionModal';
+import { PickerQueueZone } from '../../components/fnb/PickerQueueZone';
+import { ShortageRequestDialog } from '../../components/fnb/ShortageRequestDialog';
+import { PickerLeaderboard } from '../../components/fnb/PickerLeaderboard';
+import { ShortageQuickButtons } from '../../components/fnb/ShortageQuickButtons';
+import { AssistanceButton } from '../../components/fnb/AssistanceButton';
+import { WeightAccuracyIndicator } from '../../components/fnb/WeightAccuracyIndicator';
+import { ItemsOverviewTable } from '../../components/fnb/ItemsOverviewTable';
+import { NewOrderToast } from '../../components/fnb/NewOrderToast';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../components/ui/collapsible';
+import { cn } from '../../lib/utils';
+import { useNewOrderNotifications } from '../../hooks/useNewOrderNotifications';
 
 const SHORT_REASONS = [
   { value: 'out_of_stock', label: 'Out of Stock' },
