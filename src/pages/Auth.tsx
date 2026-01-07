@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
 
 const loginSchema = z.object({
@@ -12,19 +13,60 @@ const loginSchema = z.object({
   password: z.string().min(6, { message: 'Password must be at least 6 characters' }),
 });
 
+const roleToPortal: Record<string, string> = {
+  driver: '/logistics',
+  picker: '/distribution/picker',
+  production: '/production',
+  hr: '/hr',
+  import: '/import',
+  distribution: '/distribution',
+  admin: '/',
+};
+
 export default function Auth() {
   const navigate = useNavigate();
-  const { user, signIn } = useAuth();
+  const { user, roles, signIn } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (user) {
-      navigate('/');
+    if (user && roles.length >= 0) {
+      redirectToPortal();
     }
-  }, [user, navigate]);
+  }, [user, roles]);
+
+  const redirectToPortal = async () => {
+    if (!user) return;
+    
+    try {
+      // Check for saved default portal preference
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('default_portal')
+        .eq('id', user.id)
+        .single();
+
+      if (profile?.default_portal) {
+        navigate(`/${profile.default_portal}`, { replace: true });
+        return;
+      }
+
+      // Redirect based on primary role
+      for (const role of roles) {
+        if (roleToPortal[role]) {
+          navigate(roleToPortal[role], { replace: true });
+          return;
+        }
+      }
+
+      // Default to executive dashboard
+      navigate('/', { replace: true });
+    } catch (error) {
+      navigate('/', { replace: true });
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

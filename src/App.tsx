@@ -1,9 +1,9 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { lazy, Suspense, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -14,10 +14,17 @@ import { BottomNavigation } from "@/components/mobile/BottomNavigation";
 import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
+// Portal Layouts
+import { DistributionLayout } from "@/layouts/DistributionLayout";
+import { LogisticsLayout } from "@/layouts/LogisticsLayout";
+import { ProductionLayout } from "@/layouts/ProductionLayout";
+import { HRLayout } from "@/layouts/HRLayout";
+import { ImportLayout } from "@/layouts/ImportLayout";
+
 // Executive
 import ExecutiveDashboard from "./pages/ExecutiveDashboard";
 
-// Import Department (formerly Dashboard, Orders, etc.)
+// Import Department
 import Dashboard from "./pages/Dashboard";
 import ImportDashboard from "./pages/ImportDashboard";
 import NewOrder from "./pages/NewOrder";
@@ -31,7 +38,7 @@ import CIFCalculatorHistory from "./pages/CIFCalculatorHistory";
 import ConsolidationGroups from "./pages/ConsolidationGroups";
 import StandingOrders from "./pages/StandingOrders";
 
-// Distribution Department (formerly F&B)
+// Distribution Department
 import DistributionDashboard from "./pages/DistributionDashboard";
 import FnbDashboard from "./pages/fnb/FnbDashboard";
 import FnbProducts from "./pages/fnb/FnbProducts";
@@ -99,7 +106,48 @@ import ApiConnectors from "./pages/integrations/ApiConnectors";
 
 const queryClient = new QueryClient();
 
-// Wrapper for protected routes with layout
+// Layout wrapper components for each portal
+const ProtectedDistribution = ({ children }: { children: React.ReactNode }) => (
+  <ProtectedRoute>
+    <PasswordChangeRequired>
+      <DistributionLayout>{children}</DistributionLayout>
+    </PasswordChangeRequired>
+  </ProtectedRoute>
+);
+
+const ProtectedLogistics = ({ children, requiredRole }: { children: React.ReactNode; requiredRole?: string }) => (
+  <ProtectedRoute requiredRole={requiredRole}>
+    <PasswordChangeRequired>
+      <LogisticsLayout>{children}</LogisticsLayout>
+    </PasswordChangeRequired>
+  </ProtectedRoute>
+);
+
+const ProtectedProduction = ({ children }: { children: React.ReactNode }) => (
+  <ProtectedRoute>
+    <PasswordChangeRequired>
+      <ProductionLayout>{children}</ProductionLayout>
+    </PasswordChangeRequired>
+  </ProtectedRoute>
+);
+
+const ProtectedHR = ({ children }: { children: React.ReactNode }) => (
+  <ProtectedRoute>
+    <PasswordChangeRequired>
+      <HRLayout>{children}</HRLayout>
+    </PasswordChangeRequired>
+  </ProtectedRoute>
+);
+
+const ProtectedImport = ({ children }: { children: React.ReactNode }) => (
+  <ProtectedRoute>
+    <PasswordChangeRequired>
+      <ImportLayout>{children}</ImportLayout>
+    </PasswordChangeRequired>
+  </ProtectedRoute>
+);
+
+// Executive/Admin layout (full access)
 const ProtectedWithLayout = ({ children, requiredRole }: { children: React.ReactNode; requiredRole?: string }) => (
   <ProtectedRoute requiredRole={requiredRole}>
     <PasswordChangeRequired>
@@ -108,7 +156,7 @@ const ProtectedWithLayout = ({ children, requiredRole }: { children: React.React
   </ProtectedRoute>
 );
 
-// Offline detection wrapper - shows offline page only when truly offline
+// Offline detection wrapper
 const OfflineWrapper = ({ children }: { children: React.ReactNode }) => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
@@ -132,6 +180,23 @@ const OfflineWrapper = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Conditionally show bottom navigation only for executive/full layout
+const ConditionalBottomNav = () => {
+  const location = useLocation();
+  const isPortalRoute = 
+    location.pathname.startsWith('/distribution') ||
+    location.pathname.startsWith('/logistics') ||
+    location.pathname.startsWith('/production') ||
+    location.pathname.startsWith('/hr') ||
+    location.pathname.startsWith('/import') ||
+    location.pathname === '/quick-paste';
+  
+  // Portal routes have their own navigation, don't show global bottom nav
+  if (isPortalRoute) return null;
+  
+  return <BottomNavigation />;
+};
+
 const App = () => (
   <ThemeProvider>
     <QueryClientProvider client={queryClient}>
@@ -144,139 +209,129 @@ const App = () => (
               <VersionUpdateToast />
               <BrowserRouter>
                 <InstallBanner />
-                <BottomNavigation />
+                <ConditionalBottomNav />
                 <Routes>
-                {/* Auth - No layout */}
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/install" element={<Install />} />
+                  {/* Auth - No layout */}
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/install" element={<Install />} />
 
-              {/* Executive Dashboard */}
-              <Route path="/" element={<ProtectedWithLayout><ExecutiveDashboard /></ProtectedWithLayout>} />
+                  {/* Executive Dashboard - Full layout */}
+                  <Route path="/" element={<ProtectedWithLayout><ExecutiveDashboard /></ProtectedWithLayout>} />
 
-              {/* ========== IMPORT DEPARTMENT ========== */}
-              <Route path="/import" element={<ProtectedWithLayout><ImportDashboard /></ProtectedWithLayout>} />
-              <Route path="/import/orders" element={<ProtectedWithLayout><History /></ProtectedWithLayout>} />
-              <Route path="/import/orders/new" element={<ProtectedWithLayout><NewOrder /></ProtectedWithLayout>} />
-              <Route path="/import/orders/edit/:orderId" element={<ProtectedWithLayout><NewOrder /></ProtectedWithLayout>} />
-              <Route path="/import/orders/:orderId" element={<ProtectedWithLayout><OrderDetails /></ProtectedWithLayout>} />
-              <Route path="/import/standing-orders" element={<ProtectedWithLayout><StandingOrders /></ProtectedWithLayout>} />
-              <Route path="/import/cif" element={<ProtectedWithLayout><CIFCalculator /></ProtectedWithLayout>} />
-              <Route path="/import/cif/history" element={<ProtectedWithLayout><CIFCalculatorHistory /></ProtectedWithLayout>} />
-              <Route path="/import/suppliers" element={<ProtectedWithLayout><Suppliers /></ProtectedWithLayout>} />
-              <Route path="/import/products" element={<ProtectedWithLayout><Products /></ProtectedWithLayout>} />
-              <Route path="/import/customers" element={<ProtectedWithLayout><Customers /></ProtectedWithLayout>} />
-              <Route path="/import/consolidation" element={<ProtectedWithLayout><ConsolidationGroups /></ProtectedWithLayout>} />
+                  {/* ========== IMPORT PORTAL ========== */}
+                  <Route path="/import" element={<ProtectedImport><ImportDashboard /></ProtectedImport>} />
+                  <Route path="/import/orders" element={<ProtectedImport><History /></ProtectedImport>} />
+                  <Route path="/import/orders/new" element={<ProtectedImport><NewOrder /></ProtectedImport>} />
+                  <Route path="/import/orders/edit/:orderId" element={<ProtectedImport><NewOrder /></ProtectedImport>} />
+                  <Route path="/import/orders/:orderId" element={<ProtectedImport><OrderDetails /></ProtectedImport>} />
+                  <Route path="/import/standing-orders" element={<ProtectedImport><StandingOrders /></ProtectedImport>} />
+                  <Route path="/import/cif" element={<ProtectedImport><CIFCalculator /></ProtectedImport>} />
+                  <Route path="/import/cif/history" element={<ProtectedImport><CIFCalculatorHistory /></ProtectedImport>} />
+                  <Route path="/import/suppliers" element={<ProtectedImport><Suppliers /></ProtectedImport>} />
+                  <Route path="/import/products" element={<ProtectedImport><Products /></ProtectedImport>} />
+                  <Route path="/import/customers" element={<ProtectedImport><Customers /></ProtectedImport>} />
+                  <Route path="/import/consolidation" element={<ProtectedImport><ConsolidationGroups /></ProtectedImport>} />
 
-              {/* ========== DISTRIBUTION DEPARTMENT (formerly F&B) ========== */}
-              <Route path="/distribution" element={<ProtectedWithLayout><DistributionDashboard /></ProtectedWithLayout>} />
-              <Route path="/distribution/orders" element={<ProtectedWithLayout><FnbOrders /></ProtectedWithLayout>} />
-              <Route path="/distribution/orders/new" element={<ProtectedWithLayout><FnbNewOrder /></ProtectedWithLayout>} />
-              <Route path="/distribution/orders/edit/:orderId" element={<ProtectedWithLayout><FnbNewOrder /></ProtectedWithLayout>} />
-              <Route path="/distribution/weekly" element={<ProtectedWithLayout><FnbWeeklyBoard /></ProtectedWithLayout>} />
-              <Route path="/distribution/standing-orders" element={<ProtectedWithLayout><FnbStandingOrders /></ProtectedWithLayout>} />
-              <Route path="/distribution/picker" element={<ProtectedWithLayout><FnbPicker /></ProtectedWithLayout>} />
-              <Route path="/distribution/picker/:orderId" element={<ProtectedWithLayout><FnbPicker /></ProtectedWithLayout>} />
-              <Route path="/distribution/picker/supervisor" element={<ProtectedWithLayout><FnbPickerSupervisor /></ProtectedWithLayout>} />
-              <Route path="/distribution/receipts" element={<ProtectedWithLayout><FnbReceiptVerification /></ProtectedWithLayout>} />
-              <Route path="/distribution/customers" element={<ProtectedWithLayout><FnbCustomers /></ProtectedWithLayout>} />
-              <Route path="/distribution/products" element={<ProtectedWithLayout><FnbProducts /></ProtectedWithLayout>} />
-              <Route path="/distribution/pricing" element={<ProtectedWithLayout><FnbPricingTiers /></ProtectedWithLayout>} />
-              <Route path="/distribution/zones" element={<ProtectedWithLayout><FnbZoneManagement /></ProtectedWithLayout>} />
-              <Route path="/distribution/cod" element={<ProtectedWithLayout><FnbCODReconciliation /></ProtectedWithLayout>} />
-              <Route path="/distribution/analytics" element={<ProtectedWithLayout><FnbAnalytics /></ProtectedWithLayout>} />
-              <Route path="/distribution/settings" element={<ProtectedWithLayout><FnbSettings /></ProtectedWithLayout>} />
-              <Route path="/distribution/training" element={<ProtectedWithLayout><FnbTrainingHub /></ProtectedWithLayout>} />
-              
-              {/* Quick Paste - Direct mobile order entry */}
-              <Route path="/quick-paste" element={<ProtectedWithLayout><FnbQuickPaste /></ProtectedWithLayout>} />
+                  {/* ========== DISTRIBUTION PORTAL ========== */}
+                  <Route path="/distribution" element={<ProtectedDistribution><DistributionDashboard /></ProtectedDistribution>} />
+                  <Route path="/distribution/orders" element={<ProtectedDistribution><FnbOrders /></ProtectedDistribution>} />
+                  <Route path="/distribution/orders/new" element={<ProtectedDistribution><FnbNewOrder /></ProtectedDistribution>} />
+                  <Route path="/distribution/orders/edit/:orderId" element={<ProtectedDistribution><FnbNewOrder /></ProtectedDistribution>} />
+                  <Route path="/distribution/weekly" element={<ProtectedDistribution><FnbWeeklyBoard /></ProtectedDistribution>} />
+                  <Route path="/distribution/standing-orders" element={<ProtectedDistribution><FnbStandingOrders /></ProtectedDistribution>} />
+                  <Route path="/distribution/picker" element={<ProtectedDistribution><FnbPicker /></ProtectedDistribution>} />
+                  <Route path="/distribution/picker/:orderId" element={<ProtectedDistribution><FnbPicker /></ProtectedDistribution>} />
+                  <Route path="/distribution/picker/supervisor" element={<ProtectedDistribution><FnbPickerSupervisor /></ProtectedDistribution>} />
+                  <Route path="/distribution/receipts" element={<ProtectedDistribution><FnbReceiptVerification /></ProtectedDistribution>} />
+                  <Route path="/distribution/customers" element={<ProtectedDistribution><FnbCustomers /></ProtectedDistribution>} />
+                  <Route path="/distribution/products" element={<ProtectedDistribution><FnbProducts /></ProtectedDistribution>} />
+                  <Route path="/distribution/pricing" element={<ProtectedDistribution><FnbPricingTiers /></ProtectedDistribution>} />
+                  <Route path="/distribution/zones" element={<ProtectedDistribution><FnbZoneManagement /></ProtectedDistribution>} />
+                  <Route path="/distribution/cod" element={<ProtectedDistribution><FnbCODReconciliation /></ProtectedDistribution>} />
+                  <Route path="/distribution/analytics" element={<ProtectedDistribution><FnbAnalytics /></ProtectedDistribution>} />
+                  <Route path="/distribution/settings" element={<ProtectedDistribution><FnbSettings /></ProtectedDistribution>} />
+                  <Route path="/distribution/training" element={<ProtectedDistribution><FnbTrainingHub /></ProtectedDistribution>} />
+                  
+                  {/* Quick Paste - Uses Distribution layout */}
+                  <Route path="/quick-paste" element={<ProtectedDistribution><FnbQuickPaste /></ProtectedDistribution>} />
 
-              {/* ========== LOGISTICS DEPARTMENT ========== */}
-              <Route path="/logistics" element={<ProtectedWithLayout><LogisticsDashboard /></ProtectedWithLayout>} />
-              <Route path="/logistics/dispatch" element={<ProtectedWithLayout><FnbDispatch /></ProtectedWithLayout>} />
-              <Route path="/logistics/routes" element={<ProtectedWithLayout><RoutesPage /></ProtectedWithLayout>} />
-              <Route path="/logistics/schedule" element={<ProtectedWithLayout><FnbDriverSchedule /></ProtectedWithLayout>} />
-              <Route path="/logistics/driver-zones" element={<ProtectedWithLayout><FnbDriverZones /></ProtectedWithLayout>} />
-              <Route path="/logistics/deliveries" element={<ProtectedWithLayout><DeliveryManagement /></ProtectedWithLayout>} />
-              <Route path="/logistics/invoices" element={<ProtectedWithLayout><Invoices /></ProtectedWithLayout>} />
-              <Route path="/logistics/driver-portal" element={<ProtectedWithLayout requiredRole="driver"><FnbDriverPortal /></ProtectedWithLayout>} />
-              <Route path="/logistics/driver-mobile" element={<ProtectedWithLayout requiredRole="driver"><FnbDriverMobile /></ProtectedWithLayout>} />
+                  {/* ========== LOGISTICS PORTAL ========== */}
+                  <Route path="/logistics" element={<ProtectedLogistics><LogisticsDashboard /></ProtectedLogistics>} />
+                  <Route path="/logistics/dispatch" element={<ProtectedLogistics><FnbDispatch /></ProtectedLogistics>} />
+                  <Route path="/logistics/routes" element={<ProtectedLogistics><RoutesPage /></ProtectedLogistics>} />
+                  <Route path="/logistics/schedule" element={<ProtectedLogistics><FnbDriverSchedule /></ProtectedLogistics>} />
+                  <Route path="/logistics/driver-zones" element={<ProtectedLogistics><FnbDriverZones /></ProtectedLogistics>} />
+                  <Route path="/logistics/deliveries" element={<ProtectedLogistics><DeliveryManagement /></ProtectedLogistics>} />
+                  <Route path="/logistics/invoices" element={<ProtectedLogistics><Invoices /></ProtectedLogistics>} />
+                  <Route path="/logistics/driver-portal" element={<ProtectedLogistics requiredRole="driver"><FnbDriverPortal /></ProtectedLogistics>} />
+                  <Route path="/logistics/driver-mobile" element={<ProtectedLogistics requiredRole="driver"><FnbDriverMobile /></ProtectedLogistics>} />
 
-              {/* ========== PRODUCTION DEPARTMENT ========== */}
-              <Route path="/production" element={<ProtectedWithLayout><ProductionDashboardNew /></ProtectedWithLayout>} />
-              <Route path="/production/dashboard" element={<ProtectedWithLayout><ProductionDashboard /></ProtectedWithLayout>} />
-              <Route path="/production/input" element={<ProtectedWithLayout><ProductionInput /></ProtectedWithLayout>} />
-              <Route path="/production/edit/:orderId" element={<ProtectedWithLayout><ProductionEdit /></ProtectedWithLayout>} />
+                  {/* ========== PRODUCTION PORTAL ========== */}
+                  <Route path="/production" element={<ProtectedProduction><ProductionDashboardNew /></ProtectedProduction>} />
+                  <Route path="/production/dashboard" element={<ProtectedProduction><ProductionDashboard /></ProtectedProduction>} />
+                  <Route path="/production/input" element={<ProtectedProduction><ProductionInput /></ProtectedProduction>} />
+                  <Route path="/production/edit/:orderId" element={<ProtectedProduction><ProductionEdit /></ProtectedProduction>} />
 
-              {/* ========== HR DEPARTMENT ========== */}
-              <Route path="/hr" element={<ProtectedWithLayout><HRDashboard /></ProtectedWithLayout>} />
-              <Route path="/hr/employees" element={<ProtectedWithLayout><Employees /></ProtectedWithLayout>} />
-              <Route path="/hr/attendance" element={<ProtectedWithLayout><TimeAttendance /></ProtectedWithLayout>} />
-              <Route path="/hr/timesheets" element={<ProtectedWithLayout><Timesheets /></ProtectedWithLayout>} />
-              <Route path="/hr/documents" element={<ProtectedWithLayout><Documents /></ProtectedWithLayout>} />
+                  {/* ========== HR PORTAL ========== */}
+                  <Route path="/hr" element={<ProtectedHR><HRDashboard /></ProtectedHR>} />
+                  <Route path="/hr/employees" element={<ProtectedHR><Employees /></ProtectedHR>} />
+                  <Route path="/hr/attendance" element={<ProtectedHR><TimeAttendance /></ProtectedHR>} />
+                  <Route path="/hr/timesheets" element={<ProtectedHR><Timesheets /></ProtectedHR>} />
+                  <Route path="/hr/documents" element={<ProtectedHR><Documents /></ProtectedHR>} />
 
-              {/* ========== SETTINGS & ADMIN ========== */}
-              <Route path="/settings" element={<ProtectedWithLayout requiredRole="admin"><Settings /></ProtectedWithLayout>} />
-              <Route path="/settings/integrations" element={<ProtectedWithLayout requiredRole="admin"><IntegrationHub /></ProtectedWithLayout>} />
-              <Route path="/settings/integrations/whatsapp" element={<ProtectedWithLayout requiredRole="admin"><WhatsAppSettings /></ProtectedWithLayout>} />
-              <Route path="/settings/integrations/quickbooks" element={<ProtectedWithLayout requiredRole="admin"><QuickBooksSync /></ProtectedWithLayout>} />
-              <Route path="/settings/integrations/webhooks" element={<ProtectedWithLayout requiredRole="admin"><WebhookManager /></ProtectedWithLayout>} />
-              <Route path="/settings/integrations/api" element={<ProtectedWithLayout requiredRole="admin"><ApiConnectors /></ProtectedWithLayout>} />
-              <Route path="/users" element={<ProtectedWithLayout requiredRole="admin"><UserManagement /></ProtectedWithLayout>} />
-              <Route path="/user-activity" element={<ProtectedWithLayout><UserActivity /></ProtectedWithLayout>} />
-              <Route path="/analytics" element={<ProtectedWithLayout><PredictionsAnalytics /></ProtectedWithLayout>} />
-              <Route path="/reports" element={<ProtectedWithLayout><ExecutiveReports /></ProtectedWithLayout>} />
-              <Route path="/reports/library" element={<ProtectedWithLayout><ReportLibrary /></ProtectedWithLayout>} />
-              <Route path="/reports/scheduled" element={<ProtectedWithLayout><ScheduledReports /></ProtectedWithLayout>} />
+                  {/* ========== SETTINGS & ADMIN (Full Layout) ========== */}
+                  <Route path="/settings" element={<ProtectedWithLayout requiredRole="admin"><Settings /></ProtectedWithLayout>} />
+                  <Route path="/settings/integrations" element={<ProtectedWithLayout requiredRole="admin"><IntegrationHub /></ProtectedWithLayout>} />
+                  <Route path="/settings/integrations/whatsapp" element={<ProtectedWithLayout requiredRole="admin"><WhatsAppSettings /></ProtectedWithLayout>} />
+                  <Route path="/settings/integrations/quickbooks" element={<ProtectedWithLayout requiredRole="admin"><QuickBooksSync /></ProtectedWithLayout>} />
+                  <Route path="/settings/integrations/webhooks" element={<ProtectedWithLayout requiredRole="admin"><WebhookManager /></ProtectedWithLayout>} />
+                  <Route path="/settings/integrations/api" element={<ProtectedWithLayout requiredRole="admin"><ApiConnectors /></ProtectedWithLayout>} />
+                  <Route path="/users" element={<ProtectedWithLayout requiredRole="admin"><UserManagement /></ProtectedWithLayout>} />
+                  <Route path="/user-activity" element={<ProtectedWithLayout><UserActivity /></ProtectedWithLayout>} />
+                  <Route path="/analytics" element={<ProtectedWithLayout><PredictionsAnalytics /></ProtectedWithLayout>} />
+                  <Route path="/reports" element={<ProtectedWithLayout><ExecutiveReports /></ProtectedWithLayout>} />
+                  <Route path="/reports/library" element={<ProtectedWithLayout><ReportLibrary /></ProtectedWithLayout>} />
+                  <Route path="/reports/scheduled" element={<ProtectedWithLayout><ScheduledReports /></ProtectedWithLayout>} />
 
-              {/* ========== LEGACY ROUTES (redirects for backwards compatibility) ========== */}
-              {/* These can be removed after transition period */}
-              <Route path="/order/new" element={<ProtectedWithLayout><NewOrder /></ProtectedWithLayout>} />
-              <Route path="/order/edit/:orderId" element={<ProtectedWithLayout><NewOrder /></ProtectedWithLayout>} />
-              <Route path="/order/:orderId" element={<ProtectedWithLayout><OrderDetails /></ProtectedWithLayout>} />
-              <Route path="/history" element={<ProtectedWithLayout><History /></ProtectedWithLayout>} />
-              <Route path="/suppliers" element={<ProtectedWithLayout><Suppliers /></ProtectedWithLayout>} />
-              <Route path="/products" element={<ProtectedWithLayout><Products /></ProtectedWithLayout>} />
-              <Route path="/customers" element={<ProtectedWithLayout><Customers /></ProtectedWithLayout>} />
-              <Route path="/consolidation-groups" element={<ProtectedWithLayout><ConsolidationGroups /></ProtectedWithLayout>} />
-              <Route path="/cif-calculator" element={<ProtectedWithLayout><CIFCalculator /></ProtectedWithLayout>} />
-              <Route path="/cif-calculator-history" element={<ProtectedWithLayout><CIFCalculatorHistory /></ProtectedWithLayout>} />
-              <Route path="/standing-orders" element={<ProtectedWithLayout><StandingOrders /></ProtectedWithLayout>} />
-              <Route path="/routes" element={<ProtectedWithLayout><RoutesPage /></ProtectedWithLayout>} />
-              <Route path="/driver-portal" element={<ProtectedWithLayout requiredRole="driver"><DriverPortal /></ProtectedWithLayout>} />
-              <Route path="/deliveries" element={<ProtectedWithLayout><DeliveryManagement /></ProtectedWithLayout>} />
-              <Route path="/invoices" element={<ProtectedWithLayout><Invoices /></ProtectedWithLayout>} />
-              <Route path="/production-input" element={<ProtectedWithLayout><ProductionInput /></ProtectedWithLayout>} />
-              <Route path="/production-edit/:orderId" element={<ProtectedWithLayout><ProductionEdit /></ProtectedWithLayout>} />
-              <Route path="/user-management" element={<ProtectedWithLayout requiredRole="admin"><UserManagement /></ProtectedWithLayout>} />
+                  {/* ========== LEGACY ROUTES ========== */}
+                  <Route path="/order/new" element={<ProtectedWithLayout><NewOrder /></ProtectedWithLayout>} />
+                  <Route path="/order/edit/:orderId" element={<ProtectedWithLayout><NewOrder /></ProtectedWithLayout>} />
+                  <Route path="/order/:orderId" element={<ProtectedWithLayout><OrderDetails /></ProtectedWithLayout>} />
+                  <Route path="/history" element={<ProtectedWithLayout><History /></ProtectedWithLayout>} />
+                  <Route path="/suppliers" element={<ProtectedWithLayout><Suppliers /></ProtectedWithLayout>} />
+                  <Route path="/products" element={<ProtectedWithLayout><Products /></ProtectedWithLayout>} />
+                  <Route path="/customers" element={<ProtectedWithLayout><Customers /></ProtectedWithLayout>} />
+                  <Route path="/consolidation-groups" element={<ProtectedWithLayout><ConsolidationGroups /></ProtectedWithLayout>} />
+                  <Route path="/cif-calculator" element={<ProtectedWithLayout><CIFCalculator /></ProtectedWithLayout>} />
+                  <Route path="/cif-calculator-history" element={<ProtectedWithLayout><CIFCalculatorHistory /></ProtectedWithLayout>} />
+                  <Route path="/standing-orders" element={<ProtectedWithLayout><StandingOrders /></ProtectedWithLayout>} />
+                  <Route path="/routes" element={<ProtectedWithLayout><RoutesPage /></ProtectedWithLayout>} />
+                  <Route path="/driver-portal" element={<ProtectedWithLayout requiredRole="driver"><DriverPortal /></ProtectedWithLayout>} />
+                  <Route path="/deliveries" element={<ProtectedWithLayout><DeliveryManagement /></ProtectedWithLayout>} />
+                  <Route path="/invoices" element={<ProtectedWithLayout><Invoices /></ProtectedWithLayout>} />
+                  <Route path="/production-input" element={<ProtectedWithLayout><ProductionInput /></ProtectedWithLayout>} />
+                  <Route path="/production-edit/:orderId" element={<ProtectedWithLayout><ProductionEdit /></ProtectedWithLayout>} />
+                  <Route path="/user-management" element={<ProtectedWithLayout requiredRole="admin"><UserManagement /></ProtectedWithLayout>} />
 
-              {/* F&B Legacy Routes */}
-              <Route path="/fnb" element={<ProtectedWithLayout><FnbDashboard /></ProtectedWithLayout>} />
-              <Route path="/fnb/products" element={<ProtectedWithLayout><FnbProducts /></ProtectedWithLayout>} />
-              <Route path="/fnb/customers" element={<ProtectedWithLayout><FnbCustomers /></ProtectedWithLayout>} />
-              <Route path="/fnb/orders" element={<ProtectedWithLayout><FnbOrders /></ProtectedWithLayout>} />
-              <Route path="/fnb/orders/new" element={<ProtectedWithLayout><FnbNewOrder /></ProtectedWithLayout>} />
-              <Route path="/fnb/orders/edit/:orderId" element={<ProtectedWithLayout><FnbNewOrder /></ProtectedWithLayout>} />
-              <Route path="/fnb/picker/:orderId?" element={<ProtectedWithLayout><FnbPicker /></ProtectedWithLayout>} />
-              <Route path="/fnb/picker/supervisor" element={<ProtectedWithLayout><FnbPickerSupervisor /></ProtectedWithLayout>} />
-              <Route path="/fnb/delivery" element={<ProtectedWithLayout><FnbDeliveryManagement /></ProtectedWithLayout>} />
-              <Route path="/fnb/driver-portal" element={<ProtectedWithLayout requiredRole="driver"><FnbDriverPortal /></ProtectedWithLayout>} />
-              <Route path="/fnb/cod" element={<ProtectedWithLayout><FnbCODReconciliation /></ProtectedWithLayout>} />
-              <Route path="/fnb/analytics" element={<ProtectedWithLayout><FnbAnalytics /></ProtectedWithLayout>} />
-              <Route path="/fnb/zones" element={<ProtectedWithLayout><FnbZoneManagement /></ProtectedWithLayout>} />
-              <Route path="/fnb/weekly" element={<ProtectedWithLayout><FnbWeeklyBoard /></ProtectedWithLayout>} />
-              <Route path="/fnb/standing-orders" element={<ProtectedWithLayout><FnbStandingOrders /></ProtectedWithLayout>} />
-              <Route path="/fnb/receipts" element={<ProtectedWithLayout><FnbReceiptVerification /></ProtectedWithLayout>} />
-              <Route path="/fnb/settings" element={<ProtectedWithLayout><FnbSettings /></ProtectedWithLayout>} />
-              <Route path="/fnb/driver-mobile" element={<ProtectedWithLayout requiredRole="driver"><FnbDriverMobile /></ProtectedWithLayout>} />
-              <Route path="/fnb/pricing-tiers" element={<ProtectedWithLayout><FnbPricingTiers /></ProtectedWithLayout>} />
-              <Route path="/fnb/driver-schedule" element={<ProtectedWithLayout><FnbDriverSchedule /></ProtectedWithLayout>} />
-              <Route path="/fnb/dispatch" element={<ProtectedWithLayout><FnbDispatch /></ProtectedWithLayout>} />
-              <Route path="/fnb/driver-zones" element={<ProtectedWithLayout><FnbDriverZones /></ProtectedWithLayout>} />
+                  {/* F&B Legacy Routes */}
+                  <Route path="/fnb" element={<ProtectedDistribution><FnbDashboard /></ProtectedDistribution>} />
+                  <Route path="/fnb/products" element={<ProtectedDistribution><FnbProducts /></ProtectedDistribution>} />
+                  <Route path="/fnb/customers" element={<ProtectedDistribution><FnbCustomers /></ProtectedDistribution>} />
+                  <Route path="/fnb/orders" element={<ProtectedDistribution><FnbOrders /></ProtectedDistribution>} />
+                  <Route path="/fnb/orders/new" element={<ProtectedDistribution><FnbNewOrder /></ProtectedDistribution>} />
+                  <Route path="/fnb/orders/edit/:orderId" element={<ProtectedDistribution><FnbNewOrder /></ProtectedDistribution>} />
+                  <Route path="/fnb/picker/:orderId?" element={<ProtectedDistribution><FnbPicker /></ProtectedDistribution>} />
+                  <Route path="/fnb/picker/supervisor" element={<ProtectedDistribution><FnbPickerSupervisor /></ProtectedDistribution>} />
+                  <Route path="/fnb/delivery" element={<ProtectedDistribution><FnbDeliveryManagement /></ProtectedDistribution>} />
+                  <Route path="/fnb/driver-portal" element={<ProtectedLogistics requiredRole="driver"><FnbDriverPortal /></ProtectedLogistics>} />
+                  <Route path="/fnb/cod" element={<ProtectedDistribution><FnbCODReconciliation /></ProtectedDistribution>} />
+                  <Route path="/fnb/analytics" element={<ProtectedDistribution><FnbAnalytics /></ProtectedDistribution>} />
+                  <Route path="/fnb/zones" element={<ProtectedDistribution><FnbZoneManagement /></ProtectedDistribution>} />
 
-              {/* Catch-all */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-            </BrowserRouter>
+                  {/* 404 */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </BrowserRouter>
             </OfflineWrapper>
           </ErrorBoundary>
         </AuthProvider>
