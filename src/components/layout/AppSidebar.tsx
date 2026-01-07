@@ -30,6 +30,8 @@ import {
   Loader2,
   PanelLeftClose,
   PanelLeft,
+  FileBarChart,
+  CalendarClock,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -314,6 +316,59 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        <Separator className="my-2" />
+
+        {/* Reports Section */}
+        {(isAdmin() || canView("analytics")) && (
+          <SidebarGroup>
+            <SidebarGroupLabel className={cn(collapsed && "sr-only")}>
+              Reports
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive("/reports/library")}
+                    tooltip="Report Library"
+                  >
+                    <a
+                      href="/reports/library"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        navigate("/reports/library");
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <FileBarChart className="h-4 w-4" />
+                      {!collapsed && <span>Report Library</span>}
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive("/reports/scheduled")}
+                    tooltip="Scheduled Reports"
+                  >
+                    <a
+                      href="/reports/scheduled"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        navigate("/reports/scheduled");
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <CalendarClock className="h-4 w-4" />
+                      {!collapsed && <span>Scheduled Reports</span>}
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         <Separator className="my-2" />
 
