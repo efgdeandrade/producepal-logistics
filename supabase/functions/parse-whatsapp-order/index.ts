@@ -218,9 +218,8 @@ Extract ALL order items mentioned in the conversation, even if spread across mul
 
   } catch (error) {
     console.error('Error in parse-whatsapp-order:', error);
-    // Return generic error message to client
     return new Response(
-      JSON.stringify({ error: 'Failed to parse order. Please try again.' }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

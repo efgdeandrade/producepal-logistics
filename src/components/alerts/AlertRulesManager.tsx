@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { Plus, Pencil, Trash2, AlertTriangle, Loader2 } from "lucide-react";
-import { Button } from "../ui/button";
-import { Switch } from "../ui/switch";
-import { Badge } from "../ui/badge";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -10,7 +10,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "../ui/table";
+} from "@/components/ui/table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,9 +20,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "../ui/alert-dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { supabase } from "../../integrations/supabase/client";
+} from "@/components/ui/alert-dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { AlertRuleDialog } from "./AlertRuleDialog";
 import { formatDistanceToNow } from "date-fns";

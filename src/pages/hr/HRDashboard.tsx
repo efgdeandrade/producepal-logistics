@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "../../integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { Button } from "../../components/ui/button";
-import { Badge } from "../../components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Users, Clock, FileText, AlertTriangle, Plus, UserPlus, Upload } from "lucide-react";
 import { format, differenceInDays, startOfDay, endOfDay, startOfWeek, endOfWeek } from "date-fns";
 import { Link } from "react-router-dom";
-import { Skeleton } from "../../components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export default function HRDashboard() {
   const today = new Date();

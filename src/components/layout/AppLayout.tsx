@@ -1,7 +1,7 @@
 import { ReactNode, useState, useEffect } from "react";
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "../ui/sidebar";
+import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
-import { Separator } from "../ui/separator";
+import { Separator } from "@/components/ui/separator";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -9,13 +9,13 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "../ui/breadcrumb";
+} from "@/components/ui/breadcrumb";
 import { useLocation } from "react-router-dom";
 import { format, getWeek } from "date-fns";
-import { NotificationCenter } from "../notifications/NotificationCenter";
-import { OfflineIndicator } from "../OfflineIndicator";
-import { useIsMobile } from "../../hooks/use-mobile";
-import { cn } from "../../lib/utils";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { OfflineIndicator } from "@/components/OfflineIndicator";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -60,7 +60,6 @@ const routeLabels: Record<string, string> = {
   employees: "Employees",
   attendance: "Time & Attendance",
   documents: "Documents",
-  "ai-learning": "AI Learning",
 };
 
 export function AppLayout({ children }: AppLayoutProps) {

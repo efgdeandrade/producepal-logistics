@@ -1,16 +1,16 @@
 import { useNavigate } from "react-router-dom";
 import { Bell, Volume2, VolumeX, CheckCheck } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "../ui/popover";
-import { Badge } from "../ui/badge";
-import { Separator } from "../ui/separator";
-import { useNotifications } from "../../hooks/useNotifications";
+} from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { useNotifications } from "@/hooks/useNotifications";
 import { NotificationList } from "./NotificationList";
-import type { Notification } from "../../hooks/useNotifications";
+import type { Notification } from "@/hooks/useNotifications";
 
 export function NotificationCenter() {
   const navigate = useNavigate();

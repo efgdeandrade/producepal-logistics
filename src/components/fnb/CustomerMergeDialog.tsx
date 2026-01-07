@@ -1,20 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../../integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from '../ui/dialog';
-import { Button } from '../ui/button';
-import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
-import { Label } from '../ui/label';
-import { Badge } from '../ui/badge';
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { Loader2, AlertTriangle, MessageSquare, ShoppingCart, FileText, Users } from 'lucide-react';
 import { toast } from 'sonner';
-import { useActivityLogger } from '../../hooks/useActivityLogger';
+import { useActivityLogger } from '@/hooks/useActivityLogger';
 
 interface FnbCustomer {
   id: string;

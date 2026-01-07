@@ -1,17 +1,17 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "../../integrations/supabase/client";
-import { Header } from "../../components/layout/Header";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { Button } from "../../components/ui/button";
-import { Badge } from "../../components/ui/badge";
-import { useFnbStandingOrdersSync } from "../../hooks/useFnbStandingOrdersSync";
+import { supabase } from "@/integrations/supabase/client";
+import { Header } from "@/components/layout/Header";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useFnbStandingOrdersSync } from "@/hooks/useFnbStandingOrdersSync";
 import { 
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "../../components/ui/dialog";
+} from "@/components/ui/dialog";
 import { 
   ArrowLeft, 
   ChevronLeft, 
@@ -33,8 +33,8 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { format, addDays, startOfWeek, isSameDay, parseISO } from "date-fns";
-import { cn } from "../../lib/utils";
-import { useFnbStandingOrders } from "../../hooks/useFnbStandingOrders";
+import { cn } from "@/lib/utils";
+import { useFnbStandingOrders } from "@/hooks/useFnbStandingOrders";
 
 type CustomerType = "regular" | "supermarket" | "cod" | "credit";
 

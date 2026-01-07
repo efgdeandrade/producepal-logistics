@@ -1,4 +1,4 @@
-import { Card, CardContent } from "../ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Users, Truck, Clock, Banknote, CheckCircle, AlertTriangle } from "lucide-react";
 
 interface DriverStats {

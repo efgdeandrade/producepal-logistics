@@ -1,8 +1,8 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Button } from '../ui/button';
-import { Separator } from '../ui/separator';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 import { Package, History, PlusCircle, LayoutDashboard, Users, Activity, LogOut, MapPin, Truck, Factory, TrendingUp, Settings, ChevronDown, Calculator, FileText, UtensilsCrossed, ShoppingCart, ClipboardList, MessageSquare, Layers } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,15 +10,15 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '../ui/dropdown-menu';
-import { Avatar, AvatarFallback } from '../ui/avatar';
-import { usePermissions } from '../../hooks/usePermissions';
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { usePermissions } from '@/hooks/usePermissions';
 import { useState, useEffect } from 'react';
 import { format, getWeek } from 'date-fns';
-import { getVersionDisplay } from '../../lib/version';
-import { ThemeToggle } from '../ThemeToggle';
-import { OfflineIndicator } from '../OfflineIndicator';
-import { NotificationCenter } from '../notifications/NotificationCenter';
+import { getVersionDisplay } from '@/lib/version';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { OfflineIndicator } from '@/components/OfflineIndicator';
+import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 
 export const Header = () => {
   const location = useLocation();
@@ -221,51 +221,51 @@ export const Header = () => {
             </Button>
           )}
 
-          {/* Distribution Dropdown */}
+          {/* F&B Sales Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant={location.pathname.startsWith('/distribution') || location.pathname.startsWith('/fnb') ? 'default' : 'ghost'} size="sm">
+              <Button variant={location.pathname.startsWith('/fnb') ? 'default' : 'ghost'} size="sm">
                 <UtensilsCrossed className="mr-2 h-4 w-4" />
-                Distribution
+                F&B
                 <ChevronDown className="ml-2 h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem asChild>
-                <Link to="/distribution">
+                <Link to="/fnb">
                   <LayoutDashboard className="mr-2 h-4 w-4" />
                   Dashboard
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link to="/distribution/orders">
+                <Link to="/fnb/orders">
                   <ShoppingCart className="mr-2 h-4 w-4" />
                   Orders
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link to="/distribution/customers">
+                <Link to="/fnb/customers">
                   <Users className="mr-2 h-4 w-4" />
                   Customers
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link to="/distribution/products">
+                <Link to="/fnb/products">
                   <Package className="mr-2 h-4 w-4" />
                   Products
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link to="/distribution/picker">
+                <Link to="/fnb/picker">
                   <ClipboardList className="mr-2 h-4 w-4" />
                   Picker Station
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link to="/distribution/settings">
+                <Link to="/fnb/settings">
                   <MessageSquare className="mr-2 h-4 w-4" />
-                  Settings & AI Learning
+                  WhatsApp Setup
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuContent>

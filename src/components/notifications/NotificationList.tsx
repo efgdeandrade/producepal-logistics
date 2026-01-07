@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Bell, BellOff } from "lucide-react";
-import { ScrollArea } from "../ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NotificationItem } from "./NotificationItem";
-import type { Notification } from "../../hooks/useNotifications";
+import type { Notification } from "@/hooks/useNotifications";
 
 interface NotificationListProps {
   notifications: Notification[];

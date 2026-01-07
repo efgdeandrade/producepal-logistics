@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { Button } from "../ui/button";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 import { Download, FileSpreadsheet, FileJson, FileText, Loader2 } from "lucide-react";
-import { useReportExport, ExportFormat } from "../../hooks/useReportExport";
+import { useReportExport, ExportFormat } from "@/hooks/useReportExport";
 
 interface ExportButtonProps<T extends Record<string, unknown>> {
   data: T[];

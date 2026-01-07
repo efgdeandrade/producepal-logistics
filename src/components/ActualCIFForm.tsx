@@ -1,20 +1,20 @@
 import { useState, useMemo, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card";
-import { Label } from "./ui/label";
-import { Input } from "./ui/input";
-import { Button } from "./ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Badge } from "./ui/badge";
-import { Separator } from "./ui/separator";
-import { supabase } from "../integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, Package, Upload, DollarSign, TrendingUp, Calculator, ChevronDown } from "lucide-react";
 import { WarehouseDocumentUpload } from "./WarehouseDocumentUpload";
 import { FreightDocumentUpload } from "./FreightDocumentUpload";
-import { ScrollArea, ScrollBar } from "./ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DitoAdvisor } from "./DitoAdvisor";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface SupplierWeightData {
   supplierId: string;
@@ -438,346 +438,697 @@ export function ActualCIFForm({
       volumeOptimized: calculateResults('volumeOptimized'),
       customerTier: calculateResults('customerTier')
     };
-  }, [actualFreightExterior, actualFreightLocal, actualOtherCosts, supplierWeights, exchangeRate, demandPatterns, priceHistory, localLogisticsUSD, laborXCG, bankChargesUSD]);
+  }, [actualFreightExterior, actualFreightLocal, actualOtherCosts, supplierWeights, exchangeRate, demandPatterns, localLogisticsUSD, laborXCG, bankChargesUSD]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Save actual CIF data to database
-      toast.success("CIF calculation saved successfully");
+      const totalActualFreight = 
+        parseFloat(actualFreightExterior || "0") + 
+        parseFloat(actualFreightLocal || "0");
+      const totalEstimatedFreight = estimatedFreightExterior + estimatedFreightLocal;
+      const calculations = cifCalculations.byWeight; // Save "by weight" as default
+
+      // Save each product's actual CIF data using UPSERT
+      for (const calc of calculations) {
+        const { error } = await supabase.from("cif_estimates").upsert(
+          {
+            order_id: orderId,
+            product_code: calc.productCode,
+            estimated_freight_exterior_usd: estimatedFreightExterior,
+            estimated_freight_local_usd: estimatedFreightLocal,
+            estimated_total_freight_usd: totalEstimatedFreight,
+            estimated_other_costs_usd: 0,
+            actual_freight_exterior_usd: parseFloat(actualFreightExterior || "0"),
+            actual_freight_local_usd: parseFloat(actualFreightLocal || "0"),
+            actual_total_freight_usd: totalActualFreight,
+            actual_other_costs_usd: parseFloat(actualOtherCosts || "0"),
+            actual_weight_kg: calc.actualWeight,
+            volumetric_weight_kg: calc.volumetricWeight,
+            chargeable_weight_kg: calc.chargeableWeight,
+            weight_type_used: calc.weightType,
+            variance_amount_usd: totalActualFreight - totalEstimatedFreight,
+            variance_percentage: totalEstimatedFreight > 0 
+              ? ((totalActualFreight - totalEstimatedFreight) / totalEstimatedFreight) * 100 
+              : 0,
+            actual_cif_xcg: calc.cifXCG
+          },
+          {
+            onConflict: 'order_id,product_code',
+            ignoreDuplicates: false
+          }
+        );
+
+        if (error) throw error;
+      }
+
+      toast.success("Actual CIF costs saved successfully");
       onSaved();
-    } catch (error) {
-      console.error("Error saving CIF:", error);
-      toast.error("Failed to save CIF calculation");
+    } catch (error: any) {
+      console.error("Error saving actual CIF:", error);
+      toast.error("Failed to save actual costs: " + error.message);
     } finally {
       setSaving(false);
     }
   };
 
-  const hasResults = cifCalculations.byWeight.length > 0;
+  const renderTable = (results: CIFResult[], title: string, description?: string) => {
+    if (!results || results.length === 0) return null;
+
+    // Group results by supplier
+    const groupedBySupplier = results.reduce((acc, result) => {
+      const suppliers = result.suppliers.split(', ');
+      suppliers.forEach(supplier => {
+        if (!acc[supplier]) {
+          acc[supplier] = [];
+        }
+        acc[supplier].push(result);
+      });
+      return acc;
+    }, {} as Record<string, CIFResult[]>);
+
+    // Calculate subtotals per supplier
+    const supplierSubtotals = Object.entries(groupedBySupplier).map(([supplier, products]) => ({
+      supplier,
+      totalUnits: products.reduce((sum, p) => sum + p.quantity, 0),
+      totalTrays: products.reduce((sum, p) => sum + p.trays, 0),
+      totalCostUSD: products.reduce((sum, p) => sum + p.costUSD, 0),
+      totalFreight: products.reduce((sum, p) => sum + p.freightCost, 0),
+      totalCIFUSD: products.reduce((sum, p) => sum + p.cifUSD, 0),
+      totalCIFXCG: products.reduce((sum, p) => sum + p.cifXCG, 0)
+    }));
+
+    const toggleSupplier = (supplier: string) => {
+      setExpandedSuppliers(prev => ({
+        ...prev,
+        [supplier]: !prev[supplier]
+      }));
+    };
+
+    return (
+      <div>
+        <div className="mb-3">
+          <h3 className="text-sm font-semibold">{title}</h3>
+          {description && <p className="text-xs text-muted-foreground mt-1">{description}</p>}
+        </div>
+        <ScrollArea className="w-full">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Product</TableHead>
+                <TableHead className="text-right">Units</TableHead>
+                <TableHead className="text-right">Actual (kg)</TableHead>
+                <TableHead className="text-right">Vol. (kg)</TableHead>
+                <TableHead className="text-right">Chargeable</TableHead>
+                <TableHead className="text-right">Cost USD</TableHead>
+                <TableHead className="text-right">Freight</TableHead>
+                <TableHead className="text-right">CIF USD</TableHead>
+                <TableHead className="text-right">CIF Cg</TableHead>
+                <TableHead className="text-right">CIF/Unit</TableHead>
+                <TableHead className="text-right">Wholesale</TableHead>
+                <TableHead className="text-right">W. Margin</TableHead>
+                <TableHead className="text-right">W. %</TableHead>
+                <TableHead className="text-right">Retail</TableHead>
+                <TableHead className="text-right">R. Margin</TableHead>
+                <TableHead className="text-right">R. %</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {Object.entries(groupedBySupplier).map(([supplier, products]) => {
+                const isExpanded = expandedSuppliers[supplier] ?? true;
+                const subtotal = supplierSubtotals.find(s => s.supplier === supplier);
+                
+                return (
+                  <>
+                    {/* Supplier Header Row */}
+                    <TableRow 
+                      key={`${supplier}-header`}
+                      className="bg-muted/50 hover:bg-muted cursor-pointer border-t-2 border-b"
+                      onClick={() => toggleSupplier(supplier)}
+                    >
+                      <TableCell colSpan={16} className="font-semibold">
+                        <div className="flex items-center gap-2">
+                          <ChevronDown 
+                            className={`h-4 w-4 transition-transform duration-200 ${
+                              isExpanded ? 'transform rotate-0' : 'transform -rotate-90'
+                            }`}
+                          />
+                          <span>{supplier}</span>
+                          <span className="text-muted-foreground text-sm ml-2">
+                            ({products.length} {products.length === 1 ? 'product' : 'products'})
+                          </span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    
+                    {/* Product Rows */}
+                    {isExpanded && products.map((result) => {
+                      const wholesaleMarginPercent = result.cifPerUnit > 0 
+                        ? ((result.wholesalePrice - result.cifPerUnit) / result.cifPerUnit * 100)
+                        : 0;
+                      const retailMarginPercent = result.cifPerUnit > 0
+                        ? ((result.retailPrice - result.cifPerUnit) / result.cifPerUnit * 100)
+                        : 0;
+
+                      return (
+                        <TableRow key={`${supplier}-${result.productCode}`}>
+                          <TableCell className="font-medium">
+                            <div>{result.productName}</div>
+                            <div className="text-xs text-muted-foreground">{result.productCode}</div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="font-medium">{result.quantity}</div>
+                            <div className="text-xs text-muted-foreground">{result.trays} trays</div>
+                          </TableCell>
+                          <TableCell className="text-right">{result.actualWeight.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">{result.volumetricWeight.toFixed(2)}</TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {result.chargeableWeight.toFixed(2)}
+                            {result.weightType === 'volumetric' && <span className="text-xs text-orange-600 ml-1">V</span>}
+                          </TableCell>
+                          <TableCell className="text-right">${result.costUSD.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">${result.freightCost.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">${result.cifUSD.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">Cg {result.cifXCG.toFixed(2)}</TableCell>
+                          <TableCell className="text-right font-bold">
+                            Cg {result.cifPerUnit.toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-right">Cg {result.wholesalePrice.toFixed(2)}</TableCell>
+                          <TableCell className="text-right text-green-600">
+                            Cg {result.wholesaleMargin.toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-right text-green-600 font-semibold">
+                            {wholesaleMarginPercent.toFixed(1)}%
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <span>Cg {result.retailPrice.toFixed(2)}</span>
+                              {result.priceHistory?.retailChange && (
+                                <span className={`text-xs ${result.priceHistory.retailChange > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                  {result.priceHistory.retailChange > 0 ? '↑' : '↓'}
+                                  {Math.abs(result.priceHistory.retailChange).toFixed(1)}%
+                                </span>
+                              )}
+                            </div>
+                            {result.priceHistory?.previousRetail && (
+                              <div className="text-xs text-muted-foreground">
+                                Was: Cg {result.priceHistory.previousRetail.toFixed(2)}
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right text-green-600">
+                            Cg {result.retailMargin.toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-right text-green-600 font-semibold">
+                            {retailMarginPercent.toFixed(1)}%
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    
+                    {/* Supplier Subtotal Row */}
+                    {isExpanded && subtotal && (
+                      <TableRow key={`${supplier}-subtotal`} className="bg-muted/30 font-semibold border-b-2">
+                        <TableCell className="text-right">
+                          Subtotal: {supplier}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div>{subtotal.totalUnits}</div>
+                          <div className="text-xs text-muted-foreground font-normal">
+                            {subtotal.totalTrays} trays
+                          </div>
+                        </TableCell>
+                        <TableCell></TableCell>
+                        <TableCell></TableCell>
+                        <TableCell></TableCell>
+                        <TableCell className="text-right">
+                          ${subtotal.totalCostUSD.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          ${subtotal.totalFreight.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          ${subtotal.totalCIFUSD.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          Cg {subtotal.totalCIFXCG.toFixed(2)}
+                        </TableCell>
+                        <TableCell colSpan={7}></TableCell>
+                      </TableRow>
+                    )}
+                  </>
+                );
+              })}
+              
+              {/* Grand Total Row */}
+              <TableRow className="bg-primary/10 font-bold border-t-4">
+                <TableCell className="text-right">GRAND TOTAL</TableCell>
+                <TableCell className="text-right">
+                  <div>{results.reduce((sum, r) => sum + r.quantity, 0)}</div>
+                  <div className="text-xs text-muted-foreground font-normal">
+                    {results.reduce((sum, r) => sum + r.trays, 0)} trays
+                  </div>
+                </TableCell>
+                <TableCell></TableCell>
+                <TableCell></TableCell>
+                <TableCell></TableCell>
+                <TableCell className="text-right">
+                  ${results.reduce((sum, r) => sum + r.costUSD, 0).toFixed(2)}
+                </TableCell>
+                <TableCell className="text-right">
+                  ${results.reduce((sum, r) => sum + r.freightCost, 0).toFixed(2)}
+                </TableCell>
+                <TableCell className="text-right">
+                  ${results.reduce((sum, r) => sum + r.cifUSD, 0).toFixed(2)}
+                </TableCell>
+                <TableCell className="text-right">
+                  Cg {results.reduce((sum, r) => sum + r.cifXCG, 0).toFixed(2)}
+                </TableCell>
+                <TableCell colSpan={7}></TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+      </div>
+    );
+  };
+
+  const hasData = actualFreightExterior || actualFreightLocal || supplierWeights.some(sw => sw.actualWeightKg);
+
+  if (supplierWeights.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground">No products with assigned suppliers in this order</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Document Upload Section */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <WarehouseDocumentUpload 
-          onDataExtracted={handleConsolidatedWarehouseExtraction}
-          uploadKey={consolidatedUploadKey}
-          consolidated={true}
-        />
-        <FreightDocumentUpload 
-          type="exterior"
-          onDataExtracted={handleFreightExtraction('exterior')}
-          uploadKey={freightUploadKey}
-        />
-        <FreightDocumentUpload 
-          type="local"
-          onDataExtracted={handleFreightExtraction('local')}
-          uploadKey={freightUploadKey}
-        />
-      </div>
-
-      {/* Freight Inputs */}
+      {/* Freight Cost Input Section */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <DollarSign className="h-5 w-5" />
-            Freight & Cost Inputs
-          </CardTitle>
+            <CardTitle>Actual Freight Costs</CardTitle>
+          </div>
+          <CardDescription>Upload invoices or enter actual freight charges</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <CardContent className="space-y-6">
+          {/* Document Uploads */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FreightDocumentUpload 
+              type="exterior" 
+              onDataExtracted={handleFreightExtraction('exterior')}
+              uploadKey={freightUploadKey}
+            />
+            <FreightDocumentUpload 
+              type="local" 
+              onDataExtracted={handleFreightExtraction('local')}
+              uploadKey={freightUploadKey}
+            />
+          </div>
+
+          <Separator />
+
+          {/* Manual Input */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Exterior Freight (USD)</Label>
+              <Label htmlFor="actualFreightExterior">Exterior Freight (USD)</Label>
               <Input
+                id="actualFreightExterior"
                 type="number"
                 step="0.01"
+                placeholder={`Estimated: $${estimatedFreightExterior.toFixed(2)}`}
                 value={actualFreightExterior}
                 onChange={(e) => setActualFreightExterior(e.target.value)}
-                placeholder={estimatedFreightExterior.toFixed(2)}
               />
             </div>
             <div className="space-y-2">
-              <Label>Local Freight (USD)</Label>
+              <Label htmlFor="actualFreightLocal">Local Freight (USD)</Label>
               <Input
+                id="actualFreightLocal"
                 type="number"
                 step="0.01"
+                placeholder={`Estimated: $${estimatedFreightLocal.toFixed(2)}`}
                 value={actualFreightLocal}
                 onChange={(e) => setActualFreightLocal(e.target.value)}
-                placeholder={estimatedFreightLocal.toFixed(2)}
               />
             </div>
             <div className="space-y-2">
-              <Label>Other Costs (USD)</Label>
+              <Label htmlFor="actualOtherCosts">Other Costs (USD)</Label>
               <Input
+                id="actualOtherCosts"
                 type="number"
                 step="0.01"
+                placeholder="0.00"
                 value={actualOtherCosts}
                 onChange={(e) => setActualOtherCosts(e.target.value)}
-                placeholder="0.00"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Exchange Rate</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={exchangeRate}
-                onChange={(e) => setExchangeRate(parseFloat(e.target.value) || 1.82)}
               />
             </div>
           </div>
+        </CardContent>
+      </Card>
 
-          <Separator className="my-4" />
+      <Separator className="my-6" />
 
-          <div className="grid grid-cols-3 gap-4">
+      {/* Additional Costs Configuration */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Additional Costs</CardTitle>
+          <CardDescription>
+            Configure logistics, labor, and banking costs. These will be added to the total freight cost.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Local Logistics (USD)</Label>
+              <Label htmlFor="localLogistics">Local Logistics (USD)</Label>
               <Input
-                type="number"
-                step="1"
-                value={localLogisticsUSD}
-                onChange={(e) => setLocalLogisticsUSD(parseFloat(e.target.value) || 91)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Labor (XCG)</Label>
-              <Input
-                type="number"
-                step="1"
-                value={laborXCG}
-                onChange={(e) => setLaborXCG(parseFloat(e.target.value) || 50)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Bank Charges (USD)</Label>
-              <Input
+                id="localLogistics"
                 type="number"
                 step="0.01"
+                placeholder="91.00"
+                value={localLogisticsUSD}
+                onChange={(e) => setLocalLogisticsUSD(parseFloat(e.target.value) || 0)}
+              />
+              <p className="text-xs text-muted-foreground">Default: $91.00</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="laborCost">Labor Cost (XCG)</Label>
+              <Input
+                id="laborCost"
+                type="number"
+                step="0.01"
+                placeholder="50"
+                value={laborXCG}
+                onChange={(e) => setLaborXCG(parseFloat(e.target.value) || 0)}
+              />
+              <p className="text-xs text-muted-foreground">Default: 50 XCG</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bankCharges">Bank Charges (USD)</Label>
+              <Input
+                id="bankCharges"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
                 value={bankChargesUSD}
                 onChange={(e) => setBankChargesUSD(parseFloat(e.target.value) || 0)}
               />
+              <p className="text-xs text-muted-foreground">Default: $0.00</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Supplier Weight Sections */}
-      <Card>
+      {/* Consolidated Warehouse Document Upload */}
+      <Card className="border-dashed">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Supplier Weight Data
-          </CardTitle>
+          <div className="flex items-center gap-2">
+            <Upload className="h-5 w-5" />
+            <CardTitle>Upload Consolidated Warehouse Receipt</CardTitle>
+          </div>
           <CardDescription>
-            Weight data per supplier (can be auto-filled from warehouse document)
+            Upload the consolidated warehouse receipt containing all suppliers to automatically populate weight data
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {supplierWeights.map((supplier) => (
-            <Collapsible
-              key={supplier.supplierId}
-              open={expandedSuppliers[supplier.supplierId]}
-              onOpenChange={(open) => setExpandedSuppliers(prev => ({ ...prev, [supplier.supplierId]: open }))}
-            >
-              <div className="border rounded-lg p-4">
-                <CollapsibleTrigger className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-2">
-                    <ChevronDown className={`h-4 w-4 transition-transform ${expandedSuppliers[supplier.supplierId] ? 'rotate-180' : ''}`} />
-                    <span className="font-medium">{supplier.supplierName}</span>
-                    <Badge variant="outline">{supplier.products.length} products</Badge>
-                  </div>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    {supplier.actualWeightKg && <span>Actual: {supplier.actualWeightKg} kg</span>}
-                    {supplier.volumetricWeightKg && <span>Vol: {supplier.volumetricWeightKg} kg</span>}
-                    {supplier.palletsUsed && <span>Pallets: {supplier.palletsUsed}</span>}
-                  </div>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="mt-4 space-y-4">
-                  <div className="grid grid-cols-4 gap-4">
-                    <div className="space-y-2">
-                      <Label>Actual Weight (kg)</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={supplier.actualWeightKg}
-                        onChange={(e) => updateSupplierWeight(supplier.supplierId, 'actualWeightKg', e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Volumetric Weight (kg)</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={supplier.volumetricWeightKg}
-                        onChange={(e) => updateSupplierWeight(supplier.supplierId, 'volumetricWeightKg', e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Pallets Used</Label>
-                      <Input
-                        type="number"
-                        step="1"
-                        value={supplier.palletsUsed}
-                        onChange={(e) => updateSupplierWeight(supplier.supplierId, 'palletsUsed', e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Charged By</Label>
-                      <Badge variant={supplier.weightTypeUsed === 'volumetric' ? 'destructive' : 'default'}>
-                        {supplier.weightTypeUsed === 'volumetric' ? 'Volumetric' : 'Actual'}
-                      </Badge>
-                    </div>
-                  </div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Product</TableHead>
-                        <TableHead className="text-right">Qty</TableHead>
-                        <TableHead className="text-right">Cost/Unit</TableHead>
-                        <TableHead className="text-right">Weight/Unit</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {supplier.products.map((product) => (
-                        <TableRow key={product.productCode}>
-                          <TableCell>
-                            <div>{product.productName}</div>
-                            <div className="text-xs text-muted-foreground">{product.productCode}</div>
-                          </TableCell>
-                          <TableCell className="text-right">{product.quantity}</TableCell>
-                          <TableCell className="text-right">${product.costPerUnit.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">{product.weightPerUnit}g</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CollapsibleContent>
-              </div>
-            </Collapsible>
-          ))}
+        <CardContent>
+          <WarehouseDocumentUpload
+            onDataExtracted={handleConsolidatedWarehouseExtraction}
+            uploadKey={consolidatedUploadKey}
+            consolidated={true}
+          />
         </CardContent>
       </Card>
 
-      {/* CIF Results */}
-      {hasResults && (
-        <Card>
+      {/* Supplier Weight Data - Manual Entry */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            <CardTitle>Supplier Weight Data</CardTitle>
+          </div>
+          <CardDescription>
+            Review and adjust weight data for each supplier (auto-populated from document upload)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue={supplierWeights[0]?.supplierId} className="w-full">
+            <TabsList className="w-full justify-start flex-wrap">
+              {supplierWeights.map(sw => (
+                <TabsTrigger key={sw.supplierId} value={sw.supplierId}>
+                  {sw.supplierName}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            {supplierWeights.map(supplier => (
+              <TabsContent key={supplier.supplierId} value={supplier.supplierId} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="space-y-2">
+                    <Label>Actual Weight (kg)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={supplier.actualWeightKg}
+                      onChange={(e) => updateSupplierWeight(supplier.supplierId, "actualWeightKg", e.target.value)}
+                      placeholder="Total actual weight"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Volumetric Weight (kg)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={supplier.volumetricWeightKg}
+                      onChange={(e) => updateSupplierWeight(supplier.supplierId, "volumetricWeightKg", e.target.value)}
+                      placeholder="Total volumetric weight"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Pallets Used</Label>
+                    <Input
+                      type="number"
+                      value={supplier.palletsUsed}
+                      onChange={(e) => updateSupplierWeight(supplier.supplierId, "palletsUsed", e.target.value)}
+                      placeholder="Number of pallets"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Weight Type Charged</Label>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      value={supplier.weightTypeUsed}
+                      onChange={(e) => updateSupplierWeight(supplier.supplierId, "weightTypeUsed", e.target.value as "actual" | "volumetric")}
+                    >
+                      <option value="actual">Actual Weight</option>
+                      <option value="volumetric">Volumetric Weight</option>
+                    </select>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                  <h4 className="text-sm font-medium mb-3">Products in this shipment:</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {supplier.products.map(p => (
+                      <div key={p.productCode} className="flex justify-between items-center p-2 bg-muted/50 rounded">
+                        <span className="text-sm font-medium">{p.productName}</span>
+                        <Badge variant="secondary">{p.quantity} units</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </TabsContent>
+            ))}
+          </Tabs>
+        </CardContent>
+      </Card>
+
+      {/* Actual CIF Calculations with 7 Methods */}
+      {hasData && cifCalculations.byWeight.length > 0 && (
+        <Card className="border-primary/20">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calculator className="h-5 w-5" />
-              CIF Calculation Results
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Calculator className="h-5 w-5" />
+                  <CardTitle>Actual CIF Results - 7 Allocation Methods</CardTitle>
+                </div>
+                <CardDescription>Compare different freight allocation strategies using actual costs</CardDescription>
+              </div>
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Actual CIF'
+                )}
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
+            {/* Freight Summary Stats */}
+            <div className="grid grid-cols-4 gap-4 p-4 bg-muted/50 rounded-lg">
+              <div>
+                <div className="text-xs text-muted-foreground">Exterior Freight</div>
+                <div className="text-lg font-bold">
+                  ${parseFloat(actualFreightExterior || "0").toFixed(2)}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Local Freight</div>
+                <div className="text-lg font-bold">
+                  ${parseFloat(actualFreightLocal || "0").toFixed(2)}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Other Costs</div>
+                <div className="text-lg font-bold">
+                  ${parseFloat(actualOtherCosts || "0").toFixed(2)}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Total Freight</div>
+                <div className="text-lg font-bold text-primary">
+                  ${(parseFloat(actualFreightExterior || "0") + parseFloat(actualFreightLocal || "0") + parseFloat(actualOtherCosts || "0")).toFixed(2)}
+                </div>
+              </div>
+            </div>
+
+            {/* Additional Costs Breakdown Table */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Additional Costs Breakdown</CardTitle>
+                <CardDescription>Configured logistics, labor, and banking costs</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Cost Type</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="text-right">Currency</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="font-medium">Local Logistics</TableCell>
+                      <TableCell className="text-right">${localLogisticsUSD.toFixed(2)}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">USD</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">Labor Cost</TableCell>
+                      <TableCell className="text-right">{laborXCG.toFixed(2)}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">XCG</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">Bank Charges</TableCell>
+                      <TableCell className="text-right">${bankChargesUSD.toFixed(2)}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">USD</TableCell>
+                    </TableRow>
+                    <TableRow className="border-t-2">
+                      <TableCell className="font-bold">Total Additional (USD)</TableCell>
+                      <TableCell className="text-right font-bold">
+                        ${(localLogisticsUSD + bankChargesUSD).toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">USD</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-bold">Grand Total Freight + Additional</TableCell>
+                      <TableCell className="text-right font-bold text-primary">
+                        ${(parseFloat(actualFreightExterior || "0") + parseFloat(actualFreightLocal || "0") + localLogisticsUSD + bankChargesUSD).toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">USD</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            <Separator />
+
+            {/* 7 Allocation Methods Tabs */}
             <Tabs defaultValue="byWeight">
-              <TabsList className="mb-4">
+              <TabsList className="grid w-full grid-cols-7">
                 <TabsTrigger value="byWeight">By Weight</TabsTrigger>
                 <TabsTrigger value="byCost">By Cost</TabsTrigger>
                 <TabsTrigger value="equally">Equally</TabsTrigger>
                 <TabsTrigger value="hybrid">Hybrid</TabsTrigger>
                 <TabsTrigger value="strategic">Strategic</TabsTrigger>
                 <TabsTrigger value="volumeOptimized">Volume Opt.</TabsTrigger>
-                <TabsTrigger value="customerTier">Customer Tier</TabsTrigger>
+                <TabsTrigger value="customerTier">Cust. Tier</TabsTrigger>
               </TabsList>
 
-              {Object.entries(cifCalculations).map(([method, results]) => (
-                <TabsContent key={method} value={method}>
-                  <ScrollArea className="w-full">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Product</TableHead>
-                          <TableHead className="text-right">Qty</TableHead>
-                          <TableHead className="text-right">Weight</TableHead>
-                          <TableHead className="text-right">Cost USD</TableHead>
-                          <TableHead className="text-right">Freight</TableHead>
-                          <TableHead className="text-right">CIF/Unit</TableHead>
-                          <TableHead className="text-right">Wholesale</TableHead>
-                          <TableHead className="text-right">Margin</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {results.map((result) => (
-                          <TableRow key={result.productCode}>
-                            <TableCell>
-                              <div className="font-medium">{result.productName}</div>
-                              <div className="text-xs text-muted-foreground">{result.productCode}</div>
-                            </TableCell>
-                            <TableCell className="text-right">{result.quantity}</TableCell>
-                            <TableCell className="text-right">
-                              <div>{result.chargeableWeight.toFixed(2)} kg</div>
-                              <Badge variant={result.weightType === 'volumetric' ? 'destructive' : 'secondary'} className="text-xs">
-                                {result.weightType}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">${result.costUSD.toFixed(2)}</TableCell>
-                            <TableCell className="text-right">${result.freightCost.toFixed(2)}</TableCell>
-                            <TableCell className="text-right font-semibold">Cg {result.cifPerUnit.toFixed(2)}</TableCell>
-                            <TableCell className="text-right">Cg {result.wholesalePrice.toFixed(2)}</TableCell>
-                            <TableCell className="text-right">
-                              <Badge variant={result.wholesaleMargin >= 10 ? 'default' : 'destructive'}>
-                                {result.wholesaleMargin.toFixed(1)}%
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
-                </TabsContent>
-              ))}
+              <TabsContent value="byWeight">
+                {renderTable(cifCalculations.byWeight, "By Weight", "Freight allocated proportional to chargeable weight")}
+              </TabsContent>
+
+              <TabsContent value="byCost">
+                {renderTable(cifCalculations.byCost, "By Cost", "Freight allocated proportional to product cost")}
+              </TabsContent>
+
+              <TabsContent value="equally">
+                {renderTable(cifCalculations.equally, "Equally", "Freight split equally among all products")}
+              </TabsContent>
+
+              <TabsContent value="hybrid">
+                {renderTable(cifCalculations.hybrid, "Hybrid", "50% weight-based + 50% cost-based allocation")}
+              </TabsContent>
+
+              <TabsContent value="strategic">
+                {renderTable(cifCalculations.strategic, "Strategic", "AI-driven: considers waste rates and order velocity")}
+              </TabsContent>
+
+              <TabsContent value="volumeOptimized">
+                {renderTable(cifCalculations.volumeOptimized, "Volume Optimized", "Favors high-frequency products with lower freight allocation")}
+              </TabsContent>
+
+              <TabsContent value="customerTier">
+                {renderTable(cifCalculations.customerTier, "Customer Tier", "Wholesale products get preferential freight rates")}
+              </TabsContent>
             </Tabs>
           </CardContent>
         </Card>
       )}
 
-      {/* Dito Advisor */}
-      {hasResults && (
+      {/* Dito Advisor Integration */}
+      {hasData && cifCalculations.byWeight.length > 0 && (
         <DitoAdvisor
-          orderItems={cifCalculations.byWeight.map(r => ({
-            code: r.productCode,
-            name: r.productName,
-            quantity: r.quantity,
-            actualWeight: r.actualWeight,
-            volumetricWeight: r.volumetricWeight,
-            chargeableWeight: r.chargeableWeight,
-            weightType: r.weightType,
-            costUSD: r.costUSD / r.quantity,
-            wholesalePriceXCG: r.wholesalePrice,
-            retailPriceXCG: r.retailPrice,
-            profitPerUnit: r.wholesalePrice - r.cifPerUnit
+          orderItems={cifCalculations.byWeight.map(calc => ({
+            code: calc.productCode,
+            name: calc.productName,
+            quantity: calc.quantity,
+            actualWeight: calc.actualWeight,
+            volumetricWeight: calc.volumetricWeight,
+            chargeableWeight: calc.chargeableWeight,
+            weightType: calc.weightType,
+            costUSD: calc.costUSD,
+            wholesalePriceXCG: calc.wholesalePrice,
+            retailPriceXCG: calc.retailPrice,
+            profitPerUnit: calc.wholesaleMargin
           }))}
           palletConfiguration={{
-            totalPallets: supplierWeights.reduce((sum, s) => sum + (parseFloat(s.palletsUsed) || 0), 0),
-            totalActualWeight: cifCalculations.byWeight.reduce((sum, r) => sum + r.actualWeight, 0),
-            totalVolumetricWeight: cifCalculations.byWeight.reduce((sum, r) => sum + r.volumetricWeight, 0),
-            totalChargeableWeight: cifCalculations.byWeight.reduce((sum, r) => sum + r.chargeableWeight, 0),
-            limitingFactor: 'balanced',
+            totalPallets: supplierWeights.reduce((sum, sw) => sum + parseFloat(sw.palletsUsed || "0"), 0),
+            totalActualWeight: cifCalculations.byWeight.reduce((sum, c) => sum + c.actualWeight, 0),
+            totalVolumetricWeight: cifCalculations.byWeight.reduce((sum, c) => sum + c.volumetricWeight, 0),
+            totalChargeableWeight: cifCalculations.byWeight.reduce((sum, c) => sum + c.chargeableWeight, 0),
+            limitingFactor: cifCalculations.byWeight.some(c => c.weightType === 'volumetric') ? 'volumetric_weight' : 'actual_weight',
             utilizationPercentage: 85,
-            heightUtilization: 85
+            heightUtilization: 90
           }}
-          freightCostPerKg={2.87}
+          freightCostPerKg={(parseFloat(actualFreightExterior || "0") + parseFloat(actualFreightLocal || "0")) / cifCalculations.byWeight.reduce((sum, c) => sum + c.chargeableWeight, 0)}
           exchangeRate={exchangeRate}
         />
       )}
-
-      {/* Save Button */}
-      <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={saving || !hasResults} size="lg">
-          {saving ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <TrendingUp className="mr-2 h-4 w-4" />
-              Save CIF Calculation
-            </>
-          )}
-        </Button>
-      </div>
     </div>
   );
 }

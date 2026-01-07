@@ -1,8 +1,8 @@
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Trash2, CheckCircle, Sparkles, AlertCircle } from 'lucide-react';
 import { ProductMatchDropdown } from './ProductMatchDropdown';
-import { MatchedItem } from '../../hooks/usePOImport';
+import { MatchedItem } from '@/hooks/usePOImport';
 import {
   Table,
   TableBody,
@@ -10,21 +10,21 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../ui/table';
+} from '@/components/ui/table';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../ui/select';
+} from '@/components/ui/select';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '../ui/tooltip';
-import { cn } from '../../lib/utils';
+} from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 interface POReviewTableProps {
   items: MatchedItem[];

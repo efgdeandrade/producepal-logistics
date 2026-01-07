@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Header } from '../../components/layout/Header';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
+import { Header } from '@/components/layout/Header';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { supabase } from '../../integrations/supabase/client';
-import { useFnbStandingOrdersSync } from '../../hooks/useFnbStandingOrdersSync';
+import { supabase } from '@/integrations/supabase/client';
+import { useFnbStandingOrdersSync } from '@/hooks/useFnbStandingOrdersSync';
 import { toast } from 'sonner';
 import { 
   ArrowLeft,
@@ -31,11 +31,11 @@ import {
   ClipboardList,
   Repeat
 } from 'lucide-react';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Link, useNavigate } from 'react-router-dom';
 import { format, addDays, startOfWeek, isSameDay, parseISO, getISOWeek } from 'date-fns';
-import { Calendar } from '../../components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
 import {
   Select,
@@ -43,12 +43,12 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../../components/ui/select';
-import { Badge } from '../../components/ui/badge';
-import { cn } from '../../lib/utils';
-import { FnbOrderDayDialog } from '../../components/fnb/FnbOrderDayDialog';
-import { QuickAddItemDialog } from '../../components/fnb/QuickAddItemDialog';
-import { ExportButton } from '../../components/reports/ExportButton';
+} from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import { FnbOrderDayDialog } from '@/components/fnb/FnbOrderDayDialog';
+import { QuickAddItemDialog } from '@/components/fnb/QuickAddItemDialog';
+import { ExportButton } from '@/components/reports/ExportButton';
 
 type CustomerType = 'regular' | 'supermarket' | 'cod' | 'credit';
 

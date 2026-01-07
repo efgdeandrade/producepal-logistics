@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { BUILD_TIMESTAMP } from '../lib/version';
+import { BUILD_TIMESTAMP } from '@/lib/version';
 
 interface VersionInfo {
   version: string;

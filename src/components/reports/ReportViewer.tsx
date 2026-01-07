@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -7,10 +7,10 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "../ui/table";
+} from "@/components/ui/table";
 import { ReportChart } from "./ReportChart";
 import { ExportButton } from "./ExportButton";
-import { ReportVisualization } from "../../lib/reportTemplates";
+import { ReportVisualization } from "@/lib/reportTemplates";
 import { format } from "date-fns";
 
 interface ReportViewerProps {

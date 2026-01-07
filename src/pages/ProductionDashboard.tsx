@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
-import { Button } from '../components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { supabase } from '../integrations/supabase/client';
-import { useToast } from '../hooks/use-toast';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { Package, CheckCircle2, Clock, AlertCircle, Plus, ArrowLeft, Printer, X, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
-import ProductionReceiptDialog from '../components/ProductionReceiptDialog';
-import LoadingBox from '../components/LoadingBox';
+import ProductionReceiptDialog from '@/components/ProductionReceiptDialog';
+import LoadingBox from '@/components/LoadingBox';
 
 interface ProductionItem {
   id: string;

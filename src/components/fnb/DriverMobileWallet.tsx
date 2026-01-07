@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { useDriverWallet } from "../../hooks/useDriverWallet";
-import { Card, CardContent } from "../ui/card";
-import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
+import { useDriverWallet } from "@/hooks/useDriverWallet";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { 
   Wallet, 
   ArrowUpCircle, 
@@ -16,8 +16,8 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from "../ui/sheet";
-import { ScrollArea } from "../ui/scroll-area";
+} from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function DriverMobileWallet() {
   const { wallet, transactions, isLoading } = useDriverWallet();

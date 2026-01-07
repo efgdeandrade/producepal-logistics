@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils';
 import { CheckCircle, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface WeightAccuracyIndicatorProps {

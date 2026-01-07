@@ -176,14 +176,8 @@ serve(async (req) => {
                  : 400;
     
     console.error("Error in create-user-direct:", errorMessage);
-    
-    // Return generic errors for 400, specific for auth issues
-    const clientMessage = status === 401 ? 'Authentication required' :
-                          status === 403 ? 'Forbidden: Admin access required' :
-                          'Failed to create user. Please check input and try again.';
-    
     return new Response(
-      JSON.stringify({ error: clientMessage }),
+      JSON.stringify({ error: errorMessage }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status,

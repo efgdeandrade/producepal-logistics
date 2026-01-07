@@ -1,6 +1,6 @@
 import html2pdf from 'html2pdf.js';
 import JSZip from 'jszip';
-import { supabase } from '../integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface ReceiptData {
   receiptNumber: string;

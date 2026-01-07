@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Moon, Sun } from "lucide-react";
-import { Switch } from "./ui/switch";
+import { Switch } from "@/components/ui/switch";
 
 const getIsDark = () => {
   if (typeof document === "undefined") return false;

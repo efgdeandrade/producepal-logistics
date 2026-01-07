@@ -1,5 +1,5 @@
-import { Skeleton } from '../ui/skeleton';
-import { Card, CardContent, CardHeader } from '../ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
 interface ChartSkeletonProps {
   height?: number;

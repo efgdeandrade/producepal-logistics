@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { User, Package, Timer, Activity, Pause } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils';
 
 interface ActivePicker {
   id: string;

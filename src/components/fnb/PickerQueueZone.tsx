@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronRight, MapPin } from 'lucide-react';
 import { useState } from 'react';
 import { PickerOrderCard } from './PickerOrderCard';
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils';
 
 interface OrderWithItems {
   id: string;

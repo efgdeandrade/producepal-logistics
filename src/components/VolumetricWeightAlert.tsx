@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { Button } from './ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle, TrendingUp, Package, DollarSign, Lightbulb } from 'lucide-react';
-import { supabase } from '../integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface VolumetricWeightAlertProps {
@@ -249,8 +249,8 @@ export function VolumetricWeightAlert({
                         </div>
                       </div>
                     </div>
-                    ))}
-                  </div>
+                  ))}
+                </div>
               )}
 
               {aiSuggestions.nextOrderStrategy && (

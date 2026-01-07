@@ -1,27 +1,27 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Header } from '../../components/layout/Header';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Textarea } from '../../components/ui/textarea';
-import { Label } from '../../components/ui/label';
+import { Header } from '@/components/layout/Header';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../../integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 import { ArrowLeft, Plus, Trash2, ShoppingCart, Save, Banknote, CreditCard, Building2, FileText, UserPlus, Truck, Store, Package, Info, Sparkles, RotateCcw, Calendar, ChevronDown, ChevronUp, Upload, AlertTriangle, MessageSquare } from 'lucide-react';
-import { POUploadDialog } from '../../components/fnb/POUploadDialog';
-import { POReviewDialog } from '../../components/fnb/POReviewDialog';
-import { QuickPasteOrder } from '../../components/fnb/QuickPasteOrder';
-import { usePOImport, MatchedItem } from '../../hooks/usePOImport';
-import { useFnbOrderSuggestions, OrderSuggestion } from '../../hooks/useFnbOrderSuggestions';
-import { MatchedConversationItem } from '../../hooks/useConversationImport';
-import { Badge } from '../../components/ui/badge';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../components/ui/collapsible';
+import { POUploadDialog } from '@/components/fnb/POUploadDialog';
+import { POReviewDialog } from '@/components/fnb/POReviewDialog';
+import { QuickPasteOrder } from '@/components/fnb/QuickPasteOrder';
+import { usePOImport, MatchedItem } from '@/hooks/usePOImport';
+import { useFnbOrderSuggestions, OrderSuggestion } from '@/hooks/useFnbOrderSuggestions';
+import { MatchedConversationItem } from '@/hooks/useConversationImport';
+import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '../../components/ui/tooltip';
+} from '@/components/ui/tooltip';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -30,17 +30,17 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../../components/ui/select';
+} from '@/components/ui/select';
 import { format } from 'date-fns';
-import { ToggleGroup, ToggleGroupItem } from '../../components/ui/toggle-group';
-import { SearchableSelect } from '../../components/ui/searchable-select';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '../../components/ui/dialog';
+} from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,8 +50,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '../../components/ui/alert-dialog';
-import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
+} from '@/components/ui/alert-dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface OrderItem {
   productId: string;

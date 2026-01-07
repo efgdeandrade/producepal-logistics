@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "../../integrations/supabase/client";
-import { useAuth } from "../../contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { Button } from "../../components/ui/button";
-import { Badge } from "../../components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { Clock, LogIn, LogOut, MapPin, Users, Coffee } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
-import { BreakTimer } from "../../components/hr/BreakTimer";
+import { BreakTimer } from "@/components/hr/BreakTimer";
 
 export default function TimeAttendance() {
   const { user } = useAuth();

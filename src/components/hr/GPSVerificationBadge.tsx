@@ -1,10 +1,10 @@
-import { Badge } from "../ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { MapPin, MapPinOff, AlertTriangle } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "../ui/tooltip";
+} from "@/components/ui/tooltip";
 
 interface GPSVerificationBadgeProps {
   latitude?: number | null;

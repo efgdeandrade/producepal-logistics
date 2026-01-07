@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "../integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { Skeleton } from "../components/ui/skeleton";
-import { Badge } from "../components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import {
   Package,
   Truck,
@@ -36,7 +36,7 @@ import {
   Bar,
 } from "recharts";
 import { format, subDays, startOfDay, endOfDay, startOfWeek, endOfWeek } from "date-fns";
-import { useExecutiveDashboardRealtime } from "../hooks/useRealtimeUpdates";
+import { useExecutiveDashboardRealtime } from "@/hooks/useRealtimeUpdates";
 
 // Fetch dashboard stats
 const useDashboardStats = () => {

@@ -1,17 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Header } from '../components/layout/Header';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Textarea } from '../components/ui/textarea';
-import { Label } from '../components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Header } from '@/components/layout/Header';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Trash2, Save, Printer, X, ArrowLeft, FileText, Settings } from 'lucide-react';
-import { useToast } from '../hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { supabase } from '../integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 import { getWeek } from 'date-fns';
-import { StandingOrderPrompt } from '../components/StandingOrderPrompt';
+import { StandingOrderPrompt } from '@/components/StandingOrderPrompt';
 
 interface Product {
   id: string;

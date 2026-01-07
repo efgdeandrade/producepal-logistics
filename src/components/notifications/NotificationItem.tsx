@@ -9,9 +9,9 @@ import {
   X,
   Check
 } from "lucide-react";
-import { cn } from "../../lib/utils";
-import { Button } from "../ui/button";
-import type { Notification } from "../../hooks/useNotifications";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import type { Notification } from "@/hooks/useNotifications";
 
 interface NotificationItemProps {
   notification: Notification;

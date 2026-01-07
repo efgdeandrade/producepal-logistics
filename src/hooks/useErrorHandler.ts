@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { toast } from './use-toast';
+import { toast } from '@/hooks/use-toast';
 
 interface ErrorHandlerOptions {
   showToast?: boolean;

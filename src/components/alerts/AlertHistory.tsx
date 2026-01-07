@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { History, CheckCircle, AlertCircle, XCircle, Loader2 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { Badge } from "../ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -10,8 +10,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "../ui/table";
-import { supabase } from "../../integrations/supabase/client";
+} from "@/components/ui/table";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AlertExecution {
   id: string;

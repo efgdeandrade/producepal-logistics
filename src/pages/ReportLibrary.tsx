@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { Badge } from "../components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import {
   DollarSign,
   TrendingUp,
@@ -19,7 +19,7 @@ import {
   Calendar,
   FileText,
 } from "lucide-react";
-import { builtInReportTemplates, ReportTemplate } from "../lib/reportTemplates";
+import { builtInReportTemplates, ReportTemplate } from "@/lib/reportTemplates";
 
 const iconMap: Record<string, React.ElementType> = {
   DollarSign,

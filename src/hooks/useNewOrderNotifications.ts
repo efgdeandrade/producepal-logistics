@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '../integrations/supabase/client';
-import { playOrderNotificationSound, playUrgentNotificationSound } from '../utils/audioNotification';
+import { supabase } from '@/integrations/supabase/client';
+import { playOrderNotificationSound, playUrgentNotificationSound } from '@/utils/audioNotification';
 
 const SOUND_STORAGE_KEY = 'fnb_picker_sound_enabled';
 const MINIMIZED_STORAGE_KEY = 'fnb_picker_notifications_minimized';

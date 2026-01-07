@@ -1,5 +1,5 @@
-import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
 
 // Validation schema for activity log details

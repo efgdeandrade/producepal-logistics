@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ClipboardPaste, Check, Loader2, MessageSquare, Calendar, User } from 'lucide-react';
-import { Button } from '../../components/ui/button';
-import { Textarea } from '../../components/ui/textarea';
-import { Card, CardContent } from '../../components/ui/card';
-import { Badge } from '../../components/ui/badge';
-import { ScrollArea } from '../../components/ui/scroll-area';
-import { SearchableSelect } from '../../components/ui/searchable-select';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../../integrations/supabase/client';
-import { useConversationImport } from '../../hooks/useConversationImport';
+import { supabase } from '@/integrations/supabase/client';
+import { useConversationImport } from '@/hooks/useConversationImport';
 import { toast } from 'sonner';
 import { format, addDays } from 'date-fns';
 

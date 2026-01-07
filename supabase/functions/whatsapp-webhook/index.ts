@@ -68,8 +68,8 @@ Deno.serve(async (req) => {
     });
   } catch (error: unknown) {
     console.error('WhatsApp webhook error:', error);
-    // Return generic error to client, keep details in server logs
-    return new Response(JSON.stringify({ error: 'Webhook processing failed' }), {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

@@ -1,17 +1,17 @@
 import { useState } from 'react';
-import { Header } from '../../components/layout/Header';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { Header } from '@/components/layout/Header';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, MessageSquare, Webhook, Key, CheckCircle, AlertCircle, Brain, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
-import { GlobalAliasManager } from '../../components/fnb/GlobalAliasManager';
-import { UnmatchedItemsQueue } from '../../components/fnb/UnmatchedItemsQueue';
-import { CustomerMappingsViewer } from '../../components/fnb/CustomerMappingsViewer';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { GlobalAliasManager } from '@/components/fnb/GlobalAliasManager';
+import { UnmatchedItemsQueue } from '@/components/fnb/UnmatchedItemsQueue';
+import { CustomerMappingsViewer } from '@/components/fnb/CustomerMappingsViewer';
 
 export default function FnbSettings() {
   const [whatsappConfig, setWhatsappConfig] = useState({
@@ -32,12 +32,12 @@ export default function FnbSettings() {
       <main className="container py-6 max-w-4xl">
         <div className="flex items-center gap-4 mb-6">
           <Button variant="ghost" size="icon" asChild>
-            <Link to="/distribution">
+            <Link to="/fnb">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Distribution Settings</h1>
+            <h1 className="text-3xl font-bold tracking-tight">F&B Settings</h1>
             <p className="text-muted-foreground">
               Configure integrations and AI learning
             </p>

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
-import { cn } from "../../lib/utils";
-import { Button } from "./button";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
@@ -10,12 +10,12 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-} from "./command";
+} from "@/components/ui/command";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "./popover";
+} from "@/components/ui/popover";
 
 export interface SearchableSelectOption {
   value: string;
