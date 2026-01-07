@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ClipboardPaste, Check, Loader2, MessageSquare, Calendar, User } from 'lucide-react';
+import { ArrowLeft, ClipboardPaste, Check, Loader2, MessageSquare, Calendar, User, MessageCircle, RotateCcw, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useConversationImport } from '@/hooks/useConversationImport';
 import { toast } from 'sonner';
 import { format, addDays } from 'date-fns';
+import { openWhatsApp, generateOrderConfirmation, vibrateSuccess, vibrateTap, openWhatsAppGeneral } from '@/utils/whatsappUtils';
 
 interface Product {
   id: string;
@@ -32,6 +33,29 @@ export default function FnbQuickPaste() {
   const [step, setStep] = useState<'paste' | 'review' | 'success'>('paste');
   const [deliveryDate, setDeliveryDate] = useState(format(addDays(new Date(), 1), 'yyyy-MM-dd'));
   const [createdOrderNumber, setCreatedOrderNumber] = useState<string | null>(null);
+  const [clipboardAutoRead, setClipboardAutoRead] = useState(false);
+
+  // Auto-read clipboard on mount
+  useEffect(() => {
+    const autoReadClipboard = async () => {
+      try {
+        if (navigator.clipboard?.readText) {
+          const text = await navigator.clipboard.readText();
+          if (text?.trim().length > 10) {
+            setConversationText(text);
+            setClipboardAutoRead(true);
+            vibrateTap();
+          }
+        }
+      } catch (e) {
+        // Clipboard access denied - user will paste manually
+      }
+    };
+    
+    // Small delay to ensure page is fully loaded
+    const timer = setTimeout(autoReadClipboard, 300);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Load last used customer from localStorage
   useEffect(() => {
@@ -104,6 +128,7 @@ export default function FnbQuickPaste() {
   } = useConversationImport();
 
   const handlePasteFromClipboard = async () => {
+    vibrateTap();
     try {
       if (navigator.clipboard && navigator.clipboard.readText) {
         const text = await navigator.clipboard.readText();
@@ -125,6 +150,7 @@ export default function FnbQuickPaste() {
   };
 
   const handleParse = async () => {
+    vibrateTap();
     if (!customerId) {
       toast.error('Please select a customer first');
       return;
@@ -198,6 +224,9 @@ export default function FnbQuickPaste() {
       return order;
     },
     onSuccess: (order) => {
+      // Haptic feedback for success
+      vibrateSuccess();
+      
       // Save learned mappings
       if (customerId) {
         saveMappings(customerId);
@@ -219,14 +248,41 @@ export default function FnbQuickPaste() {
   });
 
   const handleCreateOrder = () => {
+    vibrateTap();
     createOrderMutation.mutate();
   };
 
   const handlePasteAnother = () => {
+    vibrateTap();
     setConversationText('');
     setStep('paste');
     setCreatedOrderNumber(null);
+    setClipboardAutoRead(false);
     reset();
+  };
+
+  const handleReplyWhatsApp = () => {
+    vibrateTap();
+    const customer = customers.find(c => c.id === customerId);
+    
+    if (customer?.whatsapp_phone && createdOrderNumber) {
+      const message = generateOrderConfirmation(
+        createdOrderNumber,
+        customer.name,
+        format(new Date(deliveryDate), 'MMM d, yyyy'),
+        validItemsCount,
+        totalAmount
+      );
+      openWhatsApp(customer.whatsapp_phone, message);
+    } else {
+      // Open WhatsApp without specific number
+      openWhatsAppGeneral();
+    }
+  };
+
+  const handleBackToWhatsApp = () => {
+    vibrateTap();
+    openWhatsAppGeneral();
   };
 
   const getConfidenceBadge = (matchSource: string, confidence: string) => {
@@ -261,14 +317,25 @@ export default function FnbQuickPaste() {
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
+          <div className="flex-1">
             <h1 className="font-semibold">Quick Order</h1>
             <p className="text-xs text-muted-foreground">
-              {step === 'paste' && 'Paste WhatsApp order'}
+              {step === 'paste' && (clipboardAutoRead ? '📋 Clipboard ready!' : 'Paste WhatsApp order')}
               {step === 'review' && `${validItemsCount} items to review`}
               {step === 'success' && 'Order created!'}
             </p>
           </div>
+          {step === 'paste' && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleBackToWhatsApp}
+              className="gap-1"
+            >
+              <MessageCircle className="h-4 w-4" />
+              <span className="hidden sm:inline">WhatsApp</span>
+            </Button>
+          )}
         </div>
       </header>
 
@@ -287,7 +354,10 @@ export default function FnbQuickPaste() {
                 <SearchableSelect
                   options={customers.map(c => ({ value: c.id, label: c.name }))}
                   value={customerId || ''}
-                  onValueChange={setCustomerId}
+                  onValueChange={(val) => {
+                    vibrateTap();
+                    setCustomerId(val);
+                  }}
                   placeholder="Select customer..."
                 />
                 
@@ -302,7 +372,10 @@ export default function FnbQuickPaste() {
                           variant="outline"
                           size="sm"
                           className="h-7 text-xs"
-                          onClick={() => setCustomerId(c.id)}
+                          onClick={() => {
+                            vibrateTap();
+                            setCustomerId(c.id);
+                          }}
                         >
                           {c.name}
                         </Button>
@@ -313,14 +386,27 @@ export default function FnbQuickPaste() {
               </CardContent>
             </Card>
 
+            {/* Clipboard auto-read indicator */}
+            {clipboardAutoRead && conversationText && (
+              <Card className="border-green-500/50 bg-green-500/5">
+                <CardContent className="p-3 flex items-center gap-2">
+                  <Check className="h-4 w-4 text-green-500" />
+                  <span className="text-sm text-green-700 dark:text-green-400">
+                    Clipboard content ready ({conversationText.split('\n').length} lines)
+                  </span>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Big Paste Button */}
             <Button
               onClick={handlePasteFromClipboard}
               className="w-full h-32 text-lg flex-col gap-2"
               size="lg"
+              variant={clipboardAutoRead ? "outline" : "default"}
             >
               <ClipboardPaste className="h-10 w-10" />
-              <span>Tap to Paste from Clipboard</span>
+              <span>{clipboardAutoRead ? 'Tap to Re-paste' : 'Tap to Paste from Clipboard'}</span>
             </Button>
 
             {/* Or divider */}
@@ -341,7 +427,6 @@ export default function FnbQuickPaste() {
               value={conversationText}
               onChange={(e) => setConversationText(e.target.value)}
               className="min-h-[150px] text-base"
-              autoFocus
             />
 
             {/* Parse Button */}
@@ -462,7 +547,10 @@ export default function FnbQuickPaste() {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => setStep('paste')}
+                onClick={() => {
+                  vibrateTap();
+                  setStep('paste');
+                }}
                 className="w-full"
               >
                 ← Back to Paste
@@ -484,27 +572,37 @@ export default function FnbQuickPaste() {
             </p>
 
             <div className="space-y-3 w-full max-w-xs">
+              {/* Reply on WhatsApp - Primary action */}
               <Button
-                onClick={handlePasteAnother}
-                className="w-full h-14 text-lg"
+                onClick={handleReplyWhatsApp}
+                className="w-full h-14 text-lg gap-2 bg-green-600 hover:bg-green-700"
                 size="lg"
               >
-                <ClipboardPaste className="h-5 w-5 mr-2" />
+                <MessageCircle className="h-5 w-5" />
+                Reply on WhatsApp
+              </Button>
+
+              {/* Paste Another */}
+              <Button
+                onClick={handlePasteAnother}
+                variant="outline"
+                className="w-full h-12 gap-2"
+              >
+                <RotateCcw className="h-4 w-4" />
                 Paste Another Order
               </Button>
-              <Button
-                variant="outline"
-                onClick={() => navigate('/distribution/orders')}
-                className="w-full"
-              >
-                View All Orders
-              </Button>
+
+              {/* View Order */}
               <Button
                 variant="ghost"
-                onClick={() => navigate('/distribution')}
-                className="w-full"
+                onClick={() => {
+                  vibrateTap();
+                  navigate('/distribution/orders');
+                }}
+                className="w-full gap-2"
               >
-                Back to Dashboard
+                <ExternalLink className="h-4 w-4" />
+                View Orders
               </Button>
             </div>
           </div>

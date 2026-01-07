@@ -15,6 +15,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
+import { QuickOrderFAB } from "@/components/mobile/QuickOrderFAB";
 
 export default function DistributionDashboard() {
   const navigate = useNavigate();
@@ -68,7 +69,9 @@ export default function DistributionDashboard() {
     : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* Quick Order FAB for mobile */}
+      <QuickOrderFAB />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Distribution Dashboard</h1>
