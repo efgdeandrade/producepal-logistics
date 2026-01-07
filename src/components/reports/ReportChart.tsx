@@ -16,7 +16,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 
 type ChartType = "bar" | "line" | "pie" | "area";
 

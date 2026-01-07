@@ -1,12 +1,12 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { supabase } from "../../integrations/supabase/client";
+import { useAuth } from "../../contexts/AuthContext";
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
+import { Input } from "../../components/ui/input";
+import { Label } from "../../components/ui/label";
 import { toast } from "sonner";
 import { ArrowLeft, CheckCircle, Phone, MapPin, Package, Clock, Banknote, Camera, Store, Upload, CreditCard, LayoutDashboard, Truck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -17,16 +17,16 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
+} from "../../components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DriverAdminDashboard } from "@/components/driver/DriverAdminDashboard";
+} from "../../components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import { DriverAdminDashboard } from "../../components/driver/DriverAdminDashboard";
 
 type PaymentMethodType = "cash" | "swipe" | "transfer" | "credit";
 
@@ -463,13 +463,13 @@ export default function FnbDriverPortal() {
           </div>
         </div>
 
-        <Tabs defaultValue="dashboard" className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
+        <Tabs defaultValue="dashboard">
+          <TabsList>
             <TabsTrigger value="dashboard" className="flex items-center gap-2">
               <LayoutDashboard className="h-4 w-4" />
               Dashboard
             </TabsTrigger>
-            <TabsTrigger value="deliveries" className="flex items-center gap-2">
+            <TabsTrigger value="my-deliveries" className="flex items-center gap-2">
               <Truck className="h-4 w-4" />
               My Deliveries
             </TabsTrigger>
@@ -479,34 +479,28 @@ export default function FnbDriverPortal() {
             <DriverAdminDashboard />
           </TabsContent>
           
-          <TabsContent value="deliveries" className="mt-6 max-w-lg">
+          <TabsContent value="my-deliveries" className="mt-6">
             {renderDriverDeliveries()}
           </TabsContent>
         </Tabs>
 
-        {/* COD Collection Dialog */}
+        {/* COD Confirmation Dialog */}
         <Dialog open={!!codDialogOrder} onOpenChange={() => resetDialog()}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>
-                {codDialogOrder?.fnb_customers?.customer_type === 'supermarket' 
-                  ? 'Complete Supermarket Delivery' 
-                  : 'Record Payment & Delivery'}
-              </DialogTitle>
+              <DialogTitle>Confirm Delivery</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="text-sm text-muted-foreground">
-                <p>Customer: <span className="font-medium text-foreground">{codDialogOrder?.fnb_customers?.name}</span></p>
-                <p>Order: <span className="font-medium text-foreground">{codDialogOrder?.order_number}</span></p>
-                <p>Order Total: <span className="font-medium text-foreground">{codDialogOrder?.total_xcg?.toFixed(2)} XCG</span></p>
-                {codDialogOrder?.fnb_customers?.customer_type && (
-                  <p>Type: <span className="font-medium text-foreground capitalize">{codDialogOrder.fnb_customers.customer_type}</span></p>
-                )}
-              </div>
-
-              {/* Payment Method */}
+            <div className="space-y-4">
               <div>
-                <Label className="mb-2 block">Payment Method</Label>
+                <p className="text-sm text-muted-foreground">Customer</p>
+                <p className="font-medium">{codDialogOrder?.fnb_customers?.name}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Order Total</p>
+                <p className="font-medium">{codDialogOrder?.total_xcg?.toFixed(2)} XCG</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Payment Method</Label>
                 <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethodType)}>
                   <SelectTrigger>
                     <SelectValue />
@@ -519,113 +513,55 @@ export default function FnbDriverPortal() {
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* Amount - hide for credit */}
               {paymentMethod !== "credit" && (
-                <div>
-                  <Label className="mb-2 block">Amount Collected (XCG)</Label>
+                <div className="space-y-2">
+                  <Label>Amount Collected (XCG)</Label>
                   <Input
                     type="number"
                     step="0.01"
                     value={codAmount}
                     onChange={(e) => setCodAmount(e.target.value)}
-                    placeholder="Enter amount collected"
-                    className="text-lg"
                   />
                 </div>
               )}
-
-              {/* Receipt Photo - Required for Supermarket */}
-              {codDialogOrder?.fnb_customers?.customer_type === 'supermarket' && (
-                <div>
-                  <Label className="mb-2 block">
-                    Signed Receipt Photo <span className="text-destructive">*</span>
-                  </Label>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  {receiptPhoto ? (
-                    <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
-                      <CheckCircle className="h-5 w-5 text-green-600" />
-                      <span className="flex-1 text-sm truncate">{receiptPhoto.name}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        Change
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <Camera className="h-4 w-4 mr-2" />
-                      Take Photo of Signed Receipt
-                    </Button>
+              
+              {/* Receipt Photo Upload */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  Receipt Photo
+                  {codDialogOrder?.fnb_customers?.customer_type === 'supermarket' && (
+                    <Badge variant="destructive" className="text-xs">Required</Badge>
                   )}
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Required: Photo of receipt signed by store representative
-                  </p>
-                </div>
-              )}
-
-              {/* Optional receipt for non-supermarket */}
-              {codDialogOrder?.fnb_customers?.customer_type !== 'supermarket' && (
-                <div>
-                  <Label className="mb-2 block">Receipt Photo (Optional)</Label>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  {receiptPhoto ? (
-                    <div className="flex items-center gap-2 p-2 border rounded">
-                      <Camera className="h-4 w-4 text-green-600" />
-                      <span className="flex-1 text-sm truncate">{receiptPhoto.name}</span>
-                      <Button variant="ghost" size="sm" onClick={() => setReceiptPhoto(null)}>
-                        Remove
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Add Photo
-                    </Button>
-                  )}
-                </div>
-              )}
+                </Label>
+                <Input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Camera className="h-4 w-4 mr-2" />
+                  {receiptPhoto ? receiptPhoto.name : "Take Photo / Upload"}
+                </Button>
+                {receiptPhoto && (
+                  <p className="text-xs text-green-600">✓ Photo selected</p>
+                )}
+              </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => resetDialog()}>
-                Cancel
-              </Button>
+              <Button variant="outline" onClick={resetDialog}>Cancel</Button>
               <Button 
-                onClick={handleConfirmDelivery} 
-                disabled={markDeliveredMutation.isPending || uploadingReceipt}
+                onClick={handleConfirmDelivery}
+                disabled={uploadingReceipt || markDeliveredMutation.isPending}
               >
-                {uploadingReceipt ? (
-                  <>Uploading...</>
-                ) : (
-                  <>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Confirm Delivery
-                  </>
-                )}
+                {uploadingReceipt ? "Uploading..." : "Confirm Delivery"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -634,46 +570,38 @@ export default function FnbDriverPortal() {
     );
   }
 
-  // Regular driver view (no tabs, just deliveries)
+  // Regular driver view (no tabs)
   return (
-    <div className="container mx-auto p-4 space-y-6 max-w-lg">
+    <div className="container mx-auto p-4 space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate("/fnb")}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
           <h1 className="text-2xl font-bold">My Deliveries</h1>
-          <p className="text-muted-foreground">
-            {myOrders?.length || 0} orders to deliver
-          </p>
+          <p className="text-muted-foreground">Today's delivery queue</p>
         </div>
       </div>
 
       {renderDriverDeliveries()}
 
-      {/* COD Collection Dialog */}
+      {/* COD Confirmation Dialog */}
       <Dialog open={!!codDialogOrder} onOpenChange={() => resetDialog()}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {codDialogOrder?.fnb_customers?.customer_type === 'supermarket' 
-                ? 'Complete Supermarket Delivery' 
-                : 'Record Payment & Delivery'}
-            </DialogTitle>
+            <DialogTitle>Confirm Delivery</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="text-sm text-muted-foreground">
-              <p>Customer: <span className="font-medium text-foreground">{codDialogOrder?.fnb_customers?.name}</span></p>
-              <p>Order: <span className="font-medium text-foreground">{codDialogOrder?.order_number}</span></p>
-              <p>Order Total: <span className="font-medium text-foreground">{codDialogOrder?.total_xcg?.toFixed(2)} XCG</span></p>
-              {codDialogOrder?.fnb_customers?.customer_type && (
-                <p>Type: <span className="font-medium text-foreground capitalize">{codDialogOrder.fnb_customers.customer_type}</span></p>
-              )}
-            </div>
-
-            {/* Payment Method */}
+          <div className="space-y-4">
             <div>
-              <Label className="mb-2 block">Payment Method</Label>
+              <p className="text-sm text-muted-foreground">Customer</p>
+              <p className="font-medium">{codDialogOrder?.fnb_customers?.name}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Order Total</p>
+              <p className="font-medium">{codDialogOrder?.total_xcg?.toFixed(2)} XCG</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Payment Method</Label>
               <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethodType)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -686,113 +614,55 @@ export default function FnbDriverPortal() {
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Amount - hide for credit */}
             {paymentMethod !== "credit" && (
-              <div>
-                <Label className="mb-2 block">Amount Collected (XCG)</Label>
+              <div className="space-y-2">
+                <Label>Amount Collected (XCG)</Label>
                 <Input
                   type="number"
                   step="0.01"
                   value={codAmount}
                   onChange={(e) => setCodAmount(e.target.value)}
-                  placeholder="Enter amount collected"
-                  className="text-lg"
                 />
               </div>
             )}
-
-            {/* Receipt Photo - Required for Supermarket */}
-            {codDialogOrder?.fnb_customers?.customer_type === 'supermarket' && (
-              <div>
-                <Label className="mb-2 block">
-                  Signed Receipt Photo <span className="text-destructive">*</span>
-                </Label>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                {receiptPhoto ? (
-                  <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                    <span className="flex-1 text-sm truncate">{receiptPhoto.name}</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      Change
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Camera className="h-4 w-4 mr-2" />
-                    Take Photo of Signed Receipt
-                  </Button>
+            
+            {/* Receipt Photo Upload */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                Receipt Photo
+                {codDialogOrder?.fnb_customers?.customer_type === 'supermarket' && (
+                  <Badge variant="destructive" className="text-xs">Required</Badge>
                 )}
-                <p className="text-xs text-muted-foreground mt-1">
-                  Required: Photo of receipt signed by store representative
-                </p>
-              </div>
-            )}
-
-            {/* Optional receipt for non-supermarket */}
-            {codDialogOrder?.fnb_customers?.customer_type !== 'supermarket' && (
-              <div>
-                <Label className="mb-2 block">Receipt Photo (Optional)</Label>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                {receiptPhoto ? (
-                  <div className="flex items-center gap-2 p-2 border rounded">
-                    <Camera className="h-4 w-4 text-green-600" />
-                    <span className="flex-1 text-sm truncate">{receiptPhoto.name}</span>
-                    <Button variant="ghost" size="sm" onClick={() => setReceiptPhoto(null)}>
-                      Remove
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Add Photo
-                  </Button>
-                )}
-              </div>
-            )}
+              </Label>
+              <Input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Camera className="h-4 w-4 mr-2" />
+                {receiptPhoto ? receiptPhoto.name : "Take Photo / Upload"}
+              </Button>
+              {receiptPhoto && (
+                <p className="text-xs text-green-600">✓ Photo selected</p>
+              )}
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => resetDialog()}>
-              Cancel
-            </Button>
+            <Button variant="outline" onClick={resetDialog}>Cancel</Button>
             <Button 
-              onClick={handleConfirmDelivery} 
-              disabled={markDeliveredMutation.isPending || uploadingReceipt}
+              onClick={handleConfirmDelivery}
+              disabled={uploadingReceipt || markDeliveredMutation.isPending}
             >
-              {uploadingReceipt ? (
-                <>Uploading...</>
-              ) : (
-                <>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Confirm Delivery
-                </>
-              )}
+              {uploadingReceipt ? "Uploading..." : "Confirm Delivery"}
             </Button>
           </DialogFooter>
         </DialogContent>
