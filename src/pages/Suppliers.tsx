@@ -1,24 +1,24 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { useActivityLogger } from '@/hooks/useActivityLogger';
-import { Header } from '@/components/layout/Header';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { supabase } from '../integrations/supabase/client';
+import { useAuth } from '../contexts/AuthContext';
+import { useActivityLogger } from '../hooks/useActivityLogger';
+import { Header } from '../components/layout/Header';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '../components/ui/dialog';
 import { PlusCircle, Pencil, Trash2, ArrowLeft, Search, Package, Calendar, History } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '../components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { format } from 'date-fns';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '../hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
-import { ProductPriceHistory } from '@/components/ProductPriceHistory';
-import { ProductFormDialog } from '@/components/ProductFormDialog';
+import { ProductPriceHistory } from '../components/ProductPriceHistory';
+import { ProductFormDialog } from '../components/ProductFormDialog';
 const supplierSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(200, 'Name too long'),
   contact: z.string().trim().max(200, 'Contact name too long').optional(),
