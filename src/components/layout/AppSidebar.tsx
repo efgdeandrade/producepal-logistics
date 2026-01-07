@@ -32,6 +32,7 @@ import {
   CalendarClock,
   Sun,
   Moon,
+  Brain,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -200,6 +201,7 @@ export function AppSidebar() {
         { title: "Zones", url: "/distribution/zones", icon: MapPin },
         { title: "COD Reconciliation", url: "/distribution/cod", icon: DollarSign },
         { title: "Analytics", url: "/distribution/analytics", icon: BarChart3 },
+        { title: "AI Training", url: "/distribution/training", icon: Brain },
       ],
     },
     {
