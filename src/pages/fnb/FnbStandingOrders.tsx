@@ -506,7 +506,6 @@ export default function FnbStandingOrders() {
             </TabsContent>
           ))}
         </Tabs>
-      </main>
     </div>
   );
 }

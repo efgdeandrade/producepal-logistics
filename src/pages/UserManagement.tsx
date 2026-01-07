@@ -668,7 +668,6 @@ export default function UserManagement() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
-    </>
+    </div>
   );
 }

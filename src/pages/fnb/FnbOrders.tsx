@@ -833,7 +833,7 @@ export default function FnbOrders() {
             onOpenChange={(open) => !open && setQuickAddOrder(null)}
           />
         )}
-      </main>
+      </div>
     </div>
   );
 }
