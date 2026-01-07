@@ -114,7 +114,7 @@ export function InstallBanner() {
               <img src="/logo.png" alt="FUIK" className="h-8 w-8" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm">Install FUIK Driver</p>
+              <p className="font-semibold text-sm">Install FUIK.IO</p>
               <p className="text-xs text-muted-foreground truncate">Add to home screen for quick access</p>
             </div>
             {isIOS ? (
