@@ -31,6 +31,7 @@ import {
   ClipboardList,
   Repeat
 } from 'lucide-react';
+import { QuickOrderFAB } from '@/components/mobile/QuickOrderFAB';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Link, useNavigate } from 'react-router-dom';
 import { format, addDays, startOfWeek, isSameDay, parseISO, getISOWeek } from 'date-fns';
@@ -573,7 +574,9 @@ export default function FnbOrders() {
   const selectedDayOrders = selectedDay ? getOrdersForDay(selectedDay) : [];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      {/* Quick Order FAB for mobile */}
+      <QuickOrderFAB />
       <Header />
       <main className="container py-6 space-y-6">
         <div className="flex items-center gap-4">
