@@ -1,7 +1,7 @@
 import { ReactNode, useState, useEffect } from "react";
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarInset, SidebarTrigger } from "../ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
-import { Separator } from "@/components/ui/separator";
+import { Separator } from "../ui/separator";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -9,13 +9,13 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
+} from "../ui/breadcrumb";
 import { useLocation } from "react-router-dom";
 import { format, getWeek } from "date-fns";
-import { NotificationCenter } from "@/components/notifications/NotificationCenter";
-import { OfflineIndicator } from "@/components/OfflineIndicator";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { cn } from "@/lib/utils";
+import { NotificationCenter } from "../notifications/NotificationCenter";
+import { OfflineIndicator } from "../OfflineIndicator";
+import { useIsMobile } from "../../hooks/use-mobile";
+import { cn } from "../../lib/utils";
 
 interface AppLayoutProps {
   children: ReactNode;

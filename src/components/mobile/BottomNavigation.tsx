@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Home, ShoppingCart, ClipboardList, Truck, MoreHorizontal, Package, Store, History, Calculator, Users, MessageSquarePlus } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '../../lib/utils';
+import { useIsMobile } from '../../hooks/use-mobile';
 
 interface NavItem {
   path: string;

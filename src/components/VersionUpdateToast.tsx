@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
-import { useVersionCheck } from '@/hooks/useVersionCheck';
-import { toast } from '@/hooks/use-toast';
+import { useVersionCheck } from '../hooks/useVersionCheck';
+import { toast } from '../hooks/use-toast';
 import { RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from './ui/button';
 
 export const VersionUpdateToast = () => {
   const { isUpdateAvailable, dismiss, refresh } = useVersionCheck();

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from './ui/badge';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { cn } from '../lib/utils';
 
 export const OfflineIndicator = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
