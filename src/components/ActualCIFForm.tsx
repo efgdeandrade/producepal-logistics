@@ -655,7 +655,7 @@ export function ActualCIFForm({
                 </CollapsibleContent>
               </div>
             </Collapsible>
-          ))
+          ))}
         </CardContent>
       </Card>
 
@@ -726,7 +726,7 @@ export function ActualCIFForm({
                     <ScrollBar orientation="horizontal" />
                   </ScrollArea>
                 </TabsContent>
-              ))
+              ))}
             </Tabs>
           </CardContent>
         </Card>
