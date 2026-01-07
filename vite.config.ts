@@ -45,9 +45,9 @@ export default defineConfig(({ mode }) => ({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.png', 'logo.png', 'offline.html'],
       manifest: {
-        name: 'FUIK Driver',
-        short_name: 'FUIK',
-        description: 'Mobile Driver Portal for FUIK Logistics',
+        name: 'FUIK.IO',
+        short_name: 'FUIK.IO',
+        description: 'Fresh Produce Logistics',
         theme_color: '#00b4d8',
         background_color: '#1a1a2e',
         display: 'standalone',
