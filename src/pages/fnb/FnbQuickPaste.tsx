@@ -34,27 +34,27 @@ export default function FnbQuickPaste() {
   const [step, setStep] = useState<'paste' | 'review' | 'success'>('paste');
   const [deliveryDate, setDeliveryDate] = useState(format(addDays(new Date(), 1), 'yyyy-MM-dd'));
   const [createdOrderNumber, setCreatedOrderNumber] = useState<string | null>(null);
-  const [clipboardAutoRead, setClipboardAutoRead] = useState(false);
+  const [clipboardContent, setClipboardContent] = useState<string | null>(null);
+  const [clipboardChecked, setClipboardChecked] = useState(false);
   const [correctionsCount, setCorrectionsCount] = useState(0);
 
-  // Auto-read clipboard on mount
+  // Check clipboard on mount (without auto-pasting)
   useEffect(() => {
-    const autoReadClipboard = async () => {
+    const checkClipboard = async () => {
       try {
         if (navigator.clipboard?.readText) {
           const text = await navigator.clipboard.readText();
           if (text?.trim().length > 10) {
-            setConversationText(text);
-            setClipboardAutoRead(true);
-            vibrateTap();
+            setClipboardContent(text);
           }
         }
       } catch (e) {
         // Clipboard access denied - user will paste manually
       }
+      setClipboardChecked(true);
     };
     
-    const timer = setTimeout(autoReadClipboard, 300);
+    const timer = setTimeout(checkClipboard, 100);
     return () => clearTimeout(timer);
   }, []);
 
@@ -254,7 +254,8 @@ export default function FnbQuickPaste() {
     setConversationText('');
     setStep('paste');
     setCreatedOrderNumber(null);
-    setClipboardAutoRead(false);
+    setClipboardContent(null);
+    setClipboardChecked(false);
     setCorrectionsCount(0);
     reset();
   };
@@ -301,7 +302,7 @@ export default function FnbQuickPaste() {
           <div className="flex-1 min-w-0">
             <h1 className="font-semibold truncate">Quick Order</h1>
             <p className="text-xs text-muted-foreground truncate">
-              {step === 'paste' && (clipboardAutoRead ? '📋 Clipboard ready!' : 'Paste WhatsApp order')}
+              {step === 'paste' && (clipboardContent ? '📋 Clipboard ready!' : 'Paste WhatsApp order')}
               {step === 'review' && `${validItemsCount} items to review`}
               {step === 'success' && 'Order created!'}
             </p>
@@ -367,28 +368,52 @@ export default function FnbQuickPaste() {
               </CardContent>
             </Card>
 
-            {/* Clipboard indicator */}
-            {clipboardAutoRead && conversationText && (
-              <Card className="border-green-500/50 bg-green-500/5">
-                <CardContent className="p-3 flex items-center gap-2">
-                  <Check className="h-4 w-4 text-green-500 shrink-0" />
-                  <span className="text-sm text-green-700 dark:text-green-400 truncate">
-                    Clipboard ready ({conversationText.split('\n').length} lines)
-                  </span>
+            {/* Clipboard Ready Card - One-tap paste & parse */}
+            {clipboardChecked && clipboardContent && (
+              <Card 
+                className="border-primary/50 bg-primary/5 cursor-pointer active:scale-[0.98] transition-transform touch-manipulation"
+                onClick={async () => {
+                  if (!customerId) {
+                    toast.error('Please select a customer first');
+                    return;
+                  }
+                  vibrateTap();
+                  setConversationText(clipboardContent);
+                  await parseConversation(clipboardContent, products, customerId);
+                  setStep('review');
+                }}
+              >
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <ClipboardPaste className="h-5 w-5 text-primary shrink-0" />
+                    <span className="font-medium text-primary">Clipboard Ready</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground line-clamp-2">
+                    {clipboardContent.substring(0, 100)}...
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">
+                      {clipboardContent.split('\n').filter(l => l.trim()).length} lines detected
+                    </span>
+                    <Badge variant="default" className="shrink-0">
+                      {customerId ? 'Tap to Paste & Parse' : 'Select customer first'}
+                    </Badge>
+                  </div>
                 </CardContent>
               </Card>
             )}
 
-            {/* Big Paste Button - Full width */}
-            <Button
-              onClick={handlePasteFromClipboard}
-              className="w-full h-28 text-lg flex-col gap-2"
-              size="lg"
-              variant={clipboardAutoRead ? "outline" : "default"}
-            >
-              <ClipboardPaste className="h-8 w-8" />
-              <span>{clipboardAutoRead ? 'Tap to Re-paste' : 'Paste from Clipboard'}</span>
-            </Button>
+            {/* Alternative: Manual Paste Button */}
+            {(!clipboardContent || !clipboardChecked) && (
+              <Button
+                onClick={handlePasteFromClipboard}
+                className="w-full h-28 text-lg flex-col gap-2"
+                size="lg"
+              >
+                <ClipboardPaste className="h-8 w-8" />
+                <span>Paste from Clipboard</span>
+              </Button>
+            )}
 
             {/* Divider */}
             <div className="relative py-2">
