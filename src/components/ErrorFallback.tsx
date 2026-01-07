@@ -24,7 +24,7 @@ export function ErrorFallback({ error, onReset }: ErrorFallbackProps) {
           <p className="text-muted-foreground">
             {error?.message || 'An unexpected error occurred. Please try again.'}
           </p>
-          {process.env.NODE_ENV === 'development' && error?.stack && (
+          {import.meta.env.DEV && error?.stack && (
             <pre className="mt-4 p-3 bg-muted rounded-md text-xs text-left overflow-auto max-h-32">
               {error.stack}
             </pre>

@@ -57,11 +57,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Set up auth state listener
+    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
+        setLoading(false); // Always clear loading on auth state change
 
         // Fetch roles and password change requirement after state is set
         if (currentSession?.user) {
@@ -76,24 +77,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
+    // THEN check for existing session with error handling
+    supabase.auth.getSession()
+      .then(({ data: { session: currentSession } }) => {
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
 
-      if (currentSession?.user) {
-        Promise.all([
-          fetchUserRoles(currentSession.user.id),
-          fetchMustChangePassword(currentSession.user.id)
-        ]).then(([rolesData, mustChangePass]) => {
-          setRoles(rolesData);
-          setMustChangePassword(mustChangePass);
-          setLoading(false);
-        });
-      } else {
-        setLoading(false);
-      }
-    });
+        if (currentSession?.user) {
+          return Promise.all([
+            fetchUserRoles(currentSession.user.id),
+            fetchMustChangePassword(currentSession.user.id)
+          ]).then(([rolesData, mustChangePass]) => {
+            setRoles(rolesData);
+            setMustChangePassword(mustChangePass);
+          });
+        }
+      })
+      .catch((error) => {
+        console.error('[AuthContext] getSession error:', error);
+      })
+      .finally(() => {
+        setLoading(false); // Always clear loading, even on error
+      });
 
     return () => subscription.unsubscribe();
   }, []);
