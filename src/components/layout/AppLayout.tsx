@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { Separator } from "@/components/ui/separator";
@@ -11,6 +11,9 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { useLocation } from "react-router-dom";
+import { format, getWeek } from "date-fns";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { OfflineIndicator } from "@/components/OfflineIndicator";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -59,6 +62,12 @@ const routeLabels: Record<string, string> = {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
   
   // Generate breadcrumbs from current path
   const pathSegments = location.pathname.split("/").filter(Boolean);
@@ -104,6 +113,26 @@ export function AppLayout({ children }: AppLayoutProps) {
               <span className="font-medium">
                 {breadcrumbs[breadcrumbs.length - 1]?.label || "Dashboard"}
               </span>
+            </div>
+
+            {/* Time/Date/Week Display + Notifications */}
+            <div className="ml-auto flex items-center gap-3">
+              <div className="flex flex-col text-right">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-foreground">
+                    {format(currentTime, 'MMM do')}
+                  </span>
+                  <span className="text-sm text-muted-foreground font-mono">
+                    {format(currentTime, 'HH:mm')}
+                  </span>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  Week {getWeek(currentTime)}
+                </span>
+              </div>
+              <Separator orientation="vertical" className="h-6" />
+              <NotificationCenter />
+              <OfflineIndicator />
             </div>
           </header>
 

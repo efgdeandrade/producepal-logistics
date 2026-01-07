@@ -249,17 +249,26 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="border-b border-sidebar-border p-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm">
-              PP
-            </div>
+          <a
+            href="/"
+            onClick={(e) => {
+              e.preventDefault();
+              navigate("/");
+            }}
+            className="flex items-center gap-3"
+          >
+            <img 
+              src="/logo.png" 
+              alt="FUIK Logo" 
+              className="h-9 w-auto object-contain"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/favicon.png';
+              }}
+            />
             {!collapsed && (
-              <div className="flex flex-col">
-                <span className="font-semibold text-sidebar-foreground">ProducePal</span>
-                <span className="text-xs text-muted-foreground">Logistics</span>
-              </div>
+              <span className="font-semibold text-sidebar-foreground">FUIK</span>
             )}
-          </div>
+          </a>
           <Button
             variant="ghost"
             size="icon"
