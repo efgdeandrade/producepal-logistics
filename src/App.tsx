@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -106,23 +106,47 @@ const ProtectedWithLayout = ({ children, requiredRole }: { children: React.React
   </ProtectedRoute>
 );
 
+// Offline detection wrapper - shows offline page only when truly offline
+const OfflineWrapper = ({ children }: { children: React.ReactNode }) => {
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  if (!isOnline) {
+    return <Offline />;
+  }
+
+  return <>{children}</>;
+};
+
 const App = () => (
   <ThemeProvider>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
           <ErrorBoundary>
-            <Toaster />
-            <Sonner />
-            <VersionUpdateToast />
-            <BrowserRouter>
-              <InstallBanner />
-              <BottomNavigation />
-              <Routes>
-              {/* Auth - No layout */}
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/install" element={<Install />} />
-              <Route path="/offline" element={<Offline />} />
+            <OfflineWrapper>
+              <Toaster />
+              <Sonner />
+              <VersionUpdateToast />
+              <BrowserRouter>
+                <InstallBanner />
+                <BottomNavigation />
+                <Routes>
+                {/* Auth - No layout */}
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/install" element={<Install />} />
 
               {/* Executive Dashboard */}
               <Route path="/" element={<ProtectedWithLayout><ExecutiveDashboard /></ProtectedWithLayout>} />
@@ -246,7 +270,8 @@ const App = () => (
               {/* Catch-all */}
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </BrowserRouter>
+            </BrowserRouter>
+            </OfflineWrapper>
           </ErrorBoundary>
         </AuthProvider>
       </TooltipProvider>
