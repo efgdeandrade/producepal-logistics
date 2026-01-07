@@ -8,7 +8,6 @@ import {
   Download, 
   CheckCircle, 
   ArrowRight,
-  Truck,
   MapPin,
   Wifi,
   Bell
@@ -75,7 +74,7 @@ export default function Install() {
             </div>
             <h1 className="text-2xl font-bold mb-2">App Installed!</h1>
             <p className="text-muted-foreground mb-6">
-              ProducePal Driver is ready to use on your home screen.
+              FUIK Driver is ready to use on your home screen.
             </p>
             <Button asChild className="w-full">
               <a href="/fnb/driver-mobile">
@@ -93,10 +92,10 @@ export default function Install() {
     <div className="min-h-screen bg-gradient-to-b from-primary/10 to-background">
       {/* Hero */}
       <div className="px-6 pt-12 pb-8 text-center">
-        <div className="w-24 h-24 mx-auto mb-6 bg-primary rounded-2xl flex items-center justify-center shadow-lg">
-          <Truck className="h-12 w-12 text-primary-foreground" />
+        <div className="w-24 h-24 mx-auto mb-6 bg-primary rounded-2xl flex items-center justify-center shadow-lg overflow-hidden">
+          <img src="/logo.png" alt="FUIK" className="h-16 w-16 object-contain" />
         </div>
-        <h1 className="text-3xl font-bold mb-2">ProducePal Driver</h1>
+        <h1 className="text-3xl font-bold mb-2">FUIK Driver</h1>
         <p className="text-muted-foreground">
           Your mobile delivery companion
         </p>
