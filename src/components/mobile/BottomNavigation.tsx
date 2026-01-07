@@ -102,8 +102,8 @@ export const BottomNavigation = () => {
   const navItems = getNavItems(location.pathname);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 safe-area-bottom">
-      <div className="flex items-center justify-around h-16 px-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 pb-safe">
+      <div className="flex items-center justify-around h-16 px-1">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path || 
             (item.path !== '/' && item.path !== '/quick-paste' && location.pathname.startsWith(item.path));
@@ -115,26 +115,27 @@ export const BottomNavigation = () => {
               key={item.path}
               to={item.path}
               className={cn(
-                'flex flex-col items-center justify-center flex-1 h-full gap-1 text-xs transition-colors touch-manipulation min-h-[44px]',
+                'flex flex-col items-center justify-center flex-1 h-full gap-0.5 text-[11px] transition-all touch-manipulation active:scale-95',
                 isHighlight 
                   ? 'text-primary'
                   : isActive 
                     ? 'text-primary' 
-                    : 'text-muted-foreground hover:text-foreground'
+                    : 'text-muted-foreground active:text-foreground'
               )}
             >
               <div className={cn(
-                'flex items-center justify-center',
-                isHighlight && 'bg-primary text-primary-foreground rounded-full p-2 -mt-4 shadow-lg'
+                'flex items-center justify-center transition-transform',
+                isHighlight && 'bg-primary text-primary-foreground rounded-full p-2.5 -mt-5 shadow-lg shadow-primary/25',
+                isActive && !isHighlight && 'scale-110'
               )}>
                 <Icon className={cn(
-                  isHighlight ? 'h-6 w-6' : 'h-5 w-5',
+                  isHighlight ? 'h-5 w-5' : 'h-5 w-5',
                   !isHighlight && isActive && 'text-primary'
                 )} />
               </div>
               <span className={cn(
-                'font-medium',
-                isHighlight ? 'text-primary -mt-1' : isActive && 'text-primary'
+                'font-medium truncate max-w-[60px]',
+                isHighlight ? 'text-primary' : isActive && 'text-primary'
               )}>
                 {item.label}
               </span>

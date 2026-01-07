@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { MobileProductCard } from '@/components/mobile/MobileProductCard';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useConversationImport } from '@/hooks/useConversationImport';
@@ -52,7 +53,6 @@ export default function FnbQuickPaste() {
       }
     };
     
-    // Small delay to ensure page is fully loaded
     const timer = setTimeout(autoReadClipboard, 300);
     return () => clearTimeout(timer);
   }, []);
@@ -103,7 +103,6 @@ export default function FnbQuickPaste() {
         .limit(30);
       if (error) throw error;
       
-      // Dedupe and take top 5
       const seen = new Set();
       const unique: { id: string; name: string }[] = [];
       for (const order of data || []) {
@@ -123,6 +122,7 @@ export default function FnbQuickPaste() {
     parsedData,
     parseConversation,
     updateMatchedItem,
+    removeMatchedItem,
     saveMappings,
     reset
   } = useConversationImport();
@@ -135,7 +135,6 @@ export default function FnbQuickPaste() {
         if (text.trim()) {
           setConversationText(text);
           toast.success('Pasted from clipboard');
-          // Auto-parse if we have customer selected
           if (customerId && text.length > 5) {
             await parseConversation(text, products, customerId);
             setStep('review');
@@ -172,15 +171,11 @@ export default function FnbQuickPaste() {
         throw new Error('No valid items to create order');
       }
 
-      // Generate order number
       const orderNumber = `FNB-${Date.now()}`;
-      
-      // Calculate total
       const total = validItems.reduce((sum, item) => {
         return sum + (item.quantity * (item.suggested_price || 0));
       }, 0);
 
-      // Create order
       const { data: order, error: orderError } = await supabase
         .from('fnb_orders')
         .insert({
@@ -197,7 +192,6 @@ export default function FnbQuickPaste() {
 
       if (orderError) throw orderError;
 
-      // Create order items
       const orderItems = validItems.map(item => ({
         order_id: order.id,
         product_id: item.matched_product_id,
@@ -212,7 +206,6 @@ export default function FnbQuickPaste() {
 
       if (itemsError) throw itemsError;
 
-      // Add to picker queue
       await supabase
         .from('fnb_picker_queue')
         .insert({
@@ -224,16 +217,10 @@ export default function FnbQuickPaste() {
       return order;
     },
     onSuccess: (order) => {
-      // Haptic feedback for success
       vibrateSuccess();
       
-      // Save learned mappings
       if (customerId) {
         saveMappings(customerId);
-      }
-      
-      // Remember customer for next time
-      if (customerId) {
         localStorage.setItem('fuik_last_order_customer', customerId);
       }
       
@@ -275,7 +262,6 @@ export default function FnbQuickPaste() {
       );
       openWhatsApp(customer.whatsapp_phone, message);
     } else {
-      // Open WhatsApp without specific number
       openWhatsAppGeneral();
     }
   };
@@ -283,22 +269,6 @@ export default function FnbQuickPaste() {
   const handleBackToWhatsApp = () => {
     vibrateTap();
     openWhatsAppGeneral();
-  };
-
-  const getConfidenceBadge = (matchSource: string, confidence: string) => {
-    if (matchSource === 'verified') {
-      return <Badge className="bg-green-500/10 text-green-500 text-xs">Verified</Badge>;
-    }
-    if (matchSource === 'customer_mapping') {
-      return <Badge className="bg-blue-500/10 text-blue-500 text-xs">Learned</Badge>;
-    }
-    if (matchSource === 'ai_match') {
-      return <Badge className="bg-purple-500/10 text-purple-500 text-xs">AI Match</Badge>;
-    }
-    if (matchSource === 'product_name') {
-      return <Badge className="bg-amber-500/10 text-amber-500 text-xs">Name Match</Badge>;
-    }
-    return <Badge variant="destructive" className="text-xs">Review</Badge>;
   };
 
   const validItemsCount = matchedItems.filter(item => item.matched_product_id && item.quantity > 0).length;
@@ -314,12 +284,12 @@ export default function FnbQuickPaste() {
       {/* Header */}
       <header className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b px-4 py-3 safe-area-top">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div className="flex-1">
-            <h1 className="font-semibold">Quick Order</h1>
-            <p className="text-xs text-muted-foreground">
+          <div className="flex-1 min-w-0">
+            <h1 className="font-semibold truncate">Quick Order</h1>
+            <p className="text-xs text-muted-foreground truncate">
               {step === 'paste' && (clipboardAutoRead ? '📋 Clipboard ready!' : 'Paste WhatsApp order')}
               {step === 'review' && `${validItemsCount} items to review`}
               {step === 'success' && 'Order created!'}
@@ -328,27 +298,26 @@ export default function FnbQuickPaste() {
           {step === 'paste' && (
             <Button 
               variant="outline" 
-              size="sm" 
+              size="icon"
               onClick={handleBackToWhatsApp}
-              className="gap-1"
+              className="shrink-0"
             >
               <MessageCircle className="h-4 w-4" />
-              <span className="hidden sm:inline">WhatsApp</span>
             </Button>
           )}
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 p-4 pb-24">
+      {/* Main Content - Scrollable */}
+      <main className="flex-1 overflow-y-auto pb-safe">
         {/* STEP 1: Paste */}
         {step === 'paste' && (
-          <div className="space-y-4">
-            {/* Customer Selection */}
+          <div className="p-4 space-y-4">
+            {/* Customer Selection - Full width, stacked */}
             <Card>
-              <CardContent className="p-4">
-                <label className="text-sm font-medium mb-2 block">
-                  <User className="inline h-4 w-4 mr-1" />
+              <CardContent className="p-4 space-y-3">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <User className="h-4 w-4 text-muted-foreground" />
                   Customer
                 </label>
                 <SearchableSelect
@@ -359,19 +328,20 @@ export default function FnbQuickPaste() {
                     setCustomerId(val);
                   }}
                   placeholder="Select customer..."
+                  className="w-full"
                 />
                 
-                {/* Recent customers chips */}
+                {/* Recent customers - horizontal scroll chips */}
                 {recentCustomers.length > 0 && !customerId && (
-                  <div className="mt-3">
-                    <p className="text-xs text-muted-foreground mb-2">Recent:</p>
-                    <div className="flex flex-wrap gap-2">
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">Recent:</p>
+                    <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
                       {recentCustomers.map(c => (
                         <Button
                           key={c.id}
                           variant="outline"
                           size="sm"
-                          className="h-7 text-xs"
+                          className="h-8 text-xs shrink-0"
                           onClick={() => {
                             vibrateTap();
                             setCustomerId(c.id);
@@ -386,31 +356,31 @@ export default function FnbQuickPaste() {
               </CardContent>
             </Card>
 
-            {/* Clipboard auto-read indicator */}
+            {/* Clipboard indicator */}
             {clipboardAutoRead && conversationText && (
               <Card className="border-green-500/50 bg-green-500/5">
                 <CardContent className="p-3 flex items-center gap-2">
-                  <Check className="h-4 w-4 text-green-500" />
-                  <span className="text-sm text-green-700 dark:text-green-400">
-                    Clipboard content ready ({conversationText.split('\n').length} lines)
+                  <Check className="h-4 w-4 text-green-500 shrink-0" />
+                  <span className="text-sm text-green-700 dark:text-green-400 truncate">
+                    Clipboard ready ({conversationText.split('\n').length} lines)
                   </span>
                 </CardContent>
               </Card>
             )}
 
-            {/* Big Paste Button */}
+            {/* Big Paste Button - Full width */}
             <Button
               onClick={handlePasteFromClipboard}
-              className="w-full h-32 text-lg flex-col gap-2"
+              className="w-full h-28 text-lg flex-col gap-2"
               size="lg"
               variant={clipboardAutoRead ? "outline" : "default"}
             >
-              <ClipboardPaste className="h-10 w-10" />
-              <span>{clipboardAutoRead ? 'Tap to Re-paste' : 'Tap to Paste from Clipboard'}</span>
+              <ClipboardPaste className="h-8 w-8" />
+              <span>{clipboardAutoRead ? 'Tap to Re-paste' : 'Paste from Clipboard'}</span>
             </Button>
 
-            {/* Or divider */}
-            <div className="relative">
+            {/* Divider */}
+            <div className="relative py-2">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
               </div>
@@ -421,15 +391,15 @@ export default function FnbQuickPaste() {
               </div>
             </div>
 
-            {/* Manual Textarea */}
+            {/* Manual Textarea - Full width */}
             <Textarea
               placeholder="Paste WhatsApp conversation here...&#10;&#10;Example:&#10;5 kg tomaat&#10;3 tros banana&#10;10 komkommer"
               value={conversationText}
               onChange={(e) => setConversationText(e.target.value)}
-              className="min-h-[150px] text-base"
+              className="min-h-[140px] text-base w-full"
             />
 
-            {/* Parse Button */}
+            {/* Parse Button - Full width, large touch target */}
             <Button
               onClick={handleParse}
               disabled={!conversationText.trim() || !customerId || isParsing}
@@ -451,82 +421,57 @@ export default function FnbQuickPaste() {
           </div>
         )}
 
-        {/* STEP 2: Review */}
+        {/* STEP 2: Review - Vertical stacked cards */}
         {step === 'review' && (
-          <div className="space-y-4">
-            {/* Order Summary */}
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">{selectedCustomer?.name}</span>
-                  <Badge variant="outline">
-                    <Calendar className="h-3 w-3 mr-1" />
-                    {format(new Date(deliveryDate), 'MMM d')}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>{validItemsCount} items</span>
-                  <span className="font-semibold text-foreground">
-                    {totalAmount.toFixed(2)} XCG
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="flex flex-col h-full">
+            {/* Order Summary - Sticky */}
+            <div className="sticky top-0 z-10 bg-background border-b p-4">
+              <Card>
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-medium truncate">{selectedCustomer?.name}</span>
+                    <Badge variant="outline" className="shrink-0">
+                      <Calendar className="h-3 w-3 mr-1" />
+                      {format(new Date(deliveryDate), 'MMM d')}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span>{validItemsCount} items</span>
+                    <span className="font-semibold text-foreground">
+                      ƒ{totalAmount.toFixed(2)}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
-            {/* Items List */}
-            <ScrollArea className="h-[calc(100vh-350px)]">
-              <div className="space-y-3">
+            {/* Items List - Scrollable, vertical only */}
+            <ScrollArea className="flex-1 px-4">
+              <div className="space-y-4 py-4">
                 {matchedItems.map((item, index) => (
-                  <Card key={index} className={!item.matched_product_id ? 'border-destructive/50' : ''}>
-                    <CardContent className="p-3">
-                      <div className="flex items-start justify-between mb-2">
-                        <span className="text-sm text-muted-foreground italic">
-                          "{item.raw_text}"
-                        </span>
-                        {getConfidenceBadge(item.match_source, item.confidence)}
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          value={item.quantity}
-                          onChange={(e) => {
-                            updateMatchedItem(index, { quantity: parseFloat(e.target.value) || 0 });
-                          }}
-                          className="w-16 h-9 text-center border rounded-md bg-background"
-                          min="0"
-                          step="0.5"
-                        />
-                        <span className="text-sm text-muted-foreground">
-                          {item.unit || 'pcs'}
-                        </span>
-                        <div className="flex-1">
-                          <SearchableSelect
-                            options={products.map(p => ({ 
-                              value: p.id, 
-                              label: `${p.code} - ${p.name}` 
-                            }))}
-                            value={item.matched_product_id || ''}
-                            onValueChange={(value) => {
-                              const product = products.find(p => p.id === value);
-                              updateMatchedItem(index, { 
-                                matched_product_id: value,
-                                matched_product_name: product?.name || null,
-                                suggested_price: product?.price_xcg || null
-                              });
-                            }}
-                            placeholder="Select product..."
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <MobileProductCard
+                    key={index}
+                    rawText={item.raw_text}
+                    quantity={item.quantity}
+                    unit={item.unit || 'pcs'}
+                    matchedProductId={item.matched_product_id}
+                    matchSource={item.match_source}
+                    suggestedPrice={item.suggested_price}
+                    products={products}
+                    onQuantityChange={(qty) => updateMatchedItem(index, { quantity: qty })}
+                    onProductChange={(id, name, price) => updateMatchedItem(index, {
+                      matched_product_id: id,
+                      matched_product_name: name,
+                      suggested_price: price
+                    })}
+                    onRemove={() => removeMatchedItem(index)}
+                  />
                 ))}
               </div>
             </ScrollArea>
 
-            {/* Action Buttons */}
-            <div className="space-y-2 pt-2">
+            {/* Action Buttons - Fixed at bottom */}
+            <div className="sticky bottom-0 bg-background border-t p-4 space-y-2 pb-safe">
               <Button
                 onClick={handleCreateOrder}
                 disabled={validItemsCount === 0 || createOrderMutation.isPending}
@@ -541,19 +486,19 @@ export default function FnbQuickPaste() {
                 ) : (
                   <>
                     <Check className="h-5 w-5 mr-2" />
-                    Create Order ({validItemsCount} items)
+                    Create Order ({validItemsCount})
                   </>
                 )}
               </Button>
               <Button
-                variant="outline"
+                variant="ghost"
                 onClick={() => {
                   vibrateTap();
                   setStep('paste');
                 }}
                 className="w-full"
               >
-                ← Back to Paste
+                ← Back
               </Button>
             </div>
           </div>
@@ -561,7 +506,7 @@ export default function FnbQuickPaste() {
 
         {/* STEP 3: Success */}
         {step === 'success' && (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+          <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-4">
             <div className="w-20 h-20 rounded-full bg-green-500/10 flex items-center justify-center mb-6">
               <Check className="h-10 w-10 text-green-500" />
             </div>
@@ -572,7 +517,6 @@ export default function FnbQuickPaste() {
             </p>
 
             <div className="space-y-3 w-full max-w-xs">
-              {/* Reply on WhatsApp - Primary action */}
               <Button
                 onClick={handleReplyWhatsApp}
                 className="w-full h-14 text-lg gap-2 bg-green-600 hover:bg-green-700"
@@ -582,7 +526,6 @@ export default function FnbQuickPaste() {
                 Reply on WhatsApp
               </Button>
 
-              {/* Paste Another */}
               <Button
                 onClick={handlePasteAnother}
                 variant="outline"
@@ -592,7 +535,6 @@ export default function FnbQuickPaste() {
                 Paste Another Order
               </Button>
 
-              {/* View Order */}
               <Button
                 variant="ghost"
                 onClick={() => {
