@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { Header } from "@/components/layout/Header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase } from "../../integrations/supabase/client";
+import { useAuth } from "../../contexts/AuthContext";
+import { Header } from "../../components/layout/Header";
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
+import { Input } from "../../components/ui/input";
+import { Textarea } from "../../components/ui/textarea";
+import { Checkbox } from "../../components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { toast } from "sonner";
 import { ArrowLeft, Banknote, CheckCircle, Clock, User, Calendar, Wallet, ArrowDownCircle } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -21,25 +21,25 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "../../components/ui/table";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "../../components/ui/select";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
-import DriverWalletCard from "@/components/fnb/DriverWalletCard";
-import RecordDepositDialog from "@/components/fnb/RecordDepositDialog";
-import WalletTransactionHistory from "@/components/fnb/WalletTransactionHistory";
-import { useAllDriverWallets, useRecordDeposit } from "@/hooks/useDriverWallet";
+} from "../../components/ui/dialog";
+import DriverWalletCard from "../../components/fnb/DriverWalletCard";
+import RecordDepositDialog from "../../components/fnb/RecordDepositDialog";
+import WalletTransactionHistory from "../../components/fnb/WalletTransactionHistory";
+import { useAllDriverWallets, useRecordDeposit } from "../../hooks/useDriverWallet";
 
 export default function FnbCODReconciliation() {
   const { user } = useAuth();

@@ -1,18 +1,18 @@
 import { useState, useRef, useMemo } from 'react';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Header } from '@/components/layout/Header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '../../components/ui/scroll-area';
+import { Header } from '../../components/layout/Header';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Textarea } from '../../components/ui/textarea';
+import { Badge } from '../../components/ui/badge';
+import { Checkbox } from '../../components/ui/checkbox';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '../../integrations/supabase/client';
 import { Plus, Pencil, Trash2, ArrowLeft, Search, MessageSquare, Route, Upload, FileSpreadsheet, Loader2, MapPin, Wand2, GitMerge, X, Map as MapIcon } from 'lucide-react';
-import { CustomerMergeDialog } from '@/components/fnb/CustomerMergeDialog';
-import { CustomerLocationPicker } from '@/components/fnb/CustomerLocationPicker';
+import { CustomerMergeDialog } from '../../components/fnb/CustomerMergeDialog';
+import { CustomerLocationPicker } from '../../components/fnb/CustomerLocationPicker';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -21,7 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
+} from '../../components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -29,16 +29,16 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from '../../components/ui/table';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Progress } from '@/components/ui/progress';
-import { ExportButton } from '@/components/reports/ExportButton';
+} from '../../components/ui/select';
+import { Progress } from '../../components/ui/progress';
+import { ExportButton } from '../../components/reports/ExportButton';
 
 type CustomerType = "regular" | "supermarket" | "cod" | "credit";
 

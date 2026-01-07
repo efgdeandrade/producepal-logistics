@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { supabase } from "../../integrations/supabase/client";
+import { useAuth } from "../../contexts/AuthContext";
+import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
 import { toast } from "sonner";
 import { 
   Navigation, 
@@ -23,12 +23,12 @@ import {
   X
 } from "lucide-react";
 import { format } from "date-fns";
-import DriverMap from "@/components/driver/DriverMap";
-import DeliveryCard from "@/components/driver/DeliveryCard";
-import NavigationButton from "@/components/driver/NavigationButton";
-import CODDialog from "@/components/driver/CODDialog";
-import DriverMobileWallet from "@/components/fnb/DriverMobileWallet";
-import { useRecordCODCollection } from "@/hooks/useDriverWallet";
+import DriverMap from "../../components/driver/DriverMap";
+import DeliveryCard from "../../components/driver/DeliveryCard";
+import NavigationButton from "../../components/driver/NavigationButton";
+import CODDialog from "../../components/driver/CODDialog";
+import DriverMobileWallet from "../../components/fnb/DriverMobileWallet";
+import { useRecordCODCollection } from "../../hooks/useDriverWallet";
 
 type PaymentMethodType = "cash" | "swipe" | "transfer" | "credit";
 

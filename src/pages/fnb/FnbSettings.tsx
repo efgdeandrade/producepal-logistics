@@ -1,17 +1,17 @@
 import { useState } from 'react';
-import { Header } from '@/components/layout/Header';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Header } from '../../components/layout/Header';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { ArrowLeft, MessageSquare, Webhook, Key, CheckCircle, AlertCircle, Brain, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { GlobalAliasManager } from '@/components/fnb/GlobalAliasManager';
-import { UnmatchedItemsQueue } from '@/components/fnb/UnmatchedItemsQueue';
-import { CustomerMappingsViewer } from '@/components/fnb/CustomerMappingsViewer';
+import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
+import { GlobalAliasManager } from '../../components/fnb/GlobalAliasManager';
+import { UnmatchedItemsQueue } from '../../components/fnb/UnmatchedItemsQueue';
+import { CustomerMappingsViewer } from '../../components/fnb/CustomerMappingsViewer';
 
 export default function FnbSettings() {
   const [whatsappConfig, setWhatsappConfig] = useState({

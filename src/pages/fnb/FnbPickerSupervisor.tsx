@@ -1,21 +1,21 @@
 import { useEffect } from 'react';
-import { Header } from '@/components/layout/Header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Header } from '../../components/layout/Header';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '../../integrations/supabase/client';
 import { ArrowLeft, Trophy, AlertTriangle, Check, X, Activity, MapPin, Users, Volume2, VolumeX } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext';
-import { Badge } from '@/components/ui/badge';
-import { PickerLeaderboard } from '@/components/fnb/PickerLeaderboard';
-import { LivePickerStatusCards } from '@/components/fnb/LivePickerStatusCards';
-import { ZoneQueueOverview } from '@/components/fnb/ZoneQueueOverview';
-import { FnbAlertsCard } from '@/components/fnb/FnbAlertsCard';
-import { NewOrderToast } from '@/components/fnb/NewOrderToast';
-import { useNewOrderNotifications } from '@/hooks/useNewOrderNotifications';
-import { cn } from '@/lib/utils';
+import { useAuth } from '../../contexts/AuthContext';
+import { Badge } from '../../components/ui/badge';
+import { PickerLeaderboard } from '../../components/fnb/PickerLeaderboard';
+import { LivePickerStatusCards } from '../../components/fnb/LivePickerStatusCards';
+import { ZoneQueueOverview } from '../../components/fnb/ZoneQueueOverview';
+import { FnbAlertsCard } from '../../components/fnb/FnbAlertsCard';
+import { NewOrderToast } from '../../components/fnb/NewOrderToast';
+import { useNewOrderNotifications } from '../../hooks/useNewOrderNotifications';
+import { cn } from '../../lib/utils';
 
 export default function FnbPickerSupervisor() {
   const { user } = useAuth();
