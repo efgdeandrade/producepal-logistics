@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Header } from '@/components/layout/Header';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -615,10 +615,7 @@ const NewOrder = () => {
   const roundup = calculateRoundup();
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      
-      <main className="container py-8">
+    <div className="container py-8">
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-4">
@@ -942,9 +939,8 @@ const NewOrder = () => {
                 Manage Standing Order Templates
               </Link>
             </div>
-          )}
-        </div>
-      </main>
+        )}
+      </div>
 
       {/* Standing Order Prompt Dialog */}
       <StandingOrderPrompt

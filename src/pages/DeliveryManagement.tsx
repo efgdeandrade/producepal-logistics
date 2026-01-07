@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Header } from '@/components/layout/Header';
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -248,11 +248,8 @@ const DeliveryManagement = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="flex items-center justify-center h-96">
-          <Package className="h-12 w-12 animate-spin text-primary" />
-        </div>
+      <div className="flex items-center justify-center h-96">
+        <Package className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
   }
@@ -273,10 +270,7 @@ const DeliveryManagement = () => {
   ) || 0;
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      
-      <main className="container py-8">
+    <div className="container py-8">
         <div className="mb-8 flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
             <ArrowLeft className="h-6 w-6" />
@@ -431,9 +425,8 @@ const DeliveryManagement = () => {
                 </CardContent>
               </Card>
             )}
-          </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 };

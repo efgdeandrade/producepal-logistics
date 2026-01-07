@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useActivityLogger } from '@/hooks/useActivityLogger';
-import { Header } from '@/components/layout/Header';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -592,19 +592,14 @@ const Suppliers = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <main className="container py-6">
-          <div>Loading...</div>
-        </main>
+      <div className="container py-6">
+        <div>Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="container py-6">
+    <div className="container py-6">
         <div className="flex items-center mb-6">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="mr-4">
             <ArrowLeft className="h-4 w-4" />
@@ -1030,10 +1025,9 @@ const Suppliers = () => {
             productId={priceHistoryProduct.id}
             productCode={priceHistoryProduct.code}
             open={!!priceHistoryProduct}
-            onOpenChange={(open) => !open && setPriceHistoryProduct(null)}
-          />
-        )}
-      </main>
+          onOpenChange={(open) => !open && setPriceHistoryProduct(null)}
+        />
+      )}
     </div>
   );
 };

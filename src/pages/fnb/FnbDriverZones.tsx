@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Header } from "@/components/layout/Header";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -196,9 +196,7 @@ export default function FnbDriverZones() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="container mx-auto p-4 md:p-6 space-y-6">
+    <div className="container mx-auto p-4 md:p-6 space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => navigate("/fnb")}>
@@ -405,10 +403,9 @@ export default function FnbDriverZones() {
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-3 rounded bg-muted" />
-            <span>Backup Driver</span>
-          </div>
+          <span>Backup Driver</span>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

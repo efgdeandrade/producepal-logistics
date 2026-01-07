@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Header } from '@/components/layout/Header';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Printer, Ban, Edit, Eye, Download, Receipt, ChevronDown } from 'lucide-react';
@@ -539,35 +539,26 @@ const OrderDetails = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <main className="container py-8">
-          <LoadingBox />
-        </main>
+      <div className="container py-8">
+        <LoadingBox />
       </div>
     );
   }
 
   if (!order) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <main className="container py-8">
-          <Card>
-            <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">Order not found</p>
-            </CardContent>
-          </Card>
-        </main>
+      <div className="container py-8">
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground">Order not found</p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      
-      <main className="container py-8">
+    <div className="container py-8">
         <div className="flex items-center gap-4 mb-8">
           <Button variant="ghost" size="icon" onClick={() => navigate('/history')}>
             <ArrowLeft className="h-4 w-4" />

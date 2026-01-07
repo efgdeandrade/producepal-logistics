@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Header } from '@/components/layout/Header';
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -184,18 +184,14 @@ const PredictionsAnalytics = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="flex items-center justify-center h-96">
-          <BarChart3 className="h-12 w-12 animate-pulse text-primary" />
-        </div>
+      <div className="flex items-center justify-center h-96">
+        <BarChart3 className="h-12 w-12 animate-pulse text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
+    <div className="space-y-6">
       
       <main className="container py-8">
         <div className="mb-8 flex items-center gap-4">
