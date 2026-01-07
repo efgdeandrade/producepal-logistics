@@ -48,6 +48,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { FnbOrderDayDialog } from '@/components/fnb/FnbOrderDayDialog';
 import { QuickAddItemDialog } from '@/components/fnb/QuickAddItemDialog';
+import { ExportButton } from '@/components/reports/ExportButton';
 
 type CustomerType = 'regular' | 'supermarket' | 'cod' | 'credit';
 
@@ -587,6 +588,20 @@ export default function FnbOrders() {
               View and manage F&B orders by day
             </p>
           </div>
+          <ExportButton
+            data={(orders || []).map(o => ({
+              order_number: o.order_number,
+              customer: o.fnb_customers?.name || 'Unknown',
+              status: o.status,
+              delivery_date: o.delivery_date,
+              total_xcg: o.total_xcg,
+              items: o.fnb_order_items?.length || 0,
+              zone: o.fnb_customers?.delivery_zone || '',
+              driver: o.driver_name || '',
+            }))}
+            filename="fnb-orders"
+            columns={['order_number', 'customer', 'status', 'delivery_date', 'total_xcg', 'items', 'zone', 'driver']}
+          />
           <Button onClick={() => navigate('/fnb/orders/new')}>
             <Plus className="h-4 w-4 mr-2" />
             New Order

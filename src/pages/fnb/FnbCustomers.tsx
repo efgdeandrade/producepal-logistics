@@ -38,6 +38,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
+import { ExportButton } from '@/components/reports/ExportButton';
 
 type CustomerType = "regular" | "supermarket" | "cod" | "credit";
 
@@ -630,6 +631,19 @@ export default function FnbCustomers() {
             accept=".csv"
             onChange={handleFileSelect}
             className="hidden"
+          />
+          <ExportButton
+            data={(filteredCustomers || []).map(c => ({
+              name: c.name,
+              phone: c.whatsapp_phone,
+              address: c.address || '',
+              zone: c.delivery_zone || '',
+              type: customerTypeLabels[c.customer_type],
+              language: languageLabels[c.preferred_language] || c.preferred_language,
+              notes: c.notes || '',
+            }))}
+            filename="fnb-customers"
+            columns={['name', 'phone', 'address', 'zone', 'type', 'language', 'notes']}
           />
           <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
             <Upload className="mr-2 h-4 w-4" />

@@ -81,6 +81,8 @@ import UserActivity from "./pages/UserActivity";
 import PredictionsAnalytics from "./pages/PredictionsAnalytics";
 import ExecutiveReports from "./pages/ExecutiveReports";
 import Settings from "./pages/Settings";
+import ReportLibrary from "./pages/ReportLibrary";
+import ScheduledReports from "./pages/ScheduledReports";
 import NotFound from "./pages/NotFound";
 import Install from "./pages/Install";
 import Offline from "./pages/Offline";
@@ -191,6 +193,8 @@ const App = () => (
               <Route path="/user-activity" element={<ProtectedWithLayout><UserActivity /></ProtectedWithLayout>} />
               <Route path="/analytics" element={<ProtectedWithLayout><PredictionsAnalytics /></ProtectedWithLayout>} />
               <Route path="/reports" element={<ProtectedWithLayout><ExecutiveReports /></ProtectedWithLayout>} />
+              <Route path="/reports/library" element={<ProtectedWithLayout><ReportLibrary /></ProtectedWithLayout>} />
+              <Route path="/reports/scheduled" element={<ProtectedWithLayout><ScheduledReports /></ProtectedWithLayout>} />
 
               {/* ========== LEGACY ROUTES (redirects for backwards compatibility) ========== */}
               {/* These can be removed after transition period */}
