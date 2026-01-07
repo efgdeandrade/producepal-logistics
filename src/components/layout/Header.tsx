@@ -221,51 +221,51 @@ export const Header = () => {
             </Button>
           )}
 
-          {/* F&B Sales Dropdown */}
+          {/* Distribution Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant={location.pathname.startsWith('/fnb') ? 'default' : 'ghost'} size="sm">
+              <Button variant={location.pathname.startsWith('/distribution') || location.pathname.startsWith('/fnb') ? 'default' : 'ghost'} size="sm">
                 <UtensilsCrossed className="mr-2 h-4 w-4" />
-                F&B
+                Distribution
                 <ChevronDown className="ml-2 h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem asChild>
-                <Link to="/fnb">
+                <Link to="/distribution">
                   <LayoutDashboard className="mr-2 h-4 w-4" />
                   Dashboard
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link to="/fnb/orders">
+                <Link to="/distribution/orders">
                   <ShoppingCart className="mr-2 h-4 w-4" />
                   Orders
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link to="/fnb/customers">
+                <Link to="/distribution/customers">
                   <Users className="mr-2 h-4 w-4" />
                   Customers
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link to="/fnb/products">
+                <Link to="/distribution/products">
                   <Package className="mr-2 h-4 w-4" />
                   Products
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link to="/fnb/picker">
+                <Link to="/distribution/picker">
                   <ClipboardList className="mr-2 h-4 w-4" />
                   Picker Station
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link to="/fnb/settings">
+                <Link to="/distribution/settings">
                   <MessageSquare className="mr-2 h-4 w-4" />
-                  WhatsApp Setup
+                  Settings & AI Learning
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuContent>

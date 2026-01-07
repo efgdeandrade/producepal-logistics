@@ -60,6 +60,7 @@ const routeLabels: Record<string, string> = {
   employees: "Employees",
   attendance: "Time & Attendance",
   documents: "Documents",
+  "ai-learning": "AI Learning",
 };
 
 export function AppLayout({ children }: AppLayoutProps) {
