@@ -76,7 +76,7 @@ export default function DistributionDashboard() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Distribution Dashboard</h1>
           <p className="text-muted-foreground">
-            F&B orders, picking, and delivery management
+            Orders, picking, and delivery management
           </p>
         </div>
         <Button onClick={() => navigate("/distribution/orders/new")}>

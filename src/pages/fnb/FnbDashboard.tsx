@@ -49,9 +49,9 @@ export default function FnbDashboard() {
       <main className="container py-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">F&B Sales</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Distribution</h1>
             <p className="text-muted-foreground">
-              Manage your F&B customers, orders, and WhatsApp integration
+              Manage your customers, orders, and WhatsApp integration
             </p>
           </div>
         </div>
@@ -88,7 +88,7 @@ export default function FnbDashboard() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">F&B Customers</CardTitle>
+              <CardTitle className="text-sm font-medium">Customers</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -118,91 +118,91 @@ export default function FnbDashboard() {
         {/* Quick Actions */}
         <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6 mb-6">
           <Button asChild className="h-24 flex-col gap-2">
-            <Link to="/fnb/orders/new">
+            <Link to="/distribution/orders/new">
               <Plus className="h-6 w-6" />
               <span>New Order</span>
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-24 flex-col gap-2">
-            <Link to="/fnb/orders">
+            <Link to="/distribution/orders">
               <ShoppingCart className="h-6 w-6" />
               <span>View Orders</span>
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-24 flex-col gap-2">
-            <Link to="/fnb/customers">
+            <Link to="/distribution/customers">
               <Users className="h-6 w-6" />
               <span>Customers</span>
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-24 flex-col gap-2">
-            <Link to="/fnb/products">
+            <Link to="/distribution/products">
               <Package className="h-6 w-6" />
               <span>Products</span>
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-24 flex-col gap-2">
-            <Link to="/fnb/picker">
+            <Link to="/distribution/picker">
               <ClipboardList className="h-6 w-6" />
               <span>Picker Station</span>
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-24 flex-col gap-2">
-            <Link to="/fnb/delivery">
+            <Link to="/distribution/delivery">
               <Truck className="h-6 w-6" />
               <span>Delivery</span>
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-24 flex-col gap-2">
-            <Link to="/fnb/cod">
+            <Link to="/distribution/cod">
               <Banknote className="h-6 w-6" />
               <span>COD</span>
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-24 flex-col gap-2">
-            <Link to="/fnb/analytics">
+            <Link to="/distribution/analytics">
               <BarChart3 className="h-6 w-6" />
               <span>Analytics</span>
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-24 flex-col gap-2">
-            <Link to="/fnb/zones">
+            <Link to="/distribution/zones">
               <MapPin className="h-6 w-6" />
               <span>Zones</span>
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-24 flex-col gap-2">
-            <Link to="/fnb/driver-portal">
+            <Link to="/distribution/driver-portal">
               <Truck className="h-6 w-6" />
               <span>Driver Portal</span>
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-24 flex-col gap-2">
-            <Link to="/fnb/settings">
+            <Link to="/distribution/settings">
               <MessageSquare className="h-6 w-6" />
               <span>WhatsApp Setup</span>
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-24 flex-col gap-2 border-primary/50">
-            <Link to="/fnb/weekly">
+            <Link to="/distribution/weekly">
               <Calendar className="h-6 w-6" />
               <span>Weekly Board</span>
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-24 flex-col gap-2 border-green-500/50">
-            <Link to="/fnb/standing-orders">
+            <Link to="/distribution/standing-orders">
               <CalendarCheck className="h-6 w-6" />
               <span>Standing Orders</span>
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-24 flex-col gap-2 border-orange-500/50">
-            <Link to="/fnb/receipts">
+            <Link to="/distribution/receipts">
               <Camera className="h-6 w-6" />
               <span>Receipts</span>
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-24 flex-col gap-2 border-yellow-500/50">
-            <Link to="/fnb/pricing-tiers">
+            <Link to="/distribution/pricing-tiers">
               <DollarSign className="h-6 w-6" />
               <span>Pricing Tiers</span>
             </Link>
@@ -263,7 +263,7 @@ export default function FnbDashboard() {
               </div>
             ) : (
               <p className="text-muted-foreground text-center py-8">
-                No orders yet. Click "New Order" to create your first F&B order.
+                No orders yet. Click "New Order" to create your first order.
               </p>
             )}
           </CardContent>

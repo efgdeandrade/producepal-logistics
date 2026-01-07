@@ -221,55 +221,6 @@ export const Header = () => {
             </Button>
           )}
 
-          {/* F&B Sales Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant={location.pathname.startsWith('/fnb') ? 'default' : 'ghost'} size="sm">
-                <UtensilsCrossed className="mr-2 h-4 w-4" />
-                F&B
-                <ChevronDown className="ml-2 h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem asChild>
-                <Link to="/fnb">
-                  <LayoutDashboard className="mr-2 h-4 w-4" />
-                  Dashboard
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/fnb/orders">
-                  <ShoppingCart className="mr-2 h-4 w-4" />
-                  Orders
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/fnb/customers">
-                  <Users className="mr-2 h-4 w-4" />
-                  Customers
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/fnb/products">
-                  <Package className="mr-2 h-4 w-4" />
-                  Products
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link to="/fnb/picker">
-                  <ClipboardList className="mr-2 h-4 w-4" />
-                  Picker Station
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/fnb/settings">
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  WhatsApp Setup
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
 
           {isAdmin() && (
             <>

@@ -251,12 +251,12 @@ export default function FnbStandingOrders() {
       <main className="container py-6 space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
-            <Link to="/fnb">
+            <Link to="/distribution">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold tracking-tight">F&B Standing Orders</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Standing Orders</h1>
             <p className="text-muted-foreground">
               Configure recurring orders for each day of the week
             </p>
