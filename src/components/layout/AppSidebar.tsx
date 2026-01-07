@@ -68,7 +68,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useTheme } from "next-themes";
+import * as React from "react";
 
 interface MenuItem {
   title: string;
@@ -87,6 +87,23 @@ interface MenuSection {
   defaultOpen?: boolean;
 }
 
+// Local theme helpers (matches ThemeToggle.tsx implementation)
+const getIsDark = () => {
+  if (typeof document === "undefined") return false;
+  return document.documentElement.classList.contains("dark");
+};
+
+const setIsDark = (dark: boolean) => {
+  const root = document.documentElement;
+  root.classList.toggle("dark", dark);
+  root.classList.toggle("light", !dark);
+  try {
+    localStorage.setItem("theme", dark ? "dark" : "light");
+  } catch {
+    // ignore
+  }
+};
+
 // Collapsed footer with dropdown menu
 function CollapsedFooter({ 
   getInitials, 
@@ -99,7 +116,27 @@ function CollapsedFooter({
   onSignOut: () => void; 
   signingOut: boolean;
 }) {
-  const { theme, setTheme } = useTheme();
+  const [isDark, setIsDarkState] = React.useState(getIsDark);
+
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem("theme");
+      if (stored === "dark" || stored === "light") {
+        setIsDark(stored === "dark");
+        setIsDarkState(stored === "dark");
+        return;
+      }
+    } catch {
+      // ignore
+    }
+    setIsDarkState(getIsDark());
+  }, []);
+
+  const toggleTheme = () => {
+    const newIsDark = !isDark;
+    setIsDark(newIsDark);
+    setIsDarkState(newIsDark);
+  };
   
   return (
     <DropdownMenu>
@@ -117,8 +154,8 @@ function CollapsedFooter({
           {userEmail}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-          {theme === 'dark' ? <Sun className="h-4 w-4 mr-2" /> : <Moon className="h-4 w-4 mr-2" />}
+        <DropdownMenuItem onClick={toggleTheme}>
+          {isDark ? <Sun className="h-4 w-4 mr-2" /> : <Moon className="h-4 w-4 mr-2" />}
           Toggle Theme
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onSignOut} disabled={signingOut}>
