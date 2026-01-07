@@ -1,7 +1,6 @@
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from './ui/card';
-import { useNavigate } from 'react-router-dom';
 
 interface ErrorFallbackProps {
   error: Error | null;
@@ -9,7 +8,9 @@ interface ErrorFallbackProps {
 }
 
 export function ErrorFallback({ error, onReset }: ErrorFallbackProps) {
-  const navigate = useNavigate();
+  const handleGoHome = () => {
+    window.location.href = '/';
+  };
 
   return (
     <div className="min-h-[400px] flex items-center justify-center p-4">
@@ -37,7 +38,7 @@ export function ErrorFallback({ error, onReset }: ErrorFallbackProps) {
               Try Again
             </Button>
           )}
-          <Button onClick={() => navigate('/')} variant="outline">
+          <Button onClick={handleGoHome} variant="outline">
             <Home className="h-4 w-4 mr-2" />
             Go Home
           </Button>
