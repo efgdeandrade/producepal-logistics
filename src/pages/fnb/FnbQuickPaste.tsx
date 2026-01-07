@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ClipboardPaste, Check, Loader2, MessageSquare, Calendar, User, MessageCircle, RotateCcw, ExternalLink } from 'lucide-react';
+import { ArrowLeft, ClipboardPaste, Check, Loader2, MessageSquare, Calendar, User, MessageCircle, RotateCcw, ExternalLink, Brain, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
@@ -35,6 +35,7 @@ export default function FnbQuickPaste() {
   const [deliveryDate, setDeliveryDate] = useState(format(addDays(new Date(), 1), 'yyyy-MM-dd'));
   const [createdOrderNumber, setCreatedOrderNumber] = useState<string | null>(null);
   const [clipboardAutoRead, setClipboardAutoRead] = useState(false);
+  const [correctionsCount, setCorrectionsCount] = useState(0);
 
   // Auto-read clipboard on mount
   useEffect(() => {
@@ -120,6 +121,7 @@ export default function FnbQuickPaste() {
     isParsing,
     matchedItems,
     parsedData,
+    learnedCount,
     parseConversation,
     updateMatchedItem,
     removeMatchedItem,
@@ -216,18 +218,26 @@ export default function FnbQuickPaste() {
 
       return order;
     },
-    onSuccess: (order) => {
+    onSuccess: async (order) => {
       vibrateSuccess();
       
+      let corrections = 0;
       if (customerId) {
-        saveMappings(customerId);
+        corrections = await saveMappings(customerId, order.id) || 0;
+        setCorrectionsCount(corrections);
         localStorage.setItem('fuik_last_order_customer', customerId);
       }
       
       setCreatedOrderNumber(order.order_number);
       setStep('success');
       queryClient.invalidateQueries({ queryKey: ['fnb-orders'] });
-      toast.success('Order created successfully!');
+      queryClient.invalidateQueries({ queryKey: ['ai-training-stats'] });
+      
+      if (corrections > 0) {
+        toast.success(`Order created! AI learned ${corrections} new term${corrections > 1 ? 's' : ''}`);
+      } else {
+        toast.success('Order created successfully!');
+      }
     },
     onError: (error) => {
       toast.error(`Failed to create order: ${error.message}`);
@@ -245,6 +255,7 @@ export default function FnbQuickPaste() {
     setStep('paste');
     setCreatedOrderNumber(null);
     setClipboardAutoRead(false);
+    setCorrectionsCount(0);
     reset();
   };
 
@@ -425,7 +436,7 @@ export default function FnbQuickPaste() {
         {step === 'review' && (
           <div className="flex flex-col h-full">
             {/* Order Summary - Sticky */}
-            <div className="sticky top-0 z-10 bg-background border-b p-4">
+            <div className="sticky top-0 z-10 bg-background border-b p-4 space-y-2">
               <Card>
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between mb-1">
@@ -443,6 +454,14 @@ export default function FnbQuickPaste() {
                   </div>
                 </CardContent>
               </Card>
+              
+              {/* AI Learning Status */}
+              {learnedCount > 0 && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
+                  <Sparkles className="h-3.5 w-3.5 text-primary" />
+                  <span>AI recognized {learnedCount} items from learned patterns</span>
+                </div>
+              )}
             </div>
 
             {/* Items List - Scrollable, vertical only */}
@@ -512,9 +531,17 @@ export default function FnbQuickPaste() {
             </div>
             <h2 className="text-2xl font-bold mb-2">Order Created!</h2>
             <p className="text-muted-foreground mb-1">#{createdOrderNumber}</p>
-            <p className="text-muted-foreground mb-8">
+            <p className="text-muted-foreground mb-4">
               {selectedCustomer?.name} • {validItemsCount} items
             </p>
+            
+            {/* AI Learning Feedback */}
+            {correctionsCount > 0 && (
+              <div className="flex items-center gap-2 text-sm text-primary bg-primary/10 rounded-full px-4 py-2 mb-6">
+                <Brain className="h-4 w-4" />
+                <span>AI learned {correctionsCount} new term{correctionsCount > 1 ? 's' : ''} from your corrections</span>
+              </div>
+            )}
 
             <div className="space-y-3 w-full max-w-xs">
               <Button

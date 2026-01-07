@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -26,6 +26,7 @@ export interface MatchedConversationItem extends ParsedItem {
   suggested_price: number | null;
   was_manually_changed: boolean;
   match_source: 'verified' | 'customer_mapping' | 'product_name' | 'ai_match' | 'unmatched';
+  log_id?: string; // Track the AI log entry for this item
 }
 
 interface Product {
@@ -52,6 +53,8 @@ export function useConversationImport() {
   const [parsedData, setParsedData] = useState<ParsedConversation | null>(null);
   const [matchedItems, setMatchedItems] = useState<MatchedConversationItem[]>([]);
   const [originalText, setOriginalText] = useState('');
+  const [learnedCount, setLearnedCount] = useState(0);
+  const logIdsRef = useRef<string[]>([]);
 
   // Fuzzy match helper
   const fuzzyMatch = (str1: string, str2: string): number => {
@@ -281,11 +284,51 @@ export function useConversationImport() {
       const parsed = data as ParsedConversation;
       setParsedData(parsed);
 
-      // Match all items
-      const matched = parsed.items.map(item => 
-        matchItem(item, products, customerMappings, globalAliases)
-      );
+      // Match all items and log to AI training database
+      const matched: MatchedConversationItem[] = [];
+      const newLogIds: string[] = [];
+      
+      for (const item of parsed.items) {
+        const matchedItem = matchItem(item, products, customerMappings, globalAliases);
+        
+        // Log this match to AI training database
+        try {
+          const { data: logEntry, error: logError } = await supabase
+            .from('fnb_ai_match_logs')
+            .insert({
+              raw_text: item.raw_text,
+              interpreted_text: item.interpreted_product,
+              customer_id: customerId,
+              matched_product_id: matchedItem.matched_product_id,
+              match_source: matchedItem.match_source,
+              confidence: matchedItem.confidence,
+              detected_language: parsed.detected_language,
+              detected_quantity: item.quantity,
+              detected_unit: item.unit,
+              needs_review: matchedItem.confidence === 'low' || matchedItem.match_source === 'unmatched',
+            })
+            .select('id')
+            .single();
+          
+          if (!logError && logEntry) {
+            matchedItem.log_id = logEntry.id;
+            newLogIds.push(logEntry.id);
+          }
+        } catch (e) {
+          console.error('Failed to log AI match:', e);
+        }
+        
+        matched.push(matchedItem);
+      }
+      
+      logIdsRef.current = newLogIds;
       setMatchedItems(matched);
+
+      // Count how many were learned matches (verified or customer_mapping)
+      const learned = matched.filter(m => 
+        m.match_source === 'verified' || m.match_source === 'customer_mapping'
+      ).length;
+      setLearnedCount(learned);
 
       return parsed;
     } catch (error) {
@@ -299,9 +342,18 @@ export function useConversationImport() {
 
   // Update a matched item (when user corrects a match)
   const updateMatchedItem = useCallback((index: number, updates: Partial<MatchedConversationItem>) => {
-    setMatchedItems(prev => prev.map((item, i) => 
-      i === index ? { ...item, ...updates, was_manually_changed: true } : item
-    ));
+    setMatchedItems(prev => prev.map((item, i) => {
+      if (i !== index) return item;
+      
+      // Mark as manually changed if product was changed
+      const wasProductChanged = updates.matched_product_id && updates.matched_product_id !== item.matched_product_id;
+      
+      return { 
+        ...item, 
+        ...updates, 
+        was_manually_changed: wasProductChanged || item.was_manually_changed 
+      };
+    }));
   }, []);
 
   // Remove a matched item
@@ -309,23 +361,53 @@ export function useConversationImport() {
     setMatchedItems(prev => prev.filter((_, i) => i !== index));
   }, []);
 
-  // Save learned mappings from user corrections
-  const saveMappings = useCallback(async (customerId: string) => {
-    const newMappings = matchedItems
-      .filter(item => item.was_manually_changed && item.matched_product_id)
-      .map(item => ({
-        customer_id: customerId,
-        customer_sku: item.raw_text.toLowerCase().slice(0, 100),
-        customer_product_name: item.interpreted_product.slice(0, 100),
-        product_id: item.matched_product_id!,
-        confidence_score: 1,
-        is_verified: false
-      }));
+  // Save learned mappings from user corrections and update AI logs
+  const saveMappings = useCallback(async (customerId: string, orderId?: string) => {
+    const correctedItems = matchedItems.filter(item => item.was_manually_changed && item.matched_product_id);
+    
+    // Update AI logs with corrections and order ID
+    for (const item of matchedItems) {
+      if (!item.log_id) continue;
+      
+      try {
+        const updateData: Record<string, unknown> = {};
+        
+        // Link to order if provided
+        if (orderId) {
+          updateData.order_id = orderId;
+        }
+        
+        // If item was corrected, update the log
+        if (item.was_manually_changed && item.matched_product_id) {
+          updateData.was_corrected = true;
+          updateData.corrected_product_id = item.matched_product_id;
+          updateData.needs_review = false; // User already corrected it
+        }
+        
+        if (Object.keys(updateData).length > 0) {
+          await supabase
+            .from('fnb_ai_match_logs')
+            .update(updateData)
+            .eq('id', item.log_id);
+        }
+      } catch (e) {
+        console.error('Failed to update AI log:', e);
+      }
+    }
 
-    if (newMappings.length === 0) return;
+    // Save customer-specific mappings for corrections
+    const newMappings = correctedItems.map(item => ({
+      customer_id: customerId,
+      customer_sku: item.raw_text.toLowerCase().slice(0, 100),
+      customer_product_name: item.interpreted_product.slice(0, 100),
+      product_id: item.matched_product_id!,
+      confidence_score: 1,
+      is_verified: false
+    }));
+
+    if (newMappings.length === 0) return correctedItems.length;
 
     try {
-      // Upsert mappings (update confidence if exists, insert if new)
       for (const mapping of newMappings) {
         const { error } = await supabase
           .from('fnb_customer_product_mappings')
@@ -343,6 +425,8 @@ export function useConversationImport() {
     } catch (error) {
       console.error('Error saving mappings:', error);
     }
+    
+    return correctedItems.length;
   }, [matchedItems]);
 
   // Reset state
@@ -351,6 +435,8 @@ export function useConversationImport() {
     setMatchedItems([]);
     setOriginalText('');
     setIsParsing(false);
+    setLearnedCount(0);
+    logIdsRef.current = [];
   }, []);
 
   return {
@@ -358,6 +444,7 @@ export function useConversationImport() {
     parsedData,
     matchedItems,
     originalText,
+    learnedCount,
     parseConversation,
     updateMatchedItem,
     removeMatchedItem,
