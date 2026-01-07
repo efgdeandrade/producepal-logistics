@@ -119,6 +119,7 @@ export default function FnbQuickPaste() {
 
   const {
     isParsing,
+    parseStage,
     matchedItems,
     parsedData,
     learnedCount,
@@ -445,7 +446,7 @@ export default function FnbQuickPaste() {
               {isParsing ? (
                 <>
                   <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                  Parsing...
+                  {parseStage || 'Parsing...'}
                 </>
               ) : (
                 <>
