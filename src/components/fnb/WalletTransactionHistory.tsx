@@ -1,14 +1,14 @@
 import { format } from "date-fns";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "../ui/badge";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
+} from "../ui/sheet";
+import { ScrollArea } from "../ui/scroll-area";
 import { ArrowUpCircle, ArrowDownCircle, Settings, Wallet } from "lucide-react";
-import { useWalletTransactions } from "@/hooks/useDriverWallet";
+import { useWalletTransactions } from "../../hooks/useDriverWallet";
 
 interface WalletTransactionHistoryProps {
   open: boolean;
