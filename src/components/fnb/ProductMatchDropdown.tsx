@@ -1,5 +1,5 @@
-import { SearchableSelect } from '@/components/ui/searchable-select';
-import { Badge } from '@/components/ui/badge';
+import { SearchableSelect } from '../ui/searchable-select';
+import { Badge } from '../ui/badge';
 import { CheckCircle, Sparkles, AlertTriangle, HelpCircle } from 'lucide-react';
 
 interface ProductMatchDropdownProps {

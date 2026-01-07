@@ -29,10 +29,10 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import { MapPin, Plus, Edit, Trash2, ArrowLeft, Search, Store, ShoppingBag } from 'lucide-react';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import { Label } from '../components/ui/label';
+import { Badge } from '../components/ui/badge';
 import { useNavigate } from 'react-router-dom';
-import { useActivityLogger } from '@/hooks/useActivityLogger';
+import { useActivityLogger } from '../hooks/useActivityLogger';
 
 interface Customer {
   id: string;

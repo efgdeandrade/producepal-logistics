@@ -1,6 +1,6 @@
 import { MapPin, Clock, Package, Users } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
+import { cn } from '../../lib/utils';
+import { Badge } from '../ui/badge';
 
 interface ZoneStats {
   zone_name: string;
