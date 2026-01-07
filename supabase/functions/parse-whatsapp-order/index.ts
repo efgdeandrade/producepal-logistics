@@ -40,7 +40,7 @@ serve(async (req) => {
       );
     }
 
-    const { conversationText, products, customerMappings } = await req.json();
+    const { conversationText, products, customerMappings, customerId, customerPatterns } = await req.json();
 
     if (!conversationText || typeof conversationText !== 'string') {
       return new Response(
@@ -57,6 +57,14 @@ serve(async (req) => {
       );
     }
 
+    // Fetch verified context words from database
+    const { data: contextWords } = await supabase
+      .from('fnb_context_words')
+      .select('word, word_type, meaning, language')
+      .eq('is_verified', true)
+      .order('usage_count', { ascending: false })
+      .limit(100);
+
     // Build product context for the AI
     const productList = products?.map((p: any) => 
       `${p.code}: ${p.name}${p.name_pap ? ` (Pap: ${p.name_pap})` : ''}${p.name_nl ? ` (NL: ${p.name_nl})` : ''}${p.name_es ? ` (ES: ${p.name_es})` : ''}`
@@ -69,20 +77,39 @@ serve(async (req) => {
         ).join('\n')}`
       : '';
 
+    // Build customer pattern context
+    const patternContext = customerPatterns?.length > 0
+      ? `\n\nThis customer's frequently ordered products (use this to prioritize matches):\n${customerPatterns.map((p: any) => 
+          `- ${p.product_name} (ordered ${p.order_count}x, avg qty: ${p.avg_quantity})`
+        ).join('\n')}`
+      : '';
+
+    // Build context words dictionary
+    const contextWordsContext = (contextWords && contextWords.length > 0)
+      ? `\n\nPapiamentu/Local language dictionary (verified words):\n${contextWords.map((w: any) => 
+          `- "${w.word}" = ${w.meaning} (${w.word_type})`
+        ).join('\n')}`
+      : '';
+
     const systemPrompt = `You are an expert order parser for a food & beverage distribution company in Curaçao. 
 Your job is to extract order information from WhatsApp conversations that may be in Papiamento, English, Dutch, or Spanish (often mixed).
 
 IMPORTANT CONTEXT:
 - Common Papiamento food terms: siboyo (onion), yerba (cilantro/herbs), komkommer (cucumber), tomati (tomato), piña (pineapple), papaya, mango, lechuga (lettuce), sla (salad/lettuce), pampuna (pumpkin), batata (sweet potato), yuca, etc.
-- Units: kg, lb, gram, tros (bunch), case/kashi, stuk/pcs/pieces
+- Units: kg, lb, gram, tros (bunch), case/kashi/kaha, stuk/pcs/pieces, saku (bag)
 - Numbers might be written as words: un/uno/een=1, dos/twee=2, tres/drei=3, etc.
+- Common ordering phrases: "mi ke" (I want), "manda" (send), "traha" (prepare/send)
+- Time references: mañan (tomorrow), awe (today), djaweps (Thursday), diabierna (Friday), etc.
+${contextWordsContext}
 
 Available products in the system:
 ${productList}
 
 ${mappingContext}
+${patternContext}
 
-Extract ALL order items mentioned in the conversation, even if spread across multiple messages.`;
+Extract ALL order items mentioned in the conversation, even if spread across multiple messages.
+Also identify any NEW local/Papiamentu words you encounter that would help future parsing.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -160,6 +187,34 @@ Extract ALL order items mentioned in the conversation, even if spread across mul
                       required: ["raw_text", "interpreted_product", "quantity", "unit", "confidence"],
                       additionalProperties: false
                     }
+                  },
+                  context_words: {
+                    type: "array",
+                    description: "Any new Papiamentu/local slang words discovered that would help future parsing. Only include words NOT already in the dictionary provided.",
+                    items: {
+                      type: "object",
+                      properties: {
+                        word: { 
+                          type: "string",
+                          description: "The word or short phrase"
+                        },
+                        word_type: { 
+                          type: "string", 
+                          enum: ["unit", "quantity_phrase", "product_modifier", "action", "connector", "time_reference"],
+                          description: "Category of the word"
+                        },
+                        meaning: { 
+                          type: "string",
+                          description: "English meaning of the word"
+                        },
+                        example: {
+                          type: "string",
+                          description: "Example usage from the conversation"
+                        }
+                      },
+                      required: ["word", "word_type", "meaning"],
+                      additionalProperties: false
+                    }
                   }
                 },
                 required: ["detected_language", "items"],
@@ -210,6 +265,38 @@ Extract ALL order items mentioned in the conversation, even if spread across mul
     const extractedOrder = JSON.parse(toolCall.function.arguments);
     
     console.log('Successfully extracted order:', JSON.stringify(extractedOrder));
+
+    // Save newly discovered context words (if any) - mark as unverified for review
+    if (extractedOrder.context_words?.length > 0) {
+      console.log(`AI discovered ${extractedOrder.context_words.length} new context words`);
+      
+      for (const word of extractedOrder.context_words) {
+        try {
+          // Try to upsert - increment usage_count if already exists
+          const { error: upsertError } = await supabase
+            .from('fnb_context_words')
+            .upsert({
+              word: word.word.toLowerCase().trim(),
+              word_type: word.word_type,
+              meaning: word.meaning,
+              language: extractedOrder.detected_language === 'mixed' ? 'pap' : extractedOrder.detected_language,
+              usage_count: 1,
+              is_verified: false,
+              examples: word.example ? [word.example] : []
+            }, {
+              onConflict: 'word',
+              ignoreDuplicates: false
+            });
+          
+          if (upsertError) {
+            // Word already exists - that's fine, just log it
+            console.log('Context word already exists:', word.word);
+          }
+        } catch (e) {
+          console.error('Failed to save context word:', word.word, e);
+        }
+      }
+    }
 
     return new Response(
       JSON.stringify(extractedOrder),

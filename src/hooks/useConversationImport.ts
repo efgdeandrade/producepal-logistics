@@ -18,6 +18,12 @@ export interface ParsedConversation {
   delivery_date?: string;
   special_instructions?: string;
   items: ParsedItem[];
+  context_words?: Array<{
+    word: string;
+    word_type: string;
+    meaning: string;
+    example?: string;
+  }>;
 }
 
 export interface MatchedConversationItem extends ParsedItem {
@@ -48,6 +54,13 @@ interface CustomerMapping {
   is_verified: boolean;
 }
 
+interface CustomerPattern {
+  product_id: string;
+  product_name: string;
+  order_count: number;
+  avg_quantity: number;
+}
+
 export function useConversationImport() {
   const [isParsing, setIsParsing] = useState(false);
   const [parseStage, setParseStage] = useState<string>('');
@@ -55,6 +68,7 @@ export function useConversationImport() {
   const [matchedItems, setMatchedItems] = useState<MatchedConversationItem[]>([]);
   const [originalText, setOriginalText] = useState('');
   const [learnedCount, setLearnedCount] = useState(0);
+  const [discoveredWordsCount, setDiscoveredWordsCount] = useState(0);
   const logIdsRef = useRef<string[]>([]);
 
   // Fuzzy match helper
@@ -97,7 +111,8 @@ export function useConversationImport() {
     item: ParsedItem,
     products: Product[],
     customerMappings: CustomerMapping[],
-    globalAliases: { alias: string; product_id: string }[]
+    globalAliases: { alias: string; product_id: string }[],
+    customerPatterns?: CustomerPattern[]
   ): MatchedConversationItem => {
     const searchTerms = [
       item.interpreted_product.toLowerCase(),
@@ -184,7 +199,7 @@ export function useConversationImport() {
       }
     }
 
-    // 5. Check multi-language product names
+    // 5. Check multi-language product names (boost score for frequently ordered products)
     let bestMatch: { product: Product; score: number } | null = null;
     for (const product of products) {
       const namesToCheck = [
@@ -197,7 +212,17 @@ export function useConversationImport() {
 
       for (const name of namesToCheck) {
         for (const term of searchTerms) {
-          const score = fuzzyMatch(term, name);
+          let score = fuzzyMatch(term, name);
+          
+          // Boost score if this product is in customer's frequent orders
+          if (customerPatterns) {
+            const pattern = customerPatterns.find(p => p.product_id === product.id);
+            if (pattern) {
+              // Small boost based on how often they order this product
+              score += Math.min(0.1, pattern.order_count * 0.01);
+            }
+          }
+          
           if (score > 0.6 && (!bestMatch || score > bestMatch.score)) {
             bestMatch = { product, score };
           }
@@ -236,8 +261,8 @@ export function useConversationImport() {
     
     // Common patterns: "5 kg tomaat", "3 tros banana", "10 pcs lemon"
     const patterns = [
-      /(\d+(?:[.,]\d+)?)\s*(kg|lb|gram|g|tros|bunch|case|kashi|stuk|pcs|pieces?|stuks?|dozen?)\s+(.+)/i,
-      /(.+?)\s*[-:]\s*(\d+(?:[.,]\d+)?)\s*(kg|lb|gram|g|tros|bunch|case|kashi|stuk|pcs|pieces?|stuks?|dozen?)?/i,
+      /(\d+(?:[.,]\d+)?)\s*(kg|lb|gram|g|tros|bunch|case|kashi|kaha|stuk|pcs|pieces?|stuks?|dozen?|saku)\s+(.+)/i,
+      /(.+?)\s*[-:]\s*(\d+(?:[.,]\d+)?)\s*(kg|lb|gram|g|tros|bunch|case|kashi|kaha|stuk|pcs|pieces?|stuks?|dozen?|saku)?/i,
       /(\d+(?:[.,]\d+)?)\s*[x×]\s*(.+)/i,
     ];
     
@@ -271,13 +296,14 @@ export function useConversationImport() {
     items: ParsedItem[],
     products: Product[],
     customerMappings: CustomerMapping[],
-    globalAliases: { alias: string; product_id: string }[]
+    globalAliases: { alias: string; product_id: string }[],
+    customerPatterns?: CustomerPattern[]
   ): { matched: MatchedConversationItem[]; unmatched: ParsedItem[] } => {
     const matched: MatchedConversationItem[] = [];
     const unmatched: ParsedItem[] = [];
     
     for (const item of items) {
-      const result = matchItem(item, products, customerMappings, globalAliases);
+      const result = matchItem(item, products, customerMappings, globalAliases, customerPatterns);
       if (result.matched_product_id && result.match_source !== 'unmatched') {
         matched.push(result);
       } else {
@@ -302,10 +328,11 @@ export function useConversationImport() {
     setIsParsing(true);
     setOriginalText(text);
     setParseStage('Loading known mappings...');
+    setDiscoveredWordsCount(0);
 
     try {
-      // Fetch customer mappings and global aliases in PARALLEL
-      const [mappingsResult, aliasesResult] = await Promise.all([
+      // Fetch customer mappings, global aliases, and customer patterns in PARALLEL
+      const [mappingsResult, aliasesResult, patternsResult] = await Promise.all([
         customerId 
           ? supabase
               .from('fnb_customer_product_mappings')
@@ -315,11 +342,27 @@ export function useConversationImport() {
           : Promise.resolve({ data: [] }),
         supabase
           .from('fnb_product_aliases')
-          .select('alias, product_id')
+          .select('alias, product_id'),
+        customerId
+          ? supabase
+              .from('fnb_customer_patterns')
+              .select('product_id, order_count, avg_quantity, fnb_products(name)')
+              .eq('customer_id', customerId)
+              .order('order_count', { ascending: false })
+              .limit(20)
+          : Promise.resolve({ data: [] })
       ]);
       
       const customerMappings: CustomerMapping[] = mappingsResult.data || [];
       const globalAliases = aliasesResult.data || [];
+      
+      // Transform patterns to include product name
+      const customerPatterns: CustomerPattern[] = (patternsResult.data || []).map((p: any) => ({
+        product_id: p.product_id,
+        product_name: p.fnb_products?.name || '',
+        order_count: p.order_count || 0,
+        avg_quantity: p.avg_quantity || 0
+      }));
 
       // Try local pre-parsing first
       setParseStage('Quick matching...');
@@ -331,7 +374,7 @@ export function useConversationImport() {
       if (localItems.length > 0) {
         // Try to match locally first
         const { matched: localMatched, unmatched } = tryLocalMatch(
-          localItems, products, customerMappings, globalAliases
+          localItems, products, customerMappings, globalAliases, customerPatterns
         );
         
         if (unmatched.length === 0 && localMatched.length > 0) {
@@ -352,6 +395,7 @@ export function useConversationImport() {
           const { data, error } = await supabase.functions.invoke('parse-whatsapp-order', {
             body: {
               conversationText: text,
+              customerId: customerId,
               products: topProducts.map(p => ({
                 code: p.code,
                 name: p.name,
@@ -362,6 +406,11 @@ export function useConversationImport() {
               customerMappings: customerMappings.slice(0, 30).map(m => ({
                 customer_product_name: m.customer_product_name,
                 product_name: products.find(p => p.id === m.product_id)?.name || ''
+              })),
+              customerPatterns: customerPatterns.slice(0, 15).map(p => ({
+                product_name: p.product_name,
+                order_count: p.order_count,
+                avg_quantity: p.avg_quantity
               }))
             }
           });
@@ -371,10 +420,15 @@ export function useConversationImport() {
 
           parsed = data as ParsedConversation;
           
+          // Track discovered context words
+          if (parsed.context_words?.length) {
+            setDiscoveredWordsCount(parsed.context_words.length);
+          }
+          
           // Match AI-parsed items
           setParseStage('Matching products...');
           for (const item of parsed.items) {
-            allMatched.push(matchItem(item, products, customerMappings, globalAliases));
+            allMatched.push(matchItem(item, products, customerMappings, globalAliases, customerPatterns));
           }
         }
       } else {
@@ -387,6 +441,7 @@ export function useConversationImport() {
         const { data, error } = await supabase.functions.invoke('parse-whatsapp-order', {
           body: {
             conversationText: text,
+            customerId: customerId,
             products: topProducts.map(p => ({
               code: p.code,
               name: p.name,
@@ -397,6 +452,11 @@ export function useConversationImport() {
             customerMappings: customerMappings.slice(0, 30).map(m => ({
               customer_product_name: m.customer_product_name,
               product_name: products.find(p => p.id === m.product_id)?.name || ''
+            })),
+            customerPatterns: customerPatterns.slice(0, 15).map(p => ({
+              product_name: p.product_name,
+              order_count: p.order_count,
+              avg_quantity: p.avg_quantity
             }))
           }
         });
@@ -406,9 +466,14 @@ export function useConversationImport() {
 
         parsed = data as ParsedConversation;
         
+        // Track discovered context words
+        if (parsed.context_words?.length) {
+          setDiscoveredWordsCount(parsed.context_words.length);
+        }
+        
         setParseStage('Matching products...');
         for (const item of parsed.items) {
-          allMatched.push(matchItem(item, products, customerMappings, globalAliases));
+          allMatched.push(matchItem(item, products, customerMappings, globalAliases, customerPatterns));
         }
       }
 
@@ -563,6 +628,7 @@ export function useConversationImport() {
     setOriginalText('');
     setIsParsing(false);
     setLearnedCount(0);
+    setDiscoveredWordsCount(0);
     logIdsRef.current = [];
   }, []);
 
@@ -573,6 +639,7 @@ export function useConversationImport() {
     matchedItems,
     originalText,
     learnedCount,
+    discoveredWordsCount,
     parseConversation,
     updateMatchedItem,
     removeMatchedItem,

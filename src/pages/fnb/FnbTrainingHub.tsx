@@ -2,12 +2,15 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Brain, BookOpen, Users, BarChart3 } from "lucide-react";
+import { Brain, BookOpen, Users, BarChart3, Languages } from "lucide-react";
 import { useAITraining } from "@/hooks/useAITraining";
 import { TrainingReviewCard } from "@/components/fnb/TrainingReviewCard";
 import { AIStatsOverview } from "@/components/fnb/AIStatsOverview";
 import { GlobalAliasManager } from "@/components/fnb/GlobalAliasManager";
+import { ContextWordsManager } from "@/components/fnb/ContextWordsManager";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function FnbTrainingHub() {
   const [activeTab, setActiveTab] = useState("review");
@@ -23,6 +26,19 @@ export default function FnbTrainingHub() {
     isCorrecting,
   } = useAITraining();
 
+  // Fetch pending context words count
+  const { data: pendingWordsCount } = useQuery({
+    queryKey: ['pending-context-words-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('fnb_context_words')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_verified', false);
+      if (error) throw error;
+      return count || 0;
+    }
+  });
+
   const pendingCount = stats?.pendingReview || 0;
 
   return (
@@ -34,21 +50,29 @@ export default function FnbTrainingHub() {
             AI Training Hub
           </h1>
           <p className="text-muted-foreground">
-            Help the AI learn your products and customer ordering patterns
+            Help the AI learn your products, customer patterns, and Papiamentu words
           </p>
         </div>
-        {pendingCount > 0 && (
-          <Badge variant="destructive" className="text-lg px-3 py-1">
-            {pendingCount} items need review
-          </Badge>
-        )}
+        <div className="flex gap-2">
+          {pendingCount > 0 && (
+            <Badge variant="destructive" className="text-lg px-3 py-1">
+              {pendingCount} items
+            </Badge>
+          )}
+          {(pendingWordsCount ?? 0) > 0 && (
+            <Badge variant="secondary" className="text-lg px-3 py-1">
+              {pendingWordsCount} words
+            </Badge>
+          )}
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-flex">
+        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
           <TabsTrigger value="review" className="gap-2">
             <BookOpen className="h-4 w-4" />
-            Review Queue
+            <span className="hidden sm:inline">Review Queue</span>
+            <span className="sm:hidden">Review</span>
             {pendingCount > 0 && (
               <Badge variant="secondary" className="ml-1">
                 {pendingCount}
@@ -57,11 +81,23 @@ export default function FnbTrainingHub() {
           </TabsTrigger>
           <TabsTrigger value="dictionary" className="gap-2">
             <Users className="h-4 w-4" />
-            Global Dictionary
+            <span className="hidden sm:inline">Global Aliases</span>
+            <span className="sm:hidden">Aliases</span>
+          </TabsTrigger>
+          <TabsTrigger value="words" className="gap-2">
+            <Languages className="h-4 w-4" />
+            <span className="hidden sm:inline">Context Words</span>
+            <span className="sm:hidden">Words</span>
+            {(pendingWordsCount ?? 0) > 0 && (
+              <Badge variant="secondary" className="ml-1">
+                {pendingWordsCount}
+              </Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger value="stats" className="gap-2">
             <BarChart3 className="h-4 w-4" />
-            AI Stats
+            <span className="hidden sm:inline">AI Stats</span>
+            <span className="sm:hidden">Stats</span>
           </TabsTrigger>
         </TabsList>
 
@@ -114,6 +150,11 @@ export default function FnbTrainingHub() {
           <GlobalAliasManager />
         </TabsContent>
 
+        {/* Context Words Tab */}
+        <TabsContent value="words">
+          <ContextWordsManager />
+        </TabsContent>
+
         {/* AI Stats Tab */}
         <TabsContent value="stats" className="space-y-4">
           <AIStatsOverview stats={stats} isLoading={isLoadingStats} />
@@ -150,6 +191,20 @@ export default function FnbTrainingHub() {
                   <p className="text-sm text-muted-foreground">
                     Customer-specific mappings are created when you correct orders. 
                     They take priority over global aliases for that customer.
+                  </p>
+                </div>
+                <div>
+                  <h4 className="font-medium mb-2">🗣️ Context Words</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Papiamentu words like "kaha" (box), "tros" (bunch), or "mañan" (tomorrow)
+                    help the AI understand the full context of orders.
+                  </p>
+                </div>
+                <div>
+                  <h4 className="font-medium mb-2">📊 Customer Patterns</h4>
+                  <p className="text-sm text-muted-foreground">
+                    The AI learns what each customer usually orders, making future 
+                    order parsing faster and more accurate.
                   </p>
                 </div>
               </div>
