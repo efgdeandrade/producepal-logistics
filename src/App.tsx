@@ -11,6 +11,7 @@ import { PasswordChangeRequired } from "@/components/PasswordChangeRequired";
 import { VersionUpdateToast } from "@/components/VersionUpdateToast";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { BottomNavigation } from "@/components/mobile/BottomNavigation";
+import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Executive
@@ -115,6 +116,7 @@ const App = () => (
             <Sonner />
             <VersionUpdateToast />
             <BrowserRouter>
+              <InstallBanner />
               <BottomNavigation />
               <Routes>
               {/* Auth - No layout */}

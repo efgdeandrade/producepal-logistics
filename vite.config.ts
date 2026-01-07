@@ -45,9 +45,9 @@ export default defineConfig(({ mode }) => ({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.png', 'logo.png', 'offline.html'],
       manifest: {
-        name: 'ProducePal Driver',
-        short_name: 'Driver',
-        description: 'Mobile Driver Portal for ProducePal Logistics',
+        name: 'FUIK Driver',
+        short_name: 'FUIK',
+        description: 'Mobile Driver Portal for FUIK Logistics',
         theme_color: '#00b4d8',
         background_color: '#1a1a2e',
         display: 'standalone',
@@ -55,6 +55,36 @@ export default defineConfig(({ mode }) => ({
         scope: '/',
         start_url: '/fnb/driver-mobile',
         icons: [
+          {
+            src: '/icons/icon-48.png',
+            sizes: '48x48',
+            type: 'image/png'
+          },
+          {
+            src: '/icons/icon-72.png',
+            sizes: '72x72',
+            type: 'image/png'
+          },
+          {
+            src: '/icons/icon-76.png',
+            sizes: '76x76',
+            type: 'image/png'
+          },
+          {
+            src: '/icons/icon-120.png',
+            sizes: '120x120',
+            type: 'image/png'
+          },
+          {
+            src: '/icons/icon-152.png',
+            sizes: '152x152',
+            type: 'image/png'
+          },
+          {
+            src: '/icons/apple-touch-icon.png',
+            sizes: '180x180',
+            type: 'image/png'
+          },
           {
             src: '/icons/icon-192.png',
             sizes: '192x192',
