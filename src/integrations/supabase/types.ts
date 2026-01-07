@@ -1420,6 +1420,51 @@ export type Database = {
           },
         ]
       }
+      fnb_context_words: {
+        Row: {
+          created_at: string
+          examples: string[] | null
+          id: string
+          is_verified: boolean | null
+          language: string | null
+          meaning: string
+          updated_at: string
+          usage_count: number | null
+          verified_at: string | null
+          verified_by: string | null
+          word: string
+          word_type: string
+        }
+        Insert: {
+          created_at?: string
+          examples?: string[] | null
+          id?: string
+          is_verified?: boolean | null
+          language?: string | null
+          meaning: string
+          updated_at?: string
+          usage_count?: number | null
+          verified_at?: string | null
+          verified_by?: string | null
+          word: string
+          word_type: string
+        }
+        Update: {
+          created_at?: string
+          examples?: string[] | null
+          id?: string
+          is_verified?: boolean | null
+          language?: string | null
+          meaning?: string
+          updated_at?: string
+          usage_count?: number | null
+          verified_at?: string | null
+          verified_by?: string | null
+          word?: string
+          word_type?: string
+        }
+        Relationships: []
+      }
       fnb_conversations: {
         Row: {
           created_at: string | null
