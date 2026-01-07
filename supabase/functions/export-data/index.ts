@@ -72,13 +72,13 @@ serve(async (req) => {
       });
     }
 
-    const exportData = data || [];
+    const exportData = (data || []) as unknown as Record<string, unknown>[];
 
     if (format === "csv" && exportData.length > 0) {
       const headers = Object.keys(exportData[0]);
       const csvRows = [
         headers.join(","),
-        ...exportData.map((row: Record<string, unknown>) =>
+        ...exportData.map((row) =>
           headers.map((h) => {
             const val = row[h];
             const str = val == null ? "" : typeof val === "object" ? JSON.stringify(val) : String(val);

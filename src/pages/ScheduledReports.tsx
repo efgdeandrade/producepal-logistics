@@ -52,7 +52,7 @@ export default function ScheduledReports() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("scheduled_reports")
-        .select("id, name, schedule_cron, is_active, recipients, last_sent_at, next_run_at, created_at")
+        .select("id, name, schedule_cron, is_active, recipients, last_run_at, next_run_at, created_at")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -62,7 +62,7 @@ export default function ScheduledReports() {
         schedule: r.schedule_cron,
         is_active: r.is_active,
         recipients: r.recipients || [],
-        last_run_at: r.last_sent_at,
+        last_run_at: r.last_run_at,
         next_run_at: r.next_run_at,
         created_at: r.created_at,
       })) as ScheduledReport[];
