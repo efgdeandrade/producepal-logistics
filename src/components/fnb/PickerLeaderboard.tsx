@@ -1,5 +1,5 @@
 import { Trophy, Medal, Clock, Package, TrendingUp } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '../../lib/utils';
 
 interface PickerStats {
   picker_name: string;

@@ -5,15 +5,15 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { SearchableSelect } from '@/components/ui/searchable-select';
+} from '../ui/dialog';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { SearchableSelect } from '../ui/searchable-select';
 import { POReviewTable } from './POReviewTable';
-import { MatchedItem, ExtractedPOData } from '@/hooks/usePOImport';
+import { MatchedItem, ExtractedPOData } from '../../hooks/usePOImport';
 import { AlertCircle, AlertTriangle, Check, Loader2, Calendar } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { format, parse, isValid } from 'date-fns';
 
 interface POReviewDialogProps {

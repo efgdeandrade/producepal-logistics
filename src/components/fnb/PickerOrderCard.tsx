@@ -1,7 +1,7 @@
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '../ui/badge';
 import { Clock, Package, User, MapPin, AlertTriangle, Crown } from 'lucide-react';
 import { format, differenceInHours, differenceInMinutes, isPast } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn } from '../../lib/utils';
 
 interface PickerOrderCardProps {
   order: {

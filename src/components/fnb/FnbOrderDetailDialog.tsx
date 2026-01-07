@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '../../integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -10,7 +10,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from '../ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,10 +21,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
+} from '../ui/alert-dialog';
+import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
+import { ScrollArea } from '../ui/scroll-area';
 import {
   Table,
   TableBody,
@@ -32,8 +32,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+} from '../ui/table';
+import { Alert, AlertDescription } from '../ui/alert';
 import { QuickAddItemDialog } from './QuickAddItemDialog';
 import {
   Collapsible,

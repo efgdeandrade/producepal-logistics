@@ -19,11 +19,11 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+} from '../ui/dialog';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
+import { cn } from '../../lib/utils';
 import { FnbOrderDetailDialog } from './FnbOrderDetailDialog';
 
 type CustomerType = 'regular' | 'supermarket' | 'cod' | 'credit';

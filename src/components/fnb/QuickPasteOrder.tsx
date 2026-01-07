@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { SearchableSelect } from '@/components/ui/searchable-select';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../ui/sheet';
+import { Button } from '../ui/button';
+import { Textarea } from '../ui/textarea';
+import { Badge } from '../ui/badge';
+import { Card, CardContent } from '../ui/card';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { SearchableSelect } from '../ui/searchable-select';
+import { ScrollArea } from '../ui/scroll-area';
+import { Separator } from '../ui/separator';
 import { 
   MessageSquare, 
   Sparkles, 
@@ -22,7 +22,7 @@ import {
   User,
   Globe
 } from 'lucide-react';
-import { useConversationImport, MatchedConversationItem } from '@/hooks/useConversationImport';
+import { useConversationImport, MatchedConversationItem } from '../../hooks/useConversationImport';
 import { format } from 'date-fns';
 
 interface Product {

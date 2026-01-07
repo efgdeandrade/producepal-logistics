@@ -32,35 +32,6 @@ const versionPlugin = () => ({
   }
 });
 
-// Workaround: use resolveId to convert @/ imports to absolute file paths
-const rewriteAtAliasPlugin = () => ({
-  name: "rewrite-at-alias",
-  enforce: "pre" as const,
-  resolveId(source: string) {
-    if (!source.startsWith("@/")) return null;
-    
-    const relativePath = source.slice(2);
-    const absolutePath = path.resolve(__dirname, "src", relativePath);
-    
-    // Try extensions
-    for (const ext of ['', '.ts', '.tsx', '.js', '.jsx']) {
-      const fullPath = absolutePath + ext;
-      if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
-        return fullPath;
-      }
-    }
-    
-    // Try index files
-    for (const ext of ['/index.ts', '/index.tsx', '/index.js']) {
-      const fullPath = absolutePath + ext;
-      if (fs.existsSync(fullPath)) {
-        return fullPath;
-      }
-    }
-    
-    return absolutePath;
-  },
-});
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -72,7 +43,6 @@ export default defineConfig(({ mode }) => ({
     __BUILD_TIMESTAMP__: JSON.stringify(BUILD_TIMESTAMP),
   },
   plugins: [
-    rewriteAtAliasPlugin(),
     react(),
     mode === "development" && componentTagger(),
     versionPlugin(),

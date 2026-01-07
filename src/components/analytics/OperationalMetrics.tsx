@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { supabase } from "../../integrations/supabase/client";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "../ui/chart";
 import { BarChart, Bar, XAxis, YAxis, PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "../ui/skeleton";
+import { Badge } from "../ui/badge";
 import { Clock, Truck, CheckCircle, AlertTriangle, Timer, Users } from "lucide-react";
 import { format, subDays, differenceInMinutes } from "date-fns";
 
