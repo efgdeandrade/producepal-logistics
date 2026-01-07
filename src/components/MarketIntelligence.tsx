@@ -282,7 +282,7 @@ export const MarketIntelligence = ({ products }: MarketIntelligenceProps) => {
                         </TableCell>
                         <TableCell>{getConfidenceBadge(item.confidence, item.confidenceScore)}</TableCell>
                       </TableRow>
-                    )))}
+                    ))}
                   </TableBody>
                 </Table>
               </div>
@@ -322,7 +322,7 @@ export const MarketIntelligence = ({ products }: MarketIntelligenceProps) => {
                       </div>
                     </CardContent>
                   </Card>
-                )))}
+                ))}
               </div>
             </div>
           )}

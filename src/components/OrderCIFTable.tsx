@@ -5,6 +5,7 @@ import { Calculator, Award, ChevronDown } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { VolumetricWeightAlert } from './VolumetricWeightAlert';
 import {
+  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -17,11 +18,12 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collap
 import {
   CIFProductInput,
   CIFParams,
-  CIFResult as BaseCIFResult,
+  CIFResult,
   DistributionMethod,
   calculateCIFByMethod,
   calculateTotalFreightFromRates,
   determineLimitingFactor,
+  calculateTotals,
   DEFAULT_WHOLESALE_MULTIPLIER,
   DEFAULT_RETAIL_MULTIPLIER,
   DEFAULT_LOCAL_LOGISTICS_USD,
@@ -53,51 +55,32 @@ interface SupplierWeightData {
   weightTypeUsed: 'actual' | 'volumetric';
 }
 
-interface CIFResult extends BaseCIFResult {
-  productCode: string;
-  productName: string;
-  quantity: number;
+interface ExtendedCIFResult extends CIFResult {
   trays: number;
   actualWeight: number;
   volumetricWeight: number;
   chargeableWeight: number;
   weightType: 'actual' | 'volumetric';
-  costUSD: number;
-  freightCost: number;
-  cifUSD: number;
-  cifXCG: number;
-  cifPerUnit: number;
-  wholesalePrice: number;
-  retailPrice: number;
-  wholesaleMargin: number;
-  retailMargin: number;
   suppliers: string;
-  priceHistory?: {
-    previousWholesale?: number;
-    previousRetail?: number;
-    wholesaleChange?: number;
-    retailChange?: number;
-    lastChangeDate?: string;
-  };
 }
 
 interface OrderCIFTableProps {
-  orderId: string;
   orderItems: OrderItem[];
-  estimatedFreightExterior: number;
-  estimatedFreightLocal: number;
+  recommendedMethod?: string;
 }
 
-export function OrderCIFTable({ orderId, orderItems, estimatedFreightExterior, estimatedFreightLocal }: OrderCIFTableProps) {
+export function OrderCIFTable({ orderItems, recommendedMethod }: OrderCIFTableProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [supplierWeights, setSupplierWeights] = useState<SupplierWeightData[]>([]);
   const [exchangeRate, setExchangeRate] = useState(1.82);
-  const [distributionMethod, setDistributionMethod] = useState<DistributionMethod>('weight');
+  const [distributionMethod, setDistributionMethod] = useState<DistributionMethod>('byWeight');
   const [localLogisticsUSD, setLocalLogisticsUSD] = useState(DEFAULT_LOCAL_LOGISTICS_USD);
   const [wholesaleMultiplier, setWholesaleMultiplier] = useState(DEFAULT_WHOLESALE_MULTIPLIER);
   const [retailMultiplier, setRetailMultiplier] = useState(DEFAULT_RETAIL_MULTIPLIER);
   const [loading, setLoading] = useState(true);
   const [expandedSuppliers, setExpandedSuppliers] = useState<Record<string, boolean>>({});
+  const [freightExteriorPerKg] = useState(2.50);
+  const [freightLocalPerKg] = useState(0.50);
 
   useEffect(() => {
     fetchData();
@@ -106,7 +89,6 @@ export function OrderCIFTable({ orderId, orderItems, estimatedFreightExterior, e
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch products from Supabase
       const { data: productsData, error: productsError } = await supabase
         .from('products')
         .select('code, name, pack_size, price_usd_per_unit, wholesale_price_xcg_per_unit, retail_price_xcg_per_unit, gross_weight_per_unit, netto_weight_per_unit, volumetric_weight_kg, supplier_id');
@@ -118,12 +100,11 @@ export function OrderCIFTable({ orderId, orderItems, estimatedFreightExterior, e
 
       setProducts(productsData || []);
 
-      // Initialize supplier weights
       const initialSupplierWeights = productsData?.reduce((acc: SupplierWeightData[], product) => {
         if (product.supplier_id && !acc.find(s => s.supplierId === product.supplier_id)) {
           acc.push({
             supplierId: product.supplier_id,
-            supplierName: `Supplier ${product.supplier_id}`, // Replace with actual supplier name if available
+            supplierName: `Supplier ${product.supplier_id}`,
             actualWeightKg: 0,
             volumetricWeightKg: 0,
             palletsUsed: 0,
@@ -152,99 +133,80 @@ export function OrderCIFTable({ orderId, orderItems, estimatedFreightExterior, e
     ));
   };
 
-  const calculateCIFResults = (): CIFResult[] => {
+  const calculateCIFResults = (): ExtendedCIFResult[] => {
     if (loading) return [];
 
-    // Prepare CIF parameters
+    // Convert order items to CIF product inputs
+    const cifProducts: CIFProductInput[] = orderItems.map(item => {
+      const product = getProductInfo(item.product_code);
+      const packSize = product?.pack_size || 1;
+      const grossWeight = (product?.gross_weight_per_unit || 0) / 1000; // Convert g to kg
+      const volumetricWeight = product?.volumetric_weight_kg || 0;
+      
+      return {
+        productCode: item.product_code,
+        productName: product?.name || item.product_code,
+        quantity: item.quantity,
+        costPerUnit: product?.price_usd_per_unit || 0,
+        actualWeight: item.quantity * grossWeight,
+        volumetricWeight: item.quantity * volumetricWeight,
+        wholesalePriceXCG: product?.wholesale_price_xcg_per_unit,
+        retailPriceXCG: product?.retail_price_xcg_per_unit,
+      };
+    });
+
+    if (cifProducts.length === 0) return [];
+
+    // Calculate totals
+    const totals = calculateTotals(cifProducts);
+    const chargeableWeight = Math.max(totals.totalActualWeight, totals.totalVolumetricWeight);
+    const limitingFactor = determineLimitingFactor(totals.totalActualWeight, totals.totalVolumetricWeight);
+
+    // Calculate total freight
+    const totalFreight = calculateTotalFreightFromRates(
+      chargeableWeight,
+      freightExteriorPerKg,
+      freightLocalPerKg,
+      localLogisticsUSD
+    );
+
+    // Create CIF params
     const cifParams: CIFParams = {
-      products: orderItems.map(item => {
-        const product = getProductInfo(item.product_code);
-        return {
-          code: item.product_code,
-          name: product?.name || item.product_code,
-          quantity: item.quantity,
-          packSize: product?.pack_size || 1,
-          priceUSDPerUnit: product?.price_usd_per_unit || 0,
-          wholesalePriceXCGPerUnit: product?.wholesale_price_xcg_per_unit || 0,
-          retailPriceXCGPerUnit: product?.retail_price_xcg_per_unit || 0,
-          grossWeightPerUnit: product?.gross_weight_per_unit || 0,
-          nettoWeightPerUnit: product?.netto_weight_per_unit || 0,
-          volumetricWeightKg: product?.volumetric_weight_kg || 0,
-        } as CIFProductInput;
-      }),
-      supplierWeights: supplierWeights.map(sw => ({
-        supplierId: sw.supplierId,
-        actualWeightKg: sw.actualWeightKg,
-        volumetricWeightKg: sw.volumetricWeightKg,
-        palletsUsed: sw.palletsUsed,
-        weightTypeUsed: sw.weightTypeUsed,
-      })),
-      exchangeRate: exchangeRate,
-      estimatedFreightExterior: estimatedFreightExterior,
-      estimatedFreightLocal: estimatedFreightLocal,
-      localLogisticsUSD: localLogisticsUSD,
-      wholesaleMultiplier: wholesaleMultiplier,
-      retailMultiplier: retailMultiplier,
+      totalFreight,
+      exchangeRate,
+      limitingFactor,
+      wholesaleMultiplier,
+      retailMultiplier,
     };
 
-    // Calculate total freight from rates
-    const totalFreight = calculateTotalFreightFromRates(
-      cifParams.products,
-      cifParams.supplierWeights,
-      cifParams.exchangeRate,
-      cifParams.estimatedFreightExterior,
-      cifParams.estimatedFreightLocal,
-      cifParams.localLogisticsUSD
-    );
-
-    // Determine if charged by volumetric weight
-    const { isChargedByVolumetric, weightGapKg, weightGapPercent } = determineLimitingFactor(
-      cifParams.products,
-      cifParams.supplierWeights
-    );
-
     // Calculate CIF by selected distribution method
-    const cifResults = calculateCIFByMethod(cifParams, distributionMethod);
+    const cifResults = calculateCIFByMethod(cifProducts, cifParams, distributionMethod);
 
-    return cifResults.map(result => ({
-      ...result,
-      productCode: result.productCode,
-      productName: result.productName,
-      quantity: result.quantity,
-      trays: result.trays,
-      actualWeight: result.actualWeight,
-      volumetricWeight: result.volumetricWeight,
-      chargeableWeight: result.chargeableWeight,
-      weightType: result.weightType,
-      costUSD: result.costUSD,
-      freightCost: result.freightCost,
-      cifUSD: result.cifUSD,
-      cifXCG: result.cifXCG,
-      cifPerUnit: result.cifPerUnit,
-      wholesalePrice: result.wholesalePrice,
-      retailPrice: result.retailPrice,
-      wholesaleMargin: result.wholesaleMargin,
-      retailMargin: result.retailMargin,
-      suppliers: 'TODO',
-    }));
+    // Extend results with additional fields
+    return cifResults.map((result, index) => {
+      const product = cifProducts[index];
+      return {
+        ...result,
+        trays: orderItems[index]?.quantity || 0,
+        actualWeight: product.actualWeight,
+        volumetricWeight: product.volumetricWeight,
+        chargeableWeight: Math.max(product.actualWeight, product.volumetricWeight),
+        weightType: (product.volumetricWeight > product.actualWeight ? 'volumetric' : 'actual') as 'actual' | 'volumetric',
+        suppliers: 'N/A',
+      };
+    });
   };
 
   const cifResults = calculateCIFResults();
 
-  // Calculate total weights and determine if charged by volumetric
+  // Calculate total weights
   const totalActualWeight = cifResults.reduce((sum, r) => sum + r.actualWeight, 0);
   const totalVolumetricWeight = cifResults.reduce((sum, r) => sum + r.volumetricWeight, 0);
   const totalChargeableWeight = Math.max(totalActualWeight, totalVolumetricWeight);
-  const { isChargedByVolumetric, weightGapKg, weightGapPercent } = determineLimitingFactor(
-    cifResults,
-    supplierWeights.map(sw => ({
-      supplierId: sw.supplierId,
-      actualWeightKg: sw.actualWeightKg,
-      volumetricWeightKg: sw.volumetricWeightKg,
-      palletsUsed: sw.palletsUsed,
-      weightTypeUsed: sw.weightTypeUsed,
-    }))
-  );
+  const limitingFactor = determineLimitingFactor(totalActualWeight, totalVolumetricWeight);
+  const isChargedByVolumetric = limitingFactor === 'volumetric';
+  const weightGapKg = isChargedByVolumetric ? totalVolumetricWeight - totalActualWeight : 0;
+  const weightGapPercent = totalActualWeight > 0 ? (weightGapKg / totalActualWeight) * 100 : 0;
 
   return (
     <div className="space-y-6">
@@ -256,6 +218,7 @@ export function OrderCIFTable({ orderId, orderItems, estimatedFreightExterior, e
           </CardTitle>
           <CardDescription>
             Calculate Cost, Insurance, and Freight (CIF) for this order
+            {recommendedMethod && <span className="ml-2 text-primary">(Recommended: {recommendedMethod})</span>}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -269,7 +232,7 @@ export function OrderCIFTable({ orderId, orderItems, estimatedFreightExterior, e
             totalVolumetricWeight={totalVolumetricWeight}
             totalChargeableWeight={totalChargeableWeight}
             orderItems={cifResults}
-            freightCostPerKg={estimatedFreightExterior / totalChargeableWeight}
+            freightCostPerKg={freightExteriorPerKg}
             exchangeRate={exchangeRate}
           />
 
@@ -282,9 +245,13 @@ export function OrderCIFTable({ orderId, orderItems, estimatedFreightExterior, e
                 value={distributionMethod}
                 onChange={(e) => setDistributionMethod(e.target.value as DistributionMethod)}
               >
-                <option value="weight">By Weight</option>
-                <option value="cost">By Cost</option>
-                <option value="equal">Equally</option>
+                <option value="byWeight">By Weight</option>
+                <option value="byCost">By Cost</option>
+                <option value="equally">Equally</option>
+                <option value="hybrid">Hybrid</option>
+                <option value="strategic">Strategic</option>
+                <option value="volumeOptimized">Volume Optimized</option>
+                <option value="customerTier">Customer Tier</option>
               </select>
             </div>
             <div>
@@ -346,9 +313,9 @@ export function OrderCIFTable({ orderId, orderItems, estimatedFreightExterior, e
                       <Badge variant="outline">Supplier ID: {supplier.supplierId}</Badge>
                     </div>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      {supplier.actualWeightKg && <span>Actual: {supplier.actualWeightKg} kg</span>}
-                      {supplier.volumetricWeightKg && <span>Vol: {supplier.volumetricWeightKg} kg</span>}
-                      {supplier.palletsUsed && <span>Pallets: {supplier.palletsUsed}</span>}
+                      {supplier.actualWeightKg > 0 && <span>Actual: {supplier.actualWeightKg} kg</span>}
+                      {supplier.volumetricWeightKg > 0 && <span>Vol: {supplier.volumetricWeightKg} kg</span>}
+                      {supplier.palletsUsed > 0 && <span>Pallets: {supplier.palletsUsed}</span>}
                     </div>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="mt-4 space-y-4">

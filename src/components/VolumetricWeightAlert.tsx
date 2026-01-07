@@ -200,7 +200,7 @@ export function VolumetricWeightAlert({
                           </div>
                         </div>
                       </div>
-                    ))
+                    ))}
                   </div>
                 </div>
               )}
@@ -220,7 +220,7 @@ export function VolumetricWeightAlert({
                           <p className="text-gray-600">Suggested action: {suggestion.action}</p>
                         </div>
                       </div>
-                    ))
+                    ))}
                   </div>
                 </div>
               )}
@@ -249,8 +249,8 @@ export function VolumetricWeightAlert({
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
               )}
 
               {aiSuggestions.nextOrderStrategy && (
