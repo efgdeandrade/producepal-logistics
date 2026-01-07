@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Header } from '@/components/layout/Header';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Header } from '../components/layout/Header';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
 import { Package, TrendingUp, Users, Calendar, PlusCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '../integrations/supabase/client';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FnbAlertsCard } from '@/components/fnb/FnbAlertsCard';
-
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { FnbAlertsCard } from '../components/fnb/FnbAlertsCard';
 interface ChartData {
   period: string;
   usd: number;

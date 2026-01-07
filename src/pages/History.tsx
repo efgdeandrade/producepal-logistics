@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Header } from '@/components/layout/Header';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Header } from '../components/layout/Header';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
 import { Search, Eye, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
-import LoadingBox from '@/components/LoadingBox';
+import LoadingBox from '../components/LoadingBox';
 
 interface Order {
   id: string;

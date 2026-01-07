@@ -1,8 +1,8 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
+import { Button } from '../ui/button';
+import { Separator } from '../ui/separator';
 import { Package, History, PlusCircle, LayoutDashboard, Users, Activity, LogOut, MapPin, Truck, Factory, TrendingUp, Settings, ChevronDown, Calculator, FileText, UtensilsCrossed, ShoppingCart, ClipboardList, MessageSquare, Layers } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,15 +10,15 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { usePermissions } from '@/hooks/usePermissions';
+} from '../ui/dropdown-menu';
+import { Avatar, AvatarFallback } from '../ui/avatar';
+import { usePermissions } from '../../hooks/usePermissions';
 import { useState, useEffect } from 'react';
 import { format, getWeek } from 'date-fns';
-import { getVersionDisplay } from '@/lib/version';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import { OfflineIndicator } from '@/components/OfflineIndicator';
-import { NotificationCenter } from '@/components/notifications/NotificationCenter';
+import { getVersionDisplay } from '../../lib/version';
+import { ThemeToggle } from '../ThemeToggle';
+import { OfflineIndicator } from '../OfflineIndicator';
+import { NotificationCenter } from '../notifications/NotificationCenter';
 
 export const Header = () => {
   const location = useLocation();

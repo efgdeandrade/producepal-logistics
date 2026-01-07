@@ -1,12 +1,12 @@
-import { Header } from '@/components/layout/Header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Header } from '../../components/layout/Header';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '../../integrations/supabase/client';
 import { Package, Users, ShoppingCart, ClipboardList, MessageSquare, TrendingUp, Plus, Truck, Banknote, BarChart3, MapPin, Calendar, Camera, CalendarCheck, DollarSign } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { FnbAlertsCard } from '@/components/fnb/FnbAlertsCard';
+import { Skeleton } from '../../components/ui/skeleton';
+import { FnbAlertsCard } from '../../components/fnb/FnbAlertsCard';
 
 export default function FnbDashboard() {
   const { data: stats, isLoading } = useQuery({
