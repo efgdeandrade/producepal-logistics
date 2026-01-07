@@ -1284,6 +1284,95 @@ export type Database = {
         }
         Relationships: []
       }
+      fnb_ai_match_logs: {
+        Row: {
+          confidence: string | null
+          corrected_product_id: string | null
+          created_at: string | null
+          customer_id: string | null
+          detected_language: string | null
+          detected_quantity: number | null
+          detected_unit: string | null
+          id: string
+          interpreted_text: string | null
+          match_source: string | null
+          matched_product_id: string | null
+          needs_review: boolean | null
+          order_id: string | null
+          raw_text: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          was_corrected: boolean | null
+        }
+        Insert: {
+          confidence?: string | null
+          corrected_product_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          detected_language?: string | null
+          detected_quantity?: number | null
+          detected_unit?: string | null
+          id?: string
+          interpreted_text?: string | null
+          match_source?: string | null
+          matched_product_id?: string | null
+          needs_review?: boolean | null
+          order_id?: string | null
+          raw_text: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          was_corrected?: boolean | null
+        }
+        Update: {
+          confidence?: string | null
+          corrected_product_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          detected_language?: string | null
+          detected_quantity?: number | null
+          detected_unit?: string | null
+          id?: string
+          interpreted_text?: string | null
+          match_source?: string | null
+          matched_product_id?: string | null
+          needs_review?: boolean | null
+          order_id?: string | null
+          raw_text?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          was_corrected?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_ai_match_logs_corrected_product_id_fkey"
+            columns: ["corrected_product_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_ai_match_logs_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_ai_match_logs_matched_product_id_fkey"
+            columns: ["matched_product_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_ai_match_logs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fnb_assistance_queue: {
         Row: {
           acknowledged_at: string | null
