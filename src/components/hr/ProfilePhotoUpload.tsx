@@ -1,8 +1,8 @@
 import { useState, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "../ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Camera, Upload, X, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "../../integrations/supabase/client";
 import { toast } from "sonner";
 
 interface ProfilePhotoUploadProps {
