@@ -83,6 +83,36 @@ export function AppLayout({ children }: AppLayoutProps) {
     return { path, label, isLast };
   });
 
+  // On mobile, render without sidebar
+  if (isMobile) {
+    return (
+      <div className="min-h-screen w-full flex flex-col bg-background">
+        {/* Mobile header - simpler */}
+        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 safe-area-top">
+          {/* Current page title */}
+          <h1 className="font-semibold text-lg flex-1 truncate">
+            {breadcrumbs[breadcrumbs.length - 1]?.label || "Dashboard"}
+          </h1>
+
+          {/* Time + Notifications */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground font-mono">
+              {format(currentTime, 'HH:mm')}
+            </span>
+            <NotificationCenter />
+            <OfflineIndicator />
+          </div>
+        </header>
+
+        {/* Main content with bottom nav padding */}
+        <main className="flex-1 p-4 pb-24">
+          {children}
+        </main>
+      </div>
+    );
+  }
+
+  // Desktop: Full sidebar layout
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="flex min-h-screen w-full">
@@ -93,7 +123,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="h-6" />
             
-            <Breadcrumb className="hidden md:flex">
+            <Breadcrumb className="flex">
               <BreadcrumbList>
                 <BreadcrumbItem>
                   <BreadcrumbLink href="/">Home</BreadcrumbLink>
@@ -111,13 +141,6 @@ export function AppLayout({ children }: AppLayoutProps) {
               </BreadcrumbList>
             </Breadcrumb>
 
-            {/* Mobile: Show current page title */}
-            <div className="md:hidden">
-              <span className="font-medium">
-                {breadcrumbs[breadcrumbs.length - 1]?.label || "Dashboard"}
-              </span>
-            </div>
-
             {/* Time/Date/Week Display + Notifications */}
             <div className="ml-auto flex items-center gap-2 sm:gap-3">
               <div className="flex flex-col text-right">
@@ -129,18 +152,18 @@ export function AppLayout({ children }: AppLayoutProps) {
                     {format(currentTime, 'HH:mm')}
                   </span>
                 </div>
-                <span className="text-[10px] sm:text-xs text-muted-foreground hidden xs:block">
+                <span className="text-[10px] sm:text-xs text-muted-foreground">
                   Week {getWeek(currentTime)}
                 </span>
               </div>
-              <Separator orientation="vertical" className="h-6 hidden sm:block" />
+              <Separator orientation="vertical" className="h-6" />
               <NotificationCenter />
               <OfflineIndicator />
             </div>
           </header>
 
           {/* Main content */}
-          <main className={cn("flex-1 p-4 lg:p-6", isMobile && "pb-20")}>
+          <main className="flex-1 p-4 lg:p-6">
             {children}
           </main>
         </SidebarInset>
