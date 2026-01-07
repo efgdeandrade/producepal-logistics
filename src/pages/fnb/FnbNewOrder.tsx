@@ -848,16 +848,16 @@ export default function FnbNewOrder() {
       <main className="container py-6">
         <div className="flex items-center gap-4 mb-6">
           <Button variant="ghost" size="icon" asChild>
-            <Link to="/fnb/orders">
+            <Link to="/distribution/orders">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
           <div className="flex-1">
             <h1 className="text-3xl font-bold tracking-tight">
-              {isEditMode ? `Edit Order ${orderNumber}` : 'New F&B Order'}
+              {isEditMode ? `Edit Order ${orderNumber}` : 'New Order'}
             </h1>
             <p className="text-muted-foreground">
-              {isEditMode ? 'Update order details and items' : 'Manually create an order for F&B customers'}
+              {isEditMode ? 'Update order details and items' : 'Manually create an order for customers'}
             </p>
           </div>
           {!isEditMode && (
@@ -1727,7 +1727,7 @@ export default function FnbNewOrder() {
           <AlertDialogFooter className="flex-col sm:flex-row gap-2">
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <Button variant="outline" asChild>
-              <Link to={duplicateOrders?.[0]?.id ? `/fnb/orders/${duplicateOrders[0].id}/edit` : '/fnb/orders'}>
+              <Link to={duplicateOrders?.[0]?.id ? `/distribution/orders/${duplicateOrders[0].id}/edit` : '/distribution/orders'}>
                 Edit Existing Instead
               </Link>
             </Button>

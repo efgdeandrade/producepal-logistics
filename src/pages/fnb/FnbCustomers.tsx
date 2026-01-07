@@ -615,14 +615,14 @@ export default function FnbCustomers() {
       <main className="container py-6">
         <div className="flex items-center gap-4 mb-6">
           <Button variant="ghost" size="icon" asChild>
-            <Link to="/fnb">
+            <Link to="/distribution">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold tracking-tight">F&B Customers</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Distribution Customers</h1>
             <p className="text-muted-foreground">
-              Manage F&B customers and delivery zones
+              Manage customers and delivery zones
             </p>
           </div>
           <input

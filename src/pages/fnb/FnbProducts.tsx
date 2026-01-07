@@ -276,14 +276,14 @@ export default function FnbProducts() {
       <main className="container py-6">
         <div className="flex items-center gap-4 mb-6">
           <Button variant="ghost" size="icon" asChild>
-            <Link to="/fnb">
+            <Link to="/distribution">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold tracking-tight">F&B Products</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Distribution Products</h1>
             <p className="text-muted-foreground">
-              Manage your F&B product catalog with multilingual names for AI matching
+              Manage your product catalog with multilingual names for AI matching
             </p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

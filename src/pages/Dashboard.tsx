@@ -371,7 +371,7 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        {/* F&B Alerts (Compact) */}
+        {/* Distribution Alerts (Compact) */}
         <div className="mb-8">
           <FnbAlertsCard compact />
         </div>
