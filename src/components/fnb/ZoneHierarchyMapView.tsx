@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "../ui/badge";
 import { MapPin, Users, ChevronDown, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "../../lib/utils";
 
 // Curaçao coordinates
 const CURACAO_CENTER: [number, number] = [-68.9900, 12.1696];
