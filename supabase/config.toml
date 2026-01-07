@@ -68,3 +68,12 @@ verify_jwt = true
 
 [functions.quickbooks-sync]
 verify_jwt = true
+
+[functions.get-mapbox-token]
+verify_jwt = true
+
+[functions.generate-report]
+verify_jwt = true
+
+[functions.export-data]
+verify_jwt = true

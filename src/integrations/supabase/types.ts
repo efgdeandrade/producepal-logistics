@@ -3291,33 +3291,45 @@ export type Database = {
           error_message: string | null
           executed_at: string | null
           execution_time_ms: number | null
+          file_format: string | null
+          file_size_bytes: number | null
           file_url: string | null
           id: string
           metadata: Json | null
+          parameters: Json | null
           recipients_sent: string[] | null
           report_id: string | null
+          result_data: Json | null
           status: string
         }
         Insert: {
           error_message?: string | null
           executed_at?: string | null
           execution_time_ms?: number | null
+          file_format?: string | null
+          file_size_bytes?: number | null
           file_url?: string | null
           id?: string
           metadata?: Json | null
+          parameters?: Json | null
           recipients_sent?: string[] | null
           report_id?: string | null
+          result_data?: Json | null
           status: string
         }
         Update: {
           error_message?: string | null
           executed_at?: string | null
           execution_time_ms?: number | null
+          file_format?: string | null
+          file_size_bytes?: number | null
           file_url?: string | null
           id?: string
           metadata?: Json | null
+          parameters?: Json | null
           recipients_sent?: string[] | null
           report_id?: string | null
+          result_data?: Json | null
           status?: string
         }
         Relationships: [
