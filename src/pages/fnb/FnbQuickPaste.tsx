@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ClipboardPaste, Check, Loader2, MessageSquare, Calendar, User, MessageCircle, RotateCcw, ExternalLink, Brain, Sparkles } from 'lucide-react';
+import { ArrowLeft, ClipboardPaste, Check, Loader2, MessageSquare, Calendar as CalendarIcon, User, MessageCircle, RotateCcw, ExternalLink, Brain, Sparkles, ChevronDown } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
@@ -467,10 +470,51 @@ export default function FnbQuickPaste() {
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-medium truncate">{selectedCustomer?.name}</span>
-                    <Badge variant="outline" className="shrink-0">
-                      <Calendar className="h-3 w-3 mr-1" />
-                      {format(new Date(deliveryDate), 'MMM d')}
-                    </Badge>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Badge variant="outline" className="shrink-0 cursor-pointer hover:bg-accent transition-colors">
+                          <CalendarIcon className="h-3 w-3 mr-1" />
+                          {format(new Date(deliveryDate), 'MMM d')}
+                          <ChevronDown className="h-3 w-3 ml-1" />
+                        </Badge>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                        <div className="flex gap-1 p-2 border-b">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-xs"
+                            onClick={() => setDeliveryDate(format(new Date(), 'yyyy-MM-dd'))}
+                          >
+                            Today
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-xs"
+                            onClick={() => setDeliveryDate(format(addDays(new Date(), 1), 'yyyy-MM-dd'))}
+                          >
+                            Tomorrow
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-xs"
+                            onClick={() => setDeliveryDate(format(addDays(new Date(), 2), 'yyyy-MM-dd'))}
+                          >
+                            {format(addDays(new Date(), 2), 'EEE')}
+                          </Button>
+                        </div>
+                        <Calendar
+                          mode="single"
+                          selected={new Date(deliveryDate)}
+                          onSelect={(date) => date && setDeliveryDate(format(date, 'yyyy-MM-dd'))}
+                          disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <span>{validItemsCount} items</span>
