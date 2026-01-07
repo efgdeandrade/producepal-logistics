@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, ShoppingCart, ClipboardList, Truck, MoreHorizontal, Package, Store, History, Calculator, Users } from 'lucide-react';
+import { Home, ShoppingCart, ClipboardList, Truck, MoreHorizontal, Package, Store, History, Calculator, Users, MessageSquarePlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -7,17 +7,18 @@ interface NavItem {
   path: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
+  highlight?: boolean;
 }
 
 // Get navigation items based on current section
 const getNavItems = (pathname: string): NavItem[] => {
   // Distribution/F&B section
-  if (pathname.startsWith('/distribution') || pathname.startsWith('/fnb')) {
+  if (pathname.startsWith('/distribution') || pathname.startsWith('/fnb') || pathname === '/quick-paste') {
     return [
       { path: '/distribution', label: 'Home', icon: Home },
       { path: '/distribution/orders', label: 'Orders', icon: ShoppingCart },
+      { path: '/quick-paste', label: 'Quick', icon: MessageSquarePlus, highlight: true },
       { path: '/distribution/picker', label: 'Picker', icon: ClipboardList },
-      { path: '/distribution/customers', label: 'Customers', icon: Users },
       { path: '/distribution/settings', label: 'More', icon: MoreHorizontal },
     ];
   }
@@ -105,8 +106,9 @@ export const BottomNavigation = () => {
       <div className="flex items-center justify-around h-16 px-2">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path || 
-            (item.path !== '/' && location.pathname.startsWith(item.path));
+            (item.path !== '/' && item.path !== '/quick-paste' && location.pathname.startsWith(item.path));
           const Icon = item.icon;
+          const isHighlight = 'highlight' in item && item.highlight;
           
           return (
             <Link
@@ -114,13 +116,26 @@ export const BottomNavigation = () => {
               to={item.path}
               className={cn(
                 'flex flex-col items-center justify-center flex-1 h-full gap-1 text-xs transition-colors touch-manipulation min-h-[44px]',
-                isActive 
-                  ? 'text-primary' 
-                  : 'text-muted-foreground hover:text-foreground'
+                isHighlight 
+                  ? 'text-primary'
+                  : isActive 
+                    ? 'text-primary' 
+                    : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              <Icon className={cn('h-5 w-5', isActive && 'text-primary')} />
-              <span className={cn('font-medium', isActive && 'text-primary')}>
+              <div className={cn(
+                'flex items-center justify-center',
+                isHighlight && 'bg-primary text-primary-foreground rounded-full p-2 -mt-4 shadow-lg'
+              )}>
+                <Icon className={cn(
+                  isHighlight ? 'h-6 w-6' : 'h-5 w-5',
+                  !isHighlight && isActive && 'text-primary'
+                )} />
+              </div>
+              <span className={cn(
+                'font-medium',
+                isHighlight ? 'text-primary -mt-1' : isActive && 'text-primary'
+              )}>
                 {item.label}
               </span>
             </Link>
