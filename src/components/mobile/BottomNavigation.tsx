@@ -82,7 +82,7 @@ const hiddenRoutes = [
   '/install',
   '/offline',
   '/logistics/driver-mobile',
-  '/distribution/driver-mobile',
+  '/fnb/driver-mobile',
 ];
 
 export const BottomNavigation = () => {
