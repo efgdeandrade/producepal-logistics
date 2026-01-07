@@ -32,12 +32,12 @@ export default function FnbSettings() {
       <main className="container py-6 max-w-4xl">
         <div className="flex items-center gap-4 mb-6">
           <Button variant="ghost" size="icon" asChild>
-            <Link to="/fnb">
+            <Link to="/distribution">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">F&B Settings</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Distribution Settings</h1>
             <p className="text-muted-foreground">
               Configure integrations and AI learning
             </p>

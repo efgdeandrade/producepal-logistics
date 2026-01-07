@@ -194,6 +194,7 @@ export function AppSidebar() {
         { title: "Zones", url: "/distribution/zones", icon: MapPin },
         { title: "COD Reconciliation", url: "/distribution/cod", icon: DollarSign },
         { title: "Analytics", url: "/distribution/analytics", icon: BarChart3 },
+        { title: "Settings", url: "/distribution/settings", icon: Settings },
       ],
     },
     {
