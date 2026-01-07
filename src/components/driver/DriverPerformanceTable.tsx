@@ -1,7 +1,7 @@
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
+import { Badge } from "../ui/badge";
+import { Progress } from "../ui/progress";
+import { Avatar, AvatarFallback } from "../ui/avatar";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 export interface DriverPerformance {

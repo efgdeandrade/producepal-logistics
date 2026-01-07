@@ -33,6 +33,16 @@ window.addEventListener("unhandledrejection", (event) => {
   showErrorBanner(msg);
 });
 
+// In development, clear any stale service workers/caches that might serve HTML for JS requests
+if (import.meta.env.DEV) {
+  navigator.serviceWorker?.getRegistrations().then((registrations) => {
+    registrations.forEach((reg) => reg.unregister());
+  });
+  caches?.keys().then((names) => {
+    names.forEach((name) => caches.delete(name));
+  });
+}
+
 try {
   console.log("[BOOT] Mounting React app...");
   createRoot(document.getElementById("root")!).render(<App />);
