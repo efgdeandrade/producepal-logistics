@@ -187,7 +187,7 @@ export default function UserManagement() {
         throw new Error(data.error);
       }
 
-      setResetLink(data.resetLink);
+      setResetLink(data.temporaryPassword);
       setShowResetLink(true);
       
       toast({
@@ -268,12 +268,12 @@ export default function UserManagement() {
         throw new Error(data.error);
       }
 
-      // Copy reset link to clipboard
-      if (data.resetLink) {
-        await navigator.clipboard.writeText(data.resetLink);
+      // Copy temporary password to clipboard
+      if (data.temporaryPassword) {
+        await navigator.clipboard.writeText(data.temporaryPassword);
         toast({
-          title: 'Reset Link Copied',
-          description: `Password reset link for ${email} has been copied to your clipboard. Share it with the user.`,
+          title: 'New Password Generated',
+          description: `Temporary password for ${email} copied to clipboard. Share it with the user.`,
         });
       }
     } catch (error: any) {
@@ -442,18 +442,18 @@ export default function UserManagement() {
                     <DialogHeader>
                       <DialogTitle>✅ User Created Successfully!</DialogTitle>
                       <DialogDescription>
-                        Share this password reset link with the user
+                        Share this temporary password with the user
                       </DialogDescription>
                     </DialogHeader>
 
                     <div className="space-y-4 py-4">
                       <div className="space-y-2">
-                        <Label>Password Reset Link</Label>
+                        <Label>Temporary Password</Label>
                         <div className="flex gap-2">
                           <Input
                             value={resetLink}
                             readOnly
-                            className="font-mono text-xs"
+                            className="font-mono text-sm"
                           />
                           <Button
                             type="button"
@@ -468,8 +468,8 @@ export default function UserManagement() {
 
                       <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md p-3">
                         <p className="text-sm text-blue-900 dark:text-blue-100">
-                          ℹ️ <strong>Secure Setup:</strong> Share this link with the user. 
-                          They will use it to set their own password securely.
+                          ℹ️ <strong>Important:</strong> Share this password with the user. 
+                          They will be required to change it on first login.
                         </p>
                       </div>
                     </div>

@@ -12,6 +12,18 @@ const resendInvitationSchema = z.object({
   email: z.string().email("Invalid email address"),
 });
 
+// Generate a secure random password
+function generateSecurePassword(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+  let password = '';
+  const array = new Uint8Array(16);
+  crypto.getRandomValues(array);
+  for (let i = 0; i < 16; i++) {
+    password += chars[array[i] % chars.length];
+  }
+  return password;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -91,35 +103,59 @@ serve(async (req) => {
     }
 
     const { email } = validationResult.data;
-    console.log(`Admin ${user.email} requesting password reset for: ${email}`);
+    console.log(`Admin ${user.email} generating new password for: ${email}`);
 
-    // Generate password reset link
-    const { data: linkData, error } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'recovery',
-      email: email,
-    });
-
-    if (error) {
-      console.error("Error generating reset link:", error);
-      throw error;
+    // Find the user by email
+    const { data: targetUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+    
+    if (listError) {
+      console.error("Error listing users:", listError);
+      throw listError;
     }
 
-    // Generate reset link with proper redirect to our reset-password page
-    const actionLink = linkData.properties?.action_link || '';
-    const appUrl = req.headers.get('Origin') || 'https://dnxzpkbobzwjcuyfgdnh.lovable.app';
-    const redirectUrl = `${appUrl}/reset-password`;
+    const targetUser = targetUsers.users.find(u => u.email === email);
+    
+    if (!targetUser) {
+      return new Response(
+        JSON.stringify({ error: "User not found" }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 404,
+        }
+      );
+    }
 
-    const resetLink = actionLink.replace(
-      /redirect_to=[^&]*/,
-      `redirect_to=${encodeURIComponent(redirectUrl)}`
+    // Generate new temporary password
+    const newPassword = generateSecurePassword();
+
+    // Update user's password
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+      targetUser.id,
+      { password: newPassword }
     );
 
-    console.log(`Reset link generated for ${email} by admin ${user.email}`);
+    if (updateError) {
+      console.error("Error updating password:", updateError);
+      throw updateError;
+    }
+
+    // Ensure must_change_password is true
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .update({ must_change_password: true })
+      .eq('id', targetUser.id);
+
+    if (profileError) {
+      console.error("Error updating profile:", profileError);
+      // Don't throw, password was already changed
+    }
+
+    console.log(`New password generated for ${email} by admin ${user.email}`);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        resetLink: resetLink 
+        temporaryPassword: newPassword 
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
