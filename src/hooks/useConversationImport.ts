@@ -483,7 +483,7 @@ export function useConversationImport() {
           const topProducts = products.slice(0, 40);
           
           try {
-            // Wrap with 30 second client-side timeout
+            // Wrap with 12 second client-side timeout - fail fast
             const { data, error } = await withTimeout(
               supabase.functions.invoke('parse-whatsapp-order', {
                 body: {
@@ -505,23 +505,55 @@ export function useConversationImport() {
                   }))
                 }
               }),
-              30000,
-              'AI parsing timed out. Using local matches.'
+              12000,
+              'AI parsing timed out'
             );
 
-            if (error) throw error;
-            if (data?.error) {
-              // If AI returned error but we have local matches, use them
+            // Handle timeout or error - fall back to local matches + manual entry
+            if (error || data?.timedOut || data?.error) {
+              console.warn('AI unavailable:', error?.message || data?.error);
+              
               if (localMatched.length > 0) {
-                console.warn('AI parsing error, using local matches:', data.error);
-                toast.warning('AI parsing had issues. Using quick matches instead.');
+                toast.info('AI slow - using quick matches. Adjust items if needed.', { duration: 3000 });
                 parsed = {
                   detected_language: 'mixed',
                   items: localItems
                 };
-                allMatched = localMatched;
+                // Include local matches plus unmatched items for manual entry
+                allMatched = [
+                  ...localMatched,
+                  ...unmatched.map(item => ({
+                    ...item,
+                    matched_product_id: null,
+                    matched_product_name: null,
+                    suggested_price: null,
+                    was_manually_changed: false,
+                    match_source: 'unmatched' as const,
+                    confidence: 'low' as const
+                  }))
+                ];
               } else {
-                throw new Error(data.error);
+                // No local matches - show local parsed items for manual matching
+                toast.info('AI unavailable - please match items manually.', { duration: 4000 });
+                parsed = {
+                  detected_language: 'mixed',
+                  items: localItems.length > 0 ? localItems : [{ 
+                    raw_text: text, 
+                    interpreted_product: 'Manual entry needed',
+                    quantity: 1, 
+                    unit: 'pcs', 
+                    confidence: 'low' as const 
+                  }]
+                };
+                allMatched = parsed.items.map(item => ({
+                  ...item,
+                  matched_product_id: null,
+                  matched_product_name: null,
+                  suggested_price: null,
+                  was_manually_changed: false,
+                  match_source: 'unmatched' as const,
+                  confidence: 'low' as const
+                }));
               }
             } else {
               parsed = data as ParsedConversation;
@@ -538,18 +570,22 @@ export function useConversationImport() {
               }
             }
           } catch (aiError) {
-            // Timeout or other AI error - fallback to local matches
-            if (localMatched.length > 0) {
-              console.warn('AI parsing failed, using local matches:', aiError);
-              toast.warning('AI took too long. Using quick matches instead.');
-              parsed = {
-                detected_language: 'mixed',
-                items: localItems
-              };
-              allMatched = localMatched;
-            } else {
-              throw aiError;
-            }
+            // Catch any unexpected errors - fallback to local/manual
+            console.warn('AI parsing error:', aiError);
+            toast.info('AI unavailable - adjust items manually.', { duration: 3000 });
+            parsed = {
+              detected_language: 'mixed',
+              items: localItems
+            };
+            allMatched = localItems.map(item => ({
+              ...item,
+              matched_product_id: null,
+              matched_product_name: null,
+              suggested_price: null,
+              was_manually_changed: false,
+              match_source: 'unmatched' as const,
+              confidence: 'low' as const
+            }));
           }
         }
       } else {
@@ -586,33 +622,69 @@ export function useConversationImport() {
                 }))
               }
             }),
-            30000,
-            'AI parsing timed out. Please try with simpler text.'
+            12000,
+            'AI parsing timed out'
           );
 
-          if (error) throw error;
-          if (data?.error) throw new Error(data.error);
-
-          parsed = data as ParsedConversation;
-          
-          // Track discovered context words
-          if (parsed.context_words?.length) {
-            setDiscoveredWordsCount(parsed.context_words.length);
-          }
-          
-          setParseStage('Matching products...');
-          for (const item of parsed.items) {
-            allMatched.push(matchItem(item, products, customerMappings, globalAliases, customerPatterns));
+          // Handle timeout or error - fall back to manual entry
+          if (error || data?.timedOut || data?.error) {
+            console.warn('AI unavailable:', error?.message || data?.error);
+            toast.info('AI unavailable - please enter items manually.', { duration: 4000 });
+            parsed = {
+              detected_language: 'mixed',
+              items: [{ 
+                raw_text: text, 
+                interpreted_product: 'Enter items manually',
+                quantity: 1, 
+                unit: 'pcs', 
+                confidence: 'low' as const 
+              }]
+            };
+            allMatched = parsed.items.map(item => ({
+              ...item,
+              matched_product_id: null,
+              matched_product_name: null,
+              suggested_price: null,
+              was_manually_changed: false,
+              match_source: 'unmatched' as const,
+              confidence: 'low' as const
+            }));
+          } else {
+            parsed = data as ParsedConversation;
+            
+            // Track discovered context words
+            if (parsed.context_words?.length) {
+              setDiscoveredWordsCount(parsed.context_words.length);
+            }
+            
+            setParseStage('Matching products...');
+            for (const item of parsed.items) {
+              allMatched.push(matchItem(item, products, customerMappings, globalAliases, customerPatterns));
+            }
           }
         } catch (aiError) {
-          // For complete AI failure with no local fallback, show error
-          const errorMsg = aiError instanceof Error ? aiError.message : 'Failed to parse';
-          if (errorMsg.includes('timed out')) {
-            toast.error('AI parsing took too long. Try pasting less text or simpler orders.');
-          } else {
-            toast.error(errorMsg);
-          }
-          return null;
+          // For complete AI failure, show manual entry UI
+          console.warn('AI parsing error:', aiError);
+          toast.info('AI unavailable - please enter items manually.', { duration: 4000 });
+          parsed = {
+            detected_language: 'mixed',
+            items: [{ 
+              raw_text: text, 
+              interpreted_product: 'Enter items manually',
+              quantity: 1, 
+              unit: 'pcs', 
+              confidence: 'low' as const 
+            }]
+          };
+          allMatched = parsed.items.map(item => ({
+            ...item,
+            matched_product_id: null,
+            matched_product_name: null,
+            suggested_price: null,
+            was_manually_changed: false,
+            match_source: 'unmatched' as const,
+            confidence: 'low' as const
+          }));
         }
       }
 
