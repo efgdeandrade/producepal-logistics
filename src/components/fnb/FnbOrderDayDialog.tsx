@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format, addDays } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -199,47 +199,15 @@ export function FnbOrderDayDialog({ day, orders, open, onOpenChange, onOrderUpda
   const [localOrders, setLocalOrders] = useState<OrderWithDetails[]>([]);
 
   // Sync local orders when props change
-  useState(() => {
+  useEffect(() => {
     setLocalOrders(orders);
-  });
-
-  // Keep local orders in sync with prop orders
-  if (JSON.stringify(orders.map(o => o.id)) !== JSON.stringify(localOrders.map(o => o.id))) {
-    setLocalOrders(orders);
-  }
+  }, [orders]);
 
   // Configure DnD sensors
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
   );
-
-  if (!day) return null;
-
-  const getZoneColor = (zone: string | null) => {
-    return zone ? (zoneColors[zone] || zoneColors.default) : zoneColors.default;
-  };
-
-  const stats = {
-    total: orders.length,
-    delivered: orders.filter((o) => o.status === 'delivered').length,
-    pending: orders.filter((o) => o.status === 'pending').length,
-    pendingReceipts: orders.filter(
-      (o) => o.fnb_customers?.customer_type === 'supermarket' && o.status === 'delivered' && !o.receipt_verified_at
-    ).length,
-    codTotal: orders
-      .filter((o) => o.fnb_customers?.customer_type === 'cod' || o.payment_method === 'cod')
-      .reduce((sum, o) => sum + (o.total_xcg || 0), 0),
-    totalXCG: orders.reduce((sum, o) => sum + (o.total_xcg || 0), 0),
-  };
-
-  // Group orders by driver
-  const ordersByDriver = localOrders.reduce((acc, order) => {
-    const driver = order.driver_name || 'Unassigned';
-    if (!acc[driver]) acc[driver] = [];
-    acc[driver].push(order);
-    return acc;
-  }, {} as Record<string, OrderWithDetails[]>);
 
   // Update status mutation
   const updateStatusMutation = useMutation({
@@ -344,6 +312,34 @@ export function FnbOrderDayDialog({ day, orders, open, onOpenChange, onOrderUpda
       reorderMutation.mutate(reordered);
     }
   };
+
+  // Early return AFTER all hooks
+  if (!day) return null;
+
+  const getZoneColor = (zone: string | null) => {
+    return zone ? (zoneColors[zone] || zoneColors.default) : zoneColors.default;
+  };
+
+  const stats = {
+    total: orders.length,
+    delivered: orders.filter((o) => o.status === 'delivered').length,
+    pending: orders.filter((o) => o.status === 'pending').length,
+    pendingReceipts: orders.filter(
+      (o) => o.fnb_customers?.customer_type === 'supermarket' && o.status === 'delivered' && !o.receipt_verified_at
+    ).length,
+    codTotal: orders
+      .filter((o) => o.fnb_customers?.customer_type === 'cod' || o.payment_method === 'cod')
+      .reduce((sum, o) => sum + (o.total_xcg || 0), 0),
+    totalXCG: orders.reduce((sum, o) => sum + (o.total_xcg || 0), 0),
+  };
+
+  // Group orders by driver
+  const ordersByDriver = localOrders.reduce((acc, order) => {
+    const driver = order.driver_name || 'Unassigned';
+    if (!acc[driver]) acc[driver] = [];
+    acc[driver].push(order);
+    return acc;
+  }, {} as Record<string, OrderWithDetails[]>);
 
   const renderOrderCard = (order: OrderWithDetails) => {
     const customerType = order.fnb_customers?.customer_type || 'regular';
