@@ -57,13 +57,13 @@ serve(async (req) => {
       );
     }
 
-    // Fetch verified context words from database - increased limit for richer context
+    // Fetch verified context words from database - limited for faster parsing
     const { data: contextWords } = await supabase
       .from('fnb_context_words')
       .select('word, word_type, meaning, language')
       .eq('is_verified', true)
       .order('usage_count', { ascending: false })
-      .limit(300);
+      .limit(100);
 
     // Build product context for the AI
     const productList = products?.map((p: any) => 
@@ -102,15 +102,13 @@ serve(async (req) => {
       return `${label}: ${words.map((w: any) => `${w.word}=${w.meaning}`).join(', ')}`;
     };
 
+    // Only include essential categories for order parsing (skip greetings, connectors, actions)
     const contextWordsContext = [
       buildCategoryContext('unit', 'UNITS'),
       buildCategoryContext('quantity_phrase', 'QUANTITIES/NUMBERS'),
       buildCategoryContext('time_reference', 'TIME WORDS'),
       buildCategoryContext('product_modifier', 'MODIFIERS'),
-      buildCategoryContext('action', 'ACTION WORDS'),
-      buildCategoryContext('connector', 'CONNECTORS'),
       buildCategoryContext('product_name', 'PRODUCT NAMES'),
-      buildCategoryContext('greeting', 'GREETINGS'),
     ].filter(Boolean).join('\n');
 
     const systemPrompt = `You are an expert order parser for a food & beverage distribution company in Curaçao. 
@@ -142,7 +140,7 @@ Also identify any NEW local/Papiamentu words you encounter that would help futur
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: `Parse this WhatsApp conversation and extract the order:\n\n${conversationText}` }

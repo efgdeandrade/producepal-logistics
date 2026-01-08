@@ -416,8 +416,8 @@ export function useConversationImport() {
           // Some items need AI help
           setParseStage(`AI parsing ${unmatched.length} items...`);
           
-          // Only send top 80 products to AI (reduce context size)
-          const topProducts = products.slice(0, 80);
+          // Only send top 50 products to AI (reduce context size for speed)
+          const topProducts = products.slice(0, 50);
           
           const { data, error } = await supabase.functions.invoke('parse-whatsapp-order', {
             body: {
