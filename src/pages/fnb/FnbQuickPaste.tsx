@@ -633,8 +633,36 @@ export default function FnbQuickPaste() {
             <div className="sticky top-0 z-10 bg-background border-b p-4 space-y-2">
               <Card>
                 <CardContent className="p-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-medium truncate">{selectedCustomer?.name}</span>
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Badge variant="outline" className="cursor-pointer hover:bg-accent transition-colors max-w-[160px]">
+                          <User className="h-3 w-3 mr-1 shrink-0" />
+                          <span className="truncate">{selectedCustomer?.name || 'Select customer'}</span>
+                          <ChevronDown className="h-3 w-3 ml-1 shrink-0" />
+                        </Badge>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-64 p-0" align="start">
+                        <ScrollArea className="h-[250px]">
+                          <div className="p-2 space-y-1">
+                            {customers?.map(c => (
+                              <button
+                                key={c.id}
+                                onClick={() => setCustomerId(c.id)}
+                                className={cn(
+                                  "w-full p-2 rounded text-left text-sm transition-colors",
+                                  customerId === c.id 
+                                    ? "bg-primary text-primary-foreground" 
+                                    : "hover:bg-muted"
+                                )}
+                              >
+                                {c.name}
+                              </button>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </PopoverContent>
+                    </Popover>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Badge variant="outline" className="shrink-0 cursor-pointer hover:bg-accent transition-colors">
