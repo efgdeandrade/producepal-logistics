@@ -15,7 +15,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useConversationImport } from '@/hooks/useConversationImport';
 import { toast } from 'sonner';
-import { format, addDays } from 'date-fns';
+import { format, addDays, startOfDay } from 'date-fns';
+
+// Parse date string as local time (not UTC) to avoid timezone issues
+const parseLocalDate = (dateStr: string) => new Date(dateStr + 'T12:00:00');
 import { openWhatsApp, generateOrderConfirmation, vibrateSuccess, vibrateTap, openWhatsAppGeneral } from '@/utils/whatsappUtils';
 
 interface Product {
@@ -272,7 +275,7 @@ export default function FnbQuickPaste() {
       const message = generateOrderConfirmation(
         createdOrderNumber,
         customer.name,
-        format(new Date(deliveryDate), 'MMM d, yyyy'),
+        format(parseLocalDate(deliveryDate), 'MMM d, yyyy'),
         validItemsCount,
         totalAmount
       );
@@ -474,7 +477,7 @@ export default function FnbQuickPaste() {
                       <PopoverTrigger asChild>
                         <Badge variant="outline" className="shrink-0 cursor-pointer hover:bg-accent transition-colors">
                           <CalendarIcon className="h-3 w-3 mr-1" />
-                          {format(new Date(deliveryDate), 'MMM d')}
+                          {format(parseLocalDate(deliveryDate), 'MMM d')}
                           <ChevronDown className="h-3 w-3 ml-1" />
                         </Badge>
                       </PopoverTrigger>
@@ -507,9 +510,9 @@ export default function FnbQuickPaste() {
                         </div>
                         <Calendar
                           mode="single"
-                          selected={new Date(deliveryDate)}
+                          selected={parseLocalDate(deliveryDate)}
                           onSelect={(date) => date && setDeliveryDate(format(date, 'yyyy-MM-dd'))}
-                          disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                          disabled={(date) => date < startOfDay(new Date())}
                           initialFocus
                           className={cn("p-3 pointer-events-auto")}
                         />
