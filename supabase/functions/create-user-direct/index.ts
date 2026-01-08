@@ -28,7 +28,7 @@ const corsHeaders = {
 const createUserSchema = z.object({
   email: z.string().email("Invalid email format").max(255, "Email too long"),
   fullName: z.string().min(2, "Name too short").max(100, "Name too long"),
-  role: z.enum(['admin', 'management', 'driver', 'production', 'logistics', 'accounting', 'manager'], {
+  role: z.enum(['admin', 'management', 'driver', 'production', 'logistics', 'accounting', 'manager', 'hr', 'interim'], {
     errorMap: () => ({ message: "Invalid role" })
   }),
 });

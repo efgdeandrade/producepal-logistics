@@ -19,7 +19,7 @@ import { useNavigate } from 'react-router-dom';
 const inviteSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
   fullName: z.string().min(2, { message: 'Name must be at least 2 characters' }),
-  role: z.enum(['admin', 'management', 'driver', 'production', 'logistics', 'accounting', 'manager']),
+  role: z.enum(['admin', 'management', 'driver', 'production', 'logistics', 'accounting', 'manager', 'hr', 'interim']),
 });
 
 interface Profile {
@@ -55,7 +55,7 @@ export default function UserManagement() {
   const [showResetLink, setShowResetLink] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const availableRoles = ['admin', 'management', 'driver', 'production', 'logistics', 'accounting', 'manager'] as const;
+  const availableRoles = ['admin', 'management', 'driver', 'production', 'logistics', 'accounting', 'manager', 'hr', 'interim'] as const;
   type AppRole = typeof availableRoles[number];
 
   const fetchUsers = async () => {
@@ -421,6 +421,8 @@ export default function UserManagement() {
                             <SelectItem value="logistics">Logistics</SelectItem>
                             <SelectItem value="accounting">Accounting</SelectItem>
                             <SelectItem value="manager">Manager</SelectItem>
+                            <SelectItem value="hr">HR</SelectItem>
+                            <SelectItem value="interim">Interim</SelectItem>
                           </SelectContent>
                         </Select>
                         {errors.role && <p className="text-sm text-destructive">{errors.role}</p>}
@@ -531,6 +533,8 @@ export default function UserManagement() {
                           <SelectItem value="logistics">Logistics</SelectItem>
                           <SelectItem value="accounting">Accounting</SelectItem>
                           <SelectItem value="manager">Manager</SelectItem>
+                          <SelectItem value="hr">HR</SelectItem>
+                          <SelectItem value="interim">Interim</SelectItem>
                         </SelectContent>
                       </Select>
                       {errors.role && <p className="text-sm text-destructive">{errors.role}</p>}
