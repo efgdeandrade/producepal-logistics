@@ -122,9 +122,16 @@ serve(async (req) => {
     }
 
     // Generate password reset link instead of returning password
+    // Use the app URL as redirect destination for the reset page
+    const appUrl = req.headers.get('Origin') || 'https://dnxzpkbobzwjcuyfgdnh.lovable.app';
+    const redirectUrl = `${appUrl}/reset-password`;
+
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'recovery',
       email: email,
+      options: {
+        redirectTo: redirectUrl,
+      },
     });
 
     if (linkError) {
@@ -132,11 +139,11 @@ serve(async (req) => {
       throw new Error("User created but failed to generate password reset link");
     }
 
-    // Extract the token from the link and construct a proper reset URL
-    const resetToken = linkData.properties?.hashed_token;
-    const resetLink = resetToken 
-      ? `${supabaseUrl}/auth/v1/verify?token=${resetToken}&type=recovery&redirect_to=${encodeURIComponent(supabaseUrl)}`
-      : linkData.properties?.action_link;
+    // Get the action link and ensure it redirects to our reset-password page
+    const actionLink = linkData.properties?.action_link || '';
+    const resetLink = actionLink.includes('redirect_to=')
+      ? actionLink.replace(/redirect_to=[^&]*/, `redirect_to=${encodeURIComponent(redirectUrl)}`)
+      : `${actionLink}${actionLink.includes('?') ? '&' : '?'}redirect_to=${encodeURIComponent(redirectUrl)}`;
 
     console.log(`User ${email} created successfully by admin ${user.id}`);
 
@@ -145,7 +152,7 @@ serve(async (req) => {
         success: true,
         userId,
         email,
-        resetLink: linkData.properties?.action_link || resetLink,
+        resetLink,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

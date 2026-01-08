@@ -96,6 +96,7 @@ import ScheduledReports from "./pages/ScheduledReports";
 import NotFound from "./pages/NotFound";
 import Install from "./pages/Install";
 import Offline from "./pages/Offline";
+import ResetPassword from "./pages/ResetPassword";
 
 // Integrations
 import IntegrationHub from "./pages/integrations/IntegrationHub";
@@ -213,6 +214,7 @@ const App = () => (
                 <Routes>
                   {/* Auth - No layout */}
                   <Route path="/auth" element={<Auth />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/install" element={<Install />} />
 
                   {/* Executive Dashboard - Full layout */}
