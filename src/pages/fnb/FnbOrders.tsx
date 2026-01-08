@@ -29,7 +29,8 @@ import {
   X,
   PlusCircle,
   ClipboardList,
-  Repeat
+  Repeat,
+  GripVertical
 } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Link, useNavigate } from 'react-router-dom';
@@ -49,6 +50,18 @@ import { cn } from '@/lib/utils';
 import { FnbOrderDayDialog } from '@/components/fnb/FnbOrderDayDialog';
 import { QuickAddItemDialog } from '@/components/fnb/QuickAddItemDialog';
 import { ExportButton } from '@/components/reports/ExportButton';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  useDraggable,
+  DragStartEvent,
+  DragEndEvent,
+} from '@dnd-kit/core';
 
 type CustomerType = 'regular' | 'supermarket' | 'cod' | 'credit';
 
@@ -124,6 +137,77 @@ const customerTypeLabels: Record<CustomerType, string> = {
   credit: 'Credit',
 };
 
+// Draggable Order Card wrapper
+function DraggableOrderCard({ 
+  order, 
+  children 
+}: { 
+  order: OrderWithDetails; 
+  children: React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: order.id,
+    data: { order },
+    disabled: order.status === 'delivered' || order.status === 'cancelled',
+  });
+
+  const style = transform ? {
+    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+  } : undefined;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'relative group',
+        isDragging && 'opacity-50 z-50'
+      )}
+    >
+      {/* Drag handle */}
+      {order.status !== 'delivered' && order.status !== 'cancelled' && (
+        <div
+          {...listeners}
+          {...attributes}
+          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 opacity-0 group-hover:opacity-100 
+                     cursor-grab active:cursor-grabbing p-1 rounded bg-muted/80 transition-opacity z-10"
+        >
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+        </div>
+      )}
+      {children}
+    </div>
+  );
+}
+
+// Droppable Day Column wrapper
+function DroppableDayColumn({ 
+  date, 
+  isOver,
+  children 
+}: { 
+  date: Date; 
+  isOver: boolean;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef } = useDroppable({
+    id: format(date, 'yyyy-MM-dd'),
+    data: { date },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        'h-full transition-colors rounded-lg',
+        isOver && 'bg-primary/10 ring-2 ring-primary ring-dashed'
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function FnbOrders() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -133,7 +217,14 @@ export default function FnbOrders() {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [quickAddOrder, setQuickAddOrder] = useState<{ id: string; orderNumber: string } | null>(null);
-  
+  const [activeOrder, setActiveOrder] = useState<OrderWithDetails | null>(null);
+
+  // Configure DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
+  );
+
   const { generateForDateRange } = useFnbStandingOrdersSync();
 
   // Auto-generate standing orders for the visible week
@@ -326,6 +417,46 @@ export default function FnbOrders() {
       console.error(error);
     }
   });
+
+  // Drag-and-drop handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    const order = event.active.data.current?.order as OrderWithDetails;
+    setActiveOrder(order || null);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveOrder(null);
+
+    if (!over || !active) return;
+
+    const orderId = active.id as string;
+    const newDate = over.id as string; // Format: yyyy-MM-dd
+    const order = orders?.find(o => o.id === orderId);
+
+    if (!order) return;
+
+    // Check if date actually changed
+    if (order.delivery_date === newDate) return;
+
+    // Optimistic update
+    queryClient.setQueryData(['fnb-orders-weekly', format(weekStart, 'yyyy-MM-dd'), statusFilter], 
+      (old: OrderWithDetails[] | undefined) => 
+        old?.map(o => o.id === orderId ? { ...o, delivery_date: newDate } : o)
+    );
+
+    const { error } = await supabase
+      .from('fnb_orders')
+      .update({ delivery_date: newDate })
+      .eq('id', orderId);
+
+    if (error) {
+      toast.error('Failed to move order');
+      queryClient.invalidateQueries({ queryKey: ['fnb-orders-weekly'] });
+    } else {
+      toast.success(`Order moved to ${format(parseISO(newDate), 'EEE, MMM d')}`);
+    }
+  };
 
   const renderOrderCard = (order: OrderWithDetails) => {
     const customerType = order.fnb_customers?.customer_type || 'regular';
@@ -694,123 +825,155 @@ export default function FnbOrders() {
           </div>
         </div>
 
-        {/* Calendar Grid */}
+        {/* Calendar Grid with DnD */}
         {isLoading ? (
           <p className="text-center py-8 text-muted-foreground">Loading orders...</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {weekDays.map((day) => {
-              const dayOrders = getOrdersForDay(day);
-              const stats = getDayStats(dayOrders);
-              const isToday = isSameDay(day, new Date());
+          <DndContext
+            sensors={sensors}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {weekDays.map((day) => {
+                const dayOrders = getOrdersForDay(day);
+                const stats = getDayStats(dayOrders);
+                const isToday = isSameDay(day, new Date());
+                const dateStr = format(day, 'yyyy-MM-dd');
+                const isDropTarget = activeOrder?.delivery_date !== dateStr;
 
-              return (
-                <Card
-                  key={day.toISOString()}
-                  className={cn(
-                    'min-h-[400px] cursor-pointer hover:shadow-lg transition-shadow',
-                    isToday && 'ring-2 ring-primary'
-                  )}
-                  onClick={() => setSelectedDay(day)}
-                >
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {isToday && (
-                          <Badge className="bg-primary text-primary-foreground text-xs font-bold">
-                            TODAY
-                          </Badge>
-                        )}
-                        <span className={cn('font-bold', isToday && 'text-primary')}>
-                          {format(day, 'EEE')}
-                        </span>
-                        <span className="text-muted-foreground">
-                          {format(day, 'MMM d')}
-                        </span>
-                      </div>
-                      <Badge variant={stats.total > 0 ? 'default' : 'secondary'}>
-                        {stats.total}
-                      </Badge>
-                      {/* Confirm All Pending button */}
-                      {stats.pending > 0 && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-xs h-6 text-green-600 border-green-300 hover:bg-green-50 dark:hover:bg-green-900/20"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            confirmAllPendingMutation.mutate(day);
-                          }}
-                          disabled={confirmAllPendingMutation.isPending}
-                        >
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Confirm All ({stats.pending})
-                        </Button>
+                return (
+                  <DroppableDayColumn 
+                    key={day.toISOString()} 
+                    date={day}
+                    isOver={!!activeOrder && isDropTarget}
+                  >
+                    <Card
+                      className={cn(
+                        'min-h-[400px] cursor-pointer hover:shadow-lg transition-shadow h-full',
+                        isToday && 'ring-2 ring-primary'
                       )}
-                    </CardTitle>
-                    {/* Day Stats */}
-                    {stats.total > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {stats.delivered > 0 && (
-                          <Badge variant="outline" className="text-xs text-green-600">
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            {stats.delivered}
-                          </Badge>
-                        )}
-                        {stats.pending > 0 && (
-                          <Badge variant="outline" className="text-xs text-yellow-600">
-                            <Clock className="h-3 w-3 mr-1" />
-                            {stats.pending}
-                          </Badge>
-                        )}
-                        {stats.pendingReceipts > 0 && (
-                          <Badge variant="outline" className="text-xs text-orange-600">
-                            <Camera className="h-3 w-3 mr-1" />
-                            {stats.pendingReceipts}
-                          </Badge>
-                        )}
-                        {stats.codTotal > 0 && (
-                          <Badge variant="outline" className="text-xs">
-                            <Banknote className="h-3 w-3 mr-1" />
-                            {stats.codTotal.toFixed(0)}
-                          </Badge>
-                        )}
-                        {stats.totalItems > 0 && (
-                          <Badge variant="outline" className="text-xs">
-                            <Package className="h-3 w-3 mr-1" />
-                            {stats.totalItems}
-                          </Badge>
-                        )}
-                        {stats.pickingAccuracy !== null && (
-                          <Badge 
-                            variant="outline" 
-                            className={cn(
-                              "text-xs",
-                              stats.pickingAccuracy >= 95 && "text-green-600 border-green-300",
-                              stats.pickingAccuracy >= 80 && stats.pickingAccuracy < 95 && "text-yellow-600 border-yellow-300",
-                              stats.pickingAccuracy < 80 && "text-red-600 border-red-300"
+                      onClick={() => setSelectedDay(day)}
+                    >
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {isToday && (
+                              <Badge className="bg-primary text-primary-foreground text-xs font-bold">
+                                TODAY
+                              </Badge>
                             )}
-                          >
-                            <Target className="h-3 w-3 mr-1" />
-                            {stats.pickingAccuracy}%
+                            <span className={cn('font-bold', isToday && 'text-primary')}>
+                              {format(day, 'EEE')}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {format(day, 'MMM d')}
+                            </span>
+                          </div>
+                          <Badge variant={stats.total > 0 ? 'default' : 'secondary'}>
+                            {stats.total}
                           </Badge>
+                          {/* Confirm All Pending button */}
+                          {stats.pending > 0 && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs h-6 text-green-600 border-green-300 hover:bg-green-50 dark:hover:bg-green-900/20"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                confirmAllPendingMutation.mutate(day);
+                              }}
+                              disabled={confirmAllPendingMutation.isPending}
+                            >
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Confirm All ({stats.pending})
+                            </Button>
+                          )}
+                        </CardTitle>
+                        {/* Day Stats */}
+                        {stats.total > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {stats.delivered > 0 && (
+                              <Badge variant="outline" className="text-xs text-green-600">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                {stats.delivered}
+                              </Badge>
+                            )}
+                            {stats.pending > 0 && (
+                              <Badge variant="outline" className="text-xs text-yellow-600">
+                                <Clock className="h-3 w-3 mr-1" />
+                                {stats.pending}
+                              </Badge>
+                            )}
+                            {stats.pendingReceipts > 0 && (
+                              <Badge variant="outline" className="text-xs text-orange-600">
+                                <Camera className="h-3 w-3 mr-1" />
+                                {stats.pendingReceipts}
+                              </Badge>
+                            )}
+                            {stats.codTotal > 0 && (
+                              <Badge variant="outline" className="text-xs">
+                                <Banknote className="h-3 w-3 mr-1" />
+                                {stats.codTotal.toFixed(0)}
+                              </Badge>
+                            )}
+                            {stats.totalItems > 0 && (
+                              <Badge variant="outline" className="text-xs">
+                                <Package className="h-3 w-3 mr-1" />
+                                {stats.totalItems}
+                              </Badge>
+                            )}
+                            {stats.pickingAccuracy !== null && (
+                              <Badge 
+                                variant="outline" 
+                                className={cn(
+                                  "text-xs",
+                                  stats.pickingAccuracy >= 95 && "text-green-600 border-green-300",
+                                  stats.pickingAccuracy >= 80 && stats.pickingAccuracy < 95 && "text-yellow-600 border-yellow-300",
+                                  stats.pickingAccuracy < 80 && "text-red-600 border-red-300"
+                                )}
+                              >
+                                <Target className="h-3 w-3 mr-1" />
+                                {stats.pickingAccuracy}%
+                              </Badge>
+                            )}
+                          </div>
                         )}
-                      </div>
-                    )}
-                  </CardHeader>
-                  <CardContent className="space-y-2 overflow-y-auto max-h-[500px]">
-                    {dayOrders.length === 0 ? (
-                      <p className="text-center py-4 text-muted-foreground text-sm">
-                        No orders
-                      </p>
-                    ) : (
-                      dayOrders.map((order) => renderOrderCard(order))
-                    )}
+                      </CardHeader>
+                      <CardContent className="space-y-2 overflow-y-auto max-h-[500px]">
+                        {dayOrders.length === 0 ? (
+                          <p className="text-center py-4 text-muted-foreground text-sm">
+                            No orders
+                          </p>
+                        ) : (
+                          dayOrders.map((order) => (
+                            <DraggableOrderCard key={order.id} order={order}>
+                              {renderOrderCard(order)}
+                            </DraggableOrderCard>
+                          ))
+                        )}
+                      </CardContent>
+                    </Card>
+                  </DroppableDayColumn>
+                );
+              })}
+            </div>
+
+            {/* Drag Overlay */}
+            <DragOverlay>
+              {activeOrder ? (
+                <Card className="w-64 opacity-90 shadow-xl rotate-2 border-l-4 border-l-primary">
+                  <CardContent className="p-3">
+                    <p className="font-semibold">{activeOrder.fnb_customers?.name || 'Unknown'}</p>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Package className="h-3 w-3" />
+                      <span>{activeOrder.fnb_order_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0} items</span>
+                    </div>
                   </CardContent>
                 </Card>
-              );
-            })}
-          </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         )}
 
         {/* Day Drill-Down Dialog */}
