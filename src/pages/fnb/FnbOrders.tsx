@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useFnbStandingOrdersSync } from '@/hooks/useFnbStandingOrdersSync';
+import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
+import { useNewFnbOrderNotifications } from '@/hooks/useNewFnbOrderNotifications';
 import { toast } from 'sonner';
 import { 
   ArrowLeft,
@@ -30,7 +32,9 @@ import {
   PlusCircle,
   ClipboardList,
   Repeat,
-  GripVertical
+  GripVertical,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Link, useNavigate } from 'react-router-dom';
@@ -50,6 +54,7 @@ import { cn } from '@/lib/utils';
 import { FnbOrderDayDialog } from '@/components/fnb/FnbOrderDayDialog';
 import { QuickAddItemDialog } from '@/components/fnb/QuickAddItemDialog';
 import { ExportButton } from '@/components/reports/ExportButton';
+import { NewOrderToast } from '@/components/fnb/NewOrderToast';
 import {
   DndContext,
   DragOverlay,
@@ -218,6 +223,20 @@ export default function FnbOrders() {
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [quickAddOrder, setQuickAddOrder] = useState<{ id: string; orderNumber: string } | null>(null);
   const [activeOrder, setActiveOrder] = useState<OrderWithDetails | null>(null);
+
+  // Real-time updates for fnb_orders - auto-refresh when orders are created/updated/deleted
+  useRealtimeUpdates(['fnb_orders'], [['fnb-orders-weekly']]);
+
+  // New order notifications with sound
+  const {
+    notifications: orderNotifications,
+    isMinimized: notificationsMinimized,
+    soundEnabled,
+    toggleSound,
+    minimize: minimizeNotifications,
+    expand: expandNotifications,
+    dismissNotification,
+  } = useNewFnbOrderNotifications();
 
   // Configure DnD sensors
   const sensors = useSensors(
@@ -732,6 +751,14 @@ export default function FnbOrders() {
             filename="fnb-orders"
             columns={['order_number', 'customer', 'status', 'delivery_date', 'total_xcg', 'items', 'zone', 'driver']}
           />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleSound}
+            title={soundEnabled ? 'Mute notifications' : 'Unmute notifications'}
+          >
+            {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+          </Button>
           <Button onClick={() => navigate('/fnb/orders/new')}>
             <Plus className="h-4 w-4 mr-2" />
             New Order
@@ -993,6 +1020,28 @@ export default function FnbOrders() {
             onOpenChange={(open) => !open && setQuickAddOrder(null)}
           />
         )}
+
+        {/* New Order Notifications */}
+        <NewOrderToast
+          notifications={orderNotifications.map(n => ({
+            id: n.id,
+            queueId: n.id, // Use order notification id as queueId since these aren't from picker queue
+            orderId: n.orderId,
+            orderNumber: n.orderNumber,
+            customerName: n.customerName,
+            zone: n.zone,
+            isUrgent: false,
+            createdAt: n.createdAt
+          }))}
+          isMinimized={notificationsMinimized}
+          onMinimize={minimizeNotifications}
+          onExpand={expandNotifications}
+          onPickOrder={(notification) => {
+            navigate(`/fnb/orders/edit/${notification.orderId}`);
+            dismissNotification(notification.id);
+          }}
+          onDismiss={dismissNotification}
+        />
       </div>
     </div>
   );
