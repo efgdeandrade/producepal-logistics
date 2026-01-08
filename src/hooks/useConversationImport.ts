@@ -382,6 +382,16 @@ export function useConversationImport() {
     return { matched, unmatched };
   }, [matchItem]);
 
+  // Helper to wrap promise with timeout
+  const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> => {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) => 
+        setTimeout(() => reject(new Error(errorMessage)), ms)
+      )
+    ]);
+  };
+
   // Parse conversation text
   const parseConversation = useCallback(async (
     text: string,
@@ -472,41 +482,74 @@ export function useConversationImport() {
           // Only send top 40 products to AI for speed
           const topProducts = products.slice(0, 40);
           
-          const { data, error } = await supabase.functions.invoke('parse-whatsapp-order', {
-            body: {
-              conversationText: text,
-              customerId: customerId,
-              isSimpleOrder: isSimple,
-              products: topProducts.map(p => ({
-                code: p.code,
-                name: p.name,
-                name_pap: p.name_pap
-              })),
-              customerMappings: customerMappings.slice(0, 20).map(m => ({
-                customer_product_name: m.customer_product_name,
-                product_name: products.find(p => p.id === m.product_id)?.name || ''
-              })),
-              customerPatterns: customerPatterns.slice(0, 10).map(p => ({
-                product_name: p.product_name,
-                avg_quantity: p.avg_quantity
-              }))
+          try {
+            // Wrap with 30 second client-side timeout
+            const { data, error } = await withTimeout(
+              supabase.functions.invoke('parse-whatsapp-order', {
+                body: {
+                  conversationText: text,
+                  customerId: customerId,
+                  isSimpleOrder: isSimple,
+                  products: topProducts.map(p => ({
+                    code: p.code,
+                    name: p.name,
+                    name_pap: p.name_pap
+                  })),
+                  customerMappings: customerMappings.slice(0, 20).map(m => ({
+                    customer_product_name: m.customer_product_name,
+                    product_name: products.find(p => p.id === m.product_id)?.name || ''
+                  })),
+                  customerPatterns: customerPatterns.slice(0, 10).map(p => ({
+                    product_name: p.product_name,
+                    avg_quantity: p.avg_quantity
+                  }))
+                }
+              }),
+              30000,
+              'AI parsing timed out. Using local matches.'
+            );
+
+            if (error) throw error;
+            if (data?.error) {
+              // If AI returned error but we have local matches, use them
+              if (localMatched.length > 0) {
+                console.warn('AI parsing error, using local matches:', data.error);
+                toast.warning('AI parsing had issues. Using quick matches instead.');
+                parsed = {
+                  detected_language: 'mixed',
+                  items: localItems
+                };
+                allMatched = localMatched;
+              } else {
+                throw new Error(data.error);
+              }
+            } else {
+              parsed = data as ParsedConversation;
+              
+              // Track discovered context words
+              if (parsed.context_words?.length) {
+                setDiscoveredWordsCount(parsed.context_words.length);
+              }
+              
+              // Match AI-parsed items
+              setParseStage('Matching products...');
+              for (const item of parsed.items) {
+                allMatched.push(matchItem(item, products, customerMappings, globalAliases, customerPatterns));
+              }
             }
-          });
-
-          if (error) throw error;
-          if (data?.error) throw new Error(data.error);
-
-          parsed = data as ParsedConversation;
-          
-          // Track discovered context words
-          if (parsed.context_words?.length) {
-            setDiscoveredWordsCount(parsed.context_words.length);
-          }
-          
-          // Match AI-parsed items
-          setParseStage('Matching products...');
-          for (const item of parsed.items) {
-            allMatched.push(matchItem(item, products, customerMappings, globalAliases, customerPatterns));
+          } catch (aiError) {
+            // Timeout or other AI error - fallback to local matches
+            if (localMatched.length > 0) {
+              console.warn('AI parsing failed, using local matches:', aiError);
+              toast.warning('AI took too long. Using quick matches instead.');
+              parsed = {
+                detected_language: 'mixed',
+                items: localItems
+              };
+              allMatched = localMatched;
+            } else {
+              throw aiError;
+            }
           }
         }
       } else {
@@ -520,40 +563,56 @@ export function useConversationImport() {
         // Only send top 40 products to AI for speed
         const topProducts = products.slice(0, 40);
         
-        const { data, error } = await supabase.functions.invoke('parse-whatsapp-order', {
-          body: {
-            conversationText: text,
-            customerId: customerId,
-            isSimpleOrder: isSimple,
-            products: topProducts.map(p => ({
-              code: p.code,
-              name: p.name,
-              name_pap: p.name_pap
-            })),
-            customerMappings: customerMappings.slice(0, 20).map(m => ({
-              customer_product_name: m.customer_product_name,
-              product_name: products.find(p => p.id === m.product_id)?.name || ''
-            })),
-            customerPatterns: customerPatterns.slice(0, 10).map(p => ({
-              product_name: p.product_name,
-              avg_quantity: p.avg_quantity
-            }))
+        try {
+          // Wrap with 30 second client-side timeout
+          const { data, error } = await withTimeout(
+            supabase.functions.invoke('parse-whatsapp-order', {
+              body: {
+                conversationText: text,
+                customerId: customerId,
+                isSimpleOrder: isSimple,
+                products: topProducts.map(p => ({
+                  code: p.code,
+                  name: p.name,
+                  name_pap: p.name_pap
+                })),
+                customerMappings: customerMappings.slice(0, 20).map(m => ({
+                  customer_product_name: m.customer_product_name,
+                  product_name: products.find(p => p.id === m.product_id)?.name || ''
+                })),
+                customerPatterns: customerPatterns.slice(0, 10).map(p => ({
+                  product_name: p.product_name,
+                  avg_quantity: p.avg_quantity
+                }))
+              }
+            }),
+            30000,
+            'AI parsing timed out. Please try with simpler text.'
+          );
+
+          if (error) throw error;
+          if (data?.error) throw new Error(data.error);
+
+          parsed = data as ParsedConversation;
+          
+          // Track discovered context words
+          if (parsed.context_words?.length) {
+            setDiscoveredWordsCount(parsed.context_words.length);
           }
-        });
-
-        if (error) throw error;
-        if (data?.error) throw new Error(data.error);
-
-        parsed = data as ParsedConversation;
-        
-        // Track discovered context words
-        if (parsed.context_words?.length) {
-          setDiscoveredWordsCount(parsed.context_words.length);
-        }
-        
-        setParseStage('Matching products...');
-        for (const item of parsed.items) {
-          allMatched.push(matchItem(item, products, customerMappings, globalAliases, customerPatterns));
+          
+          setParseStage('Matching products...');
+          for (const item of parsed.items) {
+            allMatched.push(matchItem(item, products, customerMappings, globalAliases, customerPatterns));
+          }
+        } catch (aiError) {
+          // For complete AI failure with no local fallback, show error
+          const errorMsg = aiError instanceof Error ? aiError.message : 'Failed to parse';
+          if (errorMsg.includes('timed out')) {
+            toast.error('AI parsing took too long. Try pasting less text or simpler orders.');
+          } else {
+            toast.error(errorMsg);
+          }
+          return null;
         }
       }
 
@@ -604,7 +663,10 @@ export function useConversationImport() {
       return parsed;
     } catch (error) {
       console.error('Error parsing conversation:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to parse conversation');
+      const errorMsg = error instanceof Error ? error.message : 'Failed to parse conversation';
+      if (!errorMsg.includes('timed out')) {
+        toast.error(errorMsg);
+      }
       return null;
     } finally {
       setIsParsing(false);
