@@ -97,13 +97,43 @@ export default defineConfig(({ mode }) => ({
             type: 'image/png',
             purpose: 'any maskable'
           }
-        ]
+        ],
+        share_target: {
+          action: '/quick-paste',
+          method: 'POST',
+          enctype: 'multipart/form-data',
+          params: {
+            title: 'title',
+            text: 'text',
+            url: 'url',
+            files: [
+              {
+                name: 'files',
+                accept: [
+                  'application/pdf',
+                  '.pdf',
+                  'text/html',
+                  '.html',
+                  '.htm',
+                  'text/csv',
+                  '.csv',
+                  'application/vnd.ms-excel',
+                  '.xls',
+                  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                  '.xlsx'
+                ]
+              }
+            ]
+          }
+        }
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api/, /^\/supabase/],
+        // Import share target handler into service worker
+        importScripts: ['/sw-share-target.js'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/api\.mapbox\.com\/.*/i,

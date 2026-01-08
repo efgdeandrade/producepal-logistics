@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ClipboardPaste, Check, Loader2, MessageSquare, Calendar as CalendarIcon, User, MessageCircle, RotateCcw, ExternalLink, Brain, Sparkles, ChevronDown } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, ClipboardPaste, Check, Loader2, MessageSquare, Calendar as CalendarIcon, User, MessageCircle, RotateCcw, ExternalLink, Brain, Sparkles, ChevronDown, Upload } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -14,6 +14,9 @@ import { MobileProductCard } from '@/components/mobile/MobileProductCard';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useConversationImport } from '@/hooks/useConversationImport';
+import { usePOImport } from '@/hooks/usePOImport';
+import { POUploadDialog } from '@/components/fnb/POUploadDialog';
+import { POReviewDialog } from '@/components/fnb/POReviewDialog';
 import { toast } from 'sonner';
 import { format, addDays, startOfDay } from 'date-fns';
 
@@ -34,6 +37,7 @@ interface Product {
 
 export default function FnbQuickPaste() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [conversationText, setConversationText] = useState('');
   const [customerId, setCustomerId] = useState<string | null>(null);
@@ -43,6 +47,11 @@ export default function FnbQuickPaste() {
   const [clipboardContent, setClipboardContent] = useState<string | null>(null);
   const [clipboardChecked, setClipboardChecked] = useState(false);
   const [correctionsCount, setCorrectionsCount] = useState(0);
+  
+  // PO Import state
+  const [showPOUpload, setShowPOUpload] = useState(false);
+  const [showPOReview, setShowPOReview] = useState(false);
+  const poImport = usePOImport();
 
   // Check clipboard on mount (without auto-pasting)
   useEffect(() => {
@@ -71,6 +80,145 @@ export default function FnbQuickPaste() {
       setCustomerId(lastCustomer);
     }
   }, []);
+
+  // Check for shared file from Web Share Target API
+  useEffect(() => {
+    const checkSharedFile = async () => {
+      if (searchParams.get('share-target') !== 'true') return;
+      
+      try {
+        const cache = await caches.open('shared-files');
+        const response = await cache.match('shared-po-file');
+        
+        if (response) {
+          const blob = await response.blob();
+          // Get filename from header or use default
+          const fileName = response.headers.get('X-File-Name') 
+            ? decodeURIComponent(response.headers.get('X-File-Name')!)
+            : 'shared-po.pdf';
+          const fileType = response.headers.get('X-File-Type') || blob.type;
+          
+          const file = new File([blob], fileName, { type: fileType });
+          
+          // Clean up cache
+          await cache.delete('shared-po-file');
+          
+          // Clear URL param
+          setSearchParams({}, { replace: true });
+          
+          // Process the file
+          toast.info('Processing shared file...');
+          handlePOFileSelected(file);
+        } else {
+          // No file found, clear the param
+          setSearchParams({}, { replace: true });
+        }
+      } catch (error) {
+        console.error('Error retrieving shared file:', error);
+        setSearchParams({}, { replace: true });
+      }
+    };
+    
+    checkSharedFile();
+  }, [searchParams]);
+
+  // Handle PO file selection (from upload dialog or share target)
+  const handlePOFileSelected = async (file: File) => {
+    const extracted = await poImport.parseFile(file);
+    if (extracted && products.length > 0) {
+      setShowPOUpload(false);
+      // Match products with customer context if available
+      const customerForMatching = customerId || poImport.selectedCustomerId || '';
+      await poImport.matchProducts(extracted.items, customerForMatching, products);
+      setShowPOReview(true);
+    }
+  };
+
+  // Handle PO review confirmation - convert to order
+  const handlePOConfirm = async () => {
+    const validItems = poImport.matchedItems.filter(i => i.matched_product_id);
+    if (validItems.length === 0) {
+      toast.error('No matched items to create order');
+      return;
+    }
+
+    const selectedCustomer = poImport.selectedCustomerId || customerId;
+    if (!selectedCustomer) {
+      toast.error('Please select a customer');
+      return;
+    }
+
+    // Create order directly from PO items
+    try {
+      const orderNumber = `FNB-${Date.now()}`;
+      const total = validItems.reduce((sum, item) => {
+        const product = products.find(p => p.id === item.matched_product_id);
+        const price = product?.price_xcg || item.unit_price || 0;
+        return sum + (item.quantity * price);
+      }, 0);
+
+      const { data: order, error: orderError } = await supabase
+        .from('fnb_orders')
+        .insert({
+          order_number: orderNumber,
+          customer_id: selectedCustomer,
+          order_date: new Date().toISOString().split('T')[0],
+          delivery_date: poImport.selectedDeliveryDate || deliveryDate,
+          delivery_station: poImport.selectedDeliveryStation || null,
+          po_number: poImport.extractedData?.po_number || null,
+          status: 'pending',
+          total_xcg: total,
+          notes: `Imported from PO: ${poImport.extractedData?.po_number || 'N/A'}`
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      const orderItems = validItems.map(item => {
+        const product = products.find(p => p.id === item.matched_product_id);
+        const price = product?.price_xcg || item.unit_price || 0;
+        return {
+          order_id: order.id,
+          product_id: item.matched_product_id,
+          quantity: item.quantity,
+          unit_price_xcg: price,
+          total_xcg: item.quantity * price
+        };
+      });
+
+      const { error: itemsError } = await supabase
+        .from('fnb_order_items')
+        .insert(orderItems);
+
+      if (itemsError) throw itemsError;
+
+      // Add to picker queue
+      await supabase
+        .from('fnb_picker_queue')
+        .insert({
+          order_id: order.id,
+          status: 'pending',
+          priority: 0
+        });
+
+      // Save product mappings for future imports
+      await poImport.saveMappings(selectedCustomer, validItems);
+
+      vibrateSuccess();
+      setCustomerId(selectedCustomer);
+      setCreatedOrderNumber(order.order_number);
+      setShowPOReview(false);
+      setStep('success');
+      
+      queryClient.invalidateQueries({ queryKey: ['fnb-orders'] });
+      localStorage.setItem('fuik_last_order_customer', selectedCustomer);
+      
+      toast.success('Order created from PO!');
+    } catch (error) {
+      toast.error(`Failed to create order: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
 
   // Fetch products
   const { data: products = [] } = useQuery({
@@ -422,6 +570,20 @@ export default function FnbQuickPaste() {
               </Button>
             )}
 
+            {/* Import PO File Button */}
+            <Button
+              variant="outline"
+              className="w-full h-16 flex-col gap-1"
+              onClick={() => {
+                vibrateTap();
+                setShowPOUpload(true);
+              }}
+            >
+              <Upload className="h-5 w-5" />
+              <span className="text-sm">Import PO File</span>
+              <span className="text-[10px] text-muted-foreground">PDF, Excel, HTML</span>
+            </Button>
+
             {/* Divider */}
             <div className="relative py-2">
               <div className="absolute inset-0 flex items-center">
@@ -650,6 +812,39 @@ export default function FnbQuickPaste() {
           </div>
         )}
       </main>
+
+      {/* PO Import Dialogs */}
+      <POUploadDialog
+        open={showPOUpload}
+        onOpenChange={setShowPOUpload}
+        onFileSelected={handlePOFileSelected}
+        isUploading={poImport.isUploading}
+        isParsing={poImport.isParsing}
+      />
+
+      {poImport.extractedData && (
+        <POReviewDialog
+          open={showPOReview}
+          onOpenChange={setShowPOReview}
+          extractedData={poImport.extractedData}
+          matchedItems={poImport.matchedItems}
+          customers={customers}
+          products={products}
+          selectedCustomerId={poImport.selectedCustomerId || customerId || ''}
+          selectedDeliveryDate={poImport.selectedDeliveryDate || deliveryDate}
+          selectedDeliveryStation={poImport.selectedDeliveryStation}
+          onCustomerChange={poImport.setSelectedCustomerId}
+          onDeliveryDateChange={poImport.setSelectedDeliveryDate}
+          onDeliveryStationChange={poImport.setSelectedDeliveryStation}
+          onUpdateItem={poImport.updateMatchedItem}
+          onRemoveItem={poImport.removeMatchedItem}
+          onConfirm={handlePOConfirm}
+          onCancel={() => {
+            setShowPOReview(false);
+            poImport.reset();
+          }}
+        />
+      )}
     </div>
   );
 }
