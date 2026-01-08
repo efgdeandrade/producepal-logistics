@@ -40,7 +40,7 @@ serve(async (req) => {
       );
     }
 
-    const { conversationText, products, customerMappings, customerId, customerPatterns } = await req.json();
+    const { conversationText, products, customerMappings, customerId, customerPatterns, isSimpleOrder } = await req.json();
 
     if (!conversationText || typeof conversationText !== 'string') {
       return new Response(
@@ -57,31 +57,35 @@ serve(async (req) => {
       );
     }
 
-    // Fetch verified context words from database - limited for faster parsing
+    // Dynamic model selection based on order complexity
+    const model = isSimpleOrder 
+      ? "google/gemini-2.5-flash-lite"  // Faster for simple orders
+      : "google/gemini-2.5-flash";       // More accurate for complex orders
+    
+    console.log(`Using model: ${model} (simple: ${isSimpleOrder})`);
+
+    // Fetch verified context words - only essential ones with usage
     const { data: contextWords } = await supabase
       .from('fnb_context_words')
-      .select('word, word_type, meaning, language')
+      .select('word, word_type, meaning')
       .eq('is_verified', true)
+      .gt('usage_count', 0)
       .order('usage_count', { ascending: false })
-      .limit(100);
+      .limit(50);
 
-    // Build product context for the AI
+    // Build compact product context
     const productList = products?.map((p: any) => 
-      `${p.code}: ${p.name}${p.name_pap ? ` (Pap: ${p.name_pap})` : ''}${p.name_nl ? ` (NL: ${p.name_nl})` : ''}${p.name_es ? ` (ES: ${p.name_es})` : ''}`
-    ).join('\n') || '';
+      `${p.code}:${p.name}${p.name_pap ? `/${p.name_pap}` : ''}`
+    ).join(', ') || '';
 
-    // Build customer mapping context
+    // Build compact customer mapping context
     const mappingContext = customerMappings?.length > 0
-      ? `Known customer-specific product names:\n${customerMappings.map((m: any) => 
-          `"${m.customer_product_name}" = ${m.product_name}`
-        ).join('\n')}`
+      ? `Customer terms: ${customerMappings.map((m: any) => `${m.customer_product_name}=${m.product_name}`).join(', ')}`
       : '';
 
-    // Build customer pattern context
+    // Build compact pattern context
     const patternContext = customerPatterns?.length > 0
-      ? `\n\nThis customer's frequently ordered products (use this to prioritize matches):\n${customerPatterns.map((p: any) => 
-          `- ${p.product_name} (ordered ${p.order_count}x, avg qty: ${p.avg_quantity})`
-        ).join('\n')}`
+      ? `Frequent: ${customerPatterns.map((p: any) => `${p.product_name}(~${p.avg_quantity})`).join(', ')}`
       : '';
 
     // Organize context words by category for better AI understanding
@@ -95,43 +99,28 @@ serve(async (req) => {
       }
     }
 
-    // Build categorized context words dictionary
-    const buildCategoryContext = (type: string, label: string) => {
+    // Build compact context words (only units and quantities matter most)
+    const buildCompactContext = (type: string) => {
       const words = wordsByType[type];
       if (!words || words.length === 0) return '';
-      return `${label}: ${words.map((w: any) => `${w.word}=${w.meaning}`).join(', ')}`;
+      return words.slice(0, 10).map((w: any) => `${w.word}=${w.meaning}`).join(',');
     };
 
-    // Only include essential categories for order parsing (skip greetings, connectors, actions)
-    const contextWordsContext = [
-      buildCategoryContext('unit', 'UNITS'),
-      buildCategoryContext('quantity_phrase', 'QUANTITIES/NUMBERS'),
-      buildCategoryContext('time_reference', 'TIME WORDS'),
-      buildCategoryContext('product_modifier', 'MODIFIERS'),
-      buildCategoryContext('product_name', 'PRODUCT NAMES'),
-    ].filter(Boolean).join('\n');
+    const unitsCtx = buildCompactContext('unit');
+    const qtyCtx = buildCompactContext('quantity_phrase');
 
-    const systemPrompt = `You are an expert order parser for a food & beverage distribution company in Curaçao. 
-Your job is to extract order information from WhatsApp conversations that may be in Papiamento, English, Dutch, or Spanish (often mixed).
+    // Compact system prompt for speed
+    const systemPrompt = `Parse WhatsApp orders from Curaçao (Papiamentu/EN/NL/ES mix).
 
-PAPIAMENTU DICTIONARY (verified words organized by category):
-${contextWordsContext || 'No dictionary words loaded yet.'}
+DICTIONARY: ${unitsCtx ? `Units:${unitsCtx}` : ''} ${qtyCtx ? `Qty:${qtyCtx}` : ''}
+Numbers: un=1,dos=2,tres=3,kuater=4,sinku=5,seis=6,siete=7,ocho=8,nuebe=9,dies=10
+Units: kaha/kashi=case,saku=bag,tros=bunch,stuk=pc,pon=lb
 
-Available products in the system:
-${productList}
-
+PRODUCTS: ${productList}
 ${mappingContext}
 ${patternContext}
 
-PARSING RULES:
-- Use the dictionary above to understand Papiamentu words
-- Numbers can be words: un/uno=1, dos=2, tres=3, kuater=4, sinku=5, seis=6, siete=7, ocho=8, nuebe=9, dies=10
-- Common units: kaha/kashi=box/case, saku=bag, tros=bunch, stuk=piece, kilo, pon=pound
-- Ordering phrases: "mi ke" (I want), "manda" (send), "duna mi" (give me), "pidi" (order)
-- Time: awe=today, mañan=tomorrow, djaweps=Thursday, diabierna=Friday
-
-Extract ALL order items mentioned in the conversation, even if spread across multiple messages.
-Also identify any NEW local/Papiamentu words you encounter that would help future parsing.`;
+Extract items with: raw_text, interpreted_product, matched_product_code (from list above), quantity, unit, confidence.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -140,7 +129,7 @@ Also identify any NEW local/Papiamentu words you encounter that would help futur
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: model,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: `Parse this WhatsApp conversation and extract the order:\n\n${conversationText}` }

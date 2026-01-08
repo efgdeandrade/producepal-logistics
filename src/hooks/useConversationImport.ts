@@ -254,24 +254,45 @@ export function useConversationImport() {
     };
   }, []);
 
+  // Number words in Papiamentu/Spanish/Dutch for local parsing
+  const numberWords: Record<string, number> = {
+    'un': 1, 'uno': 1, 'een': 1, 'one': 1,
+    'dos': 2, 'twee': 2, 'two': 2,
+    'tres': 3, 'drie': 3, 'three': 3,
+    'kuater': 4, 'cuatro': 4, 'vier': 4, 'four': 4,
+    'sinku': 5, 'cinco': 5, 'vijf': 5, 'five': 5,
+    'seis': 6, 'zes': 6, 'six': 6,
+    'siete': 7, 'zeven': 7, 'seven': 7,
+    'ocho': 8, 'acht': 8, 'eight': 8,
+    'nuebe': 9, 'nueve': 9, 'negen': 9, 'nine': 9,
+    'dies': 10, 'diez': 10, 'tien': 10, 'ten': 10,
+    'meimei': 0.5, 'half': 0.5, 'mei': 0.5
+  };
+
+  // Extended unit vocabulary (Papiamentu, Dutch, Spanish, English)
+  const unitPattern = 'kg|kilo|kilos?|lb|lbs?|pound|pon|gram|gr|g|tros|bunch|bunches|case|cases|kashi|kaha|kahas?|boxes?|stuk|stuks?|pcs|pieces?|pc|dozen?|dòs|saku|bag|bags?|paki?|pack|packs?|extracto?|botella?|bòter|fles|bottle|bottles?|liter?|liters?|l|tin|tins?|blek|can|cans?|krat|crate|crates?|bak|bakje|tray|trays?|set|sets?|bos|paar|pair|pairs?|rol|roll|rolls?';
+
   // Local pre-parsing to extract items without AI
   const localPreParse = useCallback((text: string): ParsedItem[] => {
     const items: ParsedItem[] = [];
     const lines = text.split('\n').filter(l => l.trim());
     
-    // Extended unit list including Papiamentu terms
-    const unitPattern = 'kg|lb|gram|g|tros|bunch|case|kashi|kaha|stuk|pcs|pieces?|stuks?|dozen?|saku|paki?|pack|extracto?|botella?|bòter|fles|liter?|l|tin|blek|krat|dòs';
-    
-    // Common patterns: "5 kg tomaat", "3 tros banana", "10 pcs lemon", "2 paki mint"
+    // Common patterns with number words support
     const patterns = [
       // Pattern 1: "2 paki mint", "3 kg orange" - number + unit + product
       new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*(${unitPattern})\\s+(.+)`, 'i'),
+      // Pattern 1b: "dos kaha orange" - word number + unit + product
+      new RegExp(`(${Object.keys(numberWords).join('|')})\\s+(${unitPattern})\\s+(.+)`, 'i'),
       // Pattern 2: "tomaat - 5 kg" - product + separator + number + unit
       new RegExp(`(.+?)\\s*[-:]\\s*(\\d+(?:[.,]\\d+)?)\\s*(${unitPattern})?`, 'i'),
       // Pattern 3: "5 x tomaat" - number x product
       /(\d+(?:[.,]\d+)?)\s*[x×]\s*(.+)/i,
+      // Pattern 3b: "dos x tomaat" - word number x product
+      new RegExp(`(${Object.keys(numberWords).join('|')})\\s*[x×]\\s*(.+)`, 'i'),
       // Pattern 4: "2 mint", "1 lamunchi" - simple number + product (no unit)
       /^(\d+(?:[.,]\d+)?)\s+([a-zA-ZÀ-ÿ][\w\sÀ-ÿ-]+)$/i,
+      // Pattern 4b: "un mint", "dos lamunchi" - word number + product
+      new RegExp(`^(${Object.keys(numberWords).join('|')})\\s+([a-zA-ZÀ-ÿ][\\w\\sÀ-ÿ-]+)$`, 'i'),
     ];
     
     for (const line of lines) {
@@ -279,28 +300,57 @@ export function useConversationImport() {
       if (!trimmed || trimmed.length < 3) continue;
       
       // Skip greeting/non-order lines
-      if (/^(bon|hallo|hello|hi|danki|thanks|gracias|dank)/i.test(trimmed)) continue;
-      if (/^(mi por|kan ik|can i|puedo)/i.test(trimmed)) continue;
+      if (/^(bon dia|bon tardi|bon nochi|hallo|hello|hi|danki|thanks|gracias|dank|ayo|te mira)/i.test(trimmed)) continue;
+      if (/^(mi por|kan ik|can i|puedo|kiko ta|kon ta bai)/i.test(trimmed)) continue;
       
+      let matched = false;
       for (const pattern of patterns) {
         const match = trimmed.match(pattern);
         if (match) {
-          const qty = parseFloat(match[1].replace(',', '.'));
+          // Parse quantity - either number or word
+          let qty: number;
+          const qtyStr = match[1].toLowerCase();
+          if (numberWords[qtyStr] !== undefined) {
+            qty = numberWords[qtyStr];
+          } else {
+            qty = parseFloat(match[1].replace(',', '.'));
+          }
+          
           if (!isNaN(qty) && qty > 0) {
-            // For pattern 4 (simple number + product), product is in match[2]
-            const product = match[3]?.trim() || match[2]?.trim() || trimmed;
-            const unit = match[2]?.toLowerCase();
-            // Check if match[2] is actually a unit or a product name
-            const isUnit = new RegExp(`^(${unitPattern})$`, 'i').test(unit);
+            // Determine product and unit from matched groups
+            const possibleUnit = match[2]?.toLowerCase();
+            const isUnit = new RegExp(`^(${unitPattern})$`, 'i').test(possibleUnit);
+            
+            const product = isUnit 
+              ? (match[3]?.trim() || trimmed)
+              : (match[2]?.trim() || trimmed);
             
             items.push({
               raw_text: trimmed,
-              interpreted_product: isUnit ? (match[3]?.trim() || trimmed) : product,
+              interpreted_product: product,
               quantity: qty,
-              unit: isUnit ? unit : 'pcs',
+              unit: isUnit ? possibleUnit : 'pcs',
               confidence: 'medium'
             });
+            matched = true;
             break;
+          }
+        }
+      }
+      
+      // If no pattern matched but line has a number, try simple extraction
+      if (!matched && /\d/.test(trimmed)) {
+        const simpleMatch = trimmed.match(/(\d+(?:[.,]\d+)?)\s*(.+)/);
+        if (simpleMatch) {
+          const qty = parseFloat(simpleMatch[1].replace(',', '.'));
+          if (!isNaN(qty) && qty > 0 && simpleMatch[2].length > 1) {
+            items.push({
+              raw_text: trimmed,
+              interpreted_product: simpleMatch[2].trim(),
+              quantity: qty,
+              unit: 'pcs',
+              confidence: 'low'
+            });
           }
         }
       }
@@ -416,27 +466,28 @@ export function useConversationImport() {
           // Some items need AI help
           setParseStage(`AI parsing ${unmatched.length} items...`);
           
-          // Only send top 50 products to AI (reduce context size for speed)
-          const topProducts = products.slice(0, 50);
+          // Check if this is a simple order (few unmatched items)
+          const isSimple = unmatched.length <= 3;
+          
+          // Only send top 40 products to AI for speed
+          const topProducts = products.slice(0, 40);
           
           const { data, error } = await supabase.functions.invoke('parse-whatsapp-order', {
             body: {
               conversationText: text,
               customerId: customerId,
+              isSimpleOrder: isSimple,
               products: topProducts.map(p => ({
                 code: p.code,
                 name: p.name,
-                name_pap: p.name_pap,
-                name_nl: p.name_nl,
-                name_es: p.name_es
+                name_pap: p.name_pap
               })),
-              customerMappings: customerMappings.slice(0, 30).map(m => ({
+              customerMappings: customerMappings.slice(0, 20).map(m => ({
                 customer_product_name: m.customer_product_name,
                 product_name: products.find(p => p.id === m.product_id)?.name || ''
               })),
-              customerPatterns: customerPatterns.slice(0, 15).map(p => ({
+              customerPatterns: customerPatterns.slice(0, 10).map(p => ({
                 product_name: p.product_name,
-                order_count: p.order_count,
                 avg_quantity: p.avg_quantity
               }))
             }
@@ -462,27 +513,29 @@ export function useConversationImport() {
         // No local items parsed, use AI for everything
         setParseStage('AI parsing order...');
         
-        // Only send top 80 products to AI
-        const topProducts = products.slice(0, 80);
+        // Count line complexity to choose model
+        const lineCount = text.split('\n').filter(l => l.trim() && /\d/.test(l)).length;
+        const isSimple = lineCount <= 3;
+        
+        // Only send top 40 products to AI for speed
+        const topProducts = products.slice(0, 40);
         
         const { data, error } = await supabase.functions.invoke('parse-whatsapp-order', {
           body: {
             conversationText: text,
             customerId: customerId,
+            isSimpleOrder: isSimple,
             products: topProducts.map(p => ({
               code: p.code,
               name: p.name,
-              name_pap: p.name_pap,
-              name_nl: p.name_nl,
-              name_es: p.name_es
+              name_pap: p.name_pap
             })),
-            customerMappings: customerMappings.slice(0, 30).map(m => ({
+            customerMappings: customerMappings.slice(0, 20).map(m => ({
               customer_product_name: m.customer_product_name,
               product_name: products.find(p => p.id === m.product_id)?.name || ''
             })),
-            customerPatterns: customerPatterns.slice(0, 15).map(p => ({
+            customerPatterns: customerPatterns.slice(0, 10).map(p => ({
               product_name: p.product_name,
-              order_count: p.order_count,
               avg_quantity: p.avg_quantity
             }))
           }
