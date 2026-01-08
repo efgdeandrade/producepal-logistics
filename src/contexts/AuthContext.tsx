@@ -152,11 +152,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
-    if (error) {
+    
+    // Always clear local state, even if server signOut fails
+    // This handles cases where session already expired server-side
+    setUser(null);
+    setSession(null);
+    setRoles([]);
+    setMustChangePassword(false);
+    
+    // Only show error for unexpected failures (not session_not_found)
+    if (error && !error.message.includes('Session not found')) {
       toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
+        title: 'Warning',
+        description: 'Logged out locally. Server session may have already expired.',
+        variant: 'default',
       });
     } else {
       toast({
