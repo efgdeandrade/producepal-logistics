@@ -4502,6 +4502,7 @@ export type Database = {
         | "accounting"
         | "manager"
         | "hr"
+        | "interim"
       customer_type: "regular" | "supermarket" | "cod" | "credit"
       payment_method_type: "cash" | "swipe" | "transfer" | "credit"
     }
@@ -4640,6 +4641,7 @@ export const Constants = {
         "accounting",
         "manager",
         "hr",
+        "interim",
       ],
       customer_type: ["regular", "supermarket", "cod", "credit"],
       payment_method_type: ["cash", "swipe", "transfer", "credit"],
