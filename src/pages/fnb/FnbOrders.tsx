@@ -76,7 +76,9 @@ import {
   useDroppable,
   DragStartEvent,
   DragEndEvent,
-  closestCenter,
+  pointerWithin,
+  rectIntersection,
+  CollisionDetection,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -252,6 +254,8 @@ export default function FnbOrders() {
   const [quickAddOrder, setQuickAddOrder] = useState<{ id: string; orderNumber: string } | null>(null);
   const [activeOrder, setActiveOrder] = useState<OrderWithDetails | null>(null);
   const [cancelOrderData, setCancelOrderData] = useState<{ id: string; orderNumber: string; status: string } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [activeDropTarget, setActiveDropTarget] = useState<string | null>(null);
 
   // Real-time updates for fnb_orders - auto-refresh when orders are created/updated/deleted
   const { lastUpdate } = useRealtimeUpdates(['fnb_orders'], [['fnb-orders-weekly']]);
@@ -295,11 +299,37 @@ export default function FnbOrders() {
     dismissNotification,
   } = useNewFnbOrderNotifications();
 
-  // Configure DnD sensors
+  // Configure DnD sensors with higher thresholds
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 10 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } })
   );
+
+  // Custom collision detection: prioritize day columns for cross-day drops
+  const customCollisionDetection: CollisionDetection = (args) => {
+    // Get all collisions using pointer within
+    const pointerCollisions = pointerWithin(args);
+    
+    // Check if we're over a day column (date string format)
+    const dayColumnCollisions = pointerCollisions.filter(
+      collision => /^\d{4}-\d{2}-\d{2}$/.test(collision.id as string)
+    );
+    
+    // If we're over a day column that's different from the dragged item's day, prioritize it
+    if (dayColumnCollisions.length > 0 && args.active.data.current?.date) {
+      const activeDate = args.active.data.current.date;
+      const differentDayCollision = dayColumnCollisions.find(c => c.id !== activeDate);
+      if (differentDayCollision) {
+        setActiveDropTarget(differentDayCollision.id as string);
+        return [differentDayCollision];
+      }
+    }
+    
+    // Fall back to rect intersection for within-day reordering
+    const rectCollisions = rectIntersection(args);
+    setActiveDropTarget(null);
+    return rectCollisions;
+  };
 
   const { generateForDateRange } = useFnbStandingOrdersSync();
 
@@ -538,11 +568,14 @@ export default function FnbOrders() {
   const handleDragStart = (event: DragStartEvent) => {
     const order = event.active.data.current?.order as OrderWithDetails;
     setActiveOrder(order || null);
+    setIsDragging(true);
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveOrder(null);
+    setIsDragging(false);
+    setActiveDropTarget(null);
 
     if (!over || !active) return;
 
@@ -1013,7 +1046,7 @@ export default function FnbOrders() {
         ) : (
           <DndContext
             sensors={sensors}
-            collisionDetection={closestCenter}
+            collisionDetection={customCollisionDetection}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
@@ -1023,13 +1056,13 @@ export default function FnbOrders() {
                 const stats = getDayStats(dayOrders);
                 const isToday = isSameDay(day, new Date());
                 const dateStr = format(day, 'yyyy-MM-dd');
-                const isDropTarget = activeOrder?.delivery_date !== dateStr;
+                const isActiveDropTarget = activeDropTarget === dateStr;
 
                 return (
                   <DroppableDayColumn 
                     key={day.toISOString()} 
                     date={day}
-                    isOver={!!activeOrder && isDropTarget}
+                    isOver={isActiveDropTarget}
                   >
                     <Card
                       className={cn(
@@ -1123,7 +1156,11 @@ export default function FnbOrders() {
                           </div>
                         )}
                       </CardHeader>
-                      <CardContent className="space-y-2 overflow-y-auto max-h-[500px]">
+                      <CardContent className={cn(
+                        "space-y-2 max-h-[500px]",
+                        isDragging ? "overflow-hidden" : "overflow-y-auto",
+                        "overscroll-contain"
+                      )}>
                         {dayOrders.length === 0 ? (
                           <p className="text-center py-4 text-muted-foreground text-sm">
                             No orders
@@ -1150,13 +1187,21 @@ export default function FnbOrders() {
             {/* Drag Overlay */}
             <DragOverlay>
               {activeOrder ? (
-                <Card className="w-64 opacity-90 shadow-xl rotate-2 border-l-4 border-l-primary">
+                <Card className={cn(
+                  "w-64 opacity-95 shadow-xl rotate-2 border-l-4",
+                  getZoneColor(activeOrder.fnb_customers?.delivery_zone || null)
+                )}>
                   <CardContent className="p-3">
                     <p className="font-semibold">{activeOrder.fnb_customers?.name || 'Unknown'}</p>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Package className="h-3 w-3" />
                       <span>{activeOrder.fnb_order_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0} items</span>
                     </div>
+                    {activeOrder.fnb_customers?.delivery_zone && (
+                      <Badge variant="outline" className="text-xs mt-2">
+                        {activeOrder.fnb_customers.delivery_zone}
+                      </Badge>
+                    )}
                   </CardContent>
                 </Card>
               ) : null}
@@ -1170,6 +1215,7 @@ export default function FnbOrders() {
           orders={selectedDayOrders}
           open={!!selectedDay}
           onOpenChange={(open) => !open && setSelectedDay(null)}
+          onOrderUpdated={() => queryClient.invalidateQueries({ queryKey: ['fnb-orders-weekly'] })}
         />
 
         {/* Quick Add Item Dialog */}
