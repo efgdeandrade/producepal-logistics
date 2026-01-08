@@ -268,14 +268,18 @@ export default function UserManagement() {
         throw new Error(data.error);
       }
 
-      toast({
-        title: 'Success',
-        description: `Invitation email resent to ${email}`,
-      });
+      // Copy reset link to clipboard
+      if (data.resetLink) {
+        await navigator.clipboard.writeText(data.resetLink);
+        toast({
+          title: 'Reset Link Copied',
+          description: `Password reset link for ${email} has been copied to your clipboard. Share it with the user.`,
+        });
+      }
     } catch (error: any) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to resend invitation',
+        description: error.message || 'Failed to generate reset link',
         variant: 'destructive',
       });
     }
