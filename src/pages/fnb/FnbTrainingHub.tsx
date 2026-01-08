@@ -8,6 +8,7 @@ import { TrainingReviewCard } from "@/components/fnb/TrainingReviewCard";
 import { AIStatsOverview } from "@/components/fnb/AIStatsOverview";
 import { GlobalAliasManager } from "@/components/fnb/GlobalAliasManager";
 import { ContextWordsManager } from "@/components/fnb/ContextWordsManager";
+import { DictionaryImportDialog } from "@/components/fnb/DictionaryImportDialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,7 +54,8 @@ export default function FnbTrainingHub() {
             Help the AI learn your products, customer patterns, and Papiamentu words
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <DictionaryImportDialog />
           {pendingCount > 0 && (
             <Badge variant="destructive" className="text-lg px-3 py-1">
               {pendingCount} items

@@ -57,13 +57,13 @@ serve(async (req) => {
       );
     }
 
-    // Fetch verified context words from database
+    // Fetch verified context words from database - increased limit for richer context
     const { data: contextWords } = await supabase
       .from('fnb_context_words')
       .select('word, word_type, meaning, language')
       .eq('is_verified', true)
       .order('usage_count', { ascending: false })
-      .limit(100);
+      .limit(300);
 
     // Build product context for the AI
     const productList = products?.map((p: any) => 
@@ -84,29 +84,53 @@ serve(async (req) => {
         ).join('\n')}`
       : '';
 
-    // Build context words dictionary
-    const contextWordsContext = (contextWords && contextWords.length > 0)
-      ? `\n\nPapiamentu/Local language dictionary (verified words):\n${contextWords.map((w: any) => 
-          `- "${w.word}" = ${w.meaning} (${w.word_type})`
-        ).join('\n')}`
-      : '';
+    // Organize context words by category for better AI understanding
+    const wordsByType: Record<string, any[]> = {};
+    if (contextWords && contextWords.length > 0) {
+      for (const word of contextWords) {
+        if (!wordsByType[word.word_type]) {
+          wordsByType[word.word_type] = [];
+        }
+        wordsByType[word.word_type].push(word);
+      }
+    }
+
+    // Build categorized context words dictionary
+    const buildCategoryContext = (type: string, label: string) => {
+      const words = wordsByType[type];
+      if (!words || words.length === 0) return '';
+      return `${label}: ${words.map((w: any) => `${w.word}=${w.meaning}`).join(', ')}`;
+    };
+
+    const contextWordsContext = [
+      buildCategoryContext('unit', 'UNITS'),
+      buildCategoryContext('quantity_phrase', 'QUANTITIES/NUMBERS'),
+      buildCategoryContext('time_reference', 'TIME WORDS'),
+      buildCategoryContext('product_modifier', 'MODIFIERS'),
+      buildCategoryContext('action', 'ACTION WORDS'),
+      buildCategoryContext('connector', 'CONNECTORS'),
+      buildCategoryContext('product_name', 'PRODUCT NAMES'),
+      buildCategoryContext('greeting', 'GREETINGS'),
+    ].filter(Boolean).join('\n');
 
     const systemPrompt = `You are an expert order parser for a food & beverage distribution company in Curaçao. 
 Your job is to extract order information from WhatsApp conversations that may be in Papiamento, English, Dutch, or Spanish (often mixed).
 
-IMPORTANT CONTEXT:
-- Common Papiamento food terms: siboyo (onion), yerba (cilantro/herbs), komkommer (cucumber), tomati (tomato), piña (pineapple), papaya, mango, lechuga (lettuce), sla (salad/lettuce), pampuna (pumpkin), batata (sweet potato), yuca, etc.
-- Units: kg, lb, gram, tros (bunch), case/kashi/kaha, stuk/pcs/pieces, saku (bag)
-- Numbers might be written as words: un/uno/een=1, dos/twee=2, tres/drei=3, etc.
-- Common ordering phrases: "mi ke" (I want), "manda" (send), "traha" (prepare/send)
-- Time references: mañan (tomorrow), awe (today), djaweps (Thursday), diabierna (Friday), etc.
-${contextWordsContext}
+PAPIAMENTU DICTIONARY (verified words organized by category):
+${contextWordsContext || 'No dictionary words loaded yet.'}
 
 Available products in the system:
 ${productList}
 
 ${mappingContext}
 ${patternContext}
+
+PARSING RULES:
+- Use the dictionary above to understand Papiamentu words
+- Numbers can be words: un/uno=1, dos=2, tres=3, kuater=4, sinku=5, seis=6, siete=7, ocho=8, nuebe=9, dies=10
+- Common units: kaha/kashi=box/case, saku=bag, tros=bunch, stuk=piece, kilo, pon=pound
+- Ordering phrases: "mi ke" (I want), "manda" (send), "duna mi" (give me), "pidi" (order)
+- Time: awe=today, mañan=tomorrow, djaweps=Thursday, diabierna=Friday
 
 Extract ALL order items mentioned in the conversation, even if spread across multiple messages.
 Also identify any NEW local/Papiamentu words you encounter that would help future parsing.`;
