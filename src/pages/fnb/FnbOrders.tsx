@@ -57,6 +57,16 @@ import { QuickAddItemDialog } from '@/components/fnb/QuickAddItemDialog';
 import { ExportButton } from '@/components/reports/ExportButton';
 import { NewOrderToast } from '@/components/fnb/NewOrderToast';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   DndContext,
   DragOverlay,
   PointerSensor,
@@ -241,6 +251,7 @@ export default function FnbOrders() {
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [quickAddOrder, setQuickAddOrder] = useState<{ id: string; orderNumber: string } | null>(null);
   const [activeOrder, setActiveOrder] = useState<OrderWithDetails | null>(null);
+  const [cancelOrderData, setCancelOrderData] = useState<{ id: string; orderNumber: string; status: string } | null>(null);
 
   // Real-time updates for fnb_orders - auto-refresh when orders are created/updated/deleted
   const { lastUpdate } = useRealtimeUpdates(['fnb_orders'], [['fnb-orders-weekly']]);
@@ -484,6 +495,42 @@ export default function FnbOrders() {
     onError: (error) => {
       toast.error('Failed to confirm orders');
       console.error(error);
+    }
+  });
+
+  // Cancel order mutation
+  const cancelOrderMutation = useMutation({
+    mutationFn: async ({ orderId, orderStatus }: { orderId: string; orderStatus: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Log the cancellation
+      await supabase.from('fnb_order_modifications').insert({
+        order_id: orderId,
+        modified_by: user?.id,
+        modified_by_email: user?.email,
+        modification_type: 'status_changed',
+        previous_value: { status: orderStatus },
+        new_value: { status: 'cancelled' },
+        notes: 'Order cancelled',
+      });
+
+      // Remove from picker queue if present
+      await supabase.from('fnb_picker_queue').delete().eq('order_id', orderId);
+      
+      // Update order status
+      const { error } = await supabase
+        .from('fnb_orders')
+        .update({ status: 'cancelled' })
+        .eq('id', orderId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['fnb-orders-weekly'] });
+      queryClient.invalidateQueries({ queryKey: ['fnb-picker-queue'] });
+      toast.success('Order cancelled');
+    },
+    onError: () => {
+      toast.error('Failed to cancel order');
     }
   });
 
@@ -794,7 +841,7 @@ export default function FnbOrders() {
                     className="text-xs h-7 text-destructive hover:text-destructive"
                     onClick={(e) => {
                       e.stopPropagation();
-                      // Cancel order logic would go here
+                      setCancelOrderData({ id: order.id, orderNumber: order.order_number, status: order.status });
                     }}
                   >
                     <X className="h-3 w-3 mr-1" />
@@ -1156,6 +1203,35 @@ export default function FnbOrders() {
           }}
           onDismiss={dismissNotification}
         />
+
+        {/* Cancel Order Confirmation Dialog */}
+        <AlertDialog open={!!cancelOrderData} onOpenChange={(open) => !open && setCancelOrderData(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Cancel Order?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will cancel order {cancelOrderData?.orderNumber} and remove it from the picker queue. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Keep Order</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (cancelOrderData) {
+                    cancelOrderMutation.mutate({ 
+                      orderId: cancelOrderData.id, 
+                      orderStatus: cancelOrderData.status 
+                    });
+                    setCancelOrderData(null);
+                  }
+                }}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Cancel Order
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
