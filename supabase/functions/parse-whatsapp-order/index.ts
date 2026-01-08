@@ -57,10 +57,8 @@ serve(async (req) => {
       );
     }
 
-    // Dynamic model selection - we'll try primary first, then fallback
-    const models = isSimpleOrder 
-      ? ["google/gemini-2.5-flash-lite"]  // Fast model only for simple orders
-      : ["google/gemini-2.5-flash", "google/gemini-2.5-flash-lite"];  // Try flash first, fallback to lite
+    // Simple model selection - no retries, fail fast
+    const isSimple = isSimpleOrder || (!customerMappings?.length && !customerPatterns?.length);
 
     // Fetch verified context words - only essential ones with usage
     const { data: contextWords } = await supabase
@@ -228,83 +226,56 @@ Extract items with: raw_text, interpreted_product, matched_product_code (from li
       tool_choice: { type: "function", function: { name: "extract_order" } }
     });
 
-    // Try each model with timeout protection
+    // Single attempt with fast timeout - fail fast to manual input
+    const TIMEOUT_MS = 8000; // 8 second timeout - fail fast
+    const model = isSimpleOrder ? "google/gemini-2.5-flash-lite" : "google/gemini-2.5-flash";
+    
+    console.log(`AI parsing with model: ${model}, timeout: ${TIMEOUT_MS}ms`);
+    const startTime = Date.now();
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    
     let response: Response | null = null;
-    let lastError: Error | null = null;
-    const TIMEOUT_MS = 20000; // 20 second timeout per attempt
+    let timedOut = false;
 
-    for (const model of models) {
-      console.log(`Attempting AI parsing with model: ${model}`);
-      const startTime = Date.now();
+    try {
+      response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: requestBody.replace('"messages":', `"model":"${model}","messages":`),
+        signal: controller.signal
+      });
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-      try {
-        response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: requestBody.replace('"messages":', `"model":"${model}","messages":`),
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        const elapsed = Date.now() - startTime;
-        console.log(`Model ${model} responded in ${elapsed}ms with status ${response.status}`);
-        
-        if (response.ok) {
-          break; // Success, exit loop
-        }
-        
-        // Handle specific error codes
-        if (response.status === 429) {
-          console.error('Rate limited by AI gateway');
-          return new Response(
-            JSON.stringify({ error: 'Too many requests. Please try again in a moment.' }),
-            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-        if (response.status === 402) {
-          console.error('Payment required for AI gateway');
-          return new Response(
-            JSON.stringify({ error: 'AI service requires payment. Please add credits.' }),
-            { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-        
-        // Other error, try next model
-        const errorText = await response.text();
-        console.error(`Model ${model} error: ${response.status} - ${errorText}`);
-        lastError = new Error(`Model ${model} failed: ${response.status}`);
-        response = null;
-        
-      } catch (error) {
-        clearTimeout(timeoutId);
-        const elapsed = Date.now() - startTime;
-        
-        if (error instanceof Error && error.name === 'AbortError') {
-          console.error(`Model ${model} timed out after ${elapsed}ms`);
-          lastError = new Error(`AI parsing timed out after ${TIMEOUT_MS}ms`);
-        } else {
-          console.error(`Model ${model} error:`, error);
-          lastError = error instanceof Error ? error : new Error('Unknown error');
-        }
-        response = null;
-        // Continue to try next model
+      clearTimeout(timeoutId);
+      const elapsed = Date.now() - startTime;
+      console.log(`AI responded in ${elapsed}ms with status ${response.status}`);
+      
+    } catch (error) {
+      clearTimeout(timeoutId);
+      const elapsed = Date.now() - startTime;
+      
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.error(`AI timed out after ${elapsed}ms`);
+        timedOut = true;
+      } else {
+        console.error('AI request error:', error);
       }
     }
 
-    // If all models failed
-    if (!response || !response.ok) {
-      console.error('All models failed:', lastError?.message);
+    // If timed out or failed, return empty result with flag for client-side fallback
+    if (timedOut || !response || !response.ok) {
+      const elapsed = Date.now() - startTime;
+      console.log(`AI failed/timed out after ${elapsed}ms, returning fallback response`);
       return new Response(
         JSON.stringify({ 
-          error: lastError?.message || 'AI parsing failed',
           items: [],
-          detected_language: 'mixed'
+          detected_language: 'mixed',
+          timedOut: timedOut,
+          error: timedOut ? 'AI parsing timed out' : 'AI parsing failed'
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
