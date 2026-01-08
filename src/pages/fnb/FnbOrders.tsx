@@ -34,7 +34,8 @@ import {
   Repeat,
   GripVertical,
   Volume2,
-  VolumeX
+  VolumeX,
+  RefreshCw
 } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Link, useNavigate } from 'react-router-dom';
@@ -225,7 +226,35 @@ export default function FnbOrders() {
   const [activeOrder, setActiveOrder] = useState<OrderWithDetails | null>(null);
 
   // Real-time updates for fnb_orders - auto-refresh when orders are created/updated/deleted
-  useRealtimeUpdates(['fnb_orders'], [['fnb-orders-weekly']]);
+  const { lastUpdate } = useRealtimeUpdates(['fnb_orders'], [['fnb-orders-weekly']]);
+
+  // Track time since last update
+  const [timeAgo, setTimeAgo] = useState<string>('Just now');
+  
+  useEffect(() => {
+    const updateTimeAgo = () => {
+      if (!lastUpdate) {
+        setTimeAgo('Just now');
+        return;
+      }
+      
+      const seconds = Math.floor((Date.now() - lastUpdate.getTime()) / 1000);
+      
+      if (seconds < 5) setTimeAgo('Just now');
+      else if (seconds < 60) setTimeAgo(`${seconds}s ago`);
+      else if (seconds < 3600) setTimeAgo(`${Math.floor(seconds / 60)}m ago`);
+      else setTimeAgo(`${Math.floor(seconds / 3600)}h ago`);
+    };
+
+    updateTimeAgo();
+    const interval = setInterval(updateTimeAgo, 1000);
+    return () => clearInterval(interval);
+  }, [lastUpdate]);
+
+  const handleManualRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['fnb-orders-weekly'] });
+    toast.success('Orders refreshed');
+  };
 
   // New order notifications with sound
   const {
@@ -807,6 +836,25 @@ export default function FnbOrders() {
                 </Button>
               </div>
               <div className="flex items-center gap-4">
+                {/* Last Updated Indicator */}
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <span className={cn(
+                      "w-2 h-2 rounded-full bg-green-500",
+                      timeAgo === 'Just now' && "animate-pulse"
+                    )} />
+                    Updated {timeAgo}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={handleManualRefresh}
+                    title="Refresh orders"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
                 <div className="relative max-w-sm">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
