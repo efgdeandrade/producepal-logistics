@@ -259,27 +259,45 @@ export function useConversationImport() {
     const items: ParsedItem[] = [];
     const lines = text.split('\n').filter(l => l.trim());
     
-    // Common patterns: "5 kg tomaat", "3 tros banana", "10 pcs lemon"
+    // Extended unit list including Papiamentu terms
+    const unitPattern = 'kg|lb|gram|g|tros|bunch|case|kashi|kaha|stuk|pcs|pieces?|stuks?|dozen?|saku|paki?|pack|extracto?|botella?|bòter|fles|liter?|l|tin|blek|krat|dòs';
+    
+    // Common patterns: "5 kg tomaat", "3 tros banana", "10 pcs lemon", "2 paki mint"
     const patterns = [
-      /(\d+(?:[.,]\d+)?)\s*(kg|lb|gram|g|tros|bunch|case|kashi|kaha|stuk|pcs|pieces?|stuks?|dozen?|saku)\s+(.+)/i,
-      /(.+?)\s*[-:]\s*(\d+(?:[.,]\d+)?)\s*(kg|lb|gram|g|tros|bunch|case|kashi|kaha|stuk|pcs|pieces?|stuks?|dozen?|saku)?/i,
+      // Pattern 1: "2 paki mint", "3 kg orange" - number + unit + product
+      new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*(${unitPattern})\\s+(.+)`, 'i'),
+      // Pattern 2: "tomaat - 5 kg" - product + separator + number + unit
+      new RegExp(`(.+?)\\s*[-:]\\s*(\\d+(?:[.,]\\d+)?)\\s*(${unitPattern})?`, 'i'),
+      // Pattern 3: "5 x tomaat" - number x product
       /(\d+(?:[.,]\d+)?)\s*[x×]\s*(.+)/i,
+      // Pattern 4: "2 mint", "1 lamunchi" - simple number + product (no unit)
+      /^(\d+(?:[.,]\d+)?)\s+([a-zA-ZÀ-ÿ][\w\sÀ-ÿ-]+)$/i,
     ];
     
     for (const line of lines) {
       const trimmed = line.trim();
       if (!trimmed || trimmed.length < 3) continue;
       
+      // Skip greeting/non-order lines
+      if (/^(bon|hallo|hello|hi|danki|thanks|gracias|dank)/i.test(trimmed)) continue;
+      if (/^(mi por|kan ik|can i|puedo)/i.test(trimmed)) continue;
+      
       for (const pattern of patterns) {
         const match = trimmed.match(pattern);
         if (match) {
           const qty = parseFloat(match[1].replace(',', '.'));
           if (!isNaN(qty) && qty > 0) {
+            // For pattern 4 (simple number + product), product is in match[2]
+            const product = match[3]?.trim() || match[2]?.trim() || trimmed;
+            const unit = match[2]?.toLowerCase();
+            // Check if match[2] is actually a unit or a product name
+            const isUnit = new RegExp(`^(${unitPattern})$`, 'i').test(unit);
+            
             items.push({
               raw_text: trimmed,
-              interpreted_product: match[3]?.trim() || match[2]?.trim() || trimmed,
+              interpreted_product: isUnit ? (match[3]?.trim() || trimmed) : product,
               quantity: qty,
-              unit: match[2]?.toLowerCase() || 'pcs',
+              unit: isUnit ? unit : 'pcs',
               confidence: 'medium'
             });
             break;
@@ -371,13 +389,22 @@ export function useConversationImport() {
       let parsed: ParsedConversation;
       let allMatched: MatchedConversationItem[] = [];
       
+      // Count potential order lines (lines with numbers that could be orders)
+      const potentialOrderLines = text.split('\n')
+        .filter(l => l.trim())
+        .filter(l => /\d/.test(l))
+        .filter(l => !/^\d{1,2}jan|feb|mar|apr|mei|jun|jul|aug|sep|okt|nov|dec/i.test(l.trim())) // Exclude dates
+        .filter(l => !/^(bon|hallo|hello|hi|danki|thanks|gracias)/i.test(l.trim())) // Exclude greetings
+        .length;
+
       if (localItems.length > 0) {
         // Try to match locally first
         const { matched: localMatched, unmatched } = tryLocalMatch(
           localItems, products, customerMappings, globalAliases, customerPatterns
         );
         
-        if (unmatched.length === 0 && localMatched.length > 0) {
+        // Only skip AI if local parser found ALL potential order items
+        if (unmatched.length === 0 && localMatched.length > 0 && localItems.length >= potentialOrderLines) {
           // All items matched locally - no AI needed!
           parsed = {
             detected_language: 'mixed',
