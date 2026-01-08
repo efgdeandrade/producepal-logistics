@@ -64,10 +64,17 @@ import {
   useSensor,
   useSensors,
   useDroppable,
-  useDraggable,
   DragStartEvent,
   DragEndEvent,
+  closestCenter,
 } from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 type CustomerType = 'regular' | 'supermarket' | 'cod' | 'credit';
 
@@ -143,23 +150,33 @@ const customerTypeLabels: Record<CustomerType, string> = {
   credit: 'Credit',
 };
 
-// Draggable Order Card wrapper
-function DraggableOrderCard({ 
-  order, 
+// Sortable Order Card wrapper (supports both within-day reorder and cross-day drag)
+function SortableOrderCard({ 
+  order,
   children 
 }: { 
   order: OrderWithDetails; 
   children: React.ReactNode;
 }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const isDisabled = order.status === 'delivered' || order.status === 'cancelled';
+  
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: order.id,
-    data: { order },
-    disabled: order.status === 'delivered' || order.status === 'cancelled',
+    data: { order, date: order.delivery_date },
+    disabled: isDisabled,
   });
 
-  const style = transform ? {
-    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-  } : undefined;
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
 
   return (
     <div
@@ -171,7 +188,7 @@ function DraggableOrderCard({
       )}
     >
       {/* Drag handle */}
-      {order.status !== 'delivered' && order.status !== 'cancelled' && (
+      {!isDisabled && (
         <div
           {...listeners}
           {...attributes}
@@ -329,7 +346,8 @@ export default function FnbOrders() {
         `)
         .gte('delivery_date', format(weekStart, 'yyyy-MM-dd'))
         .lte('delivery_date', format(weekEnd, 'yyyy-MM-dd'))
-        .order('delivery_date', { ascending: true });
+        .order('delivery_date', { ascending: true })
+        .order('priority', { ascending: true });
 
       if (statusFilter !== 'all') {
         query = query.eq('status', statusFilter);
@@ -339,7 +357,7 @@ export default function FnbOrders() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as OrderWithDetails[];
+      return data as (OrderWithDetails & { priority?: number })[];
     },
   });
 
@@ -348,6 +366,9 @@ export default function FnbOrders() {
       if (!order.delivery_date) return false;
       return isSameDay(parseISO(order.delivery_date), day);
     }) || [];
+
+    // Sort by priority within the day
+    dayOrders.sort((a, b) => ((a as any).priority || 0) - ((b as any).priority || 0));
 
     // Apply search filter
     if (searchTerm) {
@@ -479,30 +500,69 @@ export default function FnbOrders() {
     if (!over || !active) return;
 
     const orderId = active.id as string;
-    const newDate = over.id as string; // Format: yyyy-MM-dd
     const order = orders?.find(o => o.id === orderId);
-
     if (!order) return;
 
-    // Check if date actually changed
-    if (order.delivery_date === newDate) return;
+    // Check if dropping on a day column (date change) - over.id is a date string
+    const isDateColumn = typeof over.id === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(over.id);
+    
+    if (isDateColumn) {
+      const newDate = over.id as string;
+      // Check if date actually changed
+      if (order.delivery_date === newDate) return;
 
-    // Optimistic update
-    queryClient.setQueryData(['fnb-orders-weekly', format(weekStart, 'yyyy-MM-dd'), statusFilter], 
-      (old: OrderWithDetails[] | undefined) => 
-        old?.map(o => o.id === orderId ? { ...o, delivery_date: newDate } : o)
-    );
+      // Optimistic update
+      queryClient.setQueryData(['fnb-orders-weekly', format(weekStart, 'yyyy-MM-dd'), statusFilter], 
+        (old: OrderWithDetails[] | undefined) => 
+          old?.map(o => o.id === orderId ? { ...o, delivery_date: newDate } : o)
+      );
 
-    const { error } = await supabase
-      .from('fnb_orders')
-      .update({ delivery_date: newDate })
-      .eq('id', orderId);
+      const { error } = await supabase
+        .from('fnb_orders')
+        .update({ delivery_date: newDate })
+        .eq('id', orderId);
 
-    if (error) {
-      toast.error('Failed to move order');
-      queryClient.invalidateQueries({ queryKey: ['fnb-orders-weekly'] });
-    } else {
-      toast.success(`Order moved to ${format(parseISO(newDate), 'EEE, MMM d')}`);
+      if (error) {
+        toast.error('Failed to move order');
+        queryClient.invalidateQueries({ queryKey: ['fnb-orders-weekly'] });
+      } else {
+        toast.success(`Order moved to ${format(parseISO(newDate), 'EEE, MMM d')}`);
+      }
+      return;
+    }
+
+    // Check if dropping on another order (reorder within day)
+    const overOrder = orders?.find(o => o.id === over.id);
+    if (overOrder && order.delivery_date === overOrder.delivery_date) {
+      const dayOrders = getOrdersForDay(parseISO(order.delivery_date!));
+      const oldIndex = dayOrders.findIndex(o => o.id === orderId);
+      const newIndex = dayOrders.findIndex(o => o.id === over.id);
+      
+      if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+        const reorderedOrders = arrayMove(dayOrders, oldIndex, newIndex);
+        
+        // Optimistic update
+        const priorityMap = new Map(reorderedOrders.map((o, idx) => [o.id, idx]));
+        queryClient.setQueryData(['fnb-orders-weekly', format(weekStart, 'yyyy-MM-dd'), statusFilter], 
+          (old: (OrderWithDetails & { priority?: number })[] | undefined) => 
+            old?.map(o => priorityMap.has(o.id) ? { ...o, priority: priorityMap.get(o.id) } : o)
+        );
+
+        // Batch update priorities in database
+        const updates = reorderedOrders.map((o, index) => 
+          supabase.from('fnb_orders').update({ priority: index }).eq('id', o.id)
+        );
+        
+        const results = await Promise.all(updates);
+        const hasError = results.some(r => r.error);
+        
+        if (hasError) {
+          toast.error('Failed to update order sequence');
+          queryClient.invalidateQueries({ queryKey: ['fnb-orders-weekly'] });
+        } else {
+          toast.success('Order sequence updated');
+        }
+      }
     }
   };
 
@@ -906,6 +966,7 @@ export default function FnbOrders() {
         ) : (
           <DndContext
             sensors={sensors}
+            collisionDetection={closestCenter}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
@@ -1021,11 +1082,16 @@ export default function FnbOrders() {
                             No orders
                           </p>
                         ) : (
-                          dayOrders.map((order) => (
-                            <DraggableOrderCard key={order.id} order={order}>
-                              {renderOrderCard(order)}
-                            </DraggableOrderCard>
-                          ))
+                          <SortableContext
+                            items={dayOrders.map(o => o.id)}
+                            strategy={verticalListSortingStrategy}
+                          >
+                            {dayOrders.map((order) => (
+                              <SortableOrderCard key={order.id} order={order}>
+                                {renderOrderCard(order)}
+                              </SortableOrderCard>
+                            ))}
+                          </SortableContext>
                         )}
                       </CardContent>
                     </Card>
