@@ -1465,6 +1465,50 @@ export type Database = {
         }
         Relationships: []
       }
+      fnb_conversation_intents: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          intent: string
+          is_active: boolean | null
+          priority: number | null
+          response_template_id: string | null
+          trigger_phrases: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          intent: string
+          is_active?: boolean | null
+          priority?: number | null
+          response_template_id?: string | null
+          trigger_phrases?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          intent?: string
+          is_active?: boolean | null
+          priority?: number | null
+          response_template_id?: string | null
+          trigger_phrases?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_conversation_intents_response_template_id_fkey"
+            columns: ["response_template_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_response_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fnb_conversations: {
         Row: {
           created_at: string | null
@@ -2353,6 +2397,45 @@ export type Database = {
         }
         Relationships: []
       }
+      fnb_response_templates: {
+        Row: {
+          created_at: string | null
+          id: string
+          intent: string
+          is_active: boolean | null
+          template_dutch: string | null
+          template_english: string | null
+          template_papiamentu: string
+          updated_at: string | null
+          usage_count: number | null
+          variables: string[] | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          intent: string
+          is_active?: boolean | null
+          template_dutch?: string | null
+          template_english?: string | null
+          template_papiamentu: string
+          updated_at?: string | null
+          usage_count?: number | null
+          variables?: string[] | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          intent?: string
+          is_active?: boolean | null
+          template_dutch?: string | null
+          template_english?: string | null
+          template_papiamentu?: string
+          updated_at?: string | null
+          usage_count?: number | null
+          variables?: string[] | null
+        }
+        Relationships: []
+      }
       fnb_standing_order_items: {
         Row: {
           created_at: string
@@ -2438,6 +2521,51 @@ export type Database = {
           notes?: string | null
           template_name?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      fnb_translations: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          dutch: string | null
+          english: string | null
+          grammatical_type: string | null
+          id: string
+          is_verified: boolean | null
+          papiamentu: string
+          source: string | null
+          spanish: string | null
+          updated_at: string | null
+          usage_count: number | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          dutch?: string | null
+          english?: string | null
+          grammatical_type?: string | null
+          id?: string
+          is_verified?: boolean | null
+          papiamentu: string
+          source?: string | null
+          spanish?: string | null
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          dutch?: string | null
+          english?: string | null
+          grammatical_type?: string | null
+          id?: string
+          is_verified?: boolean | null
+          papiamentu?: string
+          source?: string | null
+          spanish?: string | null
+          updated_at?: string | null
+          usage_count?: number | null
         }
         Relationships: []
       }
