@@ -17,11 +17,14 @@ import {
   Zap, 
   X,
   ChevronLeft,
+  ChevronDown,
   Loader2,
   Calendar,
   User,
-  Globe
+  Globe,
+  FileText
 } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useConversationImport, MatchedConversationItem } from '@/hooks/useConversationImport';
 import { format } from 'date-fns';
 
@@ -111,11 +114,21 @@ export function QuickPasteOrder({
       await saveMappings(customerId);
     }
     
+    // Build notes with original message
+    const noteParts: string[] = [];
+    if (conversationText.trim()) {
+      noteParts.push(`=== Original WhatsApp Message ===\n${conversationText.trim()}`);
+    }
+    if (parsedData?.special_instructions) {
+      noteParts.push(`Special Instructions: ${parsedData.special_instructions}`);
+    }
+    noteParts.push('[Imported via Quick Paste]');
+    
     // Call parent callback with matched items
     onConfirm(
       matchedItems.filter(item => item.matched_product_id),
       deliveryDate,
-      parsedData?.special_instructions
+      noteParts.join('\n\n')
     );
     onOpenChange(false);
   };
@@ -350,6 +363,30 @@ Supports: Papiamento, English, Dutch, Spanish`}
                     </CardContent>
                   </Card>
                 ))}
+                
+                {/* Original Message - Collapsible */}
+                {conversationText.trim() && (
+                  <Collapsible className="mt-4">
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" className="w-full justify-between text-muted-foreground hover:text-foreground">
+                        <span className="flex items-center gap-2">
+                          <FileText className="h-4 w-4" />
+                          Original Message
+                        </span>
+                        <ChevronDown className="h-4 w-4 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <Card className="mt-2 bg-muted/30">
+                        <CardContent className="p-3">
+                          <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono max-h-40 overflow-y-auto">
+                            {conversationText}
+                          </pre>
+                        </CardContent>
+                      </Card>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
               </div>
             </ScrollArea>
 

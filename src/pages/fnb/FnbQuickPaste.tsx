@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ClipboardPaste, Check, Loader2, MessageSquare, Calendar as CalendarIcon, User, MessageCircle, RotateCcw, ExternalLink, Brain, Sparkles, ChevronDown, Upload } from 'lucide-react';
+import { ArrowLeft, ClipboardPaste, Check, Loader2, MessageSquare, Calendar as CalendarIcon, User, MessageCircle, RotateCcw, ExternalLink, Brain, Sparkles, ChevronDown, ChevronUp, Upload, FileText } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -342,7 +343,9 @@ export default function FnbQuickPaste() {
           delivery_date: deliveryDate,
           status: 'pending',
           total_xcg: total,
-          notes: `Imported from WhatsApp`
+          notes: conversationText.trim() 
+            ? `=== Original WhatsApp Message ===\n${conversationText.trim()}\n\n[Imported via Quick Paste]`
+            : 'Imported from WhatsApp'
         })
         .select()
         .single();
@@ -749,6 +752,30 @@ export default function FnbQuickPaste() {
                     onRemove={() => removeMatchedItem(index)}
                   />
                 ))}
+                
+                {/* Original Message - Collapsible */}
+                {conversationText.trim() && (
+                  <Collapsible className="mt-6">
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" className="w-full justify-between text-muted-foreground hover:text-foreground">
+                        <span className="flex items-center gap-2">
+                          <FileText className="h-4 w-4" />
+                          Original Message
+                        </span>
+                        <ChevronDown className="h-4 w-4 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <Card className="mt-2 bg-muted/30">
+                        <CardContent className="p-3">
+                          <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono max-h-40 overflow-y-auto">
+                            {conversationText}
+                          </pre>
+                        </CardContent>
+                      </Card>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
               </div>
             </ScrollArea>
 
