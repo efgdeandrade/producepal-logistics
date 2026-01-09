@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import { format, addDays, getDay } from 'date-fns';
 
 export interface ExtractedItem {
   sku: string;
@@ -17,6 +18,7 @@ export interface ExtractedPOData {
   po_number: string;
   delivery_date: string | null;
   delivery_date_raw: string | null;
+  detected_delivery_weekday?: string | null;
   delivery_station: string | null;
   currency: string;
   items: ExtractedItem[];
@@ -40,7 +42,51 @@ export interface POImportState {
   selectedDeliveryDate: string;
   selectedDeliveryStation: string;
   error: string | null;
+  isWeeklyFormat: boolean;
 }
+
+// Osteria Rosso / Fuik customer ID for auto-matching
+const OSTERIA_ROSSO_CUSTOMER_ID = '438683c8-6ee2-4b05-884b-e1f689cb7922';
+
+// Detect weekly order template format (Fuik/Osteria Rosso style)
+const detectWeeklyFormat = (rows: (string | number | null)[][]): boolean => {
+  if (!rows.length) return false;
+  const headerRow = rows[0] || [];
+  const headers = headerRow.map(h => String(h || '').toLowerCase().trim());
+  
+  // Check for weekday columns
+  const weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+  const hasWeekdays = weekdays.some(day => 
+    headers.some(h => h.includes(day))
+  );
+  
+  // Check for typical Fuik columns
+  const hasUnit = headers.some(h => h === 'unit' || h.includes('unit'));
+  const hasStatus = headers.some(h => h === 'status' || h.includes('status'));
+  
+  return hasWeekdays && (hasUnit || hasStatus);
+};
+
+// Calculate the next occurrence of a weekday from today
+const getNextWeekdayDate = (targetDay: string): string => {
+  const dayMap: Record<string, number> = {
+    'sunday': 0, 'monday': 1, 'tuesday': 2, 'wednesday': 3,
+    'thursday': 4, 'friday': 5, 'saturday': 6
+  };
+  
+  const today = new Date();
+  const todayDay = getDay(today);
+  const targetDayNum = dayMap[targetDay.toLowerCase()];
+  
+  if (targetDayNum === undefined) return format(addDays(today, 1), 'yyyy-MM-dd');
+  
+  let daysUntil = targetDayNum - todayDay;
+  if (daysUntil <= 0) {
+    daysUntil += 7; // Next week
+  }
+  
+  return format(addDays(today, daysUntil), 'yyyy-MM-dd');
+};
 
 export function usePOImport() {
   const [state, setState] = useState<POImportState>({
@@ -52,15 +98,17 @@ export function usePOImport() {
     selectedDeliveryDate: '',
     selectedDeliveryStation: '',
     error: null,
+    isWeeklyFormat: false,
   });
 
   const parseFile = async (file: File) => {
-    setState(prev => ({ ...prev, isUploading: true, error: null }));
+    setState(prev => ({ ...prev, isUploading: true, error: null, isWeeklyFormat: false }));
 
     try {
       const buffer = await file.arrayBuffer();
       let base64: string;
       let fileType: string;
+      let isWeekly = false;
 
       // Check if it's a spreadsheet file
       const isSpreadsheet = /\.(csv|xlsx|xls)$/i.test(file.name);
@@ -75,10 +123,22 @@ export function usePOImport() {
           defval: '' 
         });
 
+        // Detect if this is a weekly format (Fuik/Osteria Rosso style)
+        isWeekly = detectWeeklyFormat(rows);
+        
         // Convert to pipe-delimited text for AI parsing
-        const textContent = rows
+        let textContent = rows
           .map(row => (Array.isArray(row) ? row.join(' | ') : ''))
           .join('\n');
+
+        // If weekly format detected, prepend metadata for AI
+        if (isWeekly) {
+          const today = new Date();
+          const weekdayName = format(today, 'EEEE');
+          const dateStr = format(today, 'yyyy-MM-dd');
+          textContent = `FORMAT: WEEKLY_ORDER_TEMPLATE\nTODAY: ${weekdayName}, ${dateStr}\nFILENAME: ${file.name}\n\n${textContent}`;
+          console.log('Detected weekly order template format (Fuik/Osteria style)');
+        }
 
         // Encode as base64 (handle unicode)
         base64 = btoa(unescape(encodeURIComponent(textContent)));
@@ -91,7 +151,7 @@ export function usePOImport() {
         fileType = file.name.endsWith('.html') || file.name.endsWith('.htm') ? 'html' : 'pdf';
       }
 
-      setState(prev => ({ ...prev, isUploading: false, isParsing: true }));
+      setState(prev => ({ ...prev, isUploading: false, isParsing: true, isWeeklyFormat: isWeekly }));
 
       // Call edge function
       const { data, error } = await supabase.functions.invoke('parse-purchase-order', {
@@ -112,12 +172,30 @@ export function usePOImport() {
 
       const extractedData = data.data as ExtractedPOData;
       
+      // For weekly format with detected weekday, calculate actual delivery date if not already set
+      let deliveryDate = extractedData.delivery_date || '';
+      if (isWeekly && extractedData.detected_delivery_weekday && !deliveryDate) {
+        deliveryDate = getNextWeekdayDate(extractedData.detected_delivery_weekday);
+        console.log(`Calculated delivery date for ${extractedData.detected_delivery_weekday}: ${deliveryDate}`);
+      }
+      
+      // Auto-detect customer for Fuik/Osteria files
+      let autoCustomerId = '';
+      const customerName = extractedData.customer_name?.toLowerCase() || '';
+      const fileName = file.name.toLowerCase();
+      if (customerName.includes('fuik') || customerName.includes('osteria') || 
+          fileName.includes('fuik') || fileName.includes('osteria')) {
+        autoCustomerId = OSTERIA_ROSSO_CUSTOMER_ID;
+        console.log('Auto-matched customer: Osteria Rosso');
+      }
+      
       setState(prev => ({
         ...prev,
         isParsing: false,
         extractedData,
-        selectedDeliveryDate: extractedData.delivery_date || '',
+        selectedDeliveryDate: deliveryDate,
         selectedDeliveryStation: extractedData.delivery_station || '',
+        selectedCustomerId: autoCustomerId || prev.selectedCustomerId,
       }));
 
       return extractedData;
@@ -305,6 +383,7 @@ export function usePOImport() {
       selectedDeliveryDate: '',
       selectedDeliveryStation: '',
       error: null,
+      isWeeklyFormat: false,
     });
   };
 
@@ -319,5 +398,6 @@ export function usePOImport() {
     setSelectedDeliveryStation,
     saveMappings,
     reset,
+    OSTERIA_ROSSO_CUSTOMER_ID,
   };
 }
