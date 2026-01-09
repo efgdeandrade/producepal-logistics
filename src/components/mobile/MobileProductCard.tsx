@@ -83,24 +83,24 @@ export function MobileProductCard({
 
   return (
     <Card className={cn(
-      "relative overflow-hidden transition-colors",
+      "relative overflow-hidden transition-colors w-full max-w-full",
       !matchedProductId && "border-amber-300 bg-amber-50/30 dark:bg-amber-950/20",
       className
     )}>
       <CardContent className="p-4 space-y-4">
         {/* Header: Raw text + Badge + Remove */}
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-2 min-w-0 overflow-hidden">
+          <div className="flex-1 min-w-0 overflow-hidden">
             <p className="text-sm text-muted-foreground italic truncate">
               "{rawText}"
             </p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1 shrink-0">
             {getConfidenceBadge()}
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+              className="h-7 w-7 text-muted-foreground hover:text-destructive"
               onClick={onRemove}
             >
               <X className="h-4 w-4" />
@@ -123,7 +123,7 @@ export function MobileProductCard({
         </div>
 
         {/* Product Selector - Full width */}
-        <div className="space-y-2">
+        <div className="space-y-2 w-full overflow-hidden">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Product
           </label>

@@ -503,15 +503,15 @@ export default function FnbQuickPaste() {
                 
                 {/* Recent customers - horizontal scroll chips */}
                 {recentCustomers.length > 0 && !customerId && (
-                  <div className="space-y-2">
+                  <div className="space-y-2 overflow-hidden">
                     <p className="text-xs text-muted-foreground">Recent:</p>
-                    <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                       {recentCustomers.map(c => (
                         <Button
                           key={c.id}
                           variant="outline"
                           size="sm"
-                          className="h-8 text-xs shrink-0"
+                          className="h-8 text-xs shrink-0 whitespace-nowrap"
                           onClick={() => {
                             vibrateTap();
                             setCustomerId(c.id);
@@ -634,12 +634,12 @@ export default function FnbQuickPaste() {
           <div className="flex flex-col h-full">
             {/* Order Summary - Sticky */}
             <div className="sticky top-0 z-10 bg-background border-b p-4 space-y-2">
-              <Card>
-                <CardContent className="p-3">
-                  <div className="flex items-center justify-between gap-2 mb-1">
+              <Card className="overflow-hidden">
+                <CardContent className="p-3 overflow-hidden">
+                  <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Badge variant="outline" className="cursor-pointer hover:bg-accent transition-colors max-w-[160px]">
+                        <Badge variant="outline" className="cursor-pointer hover:bg-accent transition-colors max-w-[45%] min-w-0">
                           <User className="h-3 w-3 mr-1 shrink-0" />
                           <span className="truncate">{selectedCustomer?.name || 'Select customer'}</span>
                           <ChevronDown className="h-3 w-3 ml-1 shrink-0" />
@@ -731,7 +731,7 @@ export default function FnbQuickPaste() {
             </div>
 
             {/* Items List - Scrollable, vertical only */}
-            <ScrollArea className="flex-1 px-4">
+            <ScrollArea className="flex-1 px-4 w-full max-w-full">
               <div className="space-y-4 py-4">
                 {matchedItems.map((item, index) => (
                   <MobileProductCard

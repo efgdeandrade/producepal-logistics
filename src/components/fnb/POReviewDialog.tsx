@@ -128,14 +128,14 @@ export function POReviewDialog({
 
         <div className="flex-1 overflow-y-auto space-y-4 py-4">
           {/* PO Info */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
             <div>
               <Label className="text-xs text-muted-foreground">PO Number</Label>
-              <div className="font-medium">{extractedData.po_number}</div>
+              <div className="font-medium truncate">{extractedData.po_number}</div>
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">PO Customer</Label>
-              <div className="font-medium text-sm">
+              <div className="font-medium text-sm truncate">
                 {extractedData.customer_name}
                 {extractedData.customer_code && (
                   <span className="text-muted-foreground ml-1">({extractedData.customer_code})</span>
@@ -151,7 +151,7 @@ export function POReviewDialog({
           {/* Editable Fields */}
           <div className="grid grid-cols-1 gap-4 p-4 bg-muted/50 rounded-lg">
             {/* Customer Selection */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Customer *</Label>
                 <SearchableSelect
