@@ -102,13 +102,30 @@ CRITICAL INSTRUCTIONS:
    - Building/wing/station identifiers
    - Location names that indicate a specific area within the customer's premises
 
-SPECIAL HANDLING FOR SPREADSHEETS/WEEKLY ORDER TEMPLATES:
-- Some files are weekly order templates with columns for each day of the week (Monday-Friday)
-- Each day column may contain quantities in natural language like "3 tros", "2 kg", "250 gram", "1 stuk"
-- Parse natural language quantities: "3 tros" = 3, "2 kg" = 2, "250 gram" = 0.25, "1 kilo" = 1
-- If the file has day-of-week columns, combine ALL items that have any quantity across all days
-- Set quantity to the sum of quantities across all days, or just extract non-zero quantities
-- The unit should be normalized: "tros" = "bunch", "stuk" = "pcs", "gram" = "gram", "kg" = "kg"
+SPECIAL HANDLING FOR WEEKLY ORDER TEMPLATES (Fuik/Osteria Rosso style):
+When the content includes "FORMAT: WEEKLY_ORDER_TEMPLATE":
+1. This file has columns: Item Name | Unit | Price R | Price F | Status | Monday | Tuesday | Wednesday | Thursday | Friday
+2. CRITICAL: Find the LAST weekday column (rightmost) that has ANY non-empty quantities
+3. Extract ONLY items with quantities in that LAST filled weekday column
+4. EXCLUDE any items where the Status column contains "HOLD" - do not include these in the items list
+5. Parse quantity strings:
+   - "3 tros" → quantity: 3, unit: "bunch"
+   - "2 kg" or "2 kilo" → quantity: 2, unit: "kg"
+   - "250 gram" or "250gr" → quantity: 250, unit: "gram"
+   - "1 stuk" or "2 stuks" → quantity: 1 or 2, unit: "stuks"
+   - "5 pack" → quantity: 5, unit: "pack"
+   - Plain numbers like "3" → quantity: 3, unit from the Unit column
+6. Set the delivery_date field to the actual calendar date calculated from TODAY's date (provided in the format line)
+7. Set detected_delivery_weekday to the weekday name that was used (e.g., "Friday")
+8. Set po_number to "Weekly-YYYY-MM-DD" using the delivery date
+9. Set customer_name to "Fuik" or "Osteria Rosso" if identifiable from filename/content
+
+UNIT NORMALIZATION (always apply):
+- "tros" → "bunch", "bos" → "bunch"
+- "stuk" → "stuks", "st" → "stuks", "pcs" → "stuks", "piece" → "stuks"
+- "kilo" → "kg", "kilogram" → "kg"
+- "pak" → "pack"
+- "gr" → "gram"
 
 Be thorough and extract every single line item. Do not miss any products.`;
 
@@ -179,6 +196,10 @@ Extract:
             delivery_date_raw: {
               type: "string",
               description: "The original delivery date text EXACTLY as it appears in the document (e.g., '01/02/2026', '2 Jan 2026', '02-01-26'). Keep the original format without modification."
+            },
+            detected_delivery_weekday: {
+              type: "string",
+              description: "For weekly templates, the weekday column that was used (Monday, Tuesday, Wednesday, Thursday, Friday)"
             },
             delivery_station: {
               type: "string",
