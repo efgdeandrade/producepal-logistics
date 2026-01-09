@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, Pencil, X, Plus, AlertTriangle, History, Target } from 'lucide-react';
+import { MessageSquare, Pencil, X, Plus, AlertTriangle, History, Target, FileText } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -69,6 +69,7 @@ export function FnbOrderDetailDialog({ order, open, onOpenChange }: FnbOrderDeta
   const queryClient = useQueryClient();
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [showModifications, setShowModifications] = useState(false);
+  const [showNotes, setShowNotes] = useState(order?.notes?.includes('Original WhatsApp Message') ?? false);
 
   const cancelOrderMutation = useMutation({
     mutationFn: async (orderId: string) => {
@@ -248,6 +249,30 @@ export function FnbOrderDetailDialog({ order, open, onOpenChange }: FnbOrderDeta
                 <p className="text-sm text-muted-foreground">No items</p>
               )}
             </div>
+
+            {/* Order Notes / Source Message */}
+            {order.notes && (
+              <Collapsible open={showNotes} onOpenChange={setShowNotes}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-full justify-between">
+                    <span className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      {order.notes.includes('Original WhatsApp Message') 
+                        ? 'Original WhatsApp Message' 
+                        : 'Order Notes'}
+                    </span>
+                    <Badge variant="secondary">{showNotes ? 'Hide' : 'Show'}</Badge>
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="mt-2 p-3 bg-muted/50 rounded-lg border">
+                    <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono">
+                      {order.notes}
+                    </pre>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
 
             {/* Modification History */}
             {modifications && modifications.length > 0 && (
