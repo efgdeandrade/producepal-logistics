@@ -216,7 +216,7 @@ export default function FnbDriverMobile() {
   const currentTime = format(new Date(), "HH:mm");
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
+    <div className="h-screen w-full max-w-full flex flex-col bg-background overflow-hidden">
       {/* Header - Compact for mobile */}
       <header className="flex-shrink-0 bg-card border-b px-4 py-3 safe-area-top">
         <div className="flex items-center justify-between">

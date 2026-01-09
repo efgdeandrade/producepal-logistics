@@ -194,6 +194,12 @@ All colors MUST be HSL.
   .mobile-container {
     @apply max-w-full overflow-x-hidden;
   }
+
+  /* Mobile-safe wrapper for preventing overflow */
+  .mobile-safe {
+    @apply w-full max-w-full;
+    box-sizing: border-box;
+  }
 }
 
 @media (min-width: 768px) {

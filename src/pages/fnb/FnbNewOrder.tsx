@@ -833,7 +833,7 @@ export default function FnbNewOrder() {
 
   if (isEditMode && isLoadingOrder) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background">
         <Header />
         <main className="container py-6">
           <p className="text-center text-muted-foreground">Loading order...</p>
@@ -843,7 +843,7 @@ export default function FnbNewOrder() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background">
       <Header />
       <main className="container py-6">
         <div className="flex items-center gap-4 mb-6">

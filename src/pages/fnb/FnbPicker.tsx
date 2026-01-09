@@ -821,7 +821,7 @@ const PICKER_UNITS = [
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background space-y-6">
       
       {/* Floating notification stack */}
       <NewOrderToast

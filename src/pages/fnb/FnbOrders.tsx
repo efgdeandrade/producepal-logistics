@@ -892,7 +892,7 @@ export default function FnbOrders() {
   const selectedDayOrders = selectedDay ? getOrdersForDay(selectedDay) : [];
 
   return (
-    <div>
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background">
       <div className="container py-6 space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>

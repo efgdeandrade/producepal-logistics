@@ -44,7 +44,7 @@ export default function FnbDashboard() {
   });
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background">
       <Header />
       <main className="container py-6">
         <div className="flex items-center justify-between mb-6">
