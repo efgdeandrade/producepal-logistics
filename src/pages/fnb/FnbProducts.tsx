@@ -271,7 +271,8 @@ export default function FnbProducts() {
   );
 
   return (
-    <div className="container py-6">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background">
+      <div className="container py-6">
         <div className="flex items-center gap-4 mb-6">
           <Button variant="ghost" size="icon" asChild>
             <Link to="/distribution">
@@ -737,6 +738,7 @@ export default function FnbProducts() {
             )}
           </CardContent>
         </Card>
+      </div>
     </div>
   );
 }

@@ -395,7 +395,8 @@ const FnbDispatch = () => {
   const lockedCount = assignments.reduce((sum, a) => sum + a.stops.filter(s => s.is_locked).length, 0);
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background">
+      <div className="h-[calc(100vh-8rem)] flex">
         {/* Left Panel */}
         <div className="w-80 border-r flex flex-col">
           <div className="p-4 border-b">
@@ -678,6 +679,7 @@ const FnbDispatch = () => {
               </Button>
             </div>
         )}
+        </div>
       </div>
     </div>
   );
