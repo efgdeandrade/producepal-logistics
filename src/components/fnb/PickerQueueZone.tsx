@@ -35,6 +35,7 @@ interface PickerQueueZoneProps {
   onOrderSelect: (orderId: string) => void;
   currentPickerName?: string;
   zoneColor?: string;
+  orderProgressMap?: Record<string, number>;
 }
 
 const ZONE_COLORS: Record<string, string> = {
@@ -53,6 +54,7 @@ export function PickerQueueZone({
   onOrderSelect,
   currentPickerName,
   zoneColor,
+  orderProgressMap,
 }: PickerQueueZoneProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   
@@ -104,6 +106,7 @@ export function PickerQueueZone({
               isSelected={selectedOrderId === order.id}
               onClick={() => onOrderSelect(order.id)}
               currentPickerName={currentPickerName}
+              pickProgress={orderProgressMap?.[order.order_id]}
             />
           ))}
         </div>
