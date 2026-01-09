@@ -100,6 +100,8 @@ export function QuickAddItemDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fnb-orders'] });
       queryClient.invalidateQueries({ queryKey: ['fnb-order-items'] });
+      queryClient.invalidateQueries({ queryKey: ['fnb-picker-items'] });
+      queryClient.invalidateQueries({ queryKey: ['fnb-picker-all-items'] });
       toast.success(`Added ${quantity} x ${selectedProduct.name} to order`);
       setSelectedProduct(null);
       setQuantity('1');

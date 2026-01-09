@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, CheckCircle, Clock, User, Package, AlertTriangle, LogOut, Scale, Trophy, Edit, ChevronDown, ChevronUp, RefreshCw, Volume2, VolumeX, CalendarIcon } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Clock, User, Package, AlertTriangle, LogOut, Scale, Trophy, Edit, ChevronDown, ChevronUp, RefreshCw, Volume2, VolumeX, CalendarIcon, Plus, Eye, X } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,7 +32,9 @@ import { AssistanceButton } from '@/components/fnb/AssistanceButton';
 import { WeightAccuracyIndicator } from '@/components/fnb/WeightAccuracyIndicator';
 import { ItemsOverviewTable } from '@/components/fnb/ItemsOverviewTable';
 import { NewOrderToast } from '@/components/fnb/NewOrderToast';
+import { QuickAddItemDialog } from '@/components/fnb/QuickAddItemDialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { useNewOrderNotifications } from '@/hooks/useNewOrderNotifications';
 
@@ -87,6 +89,8 @@ export default function FnbPicker() {
   } | null>(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showCompletedOrders, setShowCompletedOrders] = useState(false);
+  const [viewingCompletedOrder, setViewingCompletedOrder] = useState<string | null>(null);
+  const [showQuickAddItem, setShowQuickAddItem] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: new Date(),
     to: new Date()
@@ -363,7 +367,8 @@ const PICKER_UNITS = [
         .from('fnb_order_items')
         .select(`
           *,
-          fnb_products(id, code, name, unit)
+          fnb_products(id, code, name, unit),
+          picked_by
         `)
         .in('order_id', orderIds);
       
@@ -372,6 +377,53 @@ const PICKER_UNITS = [
     },
     enabled: !!queueItems && queueItems.length > 0,
     refetchInterval: 30000,
+  });
+
+  // Calculate progress for each order
+  const orderProgressMap = useMemo(() => {
+    if (!allQueueOrderItems || allQueueOrderItems.length === 0) return {};
+    
+    const progressMap: Record<string, number> = {};
+    const orderItemCounts: Record<string, { total: number; picked: number }> = {};
+    
+    allQueueOrderItems.forEach((item: any) => {
+      const orderId = item.order_id;
+      if (!orderItemCounts[orderId]) {
+        orderItemCounts[orderId] = { total: 0, picked: 0 };
+      }
+      orderItemCounts[orderId].total++;
+      if (item.picked_by) {
+        orderItemCounts[orderId].picked++;
+      }
+    });
+    
+    Object.entries(orderItemCounts).forEach(([orderId, counts]) => {
+      progressMap[orderId] = counts.total > 0 ? (counts.picked / counts.total) * 100 : 0;
+    });
+    
+    return progressMap;
+  }, [allQueueOrderItems]);
+
+  // Fetch items for the completed order being viewed
+  const { data: completedOrderItems } = useQuery({
+    queryKey: ['fnb-completed-order-items', viewingCompletedOrder],
+    queryFn: async () => {
+      if (!viewingCompletedOrder) return [];
+      
+      const viewingOrder = completedOrders?.find((o: any) => o.id === viewingCompletedOrder);
+      if (!viewingOrder) return [];
+
+      const { data, error } = await supabase
+        .from('fnb_order_items')
+        .select(`
+          *,
+          fnb_products(code, name, unit, is_weight_based)
+        `)
+        .eq('order_id', viewingOrder.order_id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!viewingCompletedOrder && !!completedOrders,
   });
 
   // Group orders by zone
@@ -1076,6 +1128,7 @@ const PICKER_UNITS = [
                     selectedOrderId={selectedQueue}
                     onOrderSelect={setSelectedQueue}
                     currentPickerName={pickerName}
+                    orderProgressMap={orderProgressMap}
                   />
                 ))}
               </div>
@@ -1113,50 +1166,135 @@ const PICKER_UNITS = [
                     const completedTime = order.completed_at 
                       ? new Date(order.completed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                       : '';
-                    const isEditable = order.fnb_orders?.status === 'ready'; // Can only edit if not yet delivered
+                    const isEditable = order.fnb_orders?.status === 'ready';
+                    const isViewing = viewingCompletedOrder === order.id;
                     
                     return (
                       <Card 
                         key={order.id} 
                         className={cn(
-                          "border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/30",
-                          !isEditable && "opacity-60"
+                          "border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/30 transition-all",
+                          !isEditable && "opacity-60",
+                          isViewing && "ring-2 ring-primary"
                         )}
                       >
                         <CardContent className="p-3">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-medium text-sm">
-                                {order.fnb_orders?.order_number}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {order.fnb_orders?.fnb_customers?.name}
-                              </p>
-                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                                <Clock className="h-3 w-3" />
-                                Completed at {completedTime}
-                                {order.picker_name && (
-                                  <span className="ml-2">by {order.picker_name}</span>
+                          {/* Order Header - Always visible */}
+                          <button
+                            onClick={() => setViewingCompletedOrder(isViewing ? null : order.id)}
+                            className="w-full text-left"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium text-sm flex items-center gap-2">
+                                  {order.fnb_orders?.order_number}
+                                  <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {order.fnb_orders?.fnb_customers?.name}
+                                </p>
+                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                                  <Clock className="h-3 w-3" />
+                                  Completed at {completedTime}
+                                  {order.picker_name && (
+                                    <span className="ml-2">by {order.picker_name}</span>
+                                  )}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {isViewing ? (
+                                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
                                 )}
-                              </p>
+                              </div>
                             </div>
-                            {isEditable ? (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => reopenOrderMutation.mutate(order.id)}
-                                disabled={reopenOrderMutation.isPending}
-                                className="gap-1"
-                              >
-                                <Edit className="h-3.5 w-3.5" />
-                                Edit
-                              </Button>
-                            ) : (
-                              <Badge variant="secondary" className="text-xs">
-                                {order.fnb_orders?.status === 'delivered' ? 'Delivered' : order.fnb_orders?.status}
-                              </Badge>
-                            )}
-                          </div>
+                          </button>
+
+                          {/* Expanded Order Details */}
+                          {isViewing && (
+                            <div className="mt-3 pt-3 border-t border-green-300 dark:border-green-700 space-y-3">
+                              {/* Items List */}
+                              <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+                                <p className="text-xs font-medium text-muted-foreground mb-2">
+                                  {completedOrderItems?.length || 0} items
+                                </p>
+                                {completedOrderItems?.map((item: any) => (
+                                  <div
+                                    key={item.id}
+                                    className="flex items-center justify-between text-sm p-2 bg-white/50 dark:bg-black/20 rounded"
+                                  >
+                                    <div>
+                                      <p className="font-medium">{item.fnb_products?.name}</p>
+                                      <p className="text-xs text-muted-foreground">{item.fnb_products?.code}</p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="font-bold">
+                                        {item.picked_quantity ?? item.quantity} {item.fnb_products?.unit}
+                                      </p>
+                                      {item.short_quantity > 0 && (
+                                        <p className="text-xs text-orange-600 dark:text-orange-400">
+                                          Short: {item.short_quantity}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Actions */}
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setViewingCompletedOrder(null);
+                                  }}
+                                  className="flex-1"
+                                >
+                                  <X className="h-4 w-4 mr-1" />
+                                  Close
+                                </Button>
+                                {isEditable && (
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-1 gap-1"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <Edit className="h-3.5 w-3.5" />
+                                        Edit Order
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Reopen Order for Editing?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          This will move the order back to the picking queue. 
+                                          The order status will change from "Ready" to "Picking".
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => {
+                                            setViewingCompletedOrder(null);
+                                            reopenOrderMutation.mutate(order.id);
+                                          }}
+                                          disabled={reopenOrderMutation.isPending}
+                                        >
+                                          Yes, Reopen Order
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     );
@@ -1337,7 +1475,20 @@ const PICKER_UNITS = [
                       )}
 
                       <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                        <h4 className="font-medium sticky top-0 bg-card py-1">Items to Pick</h4>
+                        <div className="sticky top-0 bg-card py-1 flex items-center justify-between">
+                          <h4 className="font-medium">Items to Pick</h4>
+                          {isOwner && selectedQueueItem.status === 'in_progress' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowQuickAddItem(true)}
+                              className="gap-1"
+                            >
+                              <Plus className="h-4 w-4" />
+                              Add Item
+                            </Button>
+                          )}
+                        </div>
                         {orderItems.map((item: any) => {
                           const pickedQty = pickedQuantities[item.id] ?? item.quantity;
                           const isShort = pickedQty < item.quantity;
@@ -1756,6 +1907,16 @@ const PICKER_UNITS = [
         onSubmit={shortageRequestMutation.mutate}
         isLoading={shortageRequestMutation.isPending}
       />
+
+      {/* Quick Add Item Dialog */}
+      {selectedQueueItem && (
+        <QuickAddItemDialog
+          orderId={selectedQueueItem.order_id}
+          orderNumber={selectedQueueItem.fnb_orders?.order_number || ''}
+          open={showQuickAddItem}
+          onOpenChange={setShowQuickAddItem}
+        />
+      )}
     </div>
   );
 }
