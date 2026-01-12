@@ -80,3 +80,6 @@ verify_jwt = true
 
 [functions.quickbooks-invoice-sync]
 verify_jwt = true
+
+[functions.quickbooks-oauth-callback]
+verify_jwt = false

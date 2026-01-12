@@ -104,6 +104,7 @@ import ResetPassword from "./pages/ResetPassword";
 import IntegrationHub from "./pages/integrations/IntegrationHub";
 import WhatsAppSettings from "./pages/integrations/WhatsAppSettings";
 import QuickBooksSync from "./pages/integrations/QuickBooksSync";
+import QuickBooksConnect from "./pages/integrations/QuickBooksConnect";
 import WebhookManager from "./pages/integrations/WebhookManager";
 import ApiConnectors from "./pages/integrations/ApiConnectors";
 
@@ -290,6 +291,7 @@ const App = () => (
                   <Route path="/settings/integrations" element={<ProtectedWithLayout requiredRole="admin"><IntegrationHub /></ProtectedWithLayout>} />
                   <Route path="/settings/integrations/whatsapp" element={<ProtectedWithLayout requiredRole="admin"><WhatsAppSettings /></ProtectedWithLayout>} />
                   <Route path="/settings/integrations/quickbooks" element={<ProtectedWithLayout requiredRole="admin"><QuickBooksSync /></ProtectedWithLayout>} />
+                  <Route path="/settings/integrations/quickbooks/connect" element={<ProtectedWithLayout requiredRole="admin"><QuickBooksConnect /></ProtectedWithLayout>} />
                   <Route path="/settings/integrations/webhooks" element={<ProtectedWithLayout requiredRole="admin"><WebhookManager /></ProtectedWithLayout>} />
                   <Route path="/settings/integrations/api" element={<ProtectedWithLayout requiredRole="admin"><ApiConnectors /></ProtectedWithLayout>} />
                   <Route path="/users" element={<ProtectedWithLayout requiredRole="admin"><UserManagement /></ProtectedWithLayout>} />

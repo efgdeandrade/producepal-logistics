@@ -1,25 +1,82 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useIntegrations } from '@/hooks/useIntegrations';
-import { RefreshCw, ArrowLeft, Check, X, Clock, Users, FileText, DollarSign } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { RefreshCw, ArrowLeft, Check, X, Clock, Users, FileText, DollarSign, Link as LinkIcon, AlertCircle } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 
+interface TokenInfo {
+  realm_id: string;
+  expires_at: string;
+  updated_at: string;
+}
+
 const QuickBooksSync = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const { integrations, createIntegration, updateIntegration } = useIntegrations();
   const [syncing, setSyncing] = useState(false);
   const [syncLogs, setSyncLogs] = useState<any[]>([]);
+  const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
+  const [loadingToken, setLoadingToken] = useState(true);
 
   const qbIntegration = integrations.find(i => i.type === 'quickbooks');
+
+  useEffect(() => {
+    loadTokenStatus();
+    
+    // Check for success/error in URL params (from OAuth callback)
+    const connected = searchParams.get('connected');
+    const error = searchParams.get('error');
+    
+    if (connected === 'true') {
+      toast({
+        title: 'Connected to QuickBooks',
+        description: 'Your QuickBooks account has been successfully linked.',
+      });
+      navigate('/settings/integrations/quickbooks', { replace: true });
+      loadTokenStatus();
+    }
+    
+    if (error) {
+      toast({
+        title: 'Connection Failed',
+        description: decodeURIComponent(error),
+        variant: 'destructive',
+      });
+      navigate('/settings/integrations/quickbooks', { replace: true });
+    }
+  }, [searchParams, toast, navigate]);
+
+  const loadTokenStatus = async () => {
+    setLoadingToken(true);
+    try {
+      const { data, error } = await supabase
+        .from('quickbooks_tokens')
+        .select('realm_id, expires_at, updated_at')
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      setTokenInfo(data);
+    } catch (error: any) {
+      console.error('Failed to load token status:', error);
+    } finally {
+      setLoadingToken(false);
+    }
+  };
+
+  const isConnected = !!tokenInfo;
+  const isExpired = tokenInfo && new Date(tokenInfo.expires_at) < new Date();
 
   const handleToggle = async (enabled: boolean) => {
     if (qbIntegration) {
@@ -100,23 +157,95 @@ const QuickBooksSync = () => {
         </TabsList>
 
         <TabsContent value="sync" className="space-y-4">
+          {/* OAuth Connection Status */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Connection Status</CardTitle>
-                  <CardDescription>QuickBooks integration status</CardDescription>
+                  <CardTitle className="flex items-center gap-2">
+                    <LinkIcon className="h-5 w-5" />
+                    QuickBooks Connection
+                  </CardTitle>
+                  <CardDescription>OAuth connection to your QuickBooks account</CardDescription>
+                </div>
+                {loadingToken ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : isConnected ? (
+                  isExpired ? (
+                    <Badge variant="destructive">Token Expired</Badge>
+                  ) : (
+                    <Badge variant="default" className="bg-green-500">Connected</Badge>
+                  )
+                ) : (
+                  <Badge variant="secondary">Not Connected</Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {isConnected ? (
+                <>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Company ID</span>
+                    <code className="bg-muted px-2 py-0.5 rounded">{tokenInfo?.realm_id}</code>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Token Expires</span>
+                    <span className={isExpired ? 'text-destructive' : ''}>
+                      {tokenInfo && format(new Date(tokenInfo.expires_at), 'MMM d, h:mm a')}
+                    </span>
+                  </div>
+                  {isExpired && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        Your access token has expired. Please reconnect to continue syncing.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    onClick={() => navigate('/settings/integrations/quickbooks/connect')}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    {isExpired ? 'Reconnect' : 'Manage Connection'}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Connect your QuickBooks account to enable invoice syncing.
+                    </AlertDescription>
+                  </Alert>
+                  <Button onClick={() => navigate('/settings/integrations/quickbooks/connect')}>
+                    <LinkIcon className="h-4 w-4 mr-2" />
+                    Connect to QuickBooks
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Integration Toggle */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Integration Status</CardTitle>
+                  <CardDescription>Enable or disable QuickBooks sync</CardDescription>
                 </div>
                 <Switch
                   checked={qbIntegration?.is_active || false}
                   onCheckedChange={handleToggle}
+                  disabled={!isConnected || isExpired}
                 />
               </div>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
                 <Badge variant={qbIntegration?.is_active ? 'default' : 'secondary'}>
-                  {qbIntegration?.is_active ? 'Connected' : 'Disconnected'}
+                  {qbIntegration?.is_active ? 'Active' : 'Inactive'}
                 </Badge>
                 {qbIntegration?.last_sync_at && (
                   <span className="text-sm text-muted-foreground">
@@ -141,7 +270,7 @@ const QuickBooksSync = () => {
                   <Button
                     className="w-full"
                     onClick={() => handleSync(entity.type)}
-                    disabled={syncing || !qbIntegration?.is_active}
+                    disabled={syncing || !qbIntegration?.is_active || !isConnected || isExpired}
                   >
                     {syncing ? (
                       <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
@@ -164,7 +293,7 @@ const QuickBooksSync = () => {
               <Button
                 size="lg"
                 onClick={() => handleSync('all')}
-                disabled={syncing || !qbIntegration?.is_active}
+                disabled={syncing || !qbIntegration?.is_active || !isConnected || isExpired}
               >
                 {syncing ? (
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
