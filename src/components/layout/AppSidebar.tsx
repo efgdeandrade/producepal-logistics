@@ -195,6 +195,7 @@ export function AppSidebar() {
         { title: "Picker Station", url: "/distribution/picker", icon: Package },
         { title: "Picker Supervisor", url: "/distribution/picker/supervisor", icon: Eye },
         { title: "Receipt Verification", url: "/distribution/receipts", icon: Receipt },
+        { title: "Invoices", url: "/distribution/invoices", icon: FileText },
         { title: "Customers", url: "/distribution/customers", icon: Users },
         { title: "Products", url: "/distribution/products", icon: Boxes },
         { title: "Pricing Tiers", url: "/distribution/pricing", icon: DollarSign },
