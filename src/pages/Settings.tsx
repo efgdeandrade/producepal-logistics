@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Save, Calendar, ArrowRight, Plus, Trash2, Search } from 'lucide-react';
+import { ArrowLeft, Save, Calendar, ArrowRight, Plus, Trash2, Search, Plug } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -308,7 +308,19 @@ export default function Settings() {
 
         {/* Quick Actions */}
         <Card className="mb-6">
-          <CardContent className="py-4">
+          <CardContent className="py-4 space-y-2">
+            <Link to="/settings/integrations">
+              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <Plug className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="font-medium">Integrations</p>
+                    <p className="text-sm text-muted-foreground">Connect QuickBooks, WhatsApp, and other services</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </Link>
             <Link to="/standing-orders">
               <div className="flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors cursor-pointer">
                 <div className="flex items-center gap-3">

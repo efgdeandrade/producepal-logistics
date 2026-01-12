@@ -33,6 +33,7 @@ import {
   Sun,
   Moon,
   Brain,
+  Plug,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -447,6 +448,25 @@ export function AppSidebar() {
                   >
                     <Settings className="h-4 w-4" />
                     {!collapsed && <span>Settings</span>}
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive("/settings/integrations") || location.pathname.startsWith("/settings/integrations")}
+                  tooltip="Integrations"
+                >
+                  <a
+                    href="/settings/integrations"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate("/settings/integrations");
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <Plug className="h-4 w-4" />
+                    {!collapsed && <span>Integrations</span>}
                   </a>
                 </SidebarMenuButton>
               </SidebarMenuItem>
