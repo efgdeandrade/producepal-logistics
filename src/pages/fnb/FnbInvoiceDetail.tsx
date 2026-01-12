@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import html2pdf from 'html2pdf.js';
 import {
   ArrowLeft,
   Save,
@@ -11,7 +12,22 @@ import {
   Edit3,
   AlertCircle,
   RefreshCw,
+  Download,
 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { FnbInvoicePreview } from '@/components/fnb/FnbInvoicePreview';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -74,6 +90,10 @@ export default function FnbInvoiceDetail() {
   const [hasChanges, setHasChanges] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
+  const [printFormat, setPrintFormat] = useState<'80mm' | 'a4'>('80mm');
+  
+  const invoicePreviewRef = useRef<HTMLDivElement>(null);
 
   // Initialize form when invoice loads
   useEffect(() => {
@@ -153,6 +173,55 @@ export default function FnbInvoiceDetail() {
   const handleSyncToQB = async () => {
     if (!invoiceId) return;
     await syncToQuickBooks.mutateAsync(invoiceId);
+  };
+
+  const handlePrint = () => {
+    if (invoicePreviewRef.current) {
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>Invoice - ${invoice?.fnb_customers?.name}</title>
+              <style>
+                body { margin: 0; padding: 20px; font-family: monospace; }
+                @media print { body { padding: 0; } }
+              </style>
+            </head>
+            <body>
+              ${invoicePreviewRef.current.innerHTML}
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+        setTimeout(() => {
+          printWindow.print();
+          printWindow.close();
+        }, 250);
+      }
+    }
+  };
+
+  const handleDownloadPdf = () => {
+    if (invoicePreviewRef.current) {
+      const element = invoicePreviewRef.current;
+      const customerName = invoice?.fnb_customers?.name?.replace(/\s+/g, '-') || 'invoice';
+      const dateStr = invoiceDate ? format(invoiceDate, 'yyyy-MM-dd') : 'draft';
+      
+      const opt = {
+        margin: printFormat === '80mm' ? 2 : 10,
+        filename: `invoice-${customerName}-${dateStr}.pdf`,
+        image: { type: 'jpeg' as const, quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { 
+          unit: 'mm' as const, 
+          format: printFormat === '80mm' ? [80, 297] as [number, number] : 'a4' as const, 
+          orientation: 'portrait' as const
+        }
+      };
+
+      html2pdf().set(opt).from(element).save();
+    }
   };
 
   if (isLoading) {
@@ -499,9 +568,9 @@ export default function FnbInvoiceDetail() {
                 </Button>
               )}
 
-              <Button variant="outline" className="w-full" onClick={() => window.print()}>
+              <Button variant="outline" className="w-full" onClick={() => setShowPrintDialog(true)}>
                 <Printer className="h-4 w-4 mr-2" />
-                Print Preview
+                Print / Download
               </Button>
 
               {invoice.status === 'draft' && (
@@ -578,6 +647,65 @@ export default function FnbInvoiceDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Print Preview Dialog */}
+      <Dialog open={showPrintDialog} onOpenChange={setShowPrintDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Print Invoice</DialogTitle>
+          </DialogHeader>
+          
+          <div className="flex items-center gap-4 pb-4 border-b">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Format:</span>
+              <Select value={printFormat} onValueChange={(v: '80mm' | 'a4') => setPrintFormat(v)}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="80mm">80mm Receipt</SelectItem>
+                  <SelectItem value="a4">A4 Standard</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex-1" />
+            <Button variant="outline" onClick={handleDownloadPdf}>
+              <Download className="h-4 w-4 mr-2" />
+              Download PDF
+            </Button>
+            <Button onClick={handlePrint}>
+              <Printer className="h-4 w-4 mr-2" />
+              Print
+            </Button>
+          </div>
+          
+          <div className="flex-1 overflow-auto py-4 flex justify-center bg-muted/50 rounded-md">
+            <FnbInvoicePreview
+              ref={invoicePreviewRef}
+              invoiceDate={invoiceDate ? format(invoiceDate, 'MMMM d, yyyy') : ''}
+              dueDate={invoiceDate ? format(new Date(invoiceDate.getTime() + 7 * 24 * 60 * 60 * 1000), 'MMMM d, yyyy') : ''}
+              customerName={invoice?.fnb_customers?.name || ''}
+              customerAddress={invoice?.fnb_customers?.address || undefined}
+              customerPhone={invoice?.fnb_customers?.whatsapp_phone || undefined}
+              customerMemo={customerMemo || undefined}
+              orderNumbers={orderNumbers}
+              items={items.map(item => ({
+                product_name: item.product_name,
+                description: item.description || undefined,
+                quantity: item.quantity,
+                unit_price_xcg: item.unit_price_xcg,
+                line_total_xcg: item.line_total_xcg,
+                is_ob_eligible: item.is_ob_eligible,
+                ob_tax_inclusive: item.ob_tax_inclusive,
+              }))}
+              subtotal={subtotal}
+              obTax={obTax}
+              total={total}
+              format={printFormat}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
