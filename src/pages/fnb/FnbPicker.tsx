@@ -370,7 +370,12 @@ const PICKER_UNITS = [
         .select(`
           *,
           fnb_products(id, code, name, unit),
-          picked_by
+          picked_by,
+          fnb_orders(
+            id,
+            order_number,
+            fnb_customers(name, delivery_zone)
+          )
         `)
         .in('order_id', orderIds);
       
