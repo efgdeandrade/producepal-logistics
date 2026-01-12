@@ -59,14 +59,13 @@ export function CustomerLocationPicker({
   const [mapToken, setMapToken] = useState<string | null>(null);
   const [mapError, setMapError] = useState<string | null>(null);
   const [tokenLoading, setTokenLoading] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(
-    initialLocation || null
-  );
+  const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [detectedZone, setDetectedZone] = useState<{
     name: string;
     majorZoneId?: string;
     majorZoneName?: string;
   } | null>(null);
+  const retryCount = useRef(0);
 
   // Fetch zones for display and detection
   const { data: zones } = useQuery({
@@ -82,26 +81,49 @@ export function CustomerLocationPicker({
   });
 
   // Fetch Mapbox token when dialog opens
-  const fetchMapToken = async () => {
+  const fetchMapToken = async (retry = false) => {
+    if (retry) {
+      retryCount.current += 1;
+    } else {
+      retryCount.current = 0;
+    }
+    
     setTokenLoading(true);
     setMapError(null);
+    
     try {
+      console.log('[MapToken] Fetching token, attempt:', retryCount.current + 1);
       const { data, error } = await supabase.functions.invoke('get-mapbox-token');
+      
       if (error) {
-        console.error('Error fetching mapbox token:', error);
-        setMapError('Failed to load map configuration. Please try again.');
+        console.error('[MapToken] Function error:', error);
+        if (retryCount.current < 2) {
+          // Auto-retry once after a delay
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          return fetchMapToken(true);
+        }
+        setMapError('Failed to load map. Check your connection and try again.');
         return;
       }
+      
       if (data?.token) {
+        console.log('[MapToken] Token received successfully');
         setMapToken(data.token);
       } else if (data?.error) {
-        console.error('Token error:', data.error);
-        setMapError(data.error);
+        console.error('[MapToken] Token error:', data.error);
+        setMapError(data.error === 'Mapbox token not configured' 
+          ? 'Map is not configured. Please add your Mapbox token in backend secrets.'
+          : data.error);
       } else {
+        console.error('[MapToken] Invalid response:', data);
         setMapError('Invalid token response');
       }
     } catch (err) {
-      console.error('Token fetch error:', err);
+      console.error('[MapToken] Fetch error:', err);
+      if (retryCount.current < 2) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return fetchMapToken(true);
+      }
       setMapError('Failed to connect to map service');
     } finally {
       setTokenLoading(false);
@@ -111,49 +133,79 @@ export function CustomerLocationPicker({
   // Reset state when dialog opens
   useEffect(() => {
     if (open) {
-      setSelectedLocation(initialLocation || null);
+      // Reset all state when opening
       setDetectedZone(null);
       setMapError(null);
-      // Fetch token if we don't have one
-      if (!mapToken) {
-        fetchMapToken();
+      setMapLoaded(false);
+      
+      // Set initial location if provided
+      if (initialLocation) {
+        setSelectedLocation({ lat: initialLocation.lat, lng: initialLocation.lng });
+      } else {
+        setSelectedLocation(null);
       }
+      
+      // Delay token fetch slightly to ensure dialog container is ready
+      const timer = setTimeout(() => {
+        if (!mapToken) {
+          fetchMapToken();
+        }
+      }, 150);
+      
+      return () => clearTimeout(timer);
     } else {
-      // Cleanup when closing
+      // Full cleanup when closing
       marker.current?.remove();
       marker.current = null;
       map.current?.remove();
       map.current = null;
       setMapLoaded(false);
+      setSelectedLocation(null);
     }
-  }, [open, initialLocation]);
+  }, [open]);
 
   // Initialize map when token is available
   useEffect(() => {
     if (!open || !mapContainer.current || map.current || !mapToken) return;
 
+    console.log('[Map] Initializing map...');
     mapboxgl.accessToken = mapToken;
+
+    // Use initialLocation if available, otherwise default to Curaçao center
+    const startCenter: [number, number] = initialLocation 
+      ? [initialLocation.lng, initialLocation.lat] 
+      : CURACAO_CENTER;
+    const startZoom = initialLocation ? 15 : 11;
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/streets-v12',
-      center: initialLocation ? [initialLocation.lng, initialLocation.lat] : CURACAO_CENTER,
-      zoom: initialLocation ? 15 : 11,
+      center: startCenter,
+      zoom: startZoom,
       maxBounds: CURACAO_BOUNDS,
     });
 
     map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
     map.current.on('load', () => {
+      console.log('[Map] Map loaded successfully');
       setMapLoaded(true);
+      
       // Force resize after dialog animation settles
-      requestAnimationFrame(() => {
+      setTimeout(() => {
         map.current?.resize();
-      });
+        
+        // Place initial marker if we have a location
+        if (initialLocation) {
+          console.log('[Map] Placing initial marker at:', initialLocation);
+          updateMarker(initialLocation.lat, initialLocation.lng);
+          setSelectedLocation({ lat: initialLocation.lat, lng: initialLocation.lng });
+        }
+      }, 100);
     });
 
     map.current.on('error', (e) => {
-      console.error('Mapbox error:', e);
+      console.error('[Map] Mapbox error:', e);
       setMapError('Map failed to load. Check token or network.');
     });
 
@@ -165,6 +217,7 @@ export function CustomerLocationPicker({
     });
 
     return () => {
+      console.log('[Map] Cleaning up map...');
       marker.current?.remove();
       marker.current = null;
       map.current?.remove();
@@ -198,12 +251,12 @@ export function CustomerLocationPicker({
     map.current.flyTo({ center: [lng, lat], zoom: 15 });
   };
 
-  // Place initial marker when map loads
+  // Sync selectedLocation when initialLocation changes (for edit mode)
   useEffect(() => {
-    if (mapLoaded && initialLocation) {
-      updateMarker(initialLocation.lat, initialLocation.lng);
+    if (open && initialLocation) {
+      setSelectedLocation({ lat: initialLocation.lat, lng: initialLocation.lng });
     }
-  }, [mapLoaded, initialLocation]);
+  }, [open, initialLocation?.lat, initialLocation?.lng]);
 
   // Draw zones on map - draw sub-zones as circles (since they use radius-based matching)
   useEffect(() => {
@@ -382,7 +435,7 @@ export function CustomerLocationPicker({
                   <p className="font-medium text-destructive">Map Failed to Load</p>
                   <p className="text-sm text-muted-foreground max-w-xs">{mapError}</p>
                 </div>
-                <Button variant="outline" size="sm" onClick={fetchMapToken}>
+                <Button variant="outline" size="sm" onClick={() => fetchMapToken()}>
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Retry
                 </Button>
