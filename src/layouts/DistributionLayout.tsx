@@ -23,7 +23,8 @@ import {
   Calendar,
   Eye,
   Camera,
-  GraduationCap
+  GraduationCap,
+  FileText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -41,6 +42,7 @@ const distributionNavItems: PortalNavItem[] = [
   { path: '/distribution/weekly', label: 'Weekly Board', icon: Calendar },
   { path: '/distribution/standing-orders', label: 'Standing Orders', icon: Repeat },
   { path: '/distribution/receipts', label: 'Receipts', icon: Camera },
+  { path: '/distribution/invoices', label: 'Invoices', icon: FileText },
   { path: '/distribution/pricing', label: 'Pricing Tiers', icon: DollarSign },
   { path: '/distribution/zones', label: 'Zones', icon: MapPin },
   { path: '/distribution/cod', label: 'COD Reconciliation', icon: Wallet },
