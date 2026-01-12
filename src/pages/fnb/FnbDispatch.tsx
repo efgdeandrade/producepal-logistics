@@ -395,10 +395,10 @@ const FnbDispatch = () => {
   const lockedCount = assignments.reduce((sum, a) => sum + a.stops.filter(s => s.is_locked).length, 0);
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background">
-      <div className="h-[calc(100vh-8rem)] flex">
+    <div className="h-full w-full overflow-hidden bg-background">
+      <div className="h-[calc(100vh-3.5rem)] flex flex-col lg:flex-row">
         {/* Left Panel */}
-        <div className="w-80 border-r flex flex-col">
+        <div className="w-full lg:w-64 xl:w-80 border-b lg:border-b-0 lg:border-r flex flex-col shrink-0 max-h-[40vh] lg:max-h-none">
           <div className="p-4 border-b">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-semibold flex items-center gap-2">
@@ -478,7 +478,7 @@ const FnbDispatch = () => {
         </div>
 
         {/* Center - Map */}
-        <div className="flex-1 relative">
+        <div className="flex-1 relative min-h-[300px] min-w-0">
           <div ref={mapContainer} className="absolute inset-0" />
           
           {aiSuggestions.length > 0 && (
@@ -540,7 +540,7 @@ const FnbDispatch = () => {
         </div>
 
         {/* Right Panel - Route Assignments */}
-        <div className="w-96 border-l flex flex-col">
+        <div className="w-full lg:w-72 xl:w-96 border-t lg:border-t-0 lg:border-l flex flex-col shrink-0 max-h-[40vh] lg:max-h-none">
           <div className="p-4 border-b">
             <h2 className="font-semibold flex items-center gap-2">
               <Route className="h-4 w-4" />
