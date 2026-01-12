@@ -1799,6 +1799,221 @@ export type Database = {
           },
         ]
       }
+      fnb_invoice_activity: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          id: string
+          invoice_id: string
+          performed_by: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          invoice_id: string
+          performed_by?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          invoice_id?: string
+          performed_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_invoice_activity_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fnb_invoice_items: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          invoice_id: string
+          is_ob_eligible: boolean | null
+          line_total_xcg: number
+          ob_tax_inclusive: number | null
+          order_item_id: string | null
+          product_id: string | null
+          product_name: string
+          quantity: number
+          unit_price_xcg: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          invoice_id: string
+          is_ob_eligible?: boolean | null
+          line_total_xcg: number
+          ob_tax_inclusive?: number | null
+          order_item_id?: string | null
+          product_id?: string | null
+          product_name: string
+          quantity: number
+          unit_price_xcg: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          invoice_id?: string
+          is_ob_eligible?: boolean | null
+          line_total_xcg?: number
+          ob_tax_inclusive?: number | null
+          order_item_id?: string | null
+          product_id?: string | null
+          product_name?: string
+          quantity?: number
+          unit_price_xcg?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_invoice_items_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_order_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_invoice_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fnb_invoice_orders: {
+        Row: {
+          created_at: string
+          id: string
+          invoice_id: string
+          order_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invoice_id: string
+          order_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_invoice_orders_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_invoice_orders_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fnb_invoices: {
+        Row: {
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          customer_memo: string | null
+          due_date: string
+          id: string
+          invoice_date: string
+          notes: string | null
+          ob_tax_amount: number
+          quickbooks_invoice_id: string | null
+          quickbooks_invoice_number: string | null
+          quickbooks_sync_error: string | null
+          quickbooks_sync_status: string | null
+          quickbooks_synced_at: string | null
+          status: string
+          subtotal_xcg: number
+          total_xcg: number
+          updated_at: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          customer_memo?: string | null
+          due_date?: string
+          id?: string
+          invoice_date?: string
+          notes?: string | null
+          ob_tax_amount?: number
+          quickbooks_invoice_id?: string | null
+          quickbooks_invoice_number?: string | null
+          quickbooks_sync_error?: string | null
+          quickbooks_sync_status?: string | null
+          quickbooks_synced_at?: string | null
+          status?: string
+          subtotal_xcg?: number
+          total_xcg?: number
+          updated_at?: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          customer_memo?: string | null
+          due_date?: string
+          id?: string
+          invoice_date?: string
+          notes?: string | null
+          ob_tax_amount?: number
+          quickbooks_invoice_id?: string | null
+          quickbooks_invoice_number?: string | null
+          quickbooks_sync_error?: string | null
+          quickbooks_sync_status?: string | null
+          quickbooks_synced_at?: string | null
+          status?: string
+          subtotal_xcg?: number
+          total_xcg?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fnb_order_items: {
         Row: {
           actual_weight_kg: number | null
@@ -1957,6 +2172,7 @@ export type Database = {
           driver_id: string | null
           driver_name: string | null
           id: string
+          invoice_id: string | null
           is_pickup: boolean | null
           language_used: string | null
           manual_override_at: string | null
@@ -1999,6 +2215,7 @@ export type Database = {
           driver_id?: string | null
           driver_name?: string | null
           id?: string
+          invoice_id?: string | null
           is_pickup?: boolean | null
           language_used?: string | null
           manual_override_at?: string | null
@@ -2041,6 +2258,7 @@ export type Database = {
           driver_id?: string | null
           driver_name?: string | null
           id?: string
+          invoice_id?: string | null
           is_pickup?: boolean | null
           language_used?: string | null
           manual_override_at?: string | null
@@ -2072,6 +2290,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "fnb_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_orders_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "fnb_invoices"
             referencedColumns: ["id"]
           },
           {
@@ -2323,6 +2548,7 @@ export type Database = {
           created_at: string | null
           id: string
           is_active: boolean | null
+          is_ob_eligible: boolean | null
           is_weight_based: boolean | null
           items_per_case: number | null
           min_order_qty: number | null
@@ -2349,6 +2575,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_active?: boolean | null
+          is_ob_eligible?: boolean | null
           is_weight_based?: boolean | null
           items_per_case?: number | null
           min_order_qty?: number | null
@@ -2375,6 +2602,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_active?: boolean | null
+          is_ob_eligible?: boolean | null
           is_weight_based?: boolean | null
           items_per_case?: number | null
           min_order_qty?: number | null
