@@ -67,15 +67,26 @@ Deno.serve(async (req) => {
       throw new Error('Invoice must be confirmed before syncing');
     }
 
-    // Get QuickBooks credentials
+    // Get QuickBooks credentials from secrets
     const clientId = Deno.env.get('QUICKBOOKS_CLIENT_ID');
     const clientSecret = Deno.env.get('QUICKBOOKS_CLIENT_SECRET');
-    const refreshToken = Deno.env.get('QUICKBOOKS_REFRESH_TOKEN');
-    const realmId = Deno.env.get('QUICKBOOKS_REALM_ID');
+    const configuredRealmId = Deno.env.get('QUICKBOOKS_REALM_ID');
 
-    // If no QuickBooks credentials, simulate sync for development
-    if (!clientId || !clientSecret || !refreshToken || !realmId) {
-      console.log('QuickBooks credentials not configured, simulating sync...');
+    // Check for OAuth tokens in database
+    const { data: tokenData, error: tokenError } = await supabase
+      .from('quickbooks_tokens')
+      .select('*')
+      .limit(1)
+      .maybeSingle();
+
+    if (tokenError) {
+      console.error('Error fetching QuickBooks tokens:', tokenError);
+      throw new Error('Failed to retrieve QuickBooks tokens');
+    }
+
+    // If no tokens, simulate sync for development
+    if (!tokenData || !clientId || !clientSecret) {
+      console.log('QuickBooks not connected or credentials missing, simulating sync...');
       
       // Generate a mock QB invoice number
       const mockInvoiceNumber = `INV-${Date.now().toString().slice(-6)}`;
@@ -101,7 +112,8 @@ Deno.serve(async (req) => {
         action: 'synced',
         details: { 
           quickbooks_invoice_number: mockInvoiceNumber,
-          simulated: true 
+          simulated: true,
+          reason: !tokenData ? 'QuickBooks not connected' : 'Missing client credentials'
         },
       });
 
@@ -117,11 +129,15 @@ Deno.serve(async (req) => {
         success: true,
         quickbooks_invoice_id: `mock-${invoice_id.slice(0, 8)}`,
         quickbooks_invoice_number: mockInvoiceNumber,
-        message: 'Invoice synced (simulated - no QB credentials configured)',
+        message: 'Invoice synced (simulated - QuickBooks not connected)',
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    // Use realm ID from token or config
+    const realmId = tokenData.realm_id || configuredRealmId;
+    let refreshToken = tokenData.refresh_token;
 
     // Real QuickBooks integration would go here
     // 1. Refresh access token using refresh token
@@ -151,6 +167,23 @@ Deno.serve(async (req) => {
 
       const tokens = await tokenResponse.json();
       const accessToken = tokens.access_token;
+      
+      // IMPORTANT: Store the new refresh token (QuickBooks rotates tokens)
+      if (tokens.refresh_token && tokens.refresh_token !== refreshToken) {
+        console.log('Storing rotated refresh token...');
+        const expiresAt = new Date();
+        expiresAt.setSeconds(expiresAt.getSeconds() + (tokens.expires_in || 3600));
+        
+        await supabase
+          .from('quickbooks_tokens')
+          .update({
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token,
+            expires_at: expiresAt.toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('realm_id', realmId);
+      }
 
       // Step 2: Look up customer by name
       const customerName = invoice.fnb_customers?.name;
