@@ -121,6 +121,10 @@ export default function FnbNewOrder() {
   // Duplicate order confirmation state
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
   
+  // Past date confirmation state
+  const [showPastDateAlert, setShowPastDateAlert] = useState(false);
+  const [pastDateConfirmed, setPastDateConfirmed] = useState(false);
+  
   // Refs for keyboard navigation
   const quantityRefs = useRef<(HTMLInputElement | null)[]>([]);
   const priceRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -763,7 +767,51 @@ export default function FnbNewOrder() {
     },
   });
 
+  // Check if delivery date is in the past
+  const checkDeliveryDate = (date: string): { blocked: boolean; isPast: boolean; message?: string } => {
+    const deliveryDateObj = new Date(date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const oneYearAgo = new Date(today);
+    oneYearAgo.setFullYear(today.getFullYear() - 1);
+    
+    // Block if more than 1 year in past (likely wrong year)
+    if (deliveryDateObj < oneYearAgo) {
+      return { 
+        blocked: true, 
+        isPast: true,
+        message: `Date ${format(deliveryDateObj, 'MMMM d, yyyy')} is more than a year in the past. Please check the year.` 
+      };
+    }
+    
+    // Warn if in the past
+    if (deliveryDateObj < today) {
+      return { 
+        blocked: false, 
+        isPast: true,
+        message: `You selected ${format(deliveryDateObj, 'EEEE, MMMM d, yyyy')} which is in the past.` 
+      };
+    }
+    
+    return { blocked: false, isPast: false };
+  };
+
+  const dateCheck = checkDeliveryDate(deliveryDate);
+
   const handleSubmit = () => {
+    // Check for blocked dates (more than 1 year old)
+    if (dateCheck.blocked) {
+      toast.error(dateCheck.message);
+      return;
+    }
+    
+    // Check for past dates that need confirmation
+    if (dateCheck.isPast && !pastDateConfirmed) {
+      setShowPastDateAlert(true);
+      return;
+    }
+    
     if (isEditMode) {
       updateOrderMutation.mutate();
     } else if (duplicateOrders && duplicateOrders.length > 0) {
@@ -774,10 +822,30 @@ export default function FnbNewOrder() {
     }
   };
   
+  const handleConfirmPastDate = () => {
+    setPastDateConfirmed(true);
+    setShowPastDateAlert(false);
+    // Continue with submit after a brief delay to allow state to update
+    setTimeout(() => {
+      if (isEditMode) {
+        updateOrderMutation.mutate();
+      } else if (duplicateOrders && duplicateOrders.length > 0) {
+        setShowDuplicateConfirm(true);
+      } else {
+        createOrderMutation.mutate();
+      }
+    }, 0);
+  };
+  
   const handleConfirmCreate = () => {
     setShowDuplicateConfirm(false);
     createOrderMutation.mutate();
   };
+  
+  // Reset past date confirmation when delivery date changes
+  useEffect(() => {
+    setPastDateConfirmed(false);
+  }, [deliveryDate]);
 
   const isPending = createOrderMutation.isPending || updateOrderMutation.isPending;
 
@@ -986,7 +1054,20 @@ export default function FnbNewOrder() {
                       type="date"
                       value={deliveryDate}
                       onChange={(e) => setDeliveryDate(e.target.value)}
+                      className={dateCheck.isPast && !dateCheck.blocked ? 'border-orange-400 focus-visible:ring-orange-400' : ''}
                     />
+                    {dateCheck.isPast && !dateCheck.blocked && (
+                      <p className="text-xs text-orange-600 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        This date is in the past
+                      </p>
+                    )}
+                    {dateCheck.blocked && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        {dateCheck.message}
+                      </p>
+                    )}
                   </div>
                 </div>
                 
@@ -1713,6 +1794,33 @@ export default function FnbNewOrder() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Past Date Confirmation Dialog */}
+      <AlertDialog open={showPastDateAlert} onOpenChange={setShowPastDateAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-orange-500" />
+              Past {isPickup ? 'Pickup' : 'Delivery'} Date Selected
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>You are creating an order with a {isPickup ? 'pickup' : 'delivery'} date in the past:</p>
+              <p className="font-semibold text-lg text-foreground">
+                {format(new Date(deliveryDate), 'EEEE, MMMM d, yyyy')}
+              </p>
+              <p>Are you sure you want to continue?</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowPastDateAlert(false)}>
+              Go Back & Change Date
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmPastDate}>
+              Continue Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Duplicate Order Confirmation Dialog */}
       <AlertDialog open={showDuplicateConfirm} onOpenChange={setShowDuplicateConfirm}>
