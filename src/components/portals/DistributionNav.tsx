@@ -1,12 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, ShoppingCart, ClipboardPaste, Users, User } from 'lucide-react';
+import { Home, ShoppingCart, ClipboardPaste, FileText, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { path: '/distribution', label: 'Home', icon: Home },
   { path: '/distribution/orders', label: 'Orders', icon: ShoppingCart },
   { path: '/quick-paste', label: 'Quick', icon: ClipboardPaste, highlight: true },
-  { path: '/distribution/customers', label: 'Customers', icon: Users },
+  { path: '/distribution/invoices', label: 'Invoices', icon: FileText },
   { path: '/distribution/settings', label: 'Settings', icon: User },
 ];
 

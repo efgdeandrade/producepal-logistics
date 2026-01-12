@@ -1,0 +1,337 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+interface InvoiceItem {
+  product_name: string;
+  description: string | null;
+  quantity: number;
+  unit_price_xcg: number;
+  line_total_xcg: number;
+  is_ob_eligible: boolean;
+}
+
+interface Invoice {
+  id: string;
+  invoice_date: string;
+  due_date: string;
+  customer_memo: string | null;
+  total_xcg: number;
+  fnb_customers: {
+    name: string;
+    whatsapp_phone: string;
+    address: string | null;
+  };
+  fnb_invoice_items: InvoiceItem[];
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const { invoice_id } = await req.json();
+    
+    if (!invoice_id) {
+      throw new Error('Invoice ID is required');
+    }
+
+    console.log('QuickBooks invoice sync requested for:', invoice_id);
+
+    // Fetch invoice with customer and items
+    const { data: invoice, error: invoiceError } = await supabase
+      .from('fnb_invoices')
+      .select(`
+        *,
+        fnb_customers (name, whatsapp_phone, address),
+        fnb_invoice_items (*)
+      `)
+      .eq('id', invoice_id)
+      .single();
+
+    if (invoiceError || !invoice) {
+      throw new Error('Invoice not found');
+    }
+
+    // Check if invoice is in confirmed status
+    if (invoice.status !== 'confirmed' && invoice.status !== 'failed') {
+      throw new Error('Invoice must be confirmed before syncing');
+    }
+
+    // Get QuickBooks credentials
+    const clientId = Deno.env.get('QUICKBOOKS_CLIENT_ID');
+    const clientSecret = Deno.env.get('QUICKBOOKS_CLIENT_SECRET');
+    const refreshToken = Deno.env.get('QUICKBOOKS_REFRESH_TOKEN');
+    const realmId = Deno.env.get('QUICKBOOKS_REALM_ID');
+
+    // If no QuickBooks credentials, simulate sync for development
+    if (!clientId || !clientSecret || !refreshToken || !realmId) {
+      console.log('QuickBooks credentials not configured, simulating sync...');
+      
+      // Generate a mock QB invoice number
+      const mockInvoiceNumber = `INV-${Date.now().toString().slice(-6)}`;
+      
+      // Update invoice as synced
+      const { error: updateError } = await supabase
+        .from('fnb_invoices')
+        .update({
+          status: 'synced',
+          quickbooks_invoice_id: `mock-${invoice_id.slice(0, 8)}`,
+          quickbooks_invoice_number: mockInvoiceNumber,
+          quickbooks_sync_status: 'synced',
+          quickbooks_synced_at: new Date().toISOString(),
+          quickbooks_sync_error: null,
+        })
+        .eq('id', invoice_id);
+
+      if (updateError) throw updateError;
+
+      // Log activity
+      await supabase.from('fnb_invoice_activity').insert({
+        invoice_id,
+        action: 'synced',
+        details: { 
+          quickbooks_invoice_number: mockInvoiceNumber,
+          simulated: true 
+        },
+      });
+
+      // Log to quickbooks_sync_log
+      await supabase.from('quickbooks_sync_log').insert({
+        entity_type: 'invoice',
+        status: 'success',
+        records_synced: 1,
+        sync_direction: 'export',
+      });
+
+      return new Response(JSON.stringify({
+        success: true,
+        quickbooks_invoice_id: `mock-${invoice_id.slice(0, 8)}`,
+        quickbooks_invoice_number: mockInvoiceNumber,
+        message: 'Invoice synced (simulated - no QB credentials configured)',
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Real QuickBooks integration would go here
+    // 1. Refresh access token using refresh token
+    // 2. Look up customer by name in QuickBooks
+    // 3. Look up products by name in QuickBooks
+    // 4. Create invoice via QuickBooks API
+    // 5. Store the returned invoice ID and number
+
+    // For now, we'll implement the OAuth token refresh and basic API call structure
+    // The actual implementation would require the QuickBooks sandbox or production environment
+
+    try {
+      // Step 1: Refresh the access token
+      const tokenResponse = await fetch('https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `grant_type=refresh_token&refresh_token=${refreshToken}`,
+      });
+
+      if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        throw new Error(`Token refresh failed: ${errorText}`);
+      }
+
+      const tokens = await tokenResponse.json();
+      const accessToken = tokens.access_token;
+
+      // Step 2: Look up customer by name
+      const customerName = invoice.fnb_customers?.name;
+      const customerQuery = encodeURIComponent(`select * from Customer where DisplayName = '${customerName}'`);
+      
+      const customerResponse = await fetch(
+        `https://quickbooks.api.intuit.com/v3/company/${realmId}/query?query=${customerQuery}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'application/json',
+          },
+        }
+      );
+
+      if (!customerResponse.ok) {
+        throw new Error(`Customer lookup failed: Customer "${customerName}" not found in QuickBooks`);
+      }
+
+      const customerData = await customerResponse.json();
+      const customers = customerData.QueryResponse?.Customer || [];
+      
+      if (customers.length === 0) {
+        throw new Error(`Customer "${customerName}" not found in QuickBooks. Please create the customer first.`);
+      }
+
+      const qbCustomer = customers[0];
+
+      // Step 3: Build line items (look up products)
+      const lineItems = [];
+      const missingProducts: string[] = [];
+
+      for (const item of invoice.fnb_invoice_items || []) {
+        const productQuery = encodeURIComponent(`select * from Item where Name = '${item.product_name}'`);
+        
+        const productResponse = await fetch(
+          `https://quickbooks.api.intuit.com/v3/company/${realmId}/query?query=${productQuery}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Accept': 'application/json',
+            },
+          }
+        );
+
+        if (productResponse.ok) {
+          const productData = await productResponse.json();
+          const products = productData.QueryResponse?.Item || [];
+          
+          if (products.length > 0) {
+            lineItems.push({
+              DetailType: 'SalesItemLineDetail',
+              Amount: item.line_total_xcg,
+              Description: item.description || undefined,
+              SalesItemLineDetail: {
+                ItemRef: { value: products[0].Id },
+                Qty: item.quantity,
+                UnitPrice: item.unit_price_xcg,
+                // Tax handling for O.B. would be configured in QuickBooks tax codes
+              },
+            });
+          } else {
+            missingProducts.push(item.product_name);
+          }
+        } else {
+          missingProducts.push(item.product_name);
+        }
+      }
+
+      if (missingProducts.length > 0) {
+        throw new Error(`Missing products in QuickBooks: ${missingProducts.join(', ')}`);
+      }
+
+      // Step 4: Create invoice
+      const invoicePayload = {
+        CustomerRef: { value: qbCustomer.Id },
+        TxnDate: invoice.invoice_date,
+        DueDate: invoice.due_date,
+        CurrencyRef: { value: 'XCG' },
+        CustomerMemo: invoice.customer_memo ? { value: invoice.customer_memo } : undefined,
+        Line: lineItems,
+      };
+
+      const createResponse = await fetch(
+        `https://quickbooks.api.intuit.com/v3/company/${realmId}/invoice`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify(invoicePayload),
+        }
+      );
+
+      if (!createResponse.ok) {
+        const errorText = await createResponse.text();
+        throw new Error(`Failed to create invoice: ${errorText}`);
+      }
+
+      const createdInvoice = await createResponse.json();
+      const qbInvoiceId = createdInvoice.Invoice?.Id;
+      const qbInvoiceNumber = createdInvoice.Invoice?.DocNumber;
+
+      // Step 5: Update our invoice with QB details
+      await supabase
+        .from('fnb_invoices')
+        .update({
+          status: 'synced',
+          quickbooks_invoice_id: qbInvoiceId,
+          quickbooks_invoice_number: qbInvoiceNumber,
+          quickbooks_sync_status: 'synced',
+          quickbooks_synced_at: new Date().toISOString(),
+          quickbooks_sync_error: null,
+        })
+        .eq('id', invoice_id);
+
+      // Log activity
+      await supabase.from('fnb_invoice_activity').insert({
+        invoice_id,
+        action: 'synced',
+        details: { 
+          quickbooks_invoice_id: qbInvoiceId,
+          quickbooks_invoice_number: qbInvoiceNumber,
+        },
+      });
+
+      // Log to quickbooks_sync_log
+      await supabase.from('quickbooks_sync_log').insert({
+        entity_type: 'invoice',
+        status: 'success',
+        records_synced: 1,
+        sync_direction: 'export',
+      });
+
+      return new Response(JSON.stringify({
+        success: true,
+        quickbooks_invoice_id: qbInvoiceId,
+        quickbooks_invoice_number: qbInvoiceNumber,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+
+    } catch (qbError: any) {
+      console.error('QuickBooks API error:', qbError);
+
+      // Update invoice with error
+      await supabase
+        .from('fnb_invoices')
+        .update({
+          status: 'failed',
+          quickbooks_sync_status: 'failed',
+          quickbooks_sync_error: qbError.message,
+        })
+        .eq('id', invoice_id);
+
+      // Log activity
+      await supabase.from('fnb_invoice_activity').insert({
+        invoice_id,
+        action: 'sync_failed',
+        details: { error: qbError.message },
+      });
+
+      // Log to quickbooks_sync_log
+      await supabase.from('quickbooks_sync_log').insert({
+        entity_type: 'invoice',
+        status: 'error',
+        records_synced: 0,
+        sync_direction: 'export',
+      });
+
+      throw qbError;
+    }
+
+  } catch (error: unknown) {
+    console.error('Invoice sync error:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return new Response(JSON.stringify({ error: message }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+});

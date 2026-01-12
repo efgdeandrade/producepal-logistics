@@ -77,3 +77,6 @@ verify_jwt = true
 
 [functions.export-data]
 verify_jwt = true
+
+[functions.quickbooks-invoice-sync]
+verify_jwt = true
