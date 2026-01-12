@@ -442,6 +442,8 @@ export default function FnbCustomers() {
 
   const handleEdit = (customer: FnbCustomer) => {
     setEditingCustomer(customer);
+    // Clear pending location before setting form data to avoid stale data
+    setPendingLocation(null);
     setFormData({
       name: customer.name,
       whatsapp_phone: customer.whatsapp_phone,
@@ -456,6 +458,7 @@ export default function FnbCustomers() {
       longitude: customer.longitude || null,
     });
     setDetectedZoneInfo(null);
+    setIsLocationPickerOpen(false);
     setIsDialogOpen(true);
   };
 
@@ -815,12 +818,27 @@ export default function FnbCustomers() {
                           type="button"
                           variant="outline"
                           size="icon"
-                          onClick={() => setIsLocationPickerOpen(true)}
+                          onClick={() => {
+                            // Use existing coordinates if available, otherwise null
+                            if (formData.latitude && formData.longitude) {
+                              setPendingLocation({ lat: formData.latitude, lng: formData.longitude });
+                            } else {
+                              setPendingLocation(null);
+                            }
+                            setIsLocationPickerOpen(true);
+                          }}
                           title="Pick location on map"
                         >
                           <MapIcon className="h-4 w-4" />
                         </Button>
                       </div>
+                      {/* Show saved coordinates if available */}
+                      {formData.latitude && formData.longitude && (
+                        <div className="flex items-center gap-2 text-xs text-green-600 mt-1">
+                          <MapPin className="h-3 w-3" />
+                          <span>Saved: {formData.latitude.toFixed(5)}, {formData.longitude.toFixed(5)}</span>
+                        </div>
+                      )}
                       {subZonesUnlinked && (
                         <p className="text-xs text-amber-600">
                           ⚠ Sub-zones not linked to this major zone. Showing all sub-zones.

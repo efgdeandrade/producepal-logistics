@@ -45,20 +45,22 @@ serve(async (req) => {
       );
     }
 
+    console.log(`[get-mapbox-token] Authenticated user: ${user.email}`);
+    
     const mapboxToken = Deno.env.get('MAPBOX_PUBLIC_TOKEN');
     
     if (!mapboxToken) {
-      console.error('MAPBOX_PUBLIC_TOKEN not configured');
+      console.error('[get-mapbox-token] MAPBOX_PUBLIC_TOKEN environment variable not set');
       return new Response(
         JSON.stringify({ error: 'Mapbox token not configured' }),
         { 
-          status: 500, 
+          status: 200, // Return 200 with error in body for better client handling
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       );
     }
 
-    console.log(`Mapbox token requested by user: ${user.email}`);
+    console.log(`[get-mapbox-token] Token found, returning to user: ${user.email}`);
 
     return new Response(
       JSON.stringify({ token: mapboxToken }),
