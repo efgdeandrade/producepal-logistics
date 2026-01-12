@@ -110,6 +110,7 @@ export default function FnbPicker() {
 const PICKER_UNITS = [
   { value: 'pcs', label: 'Pcs' },
   { value: 'kg', label: 'Kg' },
+  { value: 'gr', label: 'Gr' },
   { value: 'lb', label: 'Lb' },
   { value: 'oz', label: 'Oz' },
   { value: 'case', label: 'Case' },
@@ -190,6 +191,7 @@ const PICKER_UNITS = [
         { event: '*', schema: 'public', table: 'fnb_order_items' },
         () => {
           queryClient.invalidateQueries({ queryKey: ['fnb-picker-items'] });
+          queryClient.invalidateQueries({ queryKey: ['fnb-picker-all-items'] });
         }
       )
       .subscribe();
@@ -830,8 +832,8 @@ const PICKER_UNITS = [
       item.shortage_status !== 'reported' // Don't block if already reported
   );
 
-  // Calculate progress
-  const pickedCount = Object.values(pickedQuantities).filter(q => q > 0).length;
+  // Calculate progress based on items with picked_by set (checkboxes ticked)
+  const pickedCount = orderItems?.filter((item: any) => item.picked_by !== null).length || 0;
   const totalCount = orderItems?.length || 0;
   const progress = totalCount > 0 ? (pickedCount / totalCount) * 100 : 0;
 
@@ -1615,10 +1617,10 @@ const PICKER_UNITS = [
                                 {isWeightBased ? (
                                   /* Weight-based items: Direct weight input */
                                   <div className="space-y-1">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <Scale className="h-4 w-4 text-blue-500" />
-                                      <span className="text-xs font-medium">Weight:</span>
-                                      <div className="flex items-center gap-1">
+                                    <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                                      <Scale className="h-4 w-4 text-blue-500 shrink-0" />
+                                      <span className="text-xs font-medium shrink-0">Weight:</span>
+                                      <div className="flex items-center gap-1 min-w-0">
                                         <Input
                                           type="number"
                                           min="0"
@@ -1632,7 +1634,7 @@ const PICKER_UNITS = [
                                               [item.id]: Math.max(0, value),
                                             });
                                           }}
-                                          className="w-20 h-9 text-center text-sm font-bold"
+                                          className="w-20 h-9 text-center text-sm font-bold shrink-0"
                                           disabled={isCheckedByOther || (isReported && editingShortageItem !== item.id)}
                                         />
                                         <Select
@@ -1640,7 +1642,7 @@ const PICKER_UNITS = [
                                           onValueChange={(v) => setPickedUnits({ ...pickedUnits, [item.id]: v })}
                                           disabled={isCheckedByOther || (isReported && editingShortageItem !== item.id)}
                                         >
-                                          <SelectTrigger className="w-16 h-9 text-xs">
+                                          <SelectTrigger className="w-16 h-9 text-xs shrink-0">
                                             <SelectValue />
                                           </SelectTrigger>
                                           <SelectContent>
@@ -1695,9 +1697,9 @@ const PICKER_UNITS = [
                                   </div>
                                 ) : (
                                   /* Fixed quantity items: +/- buttons with unit selector */
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="text-xs font-medium">Picked:</span>
-                                    <div className="flex items-center gap-1">
+                                  <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                                    <span className="text-xs font-medium shrink-0">Picked:</span>
+                                    <div className="flex items-center gap-1 min-w-0">
                                       <Button
                                         variant="outline"
                                         size="sm"
