@@ -148,12 +148,6 @@ export default function FnbDashboard() {
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-24 flex-col gap-2">
-            <Link to="/distribution/delivery">
-              <Truck className="h-6 w-6" />
-              <span>Delivery</span>
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="h-24 flex-col gap-2">
             <Link to="/distribution/cod">
               <Banknote className="h-6 w-6" />
               <span>COD</span>
@@ -169,12 +163,6 @@ export default function FnbDashboard() {
             <Link to="/distribution/zones">
               <MapPin className="h-6 w-6" />
               <span>Zones</span>
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="h-24 flex-col gap-2">
-            <Link to="/distribution/driver-portal">
-              <Truck className="h-6 w-6" />
-              <span>Driver Portal</span>
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-24 flex-col gap-2">

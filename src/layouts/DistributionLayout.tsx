@@ -19,7 +19,11 @@ import {
   BarChart,
   Settings,
   ArrowLeft,
-  Box
+  Box,
+  Calendar,
+  Eye,
+  Camera,
+  GraduationCap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -33,11 +37,15 @@ const distributionNavItems: PortalNavItem[] = [
   { path: '/distribution/customers', label: 'Customers', icon: Users },
   { path: '/distribution/products', label: 'Products', icon: Box },
   { path: '/distribution/picker', label: 'Picker Station', icon: ClipboardPaste },
+  { path: '/distribution/picker/supervisor', label: 'Picker Supervisor', icon: Eye },
+  { path: '/distribution/weekly', label: 'Weekly Board', icon: Calendar },
   { path: '/distribution/standing-orders', label: 'Standing Orders', icon: Repeat },
-  { path: '/distribution/pricing', label: 'Pricing', icon: DollarSign },
+  { path: '/distribution/receipts', label: 'Receipts', icon: Camera },
+  { path: '/distribution/pricing', label: 'Pricing Tiers', icon: DollarSign },
   { path: '/distribution/zones', label: 'Zones', icon: MapPin },
   { path: '/distribution/cod', label: 'COD Reconciliation', icon: Wallet },
   { path: '/distribution/analytics', label: 'Analytics', icon: BarChart },
+  { path: '/distribution/training', label: 'Training Hub', icon: GraduationCap },
   { path: '/distribution/settings', label: 'Settings', icon: Settings },
 ];
 
