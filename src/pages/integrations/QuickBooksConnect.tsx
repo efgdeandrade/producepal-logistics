@@ -68,32 +68,32 @@ const QuickBooksConnect = () => {
     }
   };
 
-  const handleConnect = () => {
+  const handleConnect = async () => {
     setConnecting(true);
     
-    // Build OAuth authorization URL
-    const clientId = import.meta.env.VITE_QUICKBOOKS_CLIENT_ID || 
-      'ABa0NsoiplЗroA5iooLYq4bw6LyluddBCP8×KqfgB9BhVLX3Oi'; // Fallback for display
-    
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const redirectUri = encodeURIComponent(`${supabaseUrl}/functions/v1/quickbooks-oauth-callback`);
-    
-    // QuickBooks OAuth 2.0 scopes for accounting
-    const scopes = encodeURIComponent('com.intuit.quickbooks.accounting');
-    
-    // State parameter for security (could be improved with CSRF token)
-    const state = Math.random().toString(36).substring(2, 15);
-    
-    // Build authorization URL
-    const authUrl = `https://appcenter.intuit.com/connect/oauth2?` +
-      `client_id=${clientId}&` +
-      `redirect_uri=${redirectUri}&` +
-      `response_type=code&` +
-      `scope=${scopes}&` +
-      `state=${state}`;
-    
-    // Redirect to QuickBooks authorization
-    window.location.href = authUrl;
+    try {
+      // Call the secure edge function to get the OAuth URL
+      const { data, error } = await supabase.functions.invoke('quickbooks-oauth-init');
+      
+      if (error) {
+        throw new Error(error.message || 'Failed to initiate connection');
+      }
+      
+      if (!data?.authUrl) {
+        throw new Error('No authorization URL received from server');
+      }
+      
+      // Redirect to QuickBooks authorization
+      window.location.href = data.authUrl;
+    } catch (error: any) {
+      console.error('Failed to connect to QuickBooks:', error);
+      toast({
+        title: 'Connection Failed',
+        description: error.message || 'Failed to initiate QuickBooks connection. Please try again.',
+        variant: 'destructive',
+      });
+      setConnecting(false);
+    }
   };
 
   const handleDisconnect = async () => {

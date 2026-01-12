@@ -83,3 +83,6 @@ verify_jwt = true
 
 [functions.quickbooks-oauth-callback]
 verify_jwt = false
+
+[functions.quickbooks-oauth-init]
+verify_jwt = false
