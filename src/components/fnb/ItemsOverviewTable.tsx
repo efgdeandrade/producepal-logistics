@@ -28,6 +28,7 @@ interface OrderItem {
   product_id: string;
   quantity: number;
   picked_quantity: number | null;
+  picked_by: string | null;
   order_unit: string | null;
   fnb_products?: {
     id: string;
@@ -51,6 +52,8 @@ interface AggregatedItem {
   totalOrdered: number;
   totalPicked: number;
   orderCount: number;
+  itemsPicked: number;
+  itemsTotal: number;
   completionPercentage: number;
 }
 
@@ -58,7 +61,7 @@ export function ItemsOverviewTable({ queueItems, allOrderItems, isLoading }: Ite
   const [isOpen, setIsOpen] = useState(true);
   const [hideCompleted, setHideCompleted] = useState(false);
 
-  // Aggregate items by product
+  // Aggregate items by product - count items picked (checkbox checked) vs total items
   const aggregatedItems = useMemo(() => {
     if (!allOrderItems || allOrderItems.length === 0) return [];
 
@@ -71,14 +74,15 @@ export function ItemsOverviewTable({ queueItems, allOrderItems, isLoading }: Ite
 
       const existing = itemMap.get(productId);
       const ordered = Number(item.quantity) || 0;
-      const picked = Number(item.picked_quantity) || 0;
+      const isPicked = item.picked_by !== null;
 
       if (existing) {
         existing.totalOrdered += ordered;
-        existing.totalPicked += picked;
         existing.orderCount += 1;
-        existing.completionPercentage = existing.totalOrdered > 0 
-          ? (existing.totalPicked / existing.totalOrdered) * 100 
+        existing.itemsTotal += 1;
+        existing.itemsPicked += isPicked ? 1 : 0;
+        existing.completionPercentage = existing.itemsTotal > 0 
+          ? (existing.itemsPicked / existing.itemsTotal) * 100 
           : 0;
       } else {
         itemMap.set(productId, {
@@ -87,9 +91,11 @@ export function ItemsOverviewTable({ queueItems, allOrderItems, isLoading }: Ite
           productCode: product.code,
           unit: item.order_unit || product.unit || 'pcs',
           totalOrdered: ordered,
-          totalPicked: picked,
+          totalPicked: 0,
           orderCount: 1,
-          completionPercentage: ordered > 0 ? (picked / ordered) * 100 : 0,
+          itemsTotal: 1,
+          itemsPicked: isPicked ? 1 : 0,
+          completionPercentage: isPicked ? 100 : 0,
         });
       }
     });
@@ -229,7 +235,7 @@ export function ItemsOverviewTable({ queueItems, allOrderItems, isLoading }: Ite
                             </span>
                           </div>
                           <div className="text-xs text-muted-foreground mt-0.5">
-                            {item.totalPicked}/{item.totalOrdered}
+                            {item.itemsPicked}/{item.itemsTotal} picked
                           </div>
                         </TableCell>
                       </TableRow>
