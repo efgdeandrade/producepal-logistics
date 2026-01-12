@@ -7,12 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Save, Calendar, ArrowRight, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Save, Calendar, ArrowRight, Plus, Trash2, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { RolePermissionCard } from '@/components/settings/RolePermissionCard';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -38,11 +38,20 @@ export default function Settings() {
   const [rolePermissions, setRolePermissions] = useState<any[]>([]);
   const [customResources, setCustomResources] = useState<string[]>([]);
   const [newResource, setNewResource] = useState('');
+  const [roleSearchQuery, setRoleSearchQuery] = useState('');
   
   // All roles from app_role enum
   const roles = ['admin', 'manager', 'management', 'driver', 'production', 'accounting', 'logistics', 'hr', 'interim'];
   const defaultResources = ['dashboard', 'orders', 'data', 'logistics', 'production', 'analytics', 'settings', 'users'];
   const allResources = [...new Set([...defaultResources, ...customResources])];
+  
+  // Resource categories for organized display
+  const resourceCategories = [
+    { name: 'Core', resources: ['dashboard', 'settings', 'users'] },
+    { name: 'Operations', resources: ['orders', 'logistics', 'production'] },
+    { name: 'Data & Analytics', resources: ['data', 'analytics'] },
+    { name: 'Custom', resources: customResources },
+  ];
 
   useEffect(() => {
     if (!isAdmin()) {
@@ -244,14 +253,6 @@ export default function Settings() {
     }
   };
 
-  const getPermission = (role: string, resource: string) => {
-    return rolePermissions.find(p => p.role === role && p.resource === resource) || {
-      can_view: false,
-      can_create: false,
-      can_update: false,
-      can_delete: false
-    };
-  };
 
   const handleAddResource = () => {
     const resourceName = newResource.trim().toLowerCase().replace(/\s+/g, '_');
@@ -511,132 +512,90 @@ export default function Settings() {
             <Card>
               <CardHeader>
                 <CardTitle>Role Permissions</CardTitle>
-                <CardDescription>Configure what each role can access. All 9 roles are shown below.</CardDescription>
+                <CardDescription>
+                  Configure what each role can access. Click on a role to expand and modify permissions.
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Add New Resource */}
-                <div className="flex items-end gap-2 p-4 bg-muted/50 rounded-lg">
-                  <div className="flex-1 space-y-2">
-                    <Label htmlFor="newResource">Add New Resource</Label>
+                {/* Search and Add Resource */}
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      id="newResource"
-                      value={newResource}
-                      onChange={(e) => setNewResource(e.target.value)}
-                      placeholder="e.g., reports, inventory, billing"
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddResource()}
+                      placeholder="Search roles..."
+                      value={roleSearchQuery}
+                      onChange={(e) => setRoleSearchQuery(e.target.value)}
+                      className="pl-9"
                     />
                   </div>
-                  <Button onClick={handleAddResource} size="sm">
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add Resource
-                  </Button>
+                  <div className="flex gap-2">
+                    <Input
+                      value={newResource}
+                      onChange={(e) => setNewResource(e.target.value)}
+                      placeholder="New resource name..."
+                      className="w-48"
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddResource()}
+                    />
+                    <Button onClick={handleAddResource} size="sm">
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="border-b bg-muted/30">
-                        <th className="text-left p-2 font-semibold">Role</th>
-                        <th className="text-left p-2 font-semibold">Resource</th>
-                        <th className="text-center p-2 font-semibold">View</th>
-                        <th className="text-center p-2 font-semibold">Create</th>
-                        <th className="text-center p-2 font-semibold">Update</th>
-                        <th className="text-center p-2 font-semibold">Delete</th>
-                        <th className="text-center p-2 font-semibold w-16">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {roles.map((role, roleIndex) => 
-                        allResources.map((resource, resourceIndex) => {
-                          const perm = getPermission(role, resource);
-                          const isFirstResourceForRole = resourceIndex === 0;
-                          const isCustomResource = !defaultResources.includes(resource);
-                          return (
-                            <tr 
-                              key={`${role}-${resource}`} 
-                              className={`border-b hover:bg-muted/50 ${isFirstResourceForRole ? 'border-t-2 border-t-border' : ''}`}
+                {/* Custom Resources List */}
+                {customResources.length > 0 && (
+                  <div className="flex flex-wrap gap-2 p-3 bg-muted/30 rounded-lg">
+                    <span className="text-sm font-medium text-muted-foreground mr-2">Custom resources:</span>
+                    {customResources.map(resource => (
+                      <AlertDialog key={resource}>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" size="sm" className="gap-1">
+                            {resource.replace(/_/g, ' ')}
+                            <Trash2 className="h-3 w-3 text-destructive" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Resource</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will delete the "{resource}" resource and all its permissions for all roles.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={() => handleDeleteResource(resource)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
-                              <td className="p-2 font-medium capitalize">
-                                {isFirstResourceForRole ? role : ''}
-                              </td>
-                              <td className="p-2 capitalize">
-                                <span className={isCustomResource ? 'text-primary font-medium' : ''}>
-                                  {resource.replace(/_/g, ' ')}
-                                </span>
-                                {isCustomResource && (
-                                  <span className="ml-2 text-xs text-muted-foreground">(custom)</span>
-                                )}
-                              </td>
-                              <td className="p-2 text-center">
-                                <Checkbox
-                                  checked={perm.can_view}
-                                  onCheckedChange={(checked) => 
-                                    handlePermissionChange(role, resource, 'can_view', checked as boolean)
-                                  }
-                                />
-                              </td>
-                              <td className="p-2 text-center">
-                                <Checkbox
-                                  checked={perm.can_create}
-                                  onCheckedChange={(checked) => 
-                                    handlePermissionChange(role, resource, 'can_create', checked as boolean)
-                                  }
-                                />
-                              </td>
-                              <td className="p-2 text-center">
-                                <Checkbox
-                                  checked={perm.can_update}
-                                  onCheckedChange={(checked) => 
-                                    handlePermissionChange(role, resource, 'can_update', checked as boolean)
-                                  }
-                                />
-                              </td>
-                              <td className="p-2 text-center">
-                                <Checkbox
-                                  checked={perm.can_delete}
-                                  onCheckedChange={(checked) => 
-                                    handlePermissionChange(role, resource, 'can_delete', checked as boolean)
-                                  }
-                                />
-                              </td>
-                              <td className="p-2 text-center">
-                                {isFirstResourceForRole && isCustomResource && (
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>Delete Resource</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          This will delete the "{resource}" resource and all its permissions for all roles. This action cannot be undone.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction 
-                                          onClick={() => handleDeleteResource(resource)}
-                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                        >
-                                          Delete
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    ))}
+                  </div>
+                )}
+
+                {/* Role Permission Cards */}
+                <div className="space-y-3">
+                  {roles
+                    .filter(role => role.toLowerCase().includes(roleSearchQuery.toLowerCase()))
+                    .map(role => (
+                      <RolePermissionCard
+                        key={role}
+                        role={role}
+                        permissions={rolePermissions.filter(p => p.role === role)}
+                        allResources={allResources}
+                        resourceCategories={resourceCategories}
+                        onPermissionChange={handlePermissionChange}
+                        isAdmin={role === 'admin'}
+                      />
+                    ))}
                 </div>
                 
-                <p className="text-sm text-muted-foreground">
-                  Showing {roles.length} roles × {allResources.length} resources = {roles.length * allResources.length} permission rows
+                <p className="text-sm text-muted-foreground text-center">
+                  {roles.length} roles • {allResources.length} resources • {roles.length * allResources.length * 4} total permissions
                 </p>
               </CardContent>
             </Card>

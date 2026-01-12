@@ -4467,6 +4467,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_permission: {
+        Args: { _action: string; _resource: string }
+        Returns: boolean
+      }
       claim_initial_admin: { Args: never; Returns: undefined }
       generate_receipt_number: { Args: never; Returns: string }
       get_user_roles: {
