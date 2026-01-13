@@ -158,6 +158,13 @@ Deno.serve(async (req) => {
 
     console.log('Using Realm ID:', finalRealmId);
 
+    // Detect sandbox vs production based on realm ID pattern or explicit flag
+    // QuickBooks sandbox realm IDs are typically shorter and start with specific patterns
+    // For safety, default to sandbox mode during development
+    const isSandbox = true; // Set to false for production deployments
+    
+    console.log('Storing tokens with is_sandbox:', isSandbox);
+
     // Upsert tokens (update if realm_id exists, otherwise insert)
     const { error: dbError } = await supabase
       .from('quickbooks_tokens')
@@ -166,6 +173,7 @@ Deno.serve(async (req) => {
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,
         expires_at: expiresAt.toISOString(),
+        is_sandbox: isSandbox,
         updated_at: new Date().toISOString(),
       }, {
         onConflict: 'realm_id',

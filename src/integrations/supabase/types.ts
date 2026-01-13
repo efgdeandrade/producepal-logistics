@@ -3728,6 +3728,7 @@ export type Database = {
           created_at: string | null
           expires_at: string
           id: string
+          is_sandbox: boolean | null
           realm_id: string
           refresh_token: string
           updated_at: string | null
@@ -3737,6 +3738,7 @@ export type Database = {
           created_at?: string | null
           expires_at: string
           id?: string
+          is_sandbox?: boolean | null
           realm_id: string
           refresh_token: string
           updated_at?: string | null
@@ -3746,6 +3748,7 @@ export type Database = {
           created_at?: string | null
           expires_at?: string
           id?: string
+          is_sandbox?: boolean | null
           realm_id?: string
           refresh_token?: string
           updated_at?: string | null
