@@ -28,6 +28,13 @@ interface Invoice {
   fnb_invoice_items: InvoiceItem[];
 }
 
+// Get the correct QuickBooks API base URL based on environment
+function getQuickBooksBaseUrl(isSandbox: boolean): string {
+  return isSandbox 
+    ? 'https://sandbox-quickbooks.api.intuit.com'
+    : 'https://quickbooks.api.intuit.com';
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -138,19 +145,17 @@ Deno.serve(async (req) => {
     // Use realm ID from token or config
     const realmId = tokenData.realm_id || configuredRealmId;
     let refreshToken = tokenData.refresh_token;
-
-    // Real QuickBooks integration would go here
-    // 1. Refresh access token using refresh token
-    // 2. Look up customer by name in QuickBooks
-    // 3. Look up products by name in QuickBooks
-    // 4. Create invoice via QuickBooks API
-    // 5. Store the returned invoice ID and number
-
-    // For now, we'll implement the OAuth token refresh and basic API call structure
-    // The actual implementation would require the QuickBooks sandbox or production environment
+    
+    // Determine if this is a sandbox connection (default to true for safety)
+    const isSandbox = tokenData.is_sandbox !== false;
+    const baseUrl = getQuickBooksBaseUrl(isSandbox);
+    
+    console.log('Using QuickBooks environment:', isSandbox ? 'SANDBOX' : 'PRODUCTION');
+    console.log('API Base URL:', baseUrl);
 
     try {
       // Step 1: Refresh the access token
+      console.log('Refreshing access token...');
       const tokenResponse = await fetch('https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer', {
         method: 'POST',
         headers: {
@@ -162,11 +167,13 @@ Deno.serve(async (req) => {
 
       if (!tokenResponse.ok) {
         const errorText = await tokenResponse.text();
+        console.error('Token refresh failed:', tokenResponse.status, errorText);
         throw new Error(`Token refresh failed: ${errorText}`);
       }
 
       const tokens = await tokenResponse.json();
       const accessToken = tokens.access_token;
+      console.log('Access token refreshed successfully');
       
       // IMPORTANT: Store the new refresh token (QuickBooks rotates tokens)
       if (tokens.refresh_token && tokens.refresh_token !== refreshToken) {
@@ -187,53 +194,64 @@ Deno.serve(async (req) => {
 
       // Step 2: Look up customer by name
       const customerName = invoice.fnb_customers?.name;
-      const customerQuery = encodeURIComponent(`select * from Customer where DisplayName = '${customerName}'`);
+      console.log('Looking up customer:', customerName);
       
-      const customerResponse = await fetch(
-        `https://quickbooks.api.intuit.com/v3/company/${realmId}/query?query=${customerQuery}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Accept': 'application/json',
-          },
-        }
-      );
+      // Escape single quotes in customer name for the query
+      const escapedCustomerName = customerName?.replace(/'/g, "\\'") || '';
+      const customerQuery = encodeURIComponent(`select * from Customer where DisplayName = '${escapedCustomerName}'`);
+      
+      const customerUrl = `${baseUrl}/v3/company/${realmId}/query?query=${customerQuery}`;
+      console.log('Customer query URL:', customerUrl);
+      
+      const customerResponse = await fetch(customerUrl, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Accept': 'application/json',
+        },
+      });
 
       if (!customerResponse.ok) {
-        throw new Error(`Customer lookup failed: Customer "${customerName}" not found in QuickBooks`);
+        const errorBody = await customerResponse.text();
+        console.error('Customer lookup HTTP error:', customerResponse.status, errorBody);
+        throw new Error(`Customer lookup failed (HTTP ${customerResponse.status}): ${errorBody}`);
       }
 
       const customerData = await customerResponse.json();
+      console.log('Customer query response:', JSON.stringify(customerData, null, 2));
+      
       const customers = customerData.QueryResponse?.Customer || [];
       
       if (customers.length === 0) {
-        throw new Error(`Customer "${customerName}" not found in QuickBooks. Please create the customer first.`);
+        throw new Error(`Customer "${customerName}" not found in QuickBooks. Please create the customer first or check the exact spelling matches.`);
       }
 
       const qbCustomer = customers[0];
+      console.log('Found customer in QuickBooks:', qbCustomer.DisplayName, 'ID:', qbCustomer.Id);
 
       // Step 3: Build line items (look up products)
       const lineItems = [];
       const missingProducts: string[] = [];
 
       for (const item of invoice.fnb_invoice_items || []) {
-        const productQuery = encodeURIComponent(`select * from Item where Name = '${item.product_name}'`);
+        const escapedProductName = item.product_name?.replace(/'/g, "\\'") || '';
+        const productQuery = encodeURIComponent(`select * from Item where Name = '${escapedProductName}'`);
         
-        const productResponse = await fetch(
-          `https://quickbooks.api.intuit.com/v3/company/${realmId}/query?query=${productQuery}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Accept': 'application/json',
-            },
-          }
-        );
+        const productUrl = `${baseUrl}/v3/company/${realmId}/query?query=${productQuery}`;
+        console.log('Product query for:', item.product_name);
+        
+        const productResponse = await fetch(productUrl, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'application/json',
+          },
+        });
 
         if (productResponse.ok) {
           const productData = await productResponse.json();
           const products = productData.QueryResponse?.Item || [];
           
           if (products.length > 0) {
+            console.log('Found product in QuickBooks:', products[0].Name, 'ID:', products[0].Id);
             lineItems.push({
               DetailType: 'SalesItemLineDetail',
               Amount: item.line_total_xcg,
@@ -242,22 +260,25 @@ Deno.serve(async (req) => {
                 ItemRef: { value: products[0].Id },
                 Qty: item.quantity,
                 UnitPrice: item.unit_price_xcg,
-                // Tax handling for O.B. would be configured in QuickBooks tax codes
               },
             });
           } else {
+            console.warn('Product not found in QuickBooks:', item.product_name);
             missingProducts.push(item.product_name);
           }
         } else {
+          const errorBody = await productResponse.text();
+          console.error('Product lookup HTTP error for', item.product_name, ':', productResponse.status, errorBody);
           missingProducts.push(item.product_name);
         }
       }
 
       if (missingProducts.length > 0) {
-        throw new Error(`Missing products in QuickBooks: ${missingProducts.join(', ')}`);
+        throw new Error(`Missing products in QuickBooks: ${missingProducts.join(', ')}. Please create these items in QuickBooks first.`);
       }
 
       // Step 4: Create invoice
+      console.log('Creating invoice in QuickBooks...');
       const invoicePayload = {
         CustomerRef: { value: qbCustomer.Id },
         TxnDate: invoice.invoice_date,
@@ -267,27 +288,30 @@ Deno.serve(async (req) => {
         Line: lineItems,
       };
 
-      const createResponse = await fetch(
-        `https://quickbooks.api.intuit.com/v3/company/${realmId}/invoice`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          body: JSON.stringify(invoicePayload),
-        }
-      );
+      console.log('Invoice payload:', JSON.stringify(invoicePayload, null, 2));
+
+      const createUrl = `${baseUrl}/v3/company/${realmId}/invoice`;
+      const createResponse = await fetch(createUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(invoicePayload),
+      });
 
       if (!createResponse.ok) {
         const errorText = await createResponse.text();
-        throw new Error(`Failed to create invoice: ${errorText}`);
+        console.error('Invoice creation failed:', createResponse.status, errorText);
+        throw new Error(`Failed to create invoice (HTTP ${createResponse.status}): ${errorText}`);
       }
 
       const createdInvoice = await createResponse.json();
       const qbInvoiceId = createdInvoice.Invoice?.Id;
       const qbInvoiceNumber = createdInvoice.Invoice?.DocNumber;
+      
+      console.log('Invoice created successfully! QB ID:', qbInvoiceId, 'Number:', qbInvoiceNumber);
 
       // Step 5: Update our invoice with QB details
       await supabase
@@ -309,6 +333,7 @@ Deno.serve(async (req) => {
         details: { 
           quickbooks_invoice_id: qbInvoiceId,
           quickbooks_invoice_number: qbInvoiceNumber,
+          environment: isSandbox ? 'sandbox' : 'production',
         },
       });
 
@@ -324,6 +349,7 @@ Deno.serve(async (req) => {
         success: true,
         quickbooks_invoice_id: qbInvoiceId,
         quickbooks_invoice_number: qbInvoiceNumber,
+        environment: isSandbox ? 'sandbox' : 'production',
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
