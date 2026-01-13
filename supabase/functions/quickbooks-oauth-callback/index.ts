@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     if (error) {
       console.error('OAuth error:', error, errorDescription);
       return Response.redirect(
-        `${appUrl}/settings/integrations/quickbooks?error=${encodeURIComponent(errorDescription || error)}`,
+        `${appUrl}/settings/integrations/quickbooks/connect?error=${encodeURIComponent(errorDescription || error)}`,
         302
       );
     }
@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
     if (!code) {
       console.error('Missing authorization code');
       return Response.redirect(
-        `${appUrl}/settings/integrations/quickbooks?error=${encodeURIComponent('Missing authorization code')}`,
+        `${appUrl}/settings/integrations/quickbooks/connect?error=${encodeURIComponent('Missing authorization code')}`,
         302
       );
     }
@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
     if (!clientId || !clientSecret) {
       console.error('QuickBooks credentials not configured');
       return Response.redirect(
-        `${appUrl}/settings/integrations/quickbooks?error=${encodeURIComponent('QuickBooks credentials not configured')}`,
+        `${appUrl}/settings/integrations/quickbooks/connect?error=${encodeURIComponent('QuickBooks credentials not configured')}`,
         302
       );
     }
@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
       const errorText = await tokenResponse.text();
       console.error('Token exchange failed:', tokenResponse.status, errorText);
       return Response.redirect(
-        `${appUrl}/settings/integrations/quickbooks?error=${encodeURIComponent(`Token exchange failed: ${errorText}`)}`,
+        `${appUrl}/settings/integrations/quickbooks/connect?error=${encodeURIComponent(`Token exchange failed: ${errorText}`)}`,
         302
       );
     }
@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
     if (!finalRealmId) {
       console.error('No realm ID available');
       return Response.redirect(
-        `${appUrl}/settings/integrations/quickbooks?error=${encodeURIComponent('No QuickBooks Company ID (Realm ID) available')}`,
+        `${appUrl}/settings/integrations/quickbooks/connect?error=${encodeURIComponent('No QuickBooks Company ID (Realm ID) available')}`,
         302
       );
     }
@@ -130,7 +130,7 @@ Deno.serve(async (req) => {
     if (dbError) {
       console.error('Failed to store tokens:', dbError);
       return Response.redirect(
-        `${appUrl}/settings/integrations/quickbooks?error=${encodeURIComponent('Failed to store tokens in database')}`,
+        `${appUrl}/settings/integrations/quickbooks/connect?error=${encodeURIComponent('Failed to store tokens in database')}`,
         302
       );
     }
@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
 
     // Redirect back to the app with success
     return Response.redirect(
-      `${appUrl}/settings/integrations/quickbooks?connected=true&realmId=${finalRealmId}`,
+      `${appUrl}/settings/integrations/quickbooks/connect?connected=true&realmId=${finalRealmId}`,
       302
     );
 
@@ -149,7 +149,7 @@ Deno.serve(async (req) => {
     const appUrl = Deno.env.get('APP_URL') || 'https://dnxzpkbobzwjcuyfgdnh.lovable.app';
     
     return Response.redirect(
-      `${appUrl}/settings/integrations/quickbooks?error=${encodeURIComponent(message)}`,
+      `${appUrl}/settings/integrations/quickbooks/connect?error=${encodeURIComponent(message)}`,
       302
     );
   }
