@@ -79,13 +79,13 @@ export default function FnbReceiptVerification() {
     queryFn: async () => {
       const { start, end } = getDateRange();
       const { data, error } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select(`
           *,
-          fnb_customers!inner (name, customer_type, address)
+          distribution_customers!inner (name, customer_type, address)
         `)
         .eq("status", "delivered")
-        .eq("fnb_customers.customer_type", "supermarket")
+        .eq("distribution_customers.customer_type", "supermarket")
         .is("receipt_verified_at", null)
         .gte("delivered_at", `${start}T00:00:00`)
         .lte("delivered_at", `${end}T23:59:59`)
@@ -101,13 +101,13 @@ export default function FnbReceiptVerification() {
     queryFn: async () => {
       const { start, end } = getDateRange();
       const { data, error } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select(`
           *,
-          fnb_customers!inner (name, customer_type)
+          distribution_customers!inner (name, customer_type)
         `)
         .eq("status", "delivered")
-        .eq("fnb_customers.customer_type", "supermarket")
+        .eq("distribution_customers.customer_type", "supermarket")
         .not("receipt_verified_at", "is", null)
         .gte("receipt_verified_at", `${start}T00:00:00`)
         .lte("receipt_verified_at", `${end}T23:59:59`)
@@ -121,7 +121,7 @@ export default function FnbReceiptVerification() {
   const verifyReceiptMutation = useMutation({
     mutationFn: async (orderId: string) => {
       const { error } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .update({
           receipt_verified_at: new Date().toISOString(),
           receipt_verified_by: user?.id,
@@ -351,7 +351,7 @@ export default function FnbReceiptVerification() {
                         <div>
                           <div className="flex items-center gap-2">
                             <Store className="h-4 w-4 text-muted-foreground" />
-                            <p className="font-medium">{order.fnb_customers?.name}</p>
+                            <p className="font-medium">{order.distribution_customers?.name}</p>
                           </div>
                           <p className="text-sm text-muted-foreground">{order.order_number}</p>
                         </div>
@@ -467,7 +467,7 @@ export default function FnbReceiptVerification() {
                     <div className="flex items-center gap-3">
                       <CheckCircle className="h-5 w-5 text-green-500" />
                       <div>
-                        <p className="font-medium">{order.fnb_customers?.name}</p>
+                        <p className="font-medium">{order.distribution_customers?.name}</p>
                         <p className="text-sm text-muted-foreground">{order.order_number}</p>
                       </div>
                     </div>

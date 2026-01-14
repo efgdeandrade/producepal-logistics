@@ -36,7 +36,7 @@ export default function FnbTrainingHub() {
     queryKey: ['pending-context-words-count'],
     queryFn: async () => {
       const { count, error } = await supabase
-        .from('fnb_context_words')
+        .from('distribution_context_words')
         .select('*', { count: 'exact', head: true })
         .eq('is_verified', false);
       if (error) throw error;

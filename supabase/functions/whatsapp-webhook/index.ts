@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
 
     // Find customer by phone
     const { data: customer } = await supabase
-      .from('fnb_customers')
+      .from('distribution_customers')
       .select('id, name')
       .eq('whatsapp_phone', phone_number)
       .single();

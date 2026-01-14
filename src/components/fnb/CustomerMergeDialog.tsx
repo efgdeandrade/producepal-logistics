@@ -111,7 +111,7 @@ export function CustomerMergeDialog({
       const primary = customers.find(c => c.id === primaryId);
       const secondary = customers.find(c => c.id === secondaryId);
       
-      logActivity('merge_customers', 'fnb_customer', primaryId, {
+      logActivity('merge_customers', 'distribution_customer', primaryId, {
         primary_name: primary?.name,
         secondary_name: secondary?.name,
         secondary_id: secondaryId,

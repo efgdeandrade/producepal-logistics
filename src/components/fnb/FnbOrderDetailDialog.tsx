@@ -179,10 +179,10 @@ export function FnbOrderDetailDialog({ order, open, onOpenChange }: FnbOrderDeta
             )}
 
             <div className="grid grid-cols-2 gap-4">
-              <div>
+            <div>
                 <p className="text-sm text-muted-foreground">Customer</p>
-                <p className="font-medium">{order.distribution_customers?.name || order.fnb_customers?.name}</p>
-                <p className="text-sm">{order.distribution_customers?.whatsapp_phone || order.fnb_customers?.whatsapp_phone}</p>
+                <p className="font-medium">{order.distribution_customers?.name}</p>
+                <p className="text-sm">{order.distribution_customers?.whatsapp_phone}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Status</p>
@@ -234,10 +234,10 @@ export function FnbOrderDetailDialog({ order, open, onOpenChange }: FnbOrderDeta
                     {orderItems.map((item: any) => (
                       <TableRow key={item.id}>
                         <TableCell>
-                          {item.distribution_products?.name || item.fnb_products?.name} ({item.distribution_products?.code || item.fnb_products?.code})
+                          {item.distribution_products?.name} ({item.distribution_products?.code})
                         </TableCell>
                         <TableCell>
-                          {item.quantity} {item.distribution_products?.unit || item.fnb_products?.unit}
+                          {item.quantity} {item.distribution_products?.unit}
                         </TableCell>
                         <TableCell>{item.unit_price_xcg?.toFixed(2)}</TableCell>
                         <TableCell>{item.total_xcg?.toFixed(2)}</TableCell>
