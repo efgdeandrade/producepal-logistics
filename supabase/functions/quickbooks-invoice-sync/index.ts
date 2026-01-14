@@ -198,11 +198,11 @@ Deno.serve(async (req) => {
 
     // Fetch invoice with customer and items (including product_id)
     const { data: invoice, error: invoiceError } = await supabase
-      .from('fnb_invoices')
+      .from('distribution_invoices')
       .select(`
         *,
-        fnb_customers (name, whatsapp_phone, address),
-        fnb_invoice_items (*, product_id)
+        distribution_customers (name, whatsapp_phone, address),
+        distribution_invoice_items (*, product_id)
       `)
       .eq('id', invoice_id)
       .single();
@@ -242,7 +242,7 @@ Deno.serve(async (req) => {
       
       // Update invoice as synced
       const { error: updateError } = await supabase
-        .from('fnb_invoices')
+        .from('distribution_invoices')
         .update({
           status: 'synced',
           quickbooks_invoice_id: `mock-${invoice_id.slice(0, 8)}`,
@@ -256,7 +256,7 @@ Deno.serve(async (req) => {
       if (updateError) throw updateError;
 
       // Log activity
-      await supabase.from('fnb_invoice_activity').insert({
+      await supabase.from('distribution_invoice_activity').insert({
         invoice_id,
         action: 'synced',
         details: { 
@@ -335,7 +335,7 @@ Deno.serve(async (req) => {
       }
 
       // Step 2: Look up customer by name (with normalized matching)
-      const customerName = invoice.fnb_customers?.name;
+      const customerName = invoice.distribution_customers?.name;
       console.log('Looking up customer:', customerName);
       const normalizedCustomerName = normalizeName(customerName).toLowerCase();
       
@@ -396,7 +396,7 @@ Deno.serve(async (req) => {
       const lineItems = [];
       const createdItems: { productId: string; qbItemId: string }[] = [];
 
-      for (const item of invoice.fnb_invoice_items || []) {
+      for (const item of invoice.distribution_invoice_items || []) {
         console.log('Processing line item:', item.product_name);
         
         // Check if we already have a cached QuickBooks Item ID

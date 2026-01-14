@@ -509,13 +509,13 @@ export default function FnbOrders() {
       const dayOrders = getOrdersForDay(date).filter(o => o.status === 'pending');
       
       for (const order of dayOrders) {
-        await supabase.from('fnb_picker_queue').insert({
+        await supabase.from('distribution_picker_queue').insert({
           order_id: order.id,
           status: 'queued',
           priority: 0,
         });
         
-        await supabase.from('fnb_orders')
+        await supabase.from('distribution_orders')
           .update({ status: 'confirmed' })
           .eq('id', order.id);
       }
@@ -538,7 +538,7 @@ export default function FnbOrders() {
       const { data: { user } } = await supabase.auth.getUser();
       
       // Log the cancellation
-      await supabase.from('fnb_order_modifications').insert({
+      await supabase.from('distribution_order_modifications').insert({
         order_id: orderId,
         modified_by: user?.id,
         modified_by_email: user?.email,
@@ -549,11 +549,11 @@ export default function FnbOrders() {
       });
 
       // Remove from picker queue if present
-      await supabase.from('fnb_picker_queue').delete().eq('order_id', orderId);
+      await supabase.from('distribution_picker_queue').delete().eq('order_id', orderId);
       
       // Update order status
       const { error } = await supabase
-        .from('fnb_orders')
+        .from('distribution_orders')
         .update({ status: 'cancelled' })
         .eq('id', orderId);
       if (error) throw error;
@@ -602,7 +602,7 @@ export default function FnbOrders() {
       );
 
       const { error } = await supabase
-        .from('fnb_orders')
+        .from('distribution_orders')
         .update({ delivery_date: newDate })
         .eq('id', orderId);
 
@@ -634,7 +634,7 @@ export default function FnbOrders() {
 
         // Batch update priorities in database
         const updates = reorderedOrders.map((o, index) => 
-          supabase.from('fnb_orders').update({ priority: index }).eq('id', o.id)
+          supabase.from('distribution_orders').update({ priority: index }).eq('id', o.id)
         );
         
         const results = await Promise.all(updates);

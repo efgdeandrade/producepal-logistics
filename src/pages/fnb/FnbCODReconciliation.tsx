@@ -438,7 +438,7 @@ export default function FnbCODReconciliation() {
                               />
                             </TableCell>
                             <TableCell className="font-mono">{order.order_number}</TableCell>
-                            <TableCell>{order.fnb_customers?.name}</TableCell>
+                            <TableCell>{order.distribution_customers?.name}</TableCell>
                             <TableCell>{order.driver_name || "-"}</TableCell>
                             <TableCell>
                               <Badge variant="outline" className="capitalize">
