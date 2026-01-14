@@ -12,6 +12,7 @@ interface InvoiceItem {
   unit_price_xcg: number;
   line_total_xcg: number;
   is_ob_eligible: boolean;
+  product_id?: string;
 }
 
 interface Invoice {
@@ -28,11 +29,152 @@ interface Invoice {
   fnb_invoice_items: InvoiceItem[];
 }
 
+// Normalize names for matching (trim, collapse spaces, case-insensitive ready)
+function normalizeName(name: string | null | undefined): string {
+  if (!name) return '';
+  return name.trim().replace(/\s+/g, ' ');
+}
+
 // Get the correct QuickBooks API base URL based on environment
 function getQuickBooksBaseUrl(isSandbox: boolean): string {
   return isSandbox 
     ? 'https://sandbox-quickbooks.api.intuit.com'
     : 'https://quickbooks.api.intuit.com';
+}
+
+// Look up an item in QuickBooks with normalized matching
+async function findItemInQuickBooks(
+  itemName: string,
+  accessToken: string,
+  baseUrl: string,
+  realmId: string
+): Promise<{ Id: string; Name: string } | null> {
+  const normalizedSearchName = normalizeName(itemName).toLowerCase();
+  
+  // First try exact name match
+  const escapedName = itemName.replace(/'/g, "\\'");
+  const exactQuery = encodeURIComponent(`select * from Item where Name = '${escapedName}'`);
+  
+  try {
+    const response = await fetch(`${baseUrl}/v3/company/${realmId}/query?query=${exactQuery}`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/json',
+      },
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      const items = data.QueryResponse?.Item || [];
+      if (items.length > 0) {
+        console.log('Found item with exact match:', items[0].Name, 'ID:', items[0].Id);
+        return items[0];
+      }
+    }
+  } catch (e) {
+    console.warn('Exact match query failed:', e);
+  }
+  
+  // Try normalized matching - fetch all items and compare
+  console.log('Exact match failed, trying normalized search for:', itemName);
+  const allItemsQuery = encodeURIComponent(`select * from Item MAXRESULTS 1000`);
+  
+  try {
+    const response = await fetch(`${baseUrl}/v3/company/${realmId}/query?query=${allItemsQuery}`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/json',
+      },
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      const items = data.QueryResponse?.Item || [];
+      
+      // Find with normalized comparison
+      const match = items.find((item: any) => 
+        normalizeName(item.Name).toLowerCase() === normalizedSearchName
+      );
+      
+      if (match) {
+        console.log('Found item with normalized match:', match.Name, 'ID:', match.Id);
+        return match;
+      }
+    }
+  } catch (e) {
+    console.warn('Normalized search failed:', e);
+  }
+  
+  return null;
+}
+
+// Create a new item in QuickBooks
+async function createItemInQuickBooks(
+  itemName: string,
+  description: string | null,
+  accessToken: string,
+  baseUrl: string,
+  realmId: string
+): Promise<{ Id: string; Name: string }> {
+  // First, get the default income account (required for items)
+  console.log('Fetching income account for new item...');
+  
+  let incomeAccountRef = { value: '1', name: 'Sales' }; // Default fallback
+  
+  try {
+    const accountQuery = encodeURIComponent(`select * from Account where AccountType = 'Income' MAXRESULTS 1`);
+    const accountResponse = await fetch(`${baseUrl}/v3/company/${realmId}/query?query=${accountQuery}`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/json',
+      },
+    });
+    
+    if (accountResponse.ok) {
+      const accountData = await accountResponse.json();
+      const accounts = accountData.QueryResponse?.Account || [];
+      if (accounts.length > 0) {
+        incomeAccountRef = { value: accounts[0].Id, name: accounts[0].Name };
+        console.log('Using income account:', incomeAccountRef.name, 'ID:', incomeAccountRef.value);
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to fetch income account, using default:', e);
+  }
+  
+  // Create the item - QuickBooks has a 100 char limit on names
+  const truncatedName = normalizeName(itemName).substring(0, 100);
+  
+  const itemPayload = {
+    Name: truncatedName,
+    Type: 'NonInventory',
+    IncomeAccountRef: incomeAccountRef,
+    Description: description || undefined,
+    Taxable: false, // You may want to adjust this based on business logic
+  };
+  
+  console.log('Creating new item in QuickBooks:', truncatedName);
+  
+  const createResponse = await fetch(`${baseUrl}/v3/company/${realmId}/item`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify(itemPayload),
+  });
+  
+  if (!createResponse.ok) {
+    const errorText = await createResponse.text();
+    console.error('Failed to create item:', createResponse.status, errorText);
+    throw new Error(`Failed to create item "${truncatedName}" in QuickBooks: ${errorText}`);
+  }
+  
+  const createdItem = await createResponse.json();
+  console.log('Successfully created item:', createdItem.Item?.Name, 'ID:', createdItem.Item?.Id);
+  
+  return { Id: createdItem.Item.Id, Name: createdItem.Item.Name };
 }
 
 Deno.serve(async (req) => {
@@ -54,13 +196,13 @@ Deno.serve(async (req) => {
 
     console.log('QuickBooks invoice sync requested for:', invoice_id);
 
-    // Fetch invoice with customer and items
+    // Fetch invoice with customer and items (including product_id)
     const { data: invoice, error: invoiceError } = await supabase
       .from('fnb_invoices')
       .select(`
         *,
         fnb_customers (name, whatsapp_phone, address),
-        fnb_invoice_items (*)
+        fnb_invoice_items (*, product_id)
       `)
       .eq('id', invoice_id)
       .single();
@@ -192,14 +334,16 @@ Deno.serve(async (req) => {
           .eq('realm_id', realmId);
       }
 
-      // Step 2: Look up customer by name
+      // Step 2: Look up customer by name (with normalized matching)
       const customerName = invoice.fnb_customers?.name;
       console.log('Looking up customer:', customerName);
+      const normalizedCustomerName = normalizeName(customerName).toLowerCase();
       
-      // Escape single quotes in customer name for the query
+      // Try exact match first
       const escapedCustomerName = customerName?.replace(/'/g, "\\'") || '';
       const customerQuery = encodeURIComponent(`select * from Customer where DisplayName = '${escapedCustomerName}'`);
       
+      let qbCustomer = null;
       const customerUrl = `${baseUrl}/v3/company/${realmId}/query?query=${customerQuery}`;
       console.log('Customer query URL:', customerUrl);
       
@@ -210,75 +354,126 @@ Deno.serve(async (req) => {
         },
       });
 
-      if (!customerResponse.ok) {
+      if (customerResponse.ok) {
+        const customerData = await customerResponse.json();
+        console.log('Customer query response:', JSON.stringify(customerData, null, 2));
+        const customers = customerData.QueryResponse?.Customer || [];
+        
+        if (customers.length > 0) {
+          qbCustomer = customers[0];
+        } else {
+          // Try normalized matching
+          console.log('Exact customer match failed, trying normalized search...');
+          const allCustomersQuery = encodeURIComponent(`select * from Customer MAXRESULTS 1000`);
+          const allCustomersResponse = await fetch(`${baseUrl}/v3/company/${realmId}/query?query=${allCustomersQuery}`, {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Accept': 'application/json',
+            },
+          });
+          
+          if (allCustomersResponse.ok) {
+            const allCustomersData = await allCustomersResponse.json();
+            const allCustomers = allCustomersData.QueryResponse?.Customer || [];
+            qbCustomer = allCustomers.find((c: any) => 
+              normalizeName(c.DisplayName).toLowerCase() === normalizedCustomerName
+            );
+          }
+        }
+      } else {
         const errorBody = await customerResponse.text();
         console.error('Customer lookup HTTP error:', customerResponse.status, errorBody);
         throw new Error(`Customer lookup failed (HTTP ${customerResponse.status}): ${errorBody}`);
       }
-
-      const customerData = await customerResponse.json();
-      console.log('Customer query response:', JSON.stringify(customerData, null, 2));
       
-      const customers = customerData.QueryResponse?.Customer || [];
-      
-      if (customers.length === 0) {
+      if (!qbCustomer) {
         throw new Error(`Customer "${customerName}" not found in QuickBooks. Please create the customer first or check the exact spelling matches.`);
       }
 
-      const qbCustomer = customers[0];
       console.log('Found customer in QuickBooks:', qbCustomer.DisplayName, 'ID:', qbCustomer.Id);
 
-      // Step 3: Build line items (look up products)
+      // Step 3: Build line items (look up or create products)
       const lineItems = [];
-      const missingProducts: string[] = [];
+      const createdItems: { productId: string; qbItemId: string }[] = [];
 
       for (const item of invoice.fnb_invoice_items || []) {
-        const escapedProductName = item.product_name?.replace(/'/g, "\\'") || '';
-        const productQuery = encodeURIComponent(`select * from Item where Name = '${escapedProductName}'`);
+        console.log('Processing line item:', item.product_name);
         
-        const productUrl = `${baseUrl}/v3/company/${realmId}/query?query=${productQuery}`;
-        console.log('Product query for:', item.product_name);
+        // Check if we already have a cached QuickBooks Item ID
+        let qbItemId = null;
+        if (item.product_id) {
+          const { data: productData } = await supabase
+            .from('fnb_products')
+            .select('quickbooks_item_id')
+            .eq('id', item.product_id)
+            .single();
+          
+          if (productData?.quickbooks_item_id) {
+            console.log('Using cached QuickBooks Item ID:', productData.quickbooks_item_id);
+            qbItemId = productData.quickbooks_item_id;
+          }
+        }
         
-        const productResponse = await fetch(productUrl, {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Accept': 'application/json',
+        // If no cached ID, look up in QuickBooks
+        if (!qbItemId) {
+          const foundItem = await findItemInQuickBooks(
+            item.product_name,
+            accessToken,
+            baseUrl,
+            realmId
+          );
+          
+          if (foundItem) {
+            qbItemId = foundItem.Id;
+            
+            // Cache the QuickBooks Item ID for future syncs
+            if (item.product_id) {
+              await supabase
+                .from('fnb_products')
+                .update({ quickbooks_item_id: foundItem.Id })
+                .eq('id', item.product_id);
+              console.log('Cached QuickBooks Item ID for product:', item.product_id);
+            }
+          } else {
+            // Item doesn't exist - create it
+            console.log('Item not found in QuickBooks, auto-creating:', item.product_name);
+            
+            const createdItem = await createItemInQuickBooks(
+              item.product_name,
+              item.description,
+              accessToken,
+              baseUrl,
+              realmId
+            );
+            
+            qbItemId = createdItem.Id;
+            
+            // Cache the QuickBooks Item ID
+            if (item.product_id) {
+              await supabase
+                .from('fnb_products')
+                .update({ quickbooks_item_id: createdItem.Id })
+                .eq('id', item.product_id);
+              console.log('Cached newly created QuickBooks Item ID for product:', item.product_id);
+              createdItems.push({ productId: item.product_id, qbItemId: createdItem.Id });
+            }
+          }
+        }
+        
+        lineItems.push({
+          DetailType: 'SalesItemLineDetail',
+          Amount: item.line_total_xcg,
+          Description: item.description || undefined,
+          SalesItemLineDetail: {
+            ItemRef: { value: qbItemId },
+            Qty: item.quantity,
+            UnitPrice: item.unit_price_xcg,
           },
         });
-
-        if (productResponse.ok) {
-          const productData = await productResponse.json();
-          const products = productData.QueryResponse?.Item || [];
-          
-          if (products.length > 0) {
-            console.log('Found product in QuickBooks:', products[0].Name, 'ID:', products[0].Id);
-            lineItems.push({
-              DetailType: 'SalesItemLineDetail',
-              Amount: item.line_total_xcg,
-              Description: item.description || undefined,
-              SalesItemLineDetail: {
-                ItemRef: { value: products[0].Id },
-                Qty: item.quantity,
-                UnitPrice: item.unit_price_xcg,
-              },
-            });
-          } else {
-            console.warn('Product not found in QuickBooks:', item.product_name);
-            missingProducts.push(item.product_name);
-          }
-        } else {
-          const errorBody = await productResponse.text();
-          console.error('Product lookup HTTP error for', item.product_name, ':', productResponse.status, errorBody);
-          missingProducts.push(item.product_name);
-        }
-      }
-
-      if (missingProducts.length > 0) {
-        throw new Error(`Missing products in QuickBooks: ${missingProducts.join(', ')}. Please create these items in QuickBooks first.`);
       }
 
       // Step 4: Create invoice
-      console.log('Creating invoice in QuickBooks...');
+      console.log('Creating invoice in QuickBooks with', lineItems.length, 'line items...');
       const invoicePayload = {
         CustomerRef: { value: qbCustomer.Id },
         TxnDate: invoice.invoice_date,
@@ -334,6 +529,7 @@ Deno.serve(async (req) => {
           quickbooks_invoice_id: qbInvoiceId,
           quickbooks_invoice_number: qbInvoiceNumber,
           environment: isSandbox ? 'sandbox' : 'production',
+          items_created: createdItems.length,
         },
       });
 
@@ -350,6 +546,7 @@ Deno.serve(async (req) => {
         quickbooks_invoice_id: qbInvoiceId,
         quickbooks_invoice_number: qbInvoiceNumber,
         environment: isSandbox ? 'sandbox' : 'production',
+        items_created: createdItems.length,
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
