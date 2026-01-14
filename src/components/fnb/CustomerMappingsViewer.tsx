@@ -15,10 +15,10 @@ export function CustomerMappingsViewer() {
 
   // Fetch customers
   const { data: customers = [] } = useQuery({
-    queryKey: ["fnb-customers"],
+    queryKey: ["distribution-customers"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("fnb_customers")
+        .from("distribution_customers")
         .select("id, name")
         .order("name");
       if (error) throw error;
@@ -28,11 +28,11 @@ export function CustomerMappingsViewer() {
 
   // Fetch mappings for selected customer
   const { data: mappings = [], isLoading } = useQuery({
-    queryKey: ["fnb-customer-mappings", selectedCustomerId],
+    queryKey: ["distribution-customer-mappings", selectedCustomerId],
     queryFn: async () => {
       if (!selectedCustomerId) return [];
       const { data, error } = await supabase
-        .from("fnb_customer_product_mappings")
+        .from("distribution_customer_product_mappings")
         .select(`
           id,
           customer_sku,
@@ -42,7 +42,7 @@ export function CustomerMappingsViewer() {
           confidence_score,
           created_at,
           updated_at,
-          fnb_products (id, code, name)
+          distribution_products (id, code, name)
         `)
         .eq("customer_id", selectedCustomerId)
         .order("customer_product_name");
@@ -56,13 +56,13 @@ export function CustomerMappingsViewer() {
   const verifyMutation = useMutation({
     mutationFn: async (mappingId: string) => {
       const { error } = await supabase
-        .from("fnb_customer_product_mappings")
+        .from("distribution_customer_product_mappings")
         .update({ is_verified: true, confidence_score: 1.0 })
         .eq("id", mappingId);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["fnb-customer-mappings"] });
+      queryClient.invalidateQueries({ queryKey: ["distribution-customer-mappings"] });
       toast.success("Mapping verified");
     },
   });
@@ -71,24 +71,24 @@ export function CustomerMappingsViewer() {
   const deleteMutation = useMutation({
     mutationFn: async (mappingId: string) => {
       const { error } = await supabase
-        .from("fnb_customer_product_mappings")
+        .from("distribution_customer_product_mappings")
         .delete()
         .eq("id", mappingId);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["fnb-customer-mappings"] });
+      queryClient.invalidateQueries({ queryKey: ["distribution-customer-mappings"] });
       toast.success("Mapping deleted");
     },
   });
 
-  const customerOptions = customers.map((c) => ({
+  const customerOptions = customers.map((c: any) => ({
     value: c.id,
     label: c.name,
   }));
 
-  const verifiedCount = mappings.filter((m) => m.is_verified).length;
-  const aiLearnedCount = mappings.filter((m) => !m.is_verified).length;
+  const verifiedCount = mappings.filter((m: any) => m.is_verified).length;
+  const aiLearnedCount = mappings.filter((m: any) => !m.is_verified).length;
 
   return (
     <div className="space-y-4">
@@ -146,14 +146,14 @@ export function CustomerMappingsViewer() {
             </div>
           ) : (
             <div className="space-y-2">
-              {mappings.map((mapping) => (
+              {mappings.map((mapping: any) => (
                 <Card key={mapping.id} className="p-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium">"{mapping.customer_product_name}"</span>
                         <span className="text-muted-foreground">→</span>
-                        <span className="text-sm">{mapping.fnb_products?.name || "Unknown"}</span>
+                        <span className="text-sm">{mapping.distribution_products?.name || "Unknown"}</span>
                       </div>
                       
                       <div className="flex items-center gap-2 mt-2">
