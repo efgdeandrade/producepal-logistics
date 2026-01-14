@@ -101,7 +101,7 @@ export default function FnbInvoiceDetail() {
       setInvoiceDate(new Date(invoice.invoice_date));
       setCustomerMemo(invoice.customer_memo || '');
       setNotes(invoice.notes || '');
-      setItems(invoice.fnb_invoice_items || []);
+      setItems(invoice.distribution_invoice_items || []);
       setHasChanges(false);
     }
   }, [invoice]);
@@ -182,7 +182,7 @@ export default function FnbInvoiceDetail() {
         printWindow.document.write(`
           <html>
             <head>
-              <title>Invoice - ${invoice?.fnb_customers?.name}</title>
+              <title>Invoice - ${invoice?.distribution_customers?.name}</title>
               <style>
                 body { margin: 0; padding: 20px; font-family: monospace; }
                 @media print { body { padding: 0; } }
@@ -205,7 +205,7 @@ export default function FnbInvoiceDetail() {
   const handleDownloadPdf = () => {
     if (invoicePreviewRef.current) {
       const element = invoicePreviewRef.current;
-      const customerName = invoice?.fnb_customers?.name?.replace(/\s+/g, '-') || 'invoice';
+      const customerName = invoice?.distribution_customers?.name?.replace(/\s+/g, '-') || 'invoice';
       const dateStr = invoiceDate ? format(invoiceDate, 'yyyy-MM-dd') : 'draft';
       
       const opt = {
@@ -248,7 +248,7 @@ export default function FnbInvoiceDetail() {
 
   const { subtotal, obTax, total } = calculateTotals();
   const config = statusConfig[invoice.status];
-  const orderNumbers = invoice.fnb_invoice_orders?.map(o => o.fnb_orders?.order_number).filter(Boolean) || [];
+  const orderNumbers = invoice.distribution_invoice_orders?.map(o => o.distribution_orders?.order_number).filter(Boolean) || [];
 
   return (
     <div className="container mx-auto p-4 pb-24 space-y-6">
@@ -261,7 +261,7 @@ export default function FnbInvoiceDetail() {
           <div>
             <h1 className="text-2xl font-bold">Invoice</h1>
             <p className="text-muted-foreground">
-              {invoice.fnb_customers?.name} • {orderNumbers.join(', ')}
+              {invoice.distribution_customers?.name} • {orderNumbers.join(', ')}
             </p>
           </div>
         </div>
@@ -518,12 +518,12 @@ export default function FnbInvoiceDetail() {
               <CardTitle className="text-lg">Customer</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <p className="font-medium">{invoice.fnb_customers?.name}</p>
-              {invoice.fnb_customers?.address && (
-                <p className="text-sm text-muted-foreground">{invoice.fnb_customers.address}</p>
+              <p className="font-medium">{invoice.distribution_customers?.name}</p>
+              {invoice.distribution_customers?.address && (
+                <p className="text-sm text-muted-foreground">{invoice.distribution_customers.address}</p>
               )}
-              {invoice.fnb_customers?.whatsapp_phone && (
-                <p className="text-sm text-muted-foreground">{invoice.fnb_customers.whatsapp_phone}</p>
+              {invoice.distribution_customers?.whatsapp_phone && (
+                <p className="text-sm text-muted-foreground">{invoice.distribution_customers.whatsapp_phone}</p>
               )}
             </CardContent>
           </Card>
@@ -684,9 +684,9 @@ export default function FnbInvoiceDetail() {
               ref={invoicePreviewRef}
               invoiceDate={invoiceDate ? format(invoiceDate, 'MMMM d, yyyy') : ''}
               dueDate={invoiceDate ? format(new Date(invoiceDate.getTime() + 7 * 24 * 60 * 60 * 1000), 'MMMM d, yyyy') : ''}
-              customerName={invoice?.fnb_customers?.name || ''}
-              customerAddress={invoice?.fnb_customers?.address || undefined}
-              customerPhone={invoice?.fnb_customers?.whatsapp_phone || undefined}
+              customerName={invoice?.distribution_customers?.name || ''}
+              customerAddress={invoice?.distribution_customers?.address || undefined}
+              customerPhone={invoice?.distribution_customers?.whatsapp_phone || undefined}
               customerMemo={customerMemo || undefined}
               orderNumbers={orderNumbers}
               items={items.map(item => ({

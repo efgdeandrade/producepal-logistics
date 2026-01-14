@@ -46,6 +46,15 @@ export interface Invoice {
   };
   distribution_invoice_items?: InvoiceItem[];
   distribution_invoice_orders?: { order_id: string; distribution_orders?: { order_number: string } }[];
+  // Aliases for backwards compatibility
+  fnb_customers?: {
+    id: string;
+    name: string;
+    whatsapp_phone: string;
+    address: string | null;
+  };
+  fnb_invoice_items?: InvoiceItem[];
+  fnb_invoice_orders?: { order_id: string; fnb_orders?: { order_number: string } }[];
 }
 
 export interface ReadyOrder {

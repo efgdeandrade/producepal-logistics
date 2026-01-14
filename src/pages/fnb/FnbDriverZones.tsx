@@ -51,13 +51,13 @@ export default function FnbDriverZones() {
     queryKey: ["major-zones"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("fnb_delivery_zones")
+        .from("distribution_delivery_zones")
         .select("id, name, zone_type")
         .eq("zone_type", "major")
         .eq("is_active", true)
-        .order("sort_order");
+        .order("sort_order") as { data: any[] | null; error: any };
       if (error) throw error;
-      return data as Zone[];
+      return (data || []) as Zone[];
     },
   });
 

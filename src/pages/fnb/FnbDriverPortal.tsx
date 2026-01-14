@@ -50,17 +50,17 @@ export default function FnbDriverPortal() {
     queryFn: async () => {
       if (!user?.id) return [];
       const { data, error } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select(`
           *,
-          fnb_customers (name, address, whatsapp_phone, customer_type),
-          fnb_order_items (id, quantity, picked_quantity, short_quantity, product_id, fnb_products (name))
+          distribution_customers (name, address, whatsapp_phone, customer_type),
+          distribution_order_items (id, quantity, picked_quantity, short_quantity, product_id, distribution_products (name))
         `)
         .eq("driver_id", user.id)
         .in("status", ["out_for_delivery"])
-        .order("delivery_date", { ascending: true });
+        .order("delivery_date", { ascending: true }) as { data: any[] | null; error: any };
       if (error) throw error;
-      return data;
+      return data || [];
     },
     enabled: !!user?.id,
   });
@@ -72,23 +72,23 @@ export default function FnbDriverPortal() {
       if (!user?.id) return [];
       const today = new Date().toISOString().split("T")[0];
       const { data, error } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select(`
           *,
-          fnb_customers (name, address, customer_type)
+          distribution_customers (name, address, customer_type)
         `)
         .eq("driver_id", user.id)
         .eq("status", "delivered")
         .gte("delivered_at", today)
-        .order("delivered_at", { ascending: false });
+        .order("delivered_at", { ascending: false }) as { data: any[] | null; error: any };
       if (error) throw error;
-      return data;
+      return data || [];
     },
     enabled: !!user?.id,
   });
 
   // Calculate today's COD total
-  const todayCodTotal = deliveredOrders?.reduce((sum, order) => {
+  const todayCodTotal = deliveredOrders?.reduce((sum: number, order: any) => {
     return sum + (order.cod_amount_collected || 0);
   }, 0) || 0;
 
@@ -147,7 +147,7 @@ export default function FnbDriverPortal() {
       receiptPhotoPath?: string;
     }) => {
       const { error } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .update({
           status: "delivered",
           delivered_at: new Date().toISOString(),
@@ -190,7 +190,7 @@ export default function FnbDriverPortal() {
     setCodDialogOrder(order);
     setCodAmount(order.total_xcg?.toFixed(2) || "0");
     // Default payment method based on customer type
-    if (order.fnb_customers?.customer_type === "credit") {
+    if (order.distribution_customers?.customer_type === "credit") {
       setPaymentMethod("credit");
     } else {
       setPaymentMethod("cash");
@@ -207,7 +207,7 @@ export default function FnbDriverPortal() {
   const handleConfirmDelivery = async () => {
     if (!codDialogOrder) return;
     
-    const isSupermarket = codDialogOrder.fnb_customers?.customer_type === "supermarket";
+    const isSupermarket = codDialogOrder.distribution_customers?.customer_type === "supermarket";
     
     // Supermarket orders MUST have receipt photo
     if (isSupermarket && !receiptPhoto) {
@@ -276,7 +276,7 @@ export default function FnbDriverPortal() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {myOrders?.map((order, index) => (
+          {myOrders?.map((order: any, index: number) => (
             <Card
               key={order.id}
               className="overflow-hidden"
@@ -289,25 +289,25 @@ export default function FnbDriverPortal() {
                       {index + 1}
                     </div>
                     <div>
-                      <CardTitle className="text-lg">{order.fnb_customers?.name}</CardTitle>
+                      <CardTitle className="text-lg">{order.distribution_customers?.name}</CardTitle>
                       <p className="text-sm text-muted-foreground">{order.order_number}</p>
                     </div>
                   </div>
                   <div className="text-right flex flex-col items-end gap-1">
-                    <Badge variant="secondary">{order.fnb_order_items?.length} items</Badge>
-                    {order.fnb_customers?.customer_type === 'supermarket' && (
+                    <Badge variant="secondary">{order.distribution_order_items?.length} items</Badge>
+                    {order.distribution_customers?.customer_type === 'supermarket' && (
                       <Badge variant="outline" className="text-purple-600 border-purple-300">
                         <Store className="h-3 w-3 mr-1" />
                         Supermarket
                       </Badge>
                     )}
-                    {order.fnb_customers?.customer_type === 'cod' && (
+                    {order.distribution_customers?.customer_type === 'cod' && (
                       <Badge variant="outline" className="text-orange-600 border-orange-300">
                         <Banknote className="h-3 w-3 mr-1" />
                         COD
                       </Badge>
                     )}
-                    {order.fnb_customers?.customer_type === 'credit' && (
+                    {order.distribution_customers?.customer_type === 'credit' && (
                       <Badge variant="outline" className="text-blue-600 border-blue-300">
                         <CreditCard className="h-3 w-3 mr-1" />
                         Credit
@@ -318,10 +318,10 @@ export default function FnbDriverPortal() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Address */}
-                {order.fnb_customers?.address && (
+                {order.distribution_customers?.address && (
                   <div className="flex items-start gap-2 text-sm">
                     <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                    <span>{order.fnb_customers.address}</span>
+                    <span>{order.distribution_customers.address}</span>
                   </div>
                 )}
 
@@ -332,7 +332,7 @@ export default function FnbDriverPortal() {
                 </div>
 
                 {/* Supermarket notice */}
-                {order.fnb_customers?.customer_type === 'supermarket' && (
+                {order.distribution_customers?.customer_type === 'supermarket' && (
                   <div className="flex items-center gap-2 text-sm text-purple-600 bg-purple-50 dark:bg-purple-950 p-2 rounded">
                     <Camera className="h-4 w-4" />
                     <span>Receipt photo required</span>
@@ -345,9 +345,9 @@ export default function FnbDriverPortal() {
                     {/* Items list */}
                     <div className="space-y-1">
                       <p className="text-sm font-medium">Items:</p>
-                      {order.fnb_order_items?.map((item: any) => (
+                      {order.distribution_order_items?.map((item: any) => (
                         <div key={item.id} className="text-sm flex justify-between pl-2">
-                          <span>{item.fnb_products?.name}</span>
+                          <span>{item.distribution_products?.name}</span>
                           <span className="text-muted-foreground">
                             x{item.picked_quantity || item.quantity}
                             {item.short_quantity > 0 && (
@@ -370,7 +370,7 @@ export default function FnbDriverPortal() {
 
                 {/* Action buttons */}
                 <div className="flex gap-2 pt-2">
-                  {order.fnb_customers?.whatsapp_phone && (
+                  {order.distribution_customers?.whatsapp_phone && (
                     <>
                       <Button
                         variant="outline"
@@ -378,7 +378,7 @@ export default function FnbDriverPortal() {
                         className="flex-1"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleCall(order.fnb_customers.whatsapp_phone);
+                          handleCall(order.distribution_customers.whatsapp_phone);
                         }}
                       >
                         <Phone className="h-4 w-4 mr-1" />
@@ -390,7 +390,7 @@ export default function FnbDriverPortal() {
                         className="flex-1"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleWhatsApp(order.fnb_customers.whatsapp_phone);
+                          handleWhatsApp(order.distribution_customers.whatsapp_phone);
                         }}
                       >
                         WhatsApp
@@ -426,10 +426,10 @@ export default function FnbDriverPortal() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {deliveredOrders.map((order) => (
+            {deliveredOrders.map((order: any) => (
               <div key={order.id} className="flex items-center justify-between text-sm py-2 border-b last:border-0">
                 <div>
-                  <p className="font-medium">{order.fnb_customers?.name}</p>
+                  <p className="font-medium">{order.distribution_customers?.name}</p>
                   <p className="text-muted-foreground">{order.order_number}</p>
                 </div>
                 <div className="text-right">
