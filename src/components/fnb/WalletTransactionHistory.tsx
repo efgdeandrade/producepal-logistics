@@ -88,11 +88,11 @@ export default function WalletTransactionHistory({
                       </span>
                     </div>
                     <div className="mt-1 text-sm text-muted-foreground">
-                      {tx.fnb_orders?.order_number && (
-                        <p>Order: {tx.fnb_orders.order_number}</p>
+                      {tx.distribution_orders?.order_number && (
+                        <p>Order: {tx.distribution_orders.order_number}</p>
                       )}
-                      {tx.fnb_orders?.fnb_customers?.name && (
-                        <p>{tx.fnb_orders.fnb_customers.name}</p>
+                      {tx.distribution_orders?.distribution_customers?.name && (
+                        <p>{tx.distribution_orders.distribution_customers.name}</p>
                       )}
                       {tx.deposit_reference && (
                         <p>Ref: {tx.deposit_reference}</p>
