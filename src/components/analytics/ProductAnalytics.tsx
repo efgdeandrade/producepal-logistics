@@ -15,7 +15,7 @@ export function ProductAnalytics() {
     queryFn: async () => {
       // Get all products
       const { data: products, error: prodError } = await supabase
-        .from("fnb_products")
+        .from("distribution_products")
         .select("id, code, name, price_xcg, is_active");
 
       if (prodError) throw prodError;
@@ -23,16 +23,16 @@ export function ProductAnalytics() {
       // Get order items from last 30 days
       const startDate = format(subDays(new Date(), 30), "yyyy-MM-dd");
       const { data: orderItems, error: itemError } = await supabase
-        .from("fnb_order_items")
+        .from("distribution_order_items")
         .select(`
           product_id,
           quantity,
           total_xcg,
           picked_quantity,
           short_quantity,
-          fnb_orders!inner(order_date, status)
+          distribution_orders!inner(order_date, status)
         `)
-        .gte("fnb_orders.order_date", startDate);
+        .gte("distribution_orders.order_date", startDate);
 
       if (itemError) throw itemError;
 
@@ -113,9 +113,9 @@ export function ProductAnalytics() {
       const dailyData = await Promise.all(
         days.map(async (date) => {
           const { data: items } = await supabase
-            .from("fnb_order_items")
-            .select("quantity, total_xcg, fnb_orders!inner(order_date)")
-            .eq("fnb_orders.order_date", date);
+            .from("distribution_order_items")
+            .select("quantity, total_xcg, distribution_orders!inner(order_date)")
+            .eq("distribution_orders.order_date", date);
 
           return {
             date: format(new Date(date), "MMM d"),

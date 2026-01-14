@@ -880,6 +880,1613 @@ export type Database = {
           },
         ]
       }
+      distribution_ai_match_logs: {
+        Row: {
+          confidence: string | null
+          corrected_product_id: string | null
+          created_at: string | null
+          customer_id: string | null
+          detected_language: string | null
+          detected_quantity: number | null
+          detected_unit: string | null
+          id: string
+          interpreted_text: string | null
+          match_source: string | null
+          matched_product_id: string | null
+          needs_review: boolean | null
+          order_id: string | null
+          raw_text: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          was_corrected: boolean | null
+        }
+        Insert: {
+          confidence?: string | null
+          corrected_product_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          detected_language?: string | null
+          detected_quantity?: number | null
+          detected_unit?: string | null
+          id?: string
+          interpreted_text?: string | null
+          match_source?: string | null
+          matched_product_id?: string | null
+          needs_review?: boolean | null
+          order_id?: string | null
+          raw_text: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          was_corrected?: boolean | null
+        }
+        Update: {
+          confidence?: string | null
+          corrected_product_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          detected_language?: string | null
+          detected_quantity?: number | null
+          detected_unit?: string | null
+          id?: string
+          interpreted_text?: string | null
+          match_source?: string | null
+          matched_product_id?: string | null
+          needs_review?: boolean | null
+          order_id?: string | null
+          raw_text?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          was_corrected?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_ai_match_logs_corrected_product_id_fkey"
+            columns: ["corrected_product_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_ai_match_logs_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_ai_match_logs_matched_product_id_fkey"
+            columns: ["matched_product_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_ai_match_logs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribution_assistance_queue: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          created_at: string | null
+          id: string
+          notes: string | null
+          picker_name: string
+          picker_queue_id: string | null
+          reason: string
+          resolved_at: string | null
+          status: string | null
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          picker_name: string
+          picker_queue_id?: string | null
+          reason: string
+          resolved_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          picker_name?: string
+          picker_queue_id?: string | null
+          reason?: string
+          resolved_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_assistance_queue_picker_queue_id_fkey"
+            columns: ["picker_queue_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_picker_queue"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribution_context_words: {
+        Row: {
+          created_at: string
+          examples: string[] | null
+          id: string
+          is_verified: boolean | null
+          language: string | null
+          meaning: string
+          updated_at: string
+          usage_count: number | null
+          verified_at: string | null
+          verified_by: string | null
+          word: string
+          word_type: string
+        }
+        Insert: {
+          created_at?: string
+          examples?: string[] | null
+          id?: string
+          is_verified?: boolean | null
+          language?: string | null
+          meaning: string
+          updated_at?: string
+          usage_count?: number | null
+          verified_at?: string | null
+          verified_by?: string | null
+          word: string
+          word_type: string
+        }
+        Update: {
+          created_at?: string
+          examples?: string[] | null
+          id?: string
+          is_verified?: boolean | null
+          language?: string | null
+          meaning?: string
+          updated_at?: string
+          usage_count?: number | null
+          verified_at?: string | null
+          verified_by?: string | null
+          word?: string
+          word_type?: string
+        }
+        Relationships: []
+      }
+      distribution_conversation_intents: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          intent: string
+          is_active: boolean | null
+          priority: number | null
+          response_template_id: string | null
+          trigger_phrases: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          intent: string
+          is_active?: boolean | null
+          priority?: number | null
+          response_template_id?: string | null
+          trigger_phrases?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          intent?: string
+          is_active?: boolean | null
+          priority?: number | null
+          response_template_id?: string | null
+          trigger_phrases?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_conversation_intents_response_template_id_fkey"
+            columns: ["response_template_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_response_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribution_conversations: {
+        Row: {
+          created_at: string | null
+          customer_id: string | null
+          detected_language: string | null
+          direction: string
+          id: string
+          message_id: string | null
+          message_text: string
+          order_id: string | null
+          parsed_intent: string | null
+          parsed_items: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id?: string | null
+          detected_language?: string | null
+          direction: string
+          id?: string
+          message_id?: string | null
+          message_text: string
+          order_id?: string | null
+          parsed_intent?: string | null
+          parsed_items?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string | null
+          detected_language?: string | null
+          direction?: string
+          id?: string
+          message_id?: string | null
+          message_text?: string
+          order_id?: string | null
+          parsed_intent?: string | null
+          parsed_items?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_conversations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_conversations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribution_customer_patterns: {
+        Row: {
+          avg_quantity: number | null
+          customer_id: string | null
+          day_of_week_preference: number[] | null
+          id: string
+          last_ordered_at: string | null
+          order_count: number | null
+          product_id: string | null
+          total_quantity: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          avg_quantity?: number | null
+          customer_id?: string | null
+          day_of_week_preference?: number[] | null
+          id?: string
+          last_ordered_at?: string | null
+          order_count?: number | null
+          product_id?: string | null
+          total_quantity?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          avg_quantity?: number | null
+          customer_id?: string | null
+          day_of_week_preference?: number[] | null
+          id?: string
+          last_ordered_at?: string | null
+          order_count?: number | null
+          product_id?: string | null
+          total_quantity?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_customer_patterns_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_customer_patterns_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribution_customer_product_mappings: {
+        Row: {
+          confidence_score: number | null
+          created_at: string | null
+          customer_id: string
+          customer_product_name: string
+          customer_sku: string
+          id: string
+          is_verified: boolean | null
+          product_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string | null
+          customer_id: string
+          customer_product_name: string
+          customer_sku: string
+          id?: string
+          is_verified?: boolean | null
+          product_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string | null
+          customer_id?: string
+          customer_product_name?: string
+          customer_sku?: string
+          id?: string
+          is_verified?: boolean | null
+          product_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_customer_product_mappings_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_customer_product_mappings_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribution_customers: {
+        Row: {
+          address: string | null
+          created_at: string | null
+          customer_type: Database["public"]["Enums"]["customer_type"]
+          delivery_zone: string | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          major_zone_id: string | null
+          name: string
+          notes: string | null
+          preferred_language: string | null
+          preferred_payment_method:
+            | Database["public"]["Enums"]["payment_method_type"]
+            | null
+          pricing_tier_id: string | null
+          quickbooks_customer_id: string | null
+          updated_at: string | null
+          whatsapp_phone: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string | null
+          customer_type?: Database["public"]["Enums"]["customer_type"]
+          delivery_zone?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          major_zone_id?: string | null
+          name: string
+          notes?: string | null
+          preferred_language?: string | null
+          preferred_payment_method?:
+            | Database["public"]["Enums"]["payment_method_type"]
+            | null
+          pricing_tier_id?: string | null
+          quickbooks_customer_id?: string | null
+          updated_at?: string | null
+          whatsapp_phone: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string | null
+          customer_type?: Database["public"]["Enums"]["customer_type"]
+          delivery_zone?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          major_zone_id?: string | null
+          name?: string
+          notes?: string | null
+          preferred_language?: string | null
+          preferred_payment_method?:
+            | Database["public"]["Enums"]["payment_method_type"]
+            | null
+          pricing_tier_id?: string | null
+          quickbooks_customer_id?: string | null
+          updated_at?: string | null
+          whatsapp_phone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_customers_major_zone_id_fkey"
+            columns: ["major_zone_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_delivery_zones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_customers_pricing_tier_id_fkey"
+            columns: ["pricing_tier_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_pricing_tiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribution_delivery_zones: {
+        Row: {
+          center_latitude: number | null
+          center_longitude: number | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          parent_zone_id: string | null
+          polygon_coordinates: Json | null
+          radius_meters: number | null
+          sort_order: number
+          updated_at: string
+          zone_type: string
+        }
+        Insert: {
+          center_latitude?: number | null
+          center_longitude?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          parent_zone_id?: string | null
+          polygon_coordinates?: Json | null
+          radius_meters?: number | null
+          sort_order?: number
+          updated_at?: string
+          zone_type?: string
+        }
+        Update: {
+          center_latitude?: number | null
+          center_longitude?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          parent_zone_id?: string | null
+          polygon_coordinates?: Json | null
+          radius_meters?: number | null
+          sort_order?: number
+          updated_at?: string
+          zone_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_delivery_zones_parent_zone_id_fkey"
+            columns: ["parent_zone_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_delivery_zones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribution_invoice_activity: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          id: string
+          invoice_id: string
+          performed_by: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          invoice_id: string
+          performed_by?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          invoice_id?: string
+          performed_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_invoice_activity_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribution_invoice_items: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          invoice_id: string
+          is_ob_eligible: boolean | null
+          line_total_xcg: number
+          ob_tax_inclusive: number | null
+          order_item_id: string | null
+          product_id: string | null
+          product_name: string
+          quantity: number
+          unit_price_xcg: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          invoice_id: string
+          is_ob_eligible?: boolean | null
+          line_total_xcg: number
+          ob_tax_inclusive?: number | null
+          order_item_id?: string | null
+          product_id?: string | null
+          product_name: string
+          quantity: number
+          unit_price_xcg: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          invoice_id?: string
+          is_ob_eligible?: boolean | null
+          line_total_xcg?: number
+          ob_tax_inclusive?: number | null
+          order_item_id?: string | null
+          product_id?: string | null
+          product_name?: string
+          quantity?: number
+          unit_price_xcg?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_invoice_items_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_order_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_invoice_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribution_invoice_orders: {
+        Row: {
+          created_at: string
+          id: string
+          invoice_id: string
+          order_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invoice_id: string
+          order_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_invoice_orders_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_invoice_orders_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribution_invoices: {
+        Row: {
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          customer_memo: string | null
+          due_date: string
+          id: string
+          invoice_date: string
+          notes: string | null
+          ob_tax_amount: number
+          quickbooks_invoice_id: string | null
+          quickbooks_invoice_number: string | null
+          quickbooks_sync_error: string | null
+          quickbooks_sync_status: string | null
+          quickbooks_synced_at: string | null
+          status: string
+          subtotal_xcg: number
+          total_xcg: number
+          updated_at: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          customer_memo?: string | null
+          due_date?: string
+          id?: string
+          invoice_date?: string
+          notes?: string | null
+          ob_tax_amount?: number
+          quickbooks_invoice_id?: string | null
+          quickbooks_invoice_number?: string | null
+          quickbooks_sync_error?: string | null
+          quickbooks_sync_status?: string | null
+          quickbooks_synced_at?: string | null
+          status?: string
+          subtotal_xcg?: number
+          total_xcg?: number
+          updated_at?: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          customer_memo?: string | null
+          due_date?: string
+          id?: string
+          invoice_date?: string
+          notes?: string | null
+          ob_tax_amount?: number
+          quickbooks_invoice_id?: string | null
+          quickbooks_invoice_number?: string | null
+          quickbooks_sync_error?: string | null
+          quickbooks_sync_status?: string | null
+          quickbooks_synced_at?: string | null
+          status?: string
+          subtotal_xcg?: number
+          total_xcg?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribution_order_items: {
+        Row: {
+          actual_weight_kg: number | null
+          created_at: string | null
+          id: string
+          is_over_picked: boolean | null
+          order_id: string | null
+          order_unit: string | null
+          picked_at: string | null
+          picked_by: string | null
+          picked_quantity: number | null
+          picked_unit: string | null
+          picker_name: string | null
+          product_id: string | null
+          quantity: number
+          short_quantity: number | null
+          short_reason: string | null
+          shortage_alerted_at: string | null
+          shortage_approved_at: string | null
+          shortage_approved_by: string | null
+          shortage_resolution_notes: string | null
+          shortage_resolved_at: string | null
+          shortage_resolved_by: string | null
+          shortage_status: string | null
+          total_xcg: number
+          unit_price_xcg: number
+        }
+        Insert: {
+          actual_weight_kg?: number | null
+          created_at?: string | null
+          id?: string
+          is_over_picked?: boolean | null
+          order_id?: string | null
+          order_unit?: string | null
+          picked_at?: string | null
+          picked_by?: string | null
+          picked_quantity?: number | null
+          picked_unit?: string | null
+          picker_name?: string | null
+          product_id?: string | null
+          quantity: number
+          short_quantity?: number | null
+          short_reason?: string | null
+          shortage_alerted_at?: string | null
+          shortage_approved_at?: string | null
+          shortage_approved_by?: string | null
+          shortage_resolution_notes?: string | null
+          shortage_resolved_at?: string | null
+          shortage_resolved_by?: string | null
+          shortage_status?: string | null
+          total_xcg: number
+          unit_price_xcg: number
+        }
+        Update: {
+          actual_weight_kg?: number | null
+          created_at?: string | null
+          id?: string
+          is_over_picked?: boolean | null
+          order_id?: string | null
+          order_unit?: string | null
+          picked_at?: string | null
+          picked_by?: string | null
+          picked_quantity?: number | null
+          picked_unit?: string | null
+          picker_name?: string | null
+          product_id?: string | null
+          quantity?: number
+          short_quantity?: number | null
+          short_reason?: string | null
+          shortage_alerted_at?: string | null
+          shortage_approved_at?: string | null
+          shortage_approved_by?: string | null
+          shortage_resolution_notes?: string | null
+          shortage_resolved_at?: string | null
+          shortage_resolved_by?: string | null
+          shortage_status?: string | null
+          total_xcg?: number
+          unit_price_xcg?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribution_order_modifications: {
+        Row: {
+          created_at: string
+          id: string
+          modification_type: string
+          modified_by: string | null
+          modified_by_email: string | null
+          new_value: Json | null
+          notes: string | null
+          order_id: string | null
+          previous_value: Json | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          modification_type: string
+          modified_by?: string | null
+          modified_by_email?: string | null
+          new_value?: Json | null
+          notes?: string | null
+          order_id?: string | null
+          previous_value?: Json | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          modification_type?: string
+          modified_by?: string | null
+          modified_by_email?: string | null
+          new_value?: Json | null
+          notes?: string | null
+          order_id?: string | null
+          previous_value?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_order_modifications_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribution_orders: {
+        Row: {
+          assigned_at: string | null
+          assignment_locked: boolean
+          cod_amount_collected: number | null
+          cod_amount_due: number | null
+          cod_collected_at: string | null
+          cod_notes: string | null
+          cod_reconciled_at: string | null
+          cod_reconciled_by: string | null
+          created_at: string | null
+          customer_id: string | null
+          delivered_at: string | null
+          delivery_date: string | null
+          delivery_station: string | null
+          driver_id: string | null
+          driver_name: string | null
+          id: string
+          invoice_id: string | null
+          is_pickup: boolean | null
+          language_used: string | null
+          manual_override_at: string | null
+          manual_override_by: string | null
+          notes: string | null
+          order_date: string
+          order_number: string
+          payment_method: string | null
+          payment_method_used:
+            | Database["public"]["Enums"]["payment_method_type"]
+            | null
+          po_number: string | null
+          priority: number | null
+          quickbooks_invoice_id: string | null
+          quickbooks_invoice_number: string | null
+          receipt_extracted_data: Json | null
+          receipt_photo_processed_url: string | null
+          receipt_photo_url: string | null
+          receipt_verified_at: string | null
+          receipt_verified_by: string | null
+          standing_order_template_id: string | null
+          status: string | null
+          total_xcg: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_at?: string | null
+          assignment_locked?: boolean
+          cod_amount_collected?: number | null
+          cod_amount_due?: number | null
+          cod_collected_at?: string | null
+          cod_notes?: string | null
+          cod_reconciled_at?: string | null
+          cod_reconciled_by?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          delivered_at?: string | null
+          delivery_date?: string | null
+          delivery_station?: string | null
+          driver_id?: string | null
+          driver_name?: string | null
+          id?: string
+          invoice_id?: string | null
+          is_pickup?: boolean | null
+          language_used?: string | null
+          manual_override_at?: string | null
+          manual_override_by?: string | null
+          notes?: string | null
+          order_date?: string
+          order_number: string
+          payment_method?: string | null
+          payment_method_used?:
+            | Database["public"]["Enums"]["payment_method_type"]
+            | null
+          po_number?: string | null
+          priority?: number | null
+          quickbooks_invoice_id?: string | null
+          quickbooks_invoice_number?: string | null
+          receipt_extracted_data?: Json | null
+          receipt_photo_processed_url?: string | null
+          receipt_photo_url?: string | null
+          receipt_verified_at?: string | null
+          receipt_verified_by?: string | null
+          standing_order_template_id?: string | null
+          status?: string | null
+          total_xcg?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_at?: string | null
+          assignment_locked?: boolean
+          cod_amount_collected?: number | null
+          cod_amount_due?: number | null
+          cod_collected_at?: string | null
+          cod_notes?: string | null
+          cod_reconciled_at?: string | null
+          cod_reconciled_by?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          delivered_at?: string | null
+          delivery_date?: string | null
+          delivery_station?: string | null
+          driver_id?: string | null
+          driver_name?: string | null
+          id?: string
+          invoice_id?: string | null
+          is_pickup?: boolean | null
+          language_used?: string | null
+          manual_override_at?: string | null
+          manual_override_by?: string | null
+          notes?: string | null
+          order_date?: string
+          order_number?: string
+          payment_method?: string | null
+          payment_method_used?:
+            | Database["public"]["Enums"]["payment_method_type"]
+            | null
+          po_number?: string | null
+          priority?: number | null
+          quickbooks_invoice_id?: string | null
+          quickbooks_invoice_number?: string | null
+          receipt_extracted_data?: Json | null
+          receipt_photo_processed_url?: string | null
+          receipt_photo_url?: string | null
+          receipt_verified_at?: string | null
+          receipt_verified_by?: string | null
+          standing_order_template_id?: string | null
+          status?: string | null
+          total_xcg?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_orders_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_orders_manual_override_by_fkey"
+            columns: ["manual_override_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_orders_standing_order_template_id_fkey"
+            columns: ["standing_order_template_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_standing_order_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribution_picker_queue: {
+        Row: {
+          claimed_at: string | null
+          claimed_by: string | null
+          completed_at: string | null
+          created_at: string | null
+          expected_weight_kg: number | null
+          id: string
+          order_id: string | null
+          pick_start_time: string | null
+          picker_name: string | null
+          priority: number | null
+          status: string | null
+          verified_weight_kg: number | null
+        }
+        Insert: {
+          claimed_at?: string | null
+          claimed_by?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          expected_weight_kg?: number | null
+          id?: string
+          order_id?: string | null
+          pick_start_time?: string | null
+          picker_name?: string | null
+          priority?: number | null
+          status?: string | null
+          verified_weight_kg?: number | null
+        }
+        Update: {
+          claimed_at?: string | null
+          claimed_by?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          expected_weight_kg?: number | null
+          id?: string
+          order_id?: string | null
+          pick_start_time?: string | null
+          picker_name?: string | null
+          priority?: number | null
+          status?: string | null
+          verified_weight_kg?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_picker_queue_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribution_po_imports: {
+        Row: {
+          created_at: string | null
+          customer_id: string | null
+          delivery_date: string | null
+          id: string
+          imported_by: string | null
+          items_imported: number | null
+          items_matched: number | null
+          items_unmatched: number | null
+          order_id: string | null
+          po_file_url: string | null
+          po_number: string
+          raw_extracted_data: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id?: string | null
+          delivery_date?: string | null
+          id?: string
+          imported_by?: string | null
+          items_imported?: number | null
+          items_matched?: number | null
+          items_unmatched?: number | null
+          order_id?: string | null
+          po_file_url?: string | null
+          po_number: string
+          raw_extracted_data?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string | null
+          delivery_date?: string | null
+          id?: string
+          imported_by?: string | null
+          items_imported?: number | null
+          items_matched?: number | null
+          items_unmatched?: number | null
+          order_id?: string | null
+          po_file_url?: string | null
+          po_number?: string
+          raw_extracted_data?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_po_imports_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_po_imports_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribution_pricing_tiers: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      distribution_product_aliases: {
+        Row: {
+          alias: string
+          confidence_score: number | null
+          created_at: string | null
+          id: string
+          language: string | null
+          product_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          alias: string
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          language?: string | null
+          product_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          alias?: string
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          language?: string | null
+          product_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_product_aliases_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribution_product_tier_prices: {
+        Row: {
+          created_at: string
+          id: string
+          price_xcg: number
+          product_id: string
+          tier_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          price_xcg: number
+          product_id: string
+          tier_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          price_xcg?: number
+          product_id?: string
+          tier_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_product_tier_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_product_tier_prices_tier_id_fkey"
+            columns: ["tier_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_pricing_tiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribution_products: {
+        Row: {
+          case_weight_kg: number | null
+          code: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          is_ob_eligible: boolean | null
+          is_weight_based: boolean | null
+          items_per_case: number | null
+          min_order_qty: number | null
+          name: string
+          name_es: string | null
+          name_nl: string | null
+          name_pap: string | null
+          price_per_case: number | null
+          price_per_gram: number | null
+          price_per_kg: number | null
+          price_per_lb: number | null
+          price_per_piece: number | null
+          price_per_tros: number | null
+          price_xcg: number
+          product_description: string | null
+          quickbooks_item_id: string | null
+          unit: string
+          updated_at: string | null
+          weight_unit: string | null
+        }
+        Insert: {
+          case_weight_kg?: number | null
+          code: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_ob_eligible?: boolean | null
+          is_weight_based?: boolean | null
+          items_per_case?: number | null
+          min_order_qty?: number | null
+          name: string
+          name_es?: string | null
+          name_nl?: string | null
+          name_pap?: string | null
+          price_per_case?: number | null
+          price_per_gram?: number | null
+          price_per_kg?: number | null
+          price_per_lb?: number | null
+          price_per_piece?: number | null
+          price_per_tros?: number | null
+          price_xcg: number
+          product_description?: string | null
+          quickbooks_item_id?: string | null
+          unit: string
+          updated_at?: string | null
+          weight_unit?: string | null
+        }
+        Update: {
+          case_weight_kg?: number | null
+          code?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_ob_eligible?: boolean | null
+          is_weight_based?: boolean | null
+          items_per_case?: number | null
+          min_order_qty?: number | null
+          name?: string
+          name_es?: string | null
+          name_nl?: string | null
+          name_pap?: string | null
+          price_per_case?: number | null
+          price_per_gram?: number | null
+          price_per_kg?: number | null
+          price_per_lb?: number | null
+          price_per_piece?: number | null
+          price_per_tros?: number | null
+          price_xcg?: number
+          product_description?: string | null
+          quickbooks_item_id?: string | null
+          unit?: string
+          updated_at?: string | null
+          weight_unit?: string | null
+        }
+        Relationships: []
+      }
+      distribution_response_templates: {
+        Row: {
+          created_at: string | null
+          id: string
+          intent: string
+          is_active: boolean | null
+          template_dutch: string | null
+          template_english: string | null
+          template_papiamentu: string
+          updated_at: string | null
+          usage_count: number | null
+          variables: string[] | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          intent: string
+          is_active?: boolean | null
+          template_dutch?: string | null
+          template_english?: string | null
+          template_papiamentu: string
+          updated_at?: string | null
+          usage_count?: number | null
+          variables?: string[] | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          intent?: string
+          is_active?: boolean | null
+          template_dutch?: string | null
+          template_english?: string | null
+          template_papiamentu?: string
+          updated_at?: string | null
+          usage_count?: number | null
+          variables?: string[] | null
+        }
+        Relationships: []
+      }
+      distribution_standing_order_items: {
+        Row: {
+          created_at: string
+          customer_id: string
+          default_price_xcg: number | null
+          default_quantity: number
+          id: string
+          product_id: string
+          sort_order: number
+          template_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          default_price_xcg?: number | null
+          default_quantity?: number
+          id?: string
+          product_id: string
+          sort_order?: number
+          template_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          default_price_xcg?: number | null
+          default_quantity?: number
+          id?: string
+          product_id?: string
+          sort_order?: number
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_standing_order_items_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_standing_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_standing_order_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_standing_order_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribution_standing_order_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          day_of_week: number
+          id: string
+          is_active: boolean
+          notes: string | null
+          template_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          day_of_week: number
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          template_name?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          day_of_week?: number
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          template_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      distribution_translations: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          dutch: string | null
+          english: string | null
+          grammatical_type: string | null
+          id: string
+          is_verified: boolean | null
+          papiamentu: string
+          source: string | null
+          spanish: string | null
+          updated_at: string | null
+          usage_count: number | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          dutch?: string | null
+          english?: string | null
+          grammatical_type?: string | null
+          id?: string
+          is_verified?: boolean | null
+          papiamentu: string
+          source?: string | null
+          spanish?: string | null
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          dutch?: string | null
+          english?: string | null
+          grammatical_type?: string | null
+          id?: string
+          is_verified?: boolean | null
+          papiamentu?: string
+          source?: string | null
+          spanish?: string | null
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Relationships: []
+      }
+      distribution_unmatched_items: {
+        Row: {
+          added_as_global_alias: boolean | null
+          conversation_id: string | null
+          created_at: string | null
+          customer_id: string | null
+          detected_language: string | null
+          detected_quantity: number | null
+          detected_unit: string | null
+          id: string
+          is_resolved: boolean | null
+          raw_text: string
+          resolved_at: string | null
+          resolved_by: string | null
+          resolved_product_id: string | null
+        }
+        Insert: {
+          added_as_global_alias?: boolean | null
+          conversation_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          detected_language?: string | null
+          detected_quantity?: number | null
+          detected_unit?: string | null
+          id?: string
+          is_resolved?: boolean | null
+          raw_text: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolved_product_id?: string | null
+        }
+        Update: {
+          added_as_global_alias?: boolean | null
+          conversation_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          detected_language?: string | null
+          detected_quantity?: number | null
+          detected_unit?: string | null
+          id?: string
+          is_resolved?: boolean | null
+          raw_text?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolved_product_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fnb_unmatched_items_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_unmatched_items_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_unmatched_items_resolved_product_id_fkey"
+            columns: ["resolved_product_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribution_week_generations: {
+        Row: {
+          generated_at: string
+          generated_by: string | null
+          id: string
+          orders_created: number
+          week_start_date: string
+        }
+        Insert: {
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          orders_created?: number
+          week_start_date: string
+        }
+        Update: {
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          orders_created?: number
+          week_start_date?: string
+        }
+        Relationships: []
+      }
       driver_availability: {
         Row: {
           created_at: string | null
@@ -985,7 +2592,7 @@ export type Database = {
             foreignKeyName: "driver_wallet_transactions_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
-            referencedRelation: "fnb_orders"
+            referencedRelation: "distribution_orders"
             referencedColumns: ["id"]
           },
           {
@@ -1088,7 +2695,7 @@ export type Database = {
             foreignKeyName: "driver_zone_assignments_zone_id_fkey"
             columns: ["zone_id"]
             isOneToOne: false
-            referencedRelation: "fnb_delivery_zones"
+            referencedRelation: "distribution_delivery_zones"
             referencedColumns: ["id"]
           },
         ]
@@ -1281,1613 +2888,6 @@ export type Database = {
           sync_status?: string | null
           type?: string
           updated_at?: string
-        }
-        Relationships: []
-      }
-      fnb_ai_match_logs: {
-        Row: {
-          confidence: string | null
-          corrected_product_id: string | null
-          created_at: string | null
-          customer_id: string | null
-          detected_language: string | null
-          detected_quantity: number | null
-          detected_unit: string | null
-          id: string
-          interpreted_text: string | null
-          match_source: string | null
-          matched_product_id: string | null
-          needs_review: boolean | null
-          order_id: string | null
-          raw_text: string
-          reviewed_at: string | null
-          reviewed_by: string | null
-          was_corrected: boolean | null
-        }
-        Insert: {
-          confidence?: string | null
-          corrected_product_id?: string | null
-          created_at?: string | null
-          customer_id?: string | null
-          detected_language?: string | null
-          detected_quantity?: number | null
-          detected_unit?: string | null
-          id?: string
-          interpreted_text?: string | null
-          match_source?: string | null
-          matched_product_id?: string | null
-          needs_review?: boolean | null
-          order_id?: string | null
-          raw_text: string
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          was_corrected?: boolean | null
-        }
-        Update: {
-          confidence?: string | null
-          corrected_product_id?: string | null
-          created_at?: string | null
-          customer_id?: string | null
-          detected_language?: string | null
-          detected_quantity?: number | null
-          detected_unit?: string | null
-          id?: string
-          interpreted_text?: string | null
-          match_source?: string | null
-          matched_product_id?: string | null
-          needs_review?: boolean | null
-          order_id?: string | null
-          raw_text?: string
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          was_corrected?: boolean | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fnb_ai_match_logs_corrected_product_id_fkey"
-            columns: ["corrected_product_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fnb_ai_match_logs_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fnb_ai_match_logs_matched_product_id_fkey"
-            columns: ["matched_product_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fnb_ai_match_logs_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_orders"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      fnb_assistance_queue: {
-        Row: {
-          acknowledged_at: string | null
-          acknowledged_by: string | null
-          created_at: string | null
-          id: string
-          notes: string | null
-          picker_name: string
-          picker_queue_id: string | null
-          reason: string
-          resolved_at: string | null
-          status: string | null
-        }
-        Insert: {
-          acknowledged_at?: string | null
-          acknowledged_by?: string | null
-          created_at?: string | null
-          id?: string
-          notes?: string | null
-          picker_name: string
-          picker_queue_id?: string | null
-          reason: string
-          resolved_at?: string | null
-          status?: string | null
-        }
-        Update: {
-          acknowledged_at?: string | null
-          acknowledged_by?: string | null
-          created_at?: string | null
-          id?: string
-          notes?: string | null
-          picker_name?: string
-          picker_queue_id?: string | null
-          reason?: string
-          resolved_at?: string | null
-          status?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fnb_assistance_queue_picker_queue_id_fkey"
-            columns: ["picker_queue_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_picker_queue"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      fnb_context_words: {
-        Row: {
-          created_at: string
-          examples: string[] | null
-          id: string
-          is_verified: boolean | null
-          language: string | null
-          meaning: string
-          updated_at: string
-          usage_count: number | null
-          verified_at: string | null
-          verified_by: string | null
-          word: string
-          word_type: string
-        }
-        Insert: {
-          created_at?: string
-          examples?: string[] | null
-          id?: string
-          is_verified?: boolean | null
-          language?: string | null
-          meaning: string
-          updated_at?: string
-          usage_count?: number | null
-          verified_at?: string | null
-          verified_by?: string | null
-          word: string
-          word_type: string
-        }
-        Update: {
-          created_at?: string
-          examples?: string[] | null
-          id?: string
-          is_verified?: boolean | null
-          language?: string | null
-          meaning?: string
-          updated_at?: string
-          usage_count?: number | null
-          verified_at?: string | null
-          verified_by?: string | null
-          word?: string
-          word_type?: string
-        }
-        Relationships: []
-      }
-      fnb_conversation_intents: {
-        Row: {
-          created_at: string | null
-          description: string | null
-          id: string
-          intent: string
-          is_active: boolean | null
-          priority: number | null
-          response_template_id: string | null
-          trigger_phrases: string[] | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          intent: string
-          is_active?: boolean | null
-          priority?: number | null
-          response_template_id?: string | null
-          trigger_phrases?: string[] | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          intent?: string
-          is_active?: boolean | null
-          priority?: number | null
-          response_template_id?: string | null
-          trigger_phrases?: string[] | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fnb_conversation_intents_response_template_id_fkey"
-            columns: ["response_template_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_response_templates"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      fnb_conversations: {
-        Row: {
-          created_at: string | null
-          customer_id: string | null
-          detected_language: string | null
-          direction: string
-          id: string
-          message_id: string | null
-          message_text: string
-          order_id: string | null
-          parsed_intent: string | null
-          parsed_items: Json | null
-        }
-        Insert: {
-          created_at?: string | null
-          customer_id?: string | null
-          detected_language?: string | null
-          direction: string
-          id?: string
-          message_id?: string | null
-          message_text: string
-          order_id?: string | null
-          parsed_intent?: string | null
-          parsed_items?: Json | null
-        }
-        Update: {
-          created_at?: string | null
-          customer_id?: string | null
-          detected_language?: string | null
-          direction?: string
-          id?: string
-          message_id?: string | null
-          message_text?: string
-          order_id?: string | null
-          parsed_intent?: string | null
-          parsed_items?: Json | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fnb_conversations_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fnb_conversations_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_orders"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      fnb_customer_patterns: {
-        Row: {
-          avg_quantity: number | null
-          customer_id: string | null
-          day_of_week_preference: number[] | null
-          id: string
-          last_ordered_at: string | null
-          order_count: number | null
-          product_id: string | null
-          total_quantity: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          avg_quantity?: number | null
-          customer_id?: string | null
-          day_of_week_preference?: number[] | null
-          id?: string
-          last_ordered_at?: string | null
-          order_count?: number | null
-          product_id?: string | null
-          total_quantity?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          avg_quantity?: number | null
-          customer_id?: string | null
-          day_of_week_preference?: number[] | null
-          id?: string
-          last_ordered_at?: string | null
-          order_count?: number | null
-          product_id?: string | null
-          total_quantity?: number | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fnb_customer_patterns_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fnb_customer_patterns_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_products"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      fnb_customer_product_mappings: {
-        Row: {
-          confidence_score: number | null
-          created_at: string | null
-          customer_id: string
-          customer_product_name: string
-          customer_sku: string
-          id: string
-          is_verified: boolean | null
-          product_id: string
-          updated_at: string | null
-        }
-        Insert: {
-          confidence_score?: number | null
-          created_at?: string | null
-          customer_id: string
-          customer_product_name: string
-          customer_sku: string
-          id?: string
-          is_verified?: boolean | null
-          product_id: string
-          updated_at?: string | null
-        }
-        Update: {
-          confidence_score?: number | null
-          created_at?: string | null
-          customer_id?: string
-          customer_product_name?: string
-          customer_sku?: string
-          id?: string
-          is_verified?: boolean | null
-          product_id?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fnb_customer_product_mappings_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fnb_customer_product_mappings_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_products"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      fnb_customers: {
-        Row: {
-          address: string | null
-          created_at: string | null
-          customer_type: Database["public"]["Enums"]["customer_type"]
-          delivery_zone: string | null
-          id: string
-          latitude: number | null
-          longitude: number | null
-          major_zone_id: string | null
-          name: string
-          notes: string | null
-          preferred_language: string | null
-          preferred_payment_method:
-            | Database["public"]["Enums"]["payment_method_type"]
-            | null
-          pricing_tier_id: string | null
-          quickbooks_customer_id: string | null
-          updated_at: string | null
-          whatsapp_phone: string
-        }
-        Insert: {
-          address?: string | null
-          created_at?: string | null
-          customer_type?: Database["public"]["Enums"]["customer_type"]
-          delivery_zone?: string | null
-          id?: string
-          latitude?: number | null
-          longitude?: number | null
-          major_zone_id?: string | null
-          name: string
-          notes?: string | null
-          preferred_language?: string | null
-          preferred_payment_method?:
-            | Database["public"]["Enums"]["payment_method_type"]
-            | null
-          pricing_tier_id?: string | null
-          quickbooks_customer_id?: string | null
-          updated_at?: string | null
-          whatsapp_phone: string
-        }
-        Update: {
-          address?: string | null
-          created_at?: string | null
-          customer_type?: Database["public"]["Enums"]["customer_type"]
-          delivery_zone?: string | null
-          id?: string
-          latitude?: number | null
-          longitude?: number | null
-          major_zone_id?: string | null
-          name?: string
-          notes?: string | null
-          preferred_language?: string | null
-          preferred_payment_method?:
-            | Database["public"]["Enums"]["payment_method_type"]
-            | null
-          pricing_tier_id?: string | null
-          quickbooks_customer_id?: string | null
-          updated_at?: string | null
-          whatsapp_phone?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fnb_customers_major_zone_id_fkey"
-            columns: ["major_zone_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_delivery_zones"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fnb_customers_pricing_tier_id_fkey"
-            columns: ["pricing_tier_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_pricing_tiers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      fnb_delivery_zones: {
-        Row: {
-          center_latitude: number | null
-          center_longitude: number | null
-          created_at: string
-          description: string | null
-          id: string
-          is_active: boolean
-          name: string
-          parent_zone_id: string | null
-          polygon_coordinates: Json | null
-          radius_meters: number | null
-          sort_order: number
-          updated_at: string
-          zone_type: string
-        }
-        Insert: {
-          center_latitude?: number | null
-          center_longitude?: number | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_active?: boolean
-          name: string
-          parent_zone_id?: string | null
-          polygon_coordinates?: Json | null
-          radius_meters?: number | null
-          sort_order?: number
-          updated_at?: string
-          zone_type?: string
-        }
-        Update: {
-          center_latitude?: number | null
-          center_longitude?: number | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_active?: boolean
-          name?: string
-          parent_zone_id?: string | null
-          polygon_coordinates?: Json | null
-          radius_meters?: number | null
-          sort_order?: number
-          updated_at?: string
-          zone_type?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fnb_delivery_zones_parent_zone_id_fkey"
-            columns: ["parent_zone_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_delivery_zones"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      fnb_invoice_activity: {
-        Row: {
-          action: string
-          created_at: string
-          details: Json | null
-          id: string
-          invoice_id: string
-          performed_by: string | null
-        }
-        Insert: {
-          action: string
-          created_at?: string
-          details?: Json | null
-          id?: string
-          invoice_id: string
-          performed_by?: string | null
-        }
-        Update: {
-          action?: string
-          created_at?: string
-          details?: Json | null
-          id?: string
-          invoice_id?: string
-          performed_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fnb_invoice_activity_invoice_id_fkey"
-            columns: ["invoice_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_invoices"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      fnb_invoice_items: {
-        Row: {
-          created_at: string
-          description: string | null
-          id: string
-          invoice_id: string
-          is_ob_eligible: boolean | null
-          line_total_xcg: number
-          ob_tax_inclusive: number | null
-          order_item_id: string | null
-          product_id: string | null
-          product_name: string
-          quantity: number
-          unit_price_xcg: number
-        }
-        Insert: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          invoice_id: string
-          is_ob_eligible?: boolean | null
-          line_total_xcg: number
-          ob_tax_inclusive?: number | null
-          order_item_id?: string | null
-          product_id?: string | null
-          product_name: string
-          quantity: number
-          unit_price_xcg: number
-        }
-        Update: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          invoice_id?: string
-          is_ob_eligible?: boolean | null
-          line_total_xcg?: number
-          ob_tax_inclusive?: number | null
-          order_item_id?: string | null
-          product_id?: string | null
-          product_name?: string
-          quantity?: number
-          unit_price_xcg?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fnb_invoice_items_invoice_id_fkey"
-            columns: ["invoice_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_invoices"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fnb_invoice_items_order_item_id_fkey"
-            columns: ["order_item_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_order_items"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fnb_invoice_items_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_products"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      fnb_invoice_orders: {
-        Row: {
-          created_at: string
-          id: string
-          invoice_id: string
-          order_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          invoice_id: string
-          order_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          invoice_id?: string
-          order_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fnb_invoice_orders_invoice_id_fkey"
-            columns: ["invoice_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_invoices"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fnb_invoice_orders_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_orders"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      fnb_invoices: {
-        Row: {
-          confirmed_at: string | null
-          confirmed_by: string | null
-          created_at: string
-          created_by: string | null
-          customer_id: string
-          customer_memo: string | null
-          due_date: string
-          id: string
-          invoice_date: string
-          notes: string | null
-          ob_tax_amount: number
-          quickbooks_invoice_id: string | null
-          quickbooks_invoice_number: string | null
-          quickbooks_sync_error: string | null
-          quickbooks_sync_status: string | null
-          quickbooks_synced_at: string | null
-          status: string
-          subtotal_xcg: number
-          total_xcg: number
-          updated_at: string
-        }
-        Insert: {
-          confirmed_at?: string | null
-          confirmed_by?: string | null
-          created_at?: string
-          created_by?: string | null
-          customer_id: string
-          customer_memo?: string | null
-          due_date?: string
-          id?: string
-          invoice_date?: string
-          notes?: string | null
-          ob_tax_amount?: number
-          quickbooks_invoice_id?: string | null
-          quickbooks_invoice_number?: string | null
-          quickbooks_sync_error?: string | null
-          quickbooks_sync_status?: string | null
-          quickbooks_synced_at?: string | null
-          status?: string
-          subtotal_xcg?: number
-          total_xcg?: number
-          updated_at?: string
-        }
-        Update: {
-          confirmed_at?: string | null
-          confirmed_by?: string | null
-          created_at?: string
-          created_by?: string | null
-          customer_id?: string
-          customer_memo?: string | null
-          due_date?: string
-          id?: string
-          invoice_date?: string
-          notes?: string | null
-          ob_tax_amount?: number
-          quickbooks_invoice_id?: string | null
-          quickbooks_invoice_number?: string | null
-          quickbooks_sync_error?: string | null
-          quickbooks_sync_status?: string | null
-          quickbooks_synced_at?: string | null
-          status?: string
-          subtotal_xcg?: number
-          total_xcg?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fnb_invoices_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_customers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      fnb_order_items: {
-        Row: {
-          actual_weight_kg: number | null
-          created_at: string | null
-          id: string
-          is_over_picked: boolean | null
-          order_id: string | null
-          order_unit: string | null
-          picked_at: string | null
-          picked_by: string | null
-          picked_quantity: number | null
-          picked_unit: string | null
-          picker_name: string | null
-          product_id: string | null
-          quantity: number
-          short_quantity: number | null
-          short_reason: string | null
-          shortage_alerted_at: string | null
-          shortage_approved_at: string | null
-          shortage_approved_by: string | null
-          shortage_resolution_notes: string | null
-          shortage_resolved_at: string | null
-          shortage_resolved_by: string | null
-          shortage_status: string | null
-          total_xcg: number
-          unit_price_xcg: number
-        }
-        Insert: {
-          actual_weight_kg?: number | null
-          created_at?: string | null
-          id?: string
-          is_over_picked?: boolean | null
-          order_id?: string | null
-          order_unit?: string | null
-          picked_at?: string | null
-          picked_by?: string | null
-          picked_quantity?: number | null
-          picked_unit?: string | null
-          picker_name?: string | null
-          product_id?: string | null
-          quantity: number
-          short_quantity?: number | null
-          short_reason?: string | null
-          shortage_alerted_at?: string | null
-          shortage_approved_at?: string | null
-          shortage_approved_by?: string | null
-          shortage_resolution_notes?: string | null
-          shortage_resolved_at?: string | null
-          shortage_resolved_by?: string | null
-          shortage_status?: string | null
-          total_xcg: number
-          unit_price_xcg: number
-        }
-        Update: {
-          actual_weight_kg?: number | null
-          created_at?: string | null
-          id?: string
-          is_over_picked?: boolean | null
-          order_id?: string | null
-          order_unit?: string | null
-          picked_at?: string | null
-          picked_by?: string | null
-          picked_quantity?: number | null
-          picked_unit?: string | null
-          picker_name?: string | null
-          product_id?: string | null
-          quantity?: number
-          short_quantity?: number | null
-          short_reason?: string | null
-          shortage_alerted_at?: string | null
-          shortage_approved_at?: string | null
-          shortage_approved_by?: string | null
-          shortage_resolution_notes?: string | null
-          shortage_resolved_at?: string | null
-          shortage_resolved_by?: string | null
-          shortage_status?: string | null
-          total_xcg?: number
-          unit_price_xcg?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fnb_order_items_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_orders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fnb_order_items_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_products"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      fnb_order_modifications: {
-        Row: {
-          created_at: string
-          id: string
-          modification_type: string
-          modified_by: string | null
-          modified_by_email: string | null
-          new_value: Json | null
-          notes: string | null
-          order_id: string | null
-          previous_value: Json | null
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          modification_type: string
-          modified_by?: string | null
-          modified_by_email?: string | null
-          new_value?: Json | null
-          notes?: string | null
-          order_id?: string | null
-          previous_value?: Json | null
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          modification_type?: string
-          modified_by?: string | null
-          modified_by_email?: string | null
-          new_value?: Json | null
-          notes?: string | null
-          order_id?: string | null
-          previous_value?: Json | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fnb_order_modifications_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_orders"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      fnb_orders: {
-        Row: {
-          assigned_at: string | null
-          assignment_locked: boolean
-          cod_amount_collected: number | null
-          cod_amount_due: number | null
-          cod_collected_at: string | null
-          cod_notes: string | null
-          cod_reconciled_at: string | null
-          cod_reconciled_by: string | null
-          created_at: string | null
-          customer_id: string | null
-          delivered_at: string | null
-          delivery_date: string | null
-          delivery_station: string | null
-          driver_id: string | null
-          driver_name: string | null
-          id: string
-          invoice_id: string | null
-          is_pickup: boolean | null
-          language_used: string | null
-          manual_override_at: string | null
-          manual_override_by: string | null
-          notes: string | null
-          order_date: string
-          order_number: string
-          payment_method: string | null
-          payment_method_used:
-            | Database["public"]["Enums"]["payment_method_type"]
-            | null
-          po_number: string | null
-          priority: number | null
-          quickbooks_invoice_id: string | null
-          quickbooks_invoice_number: string | null
-          receipt_extracted_data: Json | null
-          receipt_photo_processed_url: string | null
-          receipt_photo_url: string | null
-          receipt_verified_at: string | null
-          receipt_verified_by: string | null
-          standing_order_template_id: string | null
-          status: string | null
-          total_xcg: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          assigned_at?: string | null
-          assignment_locked?: boolean
-          cod_amount_collected?: number | null
-          cod_amount_due?: number | null
-          cod_collected_at?: string | null
-          cod_notes?: string | null
-          cod_reconciled_at?: string | null
-          cod_reconciled_by?: string | null
-          created_at?: string | null
-          customer_id?: string | null
-          delivered_at?: string | null
-          delivery_date?: string | null
-          delivery_station?: string | null
-          driver_id?: string | null
-          driver_name?: string | null
-          id?: string
-          invoice_id?: string | null
-          is_pickup?: boolean | null
-          language_used?: string | null
-          manual_override_at?: string | null
-          manual_override_by?: string | null
-          notes?: string | null
-          order_date?: string
-          order_number: string
-          payment_method?: string | null
-          payment_method_used?:
-            | Database["public"]["Enums"]["payment_method_type"]
-            | null
-          po_number?: string | null
-          priority?: number | null
-          quickbooks_invoice_id?: string | null
-          quickbooks_invoice_number?: string | null
-          receipt_extracted_data?: Json | null
-          receipt_photo_processed_url?: string | null
-          receipt_photo_url?: string | null
-          receipt_verified_at?: string | null
-          receipt_verified_by?: string | null
-          standing_order_template_id?: string | null
-          status?: string | null
-          total_xcg?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          assigned_at?: string | null
-          assignment_locked?: boolean
-          cod_amount_collected?: number | null
-          cod_amount_due?: number | null
-          cod_collected_at?: string | null
-          cod_notes?: string | null
-          cod_reconciled_at?: string | null
-          cod_reconciled_by?: string | null
-          created_at?: string | null
-          customer_id?: string | null
-          delivered_at?: string | null
-          delivery_date?: string | null
-          delivery_station?: string | null
-          driver_id?: string | null
-          driver_name?: string | null
-          id?: string
-          invoice_id?: string | null
-          is_pickup?: boolean | null
-          language_used?: string | null
-          manual_override_at?: string | null
-          manual_override_by?: string | null
-          notes?: string | null
-          order_date?: string
-          order_number?: string
-          payment_method?: string | null
-          payment_method_used?:
-            | Database["public"]["Enums"]["payment_method_type"]
-            | null
-          po_number?: string | null
-          priority?: number | null
-          quickbooks_invoice_id?: string | null
-          quickbooks_invoice_number?: string | null
-          receipt_extracted_data?: Json | null
-          receipt_photo_processed_url?: string | null
-          receipt_photo_url?: string | null
-          receipt_verified_at?: string | null
-          receipt_verified_by?: string | null
-          standing_order_template_id?: string | null
-          status?: string | null
-          total_xcg?: number | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fnb_orders_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fnb_orders_invoice_id_fkey"
-            columns: ["invoice_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_invoices"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fnb_orders_manual_override_by_fkey"
-            columns: ["manual_override_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fnb_orders_standing_order_template_id_fkey"
-            columns: ["standing_order_template_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_standing_order_templates"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      fnb_picker_queue: {
-        Row: {
-          claimed_at: string | null
-          claimed_by: string | null
-          completed_at: string | null
-          created_at: string | null
-          expected_weight_kg: number | null
-          id: string
-          order_id: string | null
-          pick_start_time: string | null
-          picker_name: string | null
-          priority: number | null
-          status: string | null
-          verified_weight_kg: number | null
-        }
-        Insert: {
-          claimed_at?: string | null
-          claimed_by?: string | null
-          completed_at?: string | null
-          created_at?: string | null
-          expected_weight_kg?: number | null
-          id?: string
-          order_id?: string | null
-          pick_start_time?: string | null
-          picker_name?: string | null
-          priority?: number | null
-          status?: string | null
-          verified_weight_kg?: number | null
-        }
-        Update: {
-          claimed_at?: string | null
-          claimed_by?: string | null
-          completed_at?: string | null
-          created_at?: string | null
-          expected_weight_kg?: number | null
-          id?: string
-          order_id?: string | null
-          pick_start_time?: string | null
-          picker_name?: string | null
-          priority?: number | null
-          status?: string | null
-          verified_weight_kg?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fnb_picker_queue_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_orders"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      fnb_po_imports: {
-        Row: {
-          created_at: string | null
-          customer_id: string | null
-          delivery_date: string | null
-          id: string
-          imported_by: string | null
-          items_imported: number | null
-          items_matched: number | null
-          items_unmatched: number | null
-          order_id: string | null
-          po_file_url: string | null
-          po_number: string
-          raw_extracted_data: Json | null
-        }
-        Insert: {
-          created_at?: string | null
-          customer_id?: string | null
-          delivery_date?: string | null
-          id?: string
-          imported_by?: string | null
-          items_imported?: number | null
-          items_matched?: number | null
-          items_unmatched?: number | null
-          order_id?: string | null
-          po_file_url?: string | null
-          po_number: string
-          raw_extracted_data?: Json | null
-        }
-        Update: {
-          created_at?: string | null
-          customer_id?: string | null
-          delivery_date?: string | null
-          id?: string
-          imported_by?: string | null
-          items_imported?: number | null
-          items_matched?: number | null
-          items_unmatched?: number | null
-          order_id?: string | null
-          po_file_url?: string | null
-          po_number?: string
-          raw_extracted_data?: Json | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fnb_po_imports_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fnb_po_imports_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_orders"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      fnb_pricing_tiers: {
-        Row: {
-          created_at: string
-          description: string | null
-          id: string
-          is_active: boolean
-          is_default: boolean
-          name: string
-          sort_order: number
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_active?: boolean
-          is_default?: boolean
-          name: string
-          sort_order?: number
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_active?: boolean
-          is_default?: boolean
-          name?: string
-          sort_order?: number
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      fnb_product_aliases: {
-        Row: {
-          alias: string
-          confidence_score: number | null
-          created_at: string | null
-          id: string
-          language: string | null
-          product_id: string
-          updated_at: string | null
-        }
-        Insert: {
-          alias: string
-          confidence_score?: number | null
-          created_at?: string | null
-          id?: string
-          language?: string | null
-          product_id: string
-          updated_at?: string | null
-        }
-        Update: {
-          alias?: string
-          confidence_score?: number | null
-          created_at?: string | null
-          id?: string
-          language?: string | null
-          product_id?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fnb_product_aliases_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_products"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      fnb_product_tier_prices: {
-        Row: {
-          created_at: string
-          id: string
-          price_xcg: number
-          product_id: string
-          tier_id: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          price_xcg: number
-          product_id: string
-          tier_id: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          price_xcg?: number
-          product_id?: string
-          tier_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fnb_product_tier_prices_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fnb_product_tier_prices_tier_id_fkey"
-            columns: ["tier_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_pricing_tiers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      fnb_products: {
-        Row: {
-          case_weight_kg: number | null
-          code: string
-          created_at: string | null
-          id: string
-          is_active: boolean | null
-          is_ob_eligible: boolean | null
-          is_weight_based: boolean | null
-          items_per_case: number | null
-          min_order_qty: number | null
-          name: string
-          name_es: string | null
-          name_nl: string | null
-          name_pap: string | null
-          price_per_case: number | null
-          price_per_gram: number | null
-          price_per_kg: number | null
-          price_per_lb: number | null
-          price_per_piece: number | null
-          price_per_tros: number | null
-          price_xcg: number
-          product_description: string | null
-          quickbooks_item_id: string | null
-          unit: string
-          updated_at: string | null
-          weight_unit: string | null
-        }
-        Insert: {
-          case_weight_kg?: number | null
-          code: string
-          created_at?: string | null
-          id?: string
-          is_active?: boolean | null
-          is_ob_eligible?: boolean | null
-          is_weight_based?: boolean | null
-          items_per_case?: number | null
-          min_order_qty?: number | null
-          name: string
-          name_es?: string | null
-          name_nl?: string | null
-          name_pap?: string | null
-          price_per_case?: number | null
-          price_per_gram?: number | null
-          price_per_kg?: number | null
-          price_per_lb?: number | null
-          price_per_piece?: number | null
-          price_per_tros?: number | null
-          price_xcg: number
-          product_description?: string | null
-          quickbooks_item_id?: string | null
-          unit: string
-          updated_at?: string | null
-          weight_unit?: string | null
-        }
-        Update: {
-          case_weight_kg?: number | null
-          code?: string
-          created_at?: string | null
-          id?: string
-          is_active?: boolean | null
-          is_ob_eligible?: boolean | null
-          is_weight_based?: boolean | null
-          items_per_case?: number | null
-          min_order_qty?: number | null
-          name?: string
-          name_es?: string | null
-          name_nl?: string | null
-          name_pap?: string | null
-          price_per_case?: number | null
-          price_per_gram?: number | null
-          price_per_kg?: number | null
-          price_per_lb?: number | null
-          price_per_piece?: number | null
-          price_per_tros?: number | null
-          price_xcg?: number
-          product_description?: string | null
-          quickbooks_item_id?: string | null
-          unit?: string
-          updated_at?: string | null
-          weight_unit?: string | null
-        }
-        Relationships: []
-      }
-      fnb_response_templates: {
-        Row: {
-          created_at: string | null
-          id: string
-          intent: string
-          is_active: boolean | null
-          template_dutch: string | null
-          template_english: string | null
-          template_papiamentu: string
-          updated_at: string | null
-          usage_count: number | null
-          variables: string[] | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          intent: string
-          is_active?: boolean | null
-          template_dutch?: string | null
-          template_english?: string | null
-          template_papiamentu: string
-          updated_at?: string | null
-          usage_count?: number | null
-          variables?: string[] | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          intent?: string
-          is_active?: boolean | null
-          template_dutch?: string | null
-          template_english?: string | null
-          template_papiamentu?: string
-          updated_at?: string | null
-          usage_count?: number | null
-          variables?: string[] | null
-        }
-        Relationships: []
-      }
-      fnb_standing_order_items: {
-        Row: {
-          created_at: string
-          customer_id: string
-          default_price_xcg: number | null
-          default_quantity: number
-          id: string
-          product_id: string
-          sort_order: number
-          template_id: string
-        }
-        Insert: {
-          created_at?: string
-          customer_id: string
-          default_price_xcg?: number | null
-          default_quantity?: number
-          id?: string
-          product_id: string
-          sort_order?: number
-          template_id: string
-        }
-        Update: {
-          created_at?: string
-          customer_id?: string
-          default_price_xcg?: number | null
-          default_quantity?: number
-          id?: string
-          product_id?: string
-          sort_order?: number
-          template_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fnb_standing_order_items_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fnb_standing_order_items_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fnb_standing_order_items_template_id_fkey"
-            columns: ["template_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_standing_order_templates"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      fnb_standing_order_templates: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          day_of_week: number
-          id: string
-          is_active: boolean
-          notes: string | null
-          template_name: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          day_of_week: number
-          id?: string
-          is_active?: boolean
-          notes?: string | null
-          template_name?: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          day_of_week?: number
-          id?: string
-          is_active?: boolean
-          notes?: string | null
-          template_name?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      fnb_translations: {
-        Row: {
-          category: string | null
-          created_at: string | null
-          dutch: string | null
-          english: string | null
-          grammatical_type: string | null
-          id: string
-          is_verified: boolean | null
-          papiamentu: string
-          source: string | null
-          spanish: string | null
-          updated_at: string | null
-          usage_count: number | null
-        }
-        Insert: {
-          category?: string | null
-          created_at?: string | null
-          dutch?: string | null
-          english?: string | null
-          grammatical_type?: string | null
-          id?: string
-          is_verified?: boolean | null
-          papiamentu: string
-          source?: string | null
-          spanish?: string | null
-          updated_at?: string | null
-          usage_count?: number | null
-        }
-        Update: {
-          category?: string | null
-          created_at?: string | null
-          dutch?: string | null
-          english?: string | null
-          grammatical_type?: string | null
-          id?: string
-          is_verified?: boolean | null
-          papiamentu?: string
-          source?: string | null
-          spanish?: string | null
-          updated_at?: string | null
-          usage_count?: number | null
-        }
-        Relationships: []
-      }
-      fnb_unmatched_items: {
-        Row: {
-          added_as_global_alias: boolean | null
-          conversation_id: string | null
-          created_at: string | null
-          customer_id: string | null
-          detected_language: string | null
-          detected_quantity: number | null
-          detected_unit: string | null
-          id: string
-          is_resolved: boolean | null
-          raw_text: string
-          resolved_at: string | null
-          resolved_by: string | null
-          resolved_product_id: string | null
-        }
-        Insert: {
-          added_as_global_alias?: boolean | null
-          conversation_id?: string | null
-          created_at?: string | null
-          customer_id?: string | null
-          detected_language?: string | null
-          detected_quantity?: number | null
-          detected_unit?: string | null
-          id?: string
-          is_resolved?: boolean | null
-          raw_text: string
-          resolved_at?: string | null
-          resolved_by?: string | null
-          resolved_product_id?: string | null
-        }
-        Update: {
-          added_as_global_alias?: boolean | null
-          conversation_id?: string | null
-          created_at?: string | null
-          customer_id?: string | null
-          detected_language?: string | null
-          detected_quantity?: number | null
-          detected_unit?: string | null
-          id?: string
-          is_resolved?: boolean | null
-          raw_text?: string
-          resolved_at?: string | null
-          resolved_by?: string | null
-          resolved_product_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fnb_unmatched_items_conversation_id_fkey"
-            columns: ["conversation_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_conversations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fnb_unmatched_items_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fnb_unmatched_items_resolved_product_id_fkey"
-            columns: ["resolved_product_id"]
-            isOneToOne: false
-            referencedRelation: "fnb_products"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      fnb_week_generations: {
-        Row: {
-          generated_at: string
-          generated_by: string | null
-          id: string
-          orders_created: number
-          week_start_date: string
-        }
-        Insert: {
-          generated_at?: string
-          generated_by?: string | null
-          id?: string
-          orders_created?: number
-          week_start_date: string
-        }
-        Update: {
-          generated_at?: string
-          generated_by?: string | null
-          id?: string
-          orders_created?: number
-          week_start_date?: string
         }
         Relationships: []
       }
@@ -4711,14 +4711,14 @@ export type Database = {
             foreignKeyName: "whatsapp_messages_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
-            referencedRelation: "fnb_customers"
+            referencedRelation: "distribution_customers"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "whatsapp_messages_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
-            referencedRelation: "fnb_orders"
+            referencedRelation: "distribution_orders"
             referencedColumns: ["id"]
           },
         ]
@@ -4745,7 +4745,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      merge_fnb_customers: {
+      merge_distribution_customers: {
         Args: { primary_id: string; secondary_id: string }
         Returns: undefined
       }
