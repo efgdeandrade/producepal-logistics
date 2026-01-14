@@ -158,11 +158,11 @@ export default function FnbNewOrder() {
     queryKey: ['fnb-customers'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('fnb_customers')
-        .select('*, fnb_pricing_tiers(id, name)')
-        .order('name');
+        .from('distribution_customers')
+        .select('*, distribution_pricing_tiers(id, name)')
+        .order('name') as { data: any[] | null; error: any };
       if (error) throw error;
-      return data;
+      return data || [];
     },
   });
 
@@ -171,8 +171,8 @@ export default function FnbNewOrder() {
     queryKey: ['fnb-product-tier-prices'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('fnb_product_tier_prices')
-        .select('product_id, tier_id, price_xcg');
+        .from('distribution_product_tier_prices')
+        .select('product_id, tier_id, price_xcg') as { data: any[] | null; error: any };
       if (error) throw error;
       return data || [];
     },
@@ -182,12 +182,12 @@ export default function FnbNewOrder() {
     queryKey: ['fnb-delivery-zones'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('fnb_delivery_zones')
+        .from('distribution_delivery_zones')
         .select('name')
         .eq('is_active', true)
-        .order('name');
+        .order('name') as { data: any[] | null; error: any };
       if (error) throw error;
-      return data;
+      return data || [];
     },
   });
 
@@ -195,12 +195,12 @@ export default function FnbNewOrder() {
     queryKey: ['fnb-products-active'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('fnb_products')
+        .from('distribution_products')
         .select('*')
         .eq('is_active', true)
-        .order('name');
+        .order('name') as { data: any[] | null; error: any };
       if (error) throw error;
-      return data;
+      return data || [];
     },
   });
 
@@ -210,13 +210,13 @@ export default function FnbNewOrder() {
     queryFn: async () => {
       if (!orderId) return null;
       const { data, error } = await supabase
-        .from('fnb_orders')
+        .from('distribution_orders')
         .select(`
           *,
-          fnb_order_items(*, fnb_products(*))
+          distribution_order_items(*, distribution_products(*))
         `)
         .eq('id', orderId)
-        .single();
+        .single() as { data: any | null; error: any };
       if (error) throw error;
       return data;
     },
@@ -230,19 +230,19 @@ export default function FnbNewOrder() {
       if (!customerId || !deliveryDate) return [];
       
       const { data, error } = await supabase
-        .from('fnb_orders')
+        .from('distribution_orders')
         .select(`
           id,
           order_number,
           total_xcg,
           status,
           created_at,
-          fnb_order_items(quantity, fnb_products(name))
+          distribution_order_items(quantity, distribution_products(name))
         `)
         .eq('customer_id', customerId)
         .eq('delivery_date', deliveryDate)
         .neq('status', 'cancelled')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false }) as { data: any[] | null; error: any };
         
       if (error) throw error;
       return data || [];
@@ -265,17 +265,17 @@ export default function FnbNewOrder() {
       
       // 2. Check last 5 orders for most common payment method
       const { data: recentOrders } = await supabase
-        .from('fnb_orders')
+        .from('distribution_orders')
         .select('payment_method_used')
         .eq('customer_id', customerId)
         .not('payment_method_used', 'is', null)
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(5) as { data: any[] | null };
       
       if (recentOrders && recentOrders.length > 0) {
         // Find most common payment method
         const methodCounts: Record<string, number> = {};
-        recentOrders.forEach((order) => {
+        recentOrders.forEach((order: any) => {
           if (order.payment_method_used) {
             methodCounts[order.payment_method_used] = (methodCounts[order.payment_method_used] || 0) + 1;
           }
@@ -307,10 +307,10 @@ export default function FnbNewOrder() {
       setIsPickup(existingOrder.is_pickup || false);
       setPriority(existingOrder.priority || 0);
       
-      const loadedItems: OrderItem[] = existingOrder.fnb_order_items?.map((item: any) => ({
+      const loadedItems: OrderItem[] = existingOrder.distribution_order_items?.map((item: any) => ({
         productId: item.product_id,
         quantity: item.quantity,
-        unit: item.order_unit || item.fnb_products?.unit || 'pcs',
+        unit: item.order_unit || item.distribution_products?.unit || 'pcs',
         unitPrice: item.unit_price_xcg,
         total: item.total_xcg,
       })) || [];
@@ -448,7 +448,7 @@ export default function FnbNewOrder() {
       if (!newCustomerForm.whatsapp_phone.trim()) throw new Error('WhatsApp phone is required');
 
       const { data, error } = await supabase
-        .from('fnb_customers')
+        .from('distribution_customers')
         .insert({
           name: newCustomerForm.name.trim(),
           whatsapp_phone: newCustomerForm.whatsapp_phone.trim(),
@@ -458,7 +458,7 @@ export default function FnbNewOrder() {
           preferred_language: newCustomerForm.preferred_language,
         })
         .select()
-        .single();
+        .single() as { data: any | null; error: any };
 
       if (error) throw error;
       return data;
@@ -501,7 +501,7 @@ export default function FnbNewOrder() {
       if (newProductForm.price_xcg <= 0) throw new Error('Price must be greater than 0');
 
       const { data, error } = await supabase
-        .from('fnb_products')
+        .from('distribution_products')
         .insert({
           code: newProductForm.code.trim(),
           name: newProductForm.name.trim(),
@@ -510,7 +510,7 @@ export default function FnbNewOrder() {
           is_active: true,
         })
         .select()
-        .single();
+        .single() as { data: any | null; error: any };
 
       if (error) throw error;
       return data;
@@ -626,7 +626,7 @@ export default function FnbNewOrder() {
 
       // Create order
       const { data: order, error: orderError } = await supabase
-        .from('fnb_orders')
+        .from('distribution_orders')
         .insert({
           customer_id: customerId,
           order_number: newOrderNumber,
@@ -644,7 +644,7 @@ export default function FnbNewOrder() {
           priority: priority,
         })
         .select()
-        .single();
+        .single() as { data: any | null; error: any };
 
       if (orderError) throw orderError;
 
@@ -659,14 +659,14 @@ export default function FnbNewOrder() {
       }));
 
       const { error: itemsError } = await supabase
-        .from('fnb_order_items')
+        .from('distribution_order_items')
         .insert(orderItems);
 
       if (itemsError) throw itemsError;
 
       // Add to picker queue automatically
       const { error: queueError } = await supabase
-        .from('fnb_picker_queue')
+        .from('distribution_picker_queue')
         .insert({
           order_id: order.id,
           status: 'queued',
@@ -677,7 +677,7 @@ export default function FnbNewOrder() {
 
       // Update order status to confirmed
       await supabase
-        .from('fnb_orders')
+        .from('distribution_orders')
         .update({ status: 'confirmed' })
         .eq('id', order.id);
 
@@ -713,7 +713,7 @@ export default function FnbNewOrder() {
       if (validItems.length === 0) throw new Error('Please add at least one item');
       // Update order
       const { error: orderError } = await supabase
-        .from('fnb_orders')
+        .from('distribution_orders')
         .update({
           customer_id: customerId,
           delivery_date: deliveryDate,
@@ -732,7 +732,7 @@ export default function FnbNewOrder() {
 
       // Delete existing items
       const { error: deleteError } = await supabase
-        .from('fnb_order_items')
+        .from('distribution_order_items')
         .delete()
         .eq('order_id', orderId);
 
@@ -749,7 +749,7 @@ export default function FnbNewOrder() {
       }));
 
       const { error: itemsError } = await supabase
-        .from('fnb_order_items')
+        .from('distribution_order_items')
         .insert(orderItems);
 
       if (itemsError) throw itemsError;

@@ -130,7 +130,7 @@ export default function FnbInvoices() {
 
   const renderInvoiceRow = (invoice: Invoice) => {
     const config = statusConfig[invoice.status];
-    const orderNumbers = invoice.fnb_invoice_orders?.map(o => o.fnb_orders?.order_number).filter(Boolean) || [];
+    const orderNumbers = invoice.distribution_invoice_orders?.map(o => o.distribution_orders?.order_number).filter(Boolean) || [];
 
     return (
       <TableRow 
@@ -139,7 +139,7 @@ export default function FnbInvoices() {
         onClick={() => navigate(`/distribution/invoices/${invoice.id}`)}
       >
         <TableCell>
-          <div className="font-medium">{invoice.fnb_customers?.name || 'Unknown'}</div>
+          <div className="font-medium">{invoice.distribution_customers?.name || 'Unknown'}</div>
           <div className="text-xs text-muted-foreground">
             {orderNumbers.length} order{orderNumbers.length !== 1 ? 's' : ''}
           </div>
@@ -461,7 +461,7 @@ export default function FnbInvoices() {
                     >
                       <div className="flex items-center justify-between">
                         <div>
-                          <div className="font-medium">{invoice.fnb_customers?.name}</div>
+                          <div className="font-medium">{invoice.distribution_customers?.name}</div>
                           <div className="text-sm text-muted-foreground">
                             {format(new Date(invoice.invoice_date), 'MMM d, yyyy')} • XCG {invoice.total_xcg.toFixed(2)}
                           </div>
