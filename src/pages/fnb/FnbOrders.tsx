@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase as supabaseClient } from '@/integrations/supabase/client';
 import { useFnbStandingOrdersSync } from '@/hooks/useFnbStandingOrdersSync';
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
 import { useNewFnbOrderNotifications } from '@/hooks/useNewFnbOrderNotifications';
@@ -87,6 +87,10 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+
+// Cast the backend client to `any` in this page to avoid excessively-deep type instantiation errors
+// from complex nested selects (keeps runtime behavior the same).
+const supabase = supabaseClient as any;
 
 type CustomerType = 'regular' | 'supermarket' | 'cod' | 'credit';
 

@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase as supabaseClient } from '@/integrations/supabase/client';
 import { Plus, Pencil, Trash2, ArrowLeft, Star, Users, GripVertical } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -39,6 +39,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+
+// Cast the backend client to `any` in this page to avoid excessively-deep type instantiation errors
+// from complex selects (keeps runtime behavior the same).
+const supabase = supabaseClient as any;
 
 interface PricingTier {
   id: string;

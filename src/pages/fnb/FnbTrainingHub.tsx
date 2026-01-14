@@ -11,7 +11,11 @@ import { ContextWordsManager } from "@/components/fnb/ContextWordsManager";
 import { DictionaryImportDialog } from "@/components/fnb/DictionaryImportDialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase as supabaseClient } from "@/integrations/supabase/client";
+
+// Cast the backend client to `any` in this page to avoid excessively-deep type instantiation errors
+// from complex selects (keeps runtime behavior the same).
+const supabase = supabaseClient as any;
 
 export default function FnbTrainingHub() {
   const [activeTab, setActiveTab] = useState("review");

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase as supabaseClient } from '@/integrations/supabase/client';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,10 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useFnbStandingOrders, StandingOrderItem } from '@/hooks/useFnbStandingOrders';
+
+// Cast the backend client to `any` in this page to avoid excessively-deep type instantiation errors
+// from complex nested selects (keeps runtime behavior the same).
+const supabase = supabaseClient as any;
 
 interface EditingItem {
   customer_id: string;

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase as supabaseClient } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,10 @@ import { useNavigate } from "react-router-dom";
 import ZoneHierarchyMapView from "@/components/fnb/ZoneHierarchyMapView";
 import ZoneDrawingDialogV2 from "@/components/fnb/ZoneDrawingDialogV2";
 import { cn } from "@/lib/utils";
+
+// Cast the backend client to `any` in this page to avoid excessively-deep type instantiation errors
+// from complex nested selects (keeps runtime behavior the same).
+const supabase = supabaseClient as any;
 
 interface Zone {
   id: string;
