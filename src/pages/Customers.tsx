@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import {
   Table,
   TableBody,
@@ -51,14 +51,14 @@ interface Customer {
 export default function Customers() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { hasRole } = useAuth();
+  const { canCreate, canUpdate, canDelete } = usePermissions();
   const queryClient = useQueryClient();
   const { logActivity } = useActivityLogger();
   const [searchQuery, setSearchQuery] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
 
-  const canManage = hasRole('admin') || hasRole('management');
+  const canManage = canCreate('data') || canUpdate('data');
 
   const { data: customers, isLoading } = useQuery({
     queryKey: ['customers'],
