@@ -35,6 +35,7 @@ import { format } from 'date-fns';
 import { todayStringCuracao, parseDateCuracao, todayCuracao, formatCuracao, isBeforeCuracao } from '@/lib/dateUtils';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { ResponsiveSearchableSelect } from '@/components/ui/responsive-searchable-select';
 import {
   Dialog,
   DialogContent,
@@ -1527,7 +1528,7 @@ export default function FnbNewOrder() {
                         <div className="space-y-3">
                           <div className="flex items-center gap-2">
                             <div className="flex-1">
-                              <SearchableSelect
+                              <ResponsiveSearchableSelect
                                 options={products?.map((p: any) => ({
                                   value: p.id,
                                   label: `${p.name} (${p.code})`,
