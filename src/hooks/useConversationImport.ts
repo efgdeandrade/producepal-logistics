@@ -413,31 +413,31 @@ export function useConversationImport() {
       const [mappingsResult, aliasesResult, patternsResult] = await Promise.all([
         customerId 
           ? supabase
-              .from('fnb_customer_product_mappings')
+              .from('distribution_customer_product_mappings')
               .select('customer_sku, customer_product_name, product_id, confidence_score, is_verified')
               .eq('customer_id', customerId)
               .order('confidence_score', { ascending: false })
           : Promise.resolve({ data: [] }),
         supabase
-          .from('fnb_product_aliases')
+          .from('distribution_product_aliases')
           .select('alias, product_id'),
         customerId
           ? supabase
-              .from('fnb_customer_patterns')
-              .select('product_id, order_count, avg_quantity, fnb_products(name)')
+              .from('distribution_customer_patterns')
+              .select('product_id, order_count, avg_quantity, distribution_products(name)')
               .eq('customer_id', customerId)
               .order('order_count', { ascending: false })
               .limit(20)
           : Promise.resolve({ data: [] })
       ]);
       
-      const customerMappings: CustomerMapping[] = mappingsResult.data || [];
-      const globalAliases = aliasesResult.data || [];
+      const customerMappings: CustomerMapping[] = (mappingsResult.data || []) as unknown as CustomerMapping[];
+      const globalAliases = (aliasesResult.data || []) as unknown as { alias: string; product_id: string }[];
       
       // Transform patterns to include product name
       const customerPatterns: CustomerPattern[] = (patternsResult.data || []).map((p: any) => ({
         product_id: p.product_id,
-        product_name: p.fnb_products?.name || '',
+        product_name: p.distribution_products?.name || '',
         order_count: p.order_count || 0,
         avg_quantity: p.avg_quantity || 0
       }));
@@ -708,7 +708,7 @@ export function useConversationImport() {
         
         try {
           const { data: logData } = await supabase
-            .from('fnb_ai_match_logs')
+            .from('distribution_ai_match_logs')
             .insert(logEntries)
             .select('id');
           
@@ -792,7 +792,7 @@ export function useConversationImport() {
         
         if (Object.keys(updateData).length > 0) {
           await supabase
-            .from('fnb_ai_match_logs')
+            .from('distribution_ai_match_logs')
             .update(updateData)
             .eq('id', item.log_id);
         }
@@ -816,7 +816,7 @@ export function useConversationImport() {
     try {
       for (const mapping of newMappings) {
         const { error } = await supabase
-          .from('fnb_customer_product_mappings')
+          .from('distribution_customer_product_mappings')
           .upsert(mapping, {
             onConflict: 'customer_id,customer_sku',
             ignoreDuplicates: false

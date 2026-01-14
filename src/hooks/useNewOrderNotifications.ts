@@ -67,7 +67,7 @@ export function useNewOrderNotifications() {
         { 
           event: 'INSERT', 
           schema: 'public', 
-          table: 'fnb_picker_queue' 
+          table: 'distribution_picker_queue' 
         },
         async (payload) => {
           const newQueue = payload.new as any;
@@ -80,28 +80,28 @@ export function useNewOrderNotifications() {
 
           // Fetch order details
           const { data: queueData } = await supabase
-            .from('fnb_picker_queue')
+            .from('distribution_picker_queue')
             .select(`
               id,
               order_id,
               priority,
-              fnb_orders(
+              distribution_orders(
                 order_number,
-                fnb_customers(name, delivery_zone)
+                distribution_customers(name, delivery_zone)
               )
             `)
             .eq('id', newQueue.id)
             .single();
 
           if (queueData) {
-            const order = queueData.fnb_orders as any;
-            const customer = order?.fnb_customers as any;
-            const isUrgent = (queueData.priority || 0) > 0;
+            const order = (queueData as any).distribution_orders as any;
+            const customer = order?.distribution_customers as any;
+            const isUrgent = ((queueData as any).priority || 0) > 0;
 
             const notification: OrderNotification = {
-              id: `notif-${queueData.id}`,
-              queueId: queueData.id,
-              orderId: queueData.order_id || '',
+              id: `notif-${(queueData as any).id}`,
+              queueId: (queueData as any).id,
+              orderId: (queueData as any).order_id || '',
               orderNumber: order?.order_number || 'N/A',
               customerName: customer?.name || 'Unknown',
               zone: customer?.delivery_zone || undefined,

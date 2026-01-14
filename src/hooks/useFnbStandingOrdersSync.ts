@@ -24,7 +24,7 @@ export function useFnbStandingOrdersSync() {
     try {
       // Get all active templates
       const { data: templates, error: templatesError } = await supabase
-        .from('fnb_standing_order_templates')
+        .from('distribution_standing_order_templates')
         .select('id, day_of_week, template_name, is_active')
         .eq('is_active', true);
 
@@ -32,22 +32,22 @@ export function useFnbStandingOrdersSync() {
       if (!templates || templates.length === 0) return 0;
 
       // Get template items
-      const templateIds = templates.map(t => t.id);
+      const templateIds = (templates as any[]).map(t => t.id);
       const { data: allItems, error: itemsError } = await supabase
-        .from('fnb_standing_order_items')
+        .from('distribution_standing_order_items')
         .select('template_id, customer_id, product_id, default_quantity, default_price_xcg')
         .in('template_id', templateIds);
 
       if (itemsError) throw itemsError;
 
       // Get product prices for fallback
-      const productIds = [...new Set((allItems || []).map(i => i.product_id))];
+      const productIds = [...new Set(((allItems || []) as any[]).map(i => i.product_id))];
       const { data: products } = await supabase
-        .from('fnb_products')
+        .from('distribution_products')
         .select('id, price_xcg')
         .in('id', productIds);
 
-      const productPrices = (products || []).reduce((acc, p) => {
+      const productPrices = ((products || []) as any[]).reduce((acc, p) => {
         acc[p.id] = p.price_xcg;
         return acc;
       }, {} as Record<string, number>);
@@ -79,7 +79,7 @@ export function useFnbStandingOrdersSync() {
         const dayOfWeek = jsDay === 0 ? 7 : jsDay; // Convert Sunday from 0 to 7
 
         // Find template for this day
-        const template = templates.find(t => t.day_of_week === dayOfWeek);
+        const template = (templates as any[]).find(t => t.day_of_week === dayOfWeek);
         if (!template) {
           syncedDatesRef.current.add(dateStr);
           currentDate = addDays(currentDate, 1);
@@ -87,7 +87,7 @@ export function useFnbStandingOrdersSync() {
         }
 
         // Get items for this template
-        const templateItems = (allItems || []).filter(i => i.template_id === template.id);
+        const templateItems = ((allItems || []) as any[]).filter(i => i.template_id === template.id);
         if (templateItems.length === 0) {
           syncedDatesRef.current.add(dateStr);
           currentDate = addDays(currentDate, 1);
@@ -106,13 +106,13 @@ export function useFnbStandingOrdersSync() {
         // Check which customers already have orders for this date
         const customerIds = Object.keys(itemsByCustomer);
         const { data: existingOrders } = await supabase
-          .from('fnb_orders')
+          .from('distribution_orders')
           .select('customer_id')
           .in('customer_id', customerIds)
           .eq('delivery_date', dateStr)
           .neq('status', 'cancelled');
 
-        const existingCustomerIds = new Set((existingOrders || []).map(o => o.customer_id));
+        const existingCustomerIds = new Set(((existingOrders || []) as any[]).map(o => o.customer_id));
 
         // Create orders for customers that don't have one
         for (const [customerId, items] of Object.entries(itemsByCustomer)) {
@@ -122,14 +122,15 @@ export function useFnbStandingOrdersSync() {
           const orderNumber = `FNB-${format(new Date(), 'yyyyMMddHHmmss')}-${String(Math.random()).slice(2, 5)}`;
 
           // Calculate total
-          const total = items.reduce((sum, item) => {
+          const typedItems = items as TemplateItem[];
+          const total = typedItems.reduce((sum, item) => {
             const price = item.default_price_xcg ?? productPrices[item.product_id] ?? 0;
             return sum + (price * item.default_quantity);
           }, 0);
 
           // Create the order with template reference
           const { data: newOrder, error: orderError } = await supabase
-            .from('fnb_orders')
+            .from('distribution_orders')
             .insert({
               order_number: orderNumber,
               customer_id: customerId,
@@ -149,15 +150,16 @@ export function useFnbStandingOrdersSync() {
           }
 
           // Create order items
-          const orderItems = items.map(item => ({
-            order_id: newOrder.id,
+          const typedItemsForOrder = items as TemplateItem[];
+          const orderItems = typedItemsForOrder.map(item => ({
+            order_id: (newOrder as any).id,
             product_id: item.product_id,
             quantity: item.default_quantity,
             unit_price_xcg: item.default_price_xcg ?? productPrices[item.product_id] ?? 0,
             total_xcg: (item.default_price_xcg ?? productPrices[item.product_id] ?? 0) * item.default_quantity,
           }));
 
-          await supabase.from('fnb_order_items').insert(orderItems);
+          await supabase.from('distribution_order_items').insert(orderItems);
           ordersCreated++;
         }
 
