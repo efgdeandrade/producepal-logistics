@@ -13,13 +13,17 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { MobileProductCard } from '@/components/mobile/MobileProductCard';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase as supabaseClient } from '@/integrations/supabase/client';
 import { useConversationImport } from '@/hooks/useConversationImport';
 import { usePOImport } from '@/hooks/usePOImport';
 import { POUploadDialog } from '@/components/fnb/POUploadDialog';
 import { POReviewDialog } from '@/components/fnb/POReviewDialog';
 import { toast } from 'sonner';
 import { format, addDays, startOfDay } from 'date-fns';
+
+// Cast the backend client to `any` in this page to avoid excessively-deep type instantiation errors
+// from complex nested selects (keeps runtime behavior the same).
+const supabase = supabaseClient as any;
 
 // Parse date string as local time (not UTC) to avoid timezone issues
 const parseLocalDate = (dateStr: string) => new Date(dateStr + 'T12:00:00');

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase as supabaseClient } from '@/integrations/supabase/client';
 import { Plus, Pencil, Trash2, ArrowLeft, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -33,6 +33,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+
+// Cast the backend client to `any` in this page to avoid excessively-deep type instantiation errors
+// from complex selects (keeps runtime behavior the same).
+const supabase = supabaseClient as any;
 
 interface FnbProduct {
   id: string;

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase as supabaseClient } from "@/integrations/supabase/client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { format, addDays, startOfWeek, isSameDay, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useFnbStandingOrders } from "@/hooks/useFnbStandingOrders";
+
+// Cast the backend client to `any` in this page to avoid excessively-deep type instantiation errors
+// from complex nested selects (keeps runtime behavior the same).
+const supabase = supabaseClient as any;
 
 type CustomerType = "regular" | "supermarket" | "cod" | "credit";
 
