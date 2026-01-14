@@ -257,7 +257,7 @@ export function useWhatsAppMessages() {
     try {
       let query = supabase
         .from('whatsapp_messages')
-        .select('*, fnb_customers(name)')
+        .select('*, distribution_customers(name)')
         .order('created_at', { ascending: false })
         .limit(100);
 

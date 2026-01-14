@@ -235,14 +235,7 @@ export default function FnbPickerSupervisor() {
         .from('distribution_order_items')
         .select(`*, distribution_products(name, code), distribution_orders(order_number, distribution_customers(name))`)
         .eq('shortage_status', 'pending');
-      return data?.map((item: any) => ({
-        ...item,
-        fnb_products: item.distribution_products,
-        fnb_orders: item.distribution_orders ? {
-          ...item.distribution_orders,
-          fnb_customers: item.distribution_orders.distribution_customers
-        } : null,
-      })) || [];
+      return data || [];
     },
     refetchInterval: 10000,
   });

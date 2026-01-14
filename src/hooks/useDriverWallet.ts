@@ -250,7 +250,7 @@ export function useWalletTransactions(driverId: string | null) {
         .from("driver_wallet_transactions")
         .select(`
           *,
-          fnb_orders:order_id (order_number, fnb_customers (name))
+          distribution_orders:order_id (order_number, distribution_customers (name))
         `)
         .eq("driver_id", driverId)
         .order("created_at", { ascending: false })

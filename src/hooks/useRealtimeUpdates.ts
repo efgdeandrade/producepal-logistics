@@ -41,7 +41,7 @@ export function useRealtimeUpdates(tables: string[], queryKeys: string[][]) {
 // Hook specifically for executive dashboard
 export function useExecutiveDashboardRealtime() {
   return useRealtimeUpdates(
-    ["fnb_orders", "time_entries"],
+    ["distribution_orders", "time_entries"],
     [
       ["executive-dashboard-stats", "department-health"],
       ["executive-dashboard-stats", "hr-dashboard-stats"],
