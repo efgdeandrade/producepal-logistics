@@ -13,10 +13,10 @@ export default function FnbDashboard() {
     queryKey: ['fnb-dashboard-stats'],
     queryFn: async () => {
       const [ordersResult, customersResult, productsResult, pendingResult] = await Promise.all([
-        supabase.from('fnb_orders').select('id', { count: 'exact' }),
-        supabase.from('fnb_customers').select('id', { count: 'exact' }),
-        supabase.from('fnb_products').select('id', { count: 'exact' }).eq('is_active', true),
-        supabase.from('fnb_orders').select('id', { count: 'exact' }).eq('status', 'pending'),
+        supabase.from('distribution_orders').select('id', { count: 'exact' }),
+        supabase.from('distribution_customers').select('id', { count: 'exact' }),
+        supabase.from('distribution_products').select('id', { count: 'exact' }).eq('is_active', true),
+        supabase.from('distribution_orders').select('id', { count: 'exact' }).eq('status', 'pending'),
       ]);
 
       return {
@@ -32,14 +32,14 @@ export default function FnbDashboard() {
     queryKey: ['fnb-recent-orders'],
     queryFn: async () => {
       const { data } = await supabase
-        .from('fnb_orders')
+        .from('distribution_orders')
         .select(`
           *,
-          fnb_customers(name, whatsapp_phone)
+          distribution_customers(name, whatsapp_phone)
         `)
         .order('created_at', { ascending: false })
         .limit(5);
-      return data || [];
+      return (data || []) as any[];
     },
   });
 
@@ -221,7 +221,7 @@ export default function FnbDashboard() {
                     <div>
                       <p className="font-medium">{order.order_number}</p>
                       <p className="text-sm text-muted-foreground">
-                        {order.fnb_customers?.name} • {order.fnb_customers?.whatsapp_phone}
+                        {order.distribution_customers?.name} • {order.distribution_customers?.whatsapp_phone}
                       </p>
                     </div>
                     <div className="text-right">

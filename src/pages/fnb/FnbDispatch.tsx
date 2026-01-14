@@ -82,24 +82,24 @@ const FnbDispatch = () => {
     queryKey: ["dispatch-ready-orders", selectedDate],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select(`
           id, order_number, total_xcg, priority, assignment_locked, driver_id,
-          fnb_customers!inner(name, address, latitude, longitude, delivery_zone)
+          distribution_customers!inner(name, address, latitude, longitude, delivery_zone)
         `)
         .eq("status", "ready")
         .eq("delivery_date", selectedDate);
       
       if (error) throw error;
       
-      return data?.map((o: any) => ({
+      return (data || []).map((o: any) => ({
         id: o.id,
         order_number: o.order_number,
-        customer_name: o.fnb_customers.name,
-        customer_address: o.fnb_customers.address,
-        latitude: o.fnb_customers.latitude,
-        longitude: o.fnb_customers.longitude,
-        delivery_zone: o.fnb_customers.delivery_zone,
+        customer_name: o.distribution_customers.name,
+        customer_address: o.distribution_customers.address,
+        latitude: o.distribution_customers.latitude,
+        longitude: o.distribution_customers.longitude,
+        delivery_zone: o.distribution_customers.delivery_zone,
         priority: o.priority || 0,
         total_xcg: o.total_xcg || 0,
         assignment_locked: o.assignment_locked || false,
@@ -291,7 +291,7 @@ const FnbDispatch = () => {
 
   const toggleLockOrder = async (orderId: string, currentLocked: boolean) => {
     const { error } = await supabase
-      .from("fnb_orders")
+      .from("distribution_orders")
       .update({ 
         assignment_locked: !currentLocked,
         manual_override_at: !currentLocked ? new Date().toISOString() : null 
@@ -365,7 +365,7 @@ const FnbDispatch = () => {
       for (const assignment of assignments) {
         for (const stop of assignment.stops) {
           const { error } = await supabase
-            .from("fnb_orders")
+            .from("distribution_orders")
             .update({
               status: "out_for_delivery",
               driver_id: assignment.driver_id,

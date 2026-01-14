@@ -39,7 +39,7 @@ interface DeliveryOrder {
   notes: string | null;
   status: string | null;
   delivery_date: string | null;
-  fnb_customers: {
+  distribution_customers: {
     name: string;
     address: string | null;
     whatsapp_phone: string;
@@ -47,12 +47,12 @@ interface DeliveryOrder {
     latitude: number | null;
     longitude: number | null;
   } | null;
-  fnb_order_items: Array<{
+  distribution_order_items: Array<{
     id: string;
     quantity: number;
     picked_quantity: number | null;
     short_quantity: number | null;
-    fnb_products: { name: string } | null;
+    distribution_products: { name: string } | null;
   }>;
 }
 
@@ -112,17 +112,17 @@ export default function FnbDriverMobile() {
     queryFn: async () => {
       if (!user?.id) return [];
       const { data, error } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select(`
           *,
-          fnb_customers (name, address, whatsapp_phone, customer_type, latitude, longitude),
-          fnb_order_items (id, quantity, picked_quantity, short_quantity, product_id, fnb_products (name))
+          distribution_customers (name, address, whatsapp_phone, customer_type, latitude, longitude),
+          distribution_order_items (id, quantity, picked_quantity, short_quantity, product_id, distribution_products (name))
         `)
         .eq("driver_id", user.id)
         .in("status", ["out_for_delivery"])
         .order("delivery_date", { ascending: true });
       if (error) throw error;
-      return data as DeliveryOrder[];
+      return (data || []) as DeliveryOrder[];
     },
     enabled: !!user?.id,
     refetchInterval: 30000, // Auto-refresh every 30 seconds
@@ -135,14 +135,14 @@ export default function FnbDriverMobile() {
       if (!user?.id) return [];
       const today = new Date().toISOString().split("T")[0];
       const { data, error } = await supabase
-        .from("fnb_orders")
-        .select("id, order_number, total_xcg, cod_amount_collected, delivered_at, fnb_customers(name)")
+        .from("distribution_orders")
+        .select("id, order_number, total_xcg, cod_amount_collected, delivered_at, distribution_customers(name)")
         .eq("driver_id", user.id)
         .eq("status", "delivered")
         .gte("delivered_at", today)
         .order("delivered_at", { ascending: false });
       if (error) throw error;
-      return data;
+      return (data || []) as any[];
     },
     enabled: !!user?.id,
   });
@@ -164,7 +164,7 @@ export default function FnbDriverMobile() {
       receiptPhotoPath?: string;
     }) => {
       const { error } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .update({
           status: "delivered",
           delivered_at: new Date().toISOString(),
@@ -211,7 +211,7 @@ export default function FnbDriverMobile() {
     }
   };
 
-  const todayCodTotal = completedOrders.reduce((sum, order) => sum + (order.cod_amount_collected || 0), 0);
+  const todayCodTotal = completedOrders.reduce((sum: number, order: any) => sum + (order.cod_amount_collected || 0), 0);
 
   const currentTime = format(new Date(), "HH:mm");
 
@@ -277,7 +277,7 @@ export default function FnbDriverMobile() {
       <div className={`flex-shrink-0 transition-all duration-300 ${showMap ? 'h-[35vh]' : 'h-0'}`}>
         {showMap && (
           <DriverMap
-            orders={orders}
+            orders={orders as any}
             driverLocation={driverLocation}
             selectedOrder={selectedOrder}
             onSelectOrder={setSelectedOrder}
@@ -325,13 +325,13 @@ export default function FnbDriverMobile() {
           orders.map((order, index) => (
             <DeliveryCard
               key={order.id}
-              order={order}
+              order={order as any}
               index={index}
               isSelected={selectedOrder === order.id}
               onSelect={() => setSelectedOrder(order.id === selectedOrder ? null : order.id)}
               onNavigate={(address) => {
-                const coords = order.fnb_customers?.latitude && order.fnb_customers?.longitude
-                  ? { lat: order.fnb_customers.latitude, lng: order.fnb_customers.longitude }
+                const coords = order.distribution_customers?.latitude && order.distribution_customers?.longitude
+                  ? { lat: order.distribution_customers.latitude, lng: order.distribution_customers.longitude }
                   : null;
                 
                 // Try to open maps app
@@ -356,10 +356,10 @@ export default function FnbDriverMobile() {
               Completed Today ({completedOrders.length})
             </h3>
             <div className="space-y-2">
-              {completedOrders.slice(0, 5).map((order) => (
+              {completedOrders.slice(0, 5).map((order: any) => (
                 <div key={order.id} className="flex items-center justify-between py-2 px-3 bg-muted/30 rounded-lg">
                   <div>
-                    <p className="font-medium text-sm">{order.fnb_customers?.name}</p>
+                    <p className="font-medium text-sm">{order.distribution_customers?.name}</p>
                     <p className="text-xs text-muted-foreground">{order.order_number}</p>
                   </div>
                   <div className="text-right">
@@ -379,7 +379,7 @@ export default function FnbDriverMobile() {
 
       {/* COD Dialog */}
       <CODDialog
-        order={codDialogOrder}
+        order={codDialogOrder as any}
         onClose={() => setCodDialogOrder(null)}
         onConfirm={(codCollected, paymentMethod, receiptPath) => {
           if (codDialogOrder) {

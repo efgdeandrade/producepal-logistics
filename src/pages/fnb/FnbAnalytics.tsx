@@ -71,7 +71,7 @@ export default function FnbAnalytics() {
 
   const revenueChartData = Object.entries(dailyRevenue || {}).map(([date, revenue]) => ({
     date,
-    revenue: Number(revenue.toFixed(2)),
+    revenue: Number((revenue as number).toFixed(2)),
   }));
 
   // Top products
@@ -85,7 +85,7 @@ export default function FnbAnalytics() {
     return acc;
   }, {});
 
-  const topProducts = Object.values(productSales || {})
+  const topProducts = (Object.values(productSales || {}) as { name: string; quantity: number; revenue: number }[])
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 10);
 
@@ -103,7 +103,7 @@ export default function FnbAnalytics() {
     return acc;
   }, {});
 
-  const topCustomers = Object.values(customerSales || {})
+  const topCustomers = (Object.values(customerSales || {}) as { name: string; orders: number; revenue: number }[])
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 10);
 
@@ -116,7 +116,7 @@ export default function FnbAnalytics() {
     return acc;
   }, {});
 
-  const zoneChartData = Object.values(zoneStats || {})
+  const zoneChartData = (Object.values(zoneStats || {}) as { zone: string; orders: number; revenue: number }[])
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 8);
 
@@ -194,7 +194,7 @@ export default function FnbAnalytics() {
     return acc;
   }, {});
 
-  const driverPerformance = Object.values(driverStats || {})
+  const driverPerformance = (Object.values(driverStats || {}) as { name: string; deliveries: number; totalDeliveryTime: number; deliveriesWithTime: number; codDue: number; codCollected: number }[])
     .filter(d => d.name !== "Unassigned")
     .map(d => ({
       name: d.name,

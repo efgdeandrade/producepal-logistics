@@ -347,7 +347,7 @@ export default function FnbCODReconciliation() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
-                    {Object.entries(driverSummary).map(([driverId, summary]) => (
+                    {Object.entries(driverSummary).map(([driverId, summary]: [string, any]) => (
                       <div key={driverId} className="flex items-center justify-between p-3 border rounded-lg">
                         <div className="flex items-center gap-2">
                           <User className="h-4 w-4 text-muted-foreground" />
