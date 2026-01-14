@@ -104,7 +104,7 @@ export default function FnbProducts() {
     queryKey: ['fnb-products'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('fnb_products')
+        .from('distribution_products')
         .select('*')
         .order('code');
       if (error) throw error;
@@ -117,7 +117,7 @@ export default function FnbProducts() {
     queryKey: ['fnb-pricing-tiers-active'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('fnb_pricing_tiers')
+        .from('distribution_pricing_tiers')
         .select('id, name, is_default')
         .eq('is_active', true)
         .order('sort_order');
@@ -128,7 +128,7 @@ export default function FnbProducts() {
 
   const createMutation = useMutation({
     mutationFn: async (product: Omit<FnbProduct, 'id'>) => {
-      const { error } = await supabase.from('fnb_products').insert(product);
+      const { error } = await supabase.from('distribution_products').insert(product);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -144,7 +144,7 @@ export default function FnbProducts() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...product }: FnbProduct) => {
-      const { error } = await supabase.from('fnb_products').update(product).eq('id', id);
+      const { error } = await supabase.from('distribution_products').update(product).eq('id', id);
       if (error) throw error;
       
       // Save tier prices
@@ -165,7 +165,7 @@ export default function FnbProducts() {
   const saveTierPrices = async (productId: string) => {
     // Delete existing tier prices for this product
     await supabase
-      .from('fnb_product_tier_prices')
+      .from('distribution_product_tier_prices')
       .delete()
       .eq('product_id', productId);
     
@@ -180,7 +180,7 @@ export default function FnbProducts() {
     
     if (pricesToInsert.length > 0) {
       const { error } = await supabase
-        .from('fnb_product_tier_prices')
+        .from('distribution_product_tier_prices')
         .insert(pricesToInsert);
       if (error) throw error;
     }
@@ -188,7 +188,7 @@ export default function FnbProducts() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('fnb_products').delete().eq('id', id);
+      const { error } = await supabase.from('distribution_products').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -242,7 +242,7 @@ export default function FnbProducts() {
     
     // Fetch existing tier prices for this product
     const { data: existingPrices } = await supabase
-      .from('fnb_product_tier_prices')
+      .from('distribution_product_tier_prices')
       .select('tier_id, price_xcg')
       .eq('product_id', product.id);
     

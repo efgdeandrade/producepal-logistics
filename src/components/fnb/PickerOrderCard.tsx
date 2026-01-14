@@ -11,14 +11,14 @@ interface PickerOrderCardProps {
     priority: number;
     claimed_by: string | null;
     picker_name: string | null;
-    fnb_orders: {
+    distribution_orders: {
       id: string;
       order_number: string;
       total_xcg: number;
       delivery_date: string | null;
       delivery_station: string | null;
       notes: string | null;
-      fnb_customers: {
+      distribution_customers: {
         name: string;
         whatsapp_phone: string;
         address: string | null;
@@ -43,15 +43,15 @@ export function PickerOrderCard({
   pickProgress,
 }: PickerOrderCardProps) {
   const now = nowCuracao();
-  const deliveryDate = order.fnb_orders?.delivery_date
-    ? parseDateCuracao(order.fnb_orders.delivery_date)
+  const deliveryDate = order.distribution_orders?.delivery_date
+    ? parseDateCuracao(order.distribution_orders.delivery_date)
     : null;
   
   const isOverdue = deliveryDate && isBefore(deliveryDate, now);
   const isUrgent = deliveryDate && (isOverdue || differenceInHours(deliveryDate, now) < 2);
   const isWarning = deliveryDate && !isUrgent && differenceInHours(deliveryDate, now) < 4;
   
-  const customerType = order.fnb_orders?.fnb_customers?.customer_type || 'regular';
+  const customerType = order.distribution_orders?.distribution_customers?.customer_type || 'regular';
   const isVIP = customerType === 'supermarket' || customerType === 'premium';
   const isClaimedByOther = order.claimed_by && order.picker_name !== currentPickerName;
 
@@ -132,26 +132,26 @@ export function PickerOrderCard({
         <div className="flex-1 min-w-0">
           {/* Customer name - big and bold */}
           <p className="font-bold text-lg truncate">
-            {order.fnb_orders?.fnb_customers?.name}
+            {order.distribution_orders?.distribution_customers?.name}
           </p>
           
           {/* Order number - smaller */}
           <p className="text-sm text-muted-foreground truncate">
-            {order.fnb_orders?.order_number}
+            {order.distribution_orders?.order_number}
           </p>
           
           {/* Delivery station - prominent badge */}
-          {order.fnb_orders?.delivery_station && (
+          {order.distribution_orders?.delivery_station && (
             <Badge variant="secondary" className="mt-1 text-xs font-medium bg-primary/10 text-primary">
-              {order.fnb_orders.delivery_station}
+              {order.distribution_orders.delivery_station}
             </Badge>
           )}
           
           {/* Delivery zone */}
-          {order.fnb_orders?.fnb_customers?.delivery_zone && (
+          {order.distribution_orders?.distribution_customers?.delivery_zone && (
             <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
               <MapPin className="h-3 w-3" />
-              {order.fnb_orders.fnb_customers.delivery_zone}
+              {order.distribution_orders.distribution_customers.delivery_zone}
             </p>
           )}
         </div>
@@ -190,7 +190,7 @@ export function PickerOrderCard({
           </Badge>
         )}
 
-        {order.fnb_orders?.notes && (
+        {order.distribution_orders?.notes && (
           <Badge variant="secondary" className="text-xs">
             <AlertTriangle className="h-3 w-3 mr-1" />
             Has notes

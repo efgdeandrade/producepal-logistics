@@ -69,14 +69,14 @@ export default function FnbZoneManagement() {
     queryKey: ["fnb-delivery-zones"],
     queryFn: async () => {
       const { data: zonesData, error: zonesError } = await supabase
-        .from("fnb_delivery_zones")
+        .from("distribution_delivery_zones")
         .select("*")
         .order("sort_order", { ascending: true });
       if (zonesError) throw zonesError;
 
       // Get customer counts per zone
       const { data: customers, error: customersError } = await supabase
-        .from("fnb_customers")
+        .from("distribution_customers")
         .select("delivery_zone");
       if (customersError) throw customersError;
 
@@ -101,7 +101,7 @@ export default function FnbZoneManagement() {
     queryKey: ["fnb-customers-map"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("fnb_customers")
+        .from("distribution_customers")
         .select("id, name, latitude, longitude, delivery_zone");
       if (error) throw error;
       return data as Customer[];
@@ -121,7 +121,7 @@ export default function FnbZoneManagement() {
       polygon_coordinates: [number, number][] | null;
     }) => {
       const maxOrder = zones?.reduce((max, z) => Math.max(max, z.sort_order), 0) || 0;
-      const { error } = await supabase.from("fnb_delivery_zones").insert({
+      const { error } = await supabase.from("distribution_delivery_zones").insert({
         name: data.name,
         description: data.description || null,
         sort_order: maxOrder + 1,
@@ -152,7 +152,7 @@ export default function FnbZoneManagement() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Zone> }) => {
-      const { error } = await supabase.from("fnb_delivery_zones").update(data).eq("id", id);
+      const { error } = await supabase.from("distribution_delivery_zones").update(data).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -172,7 +172,7 @@ export default function FnbZoneManagement() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("fnb_delivery_zones").delete().eq("id", id);
+      const { error } = await supabase.from("distribution_delivery_zones").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -196,8 +196,8 @@ export default function FnbZoneManagement() {
     const tempOrder = zone.sort_order;
 
     await Promise.all([
-      supabase.from("fnb_delivery_zones").update({ sort_order: targetZone.sort_order }).eq("id", zone.id),
-      supabase.from("fnb_delivery_zones").update({ sort_order: tempOrder }).eq("id", targetZone.id),
+      supabase.from("distribution_delivery_zones").update({ sort_order: targetZone.sort_order }).eq("id", zone.id),
+      supabase.from("distribution_delivery_zones").update({ sort_order: tempOrder }).eq("id", targetZone.id),
     ]);
 
     queryClient.invalidateQueries({ queryKey: ["fnb-delivery-zones"] });
@@ -298,7 +298,7 @@ export default function FnbZoneManagement() {
         // Update sub-zones that need to be assigned to this major zone
         if (newlyAssigned.length > 0) {
           await supabase
-            .from("fnb_delivery_zones")
+            .from("distribution_delivery_zones")
             .update({ parent_zone_id: editingZone.id })
             .in("id", newlyAssigned);
         }
@@ -306,7 +306,7 @@ export default function FnbZoneManagement() {
         // Update sub-zones that need to be unassigned
         if (toUnassign.length > 0) {
           await supabase
-            .from("fnb_delivery_zones")
+            .from("distribution_delivery_zones")
             .update({ parent_zone_id: null })
             .in("id", toUnassign);
         }

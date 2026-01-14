@@ -10,14 +10,14 @@ interface OrderWithItems {
   claimed_by: string | null;
   picker_name: string | null;
   order_id: string;
-  fnb_orders: {
+  distribution_orders: {
     id: string;
     order_number: string;
     total_xcg: number;
     delivery_date: string | null;
     delivery_station: string | null;
     notes: string | null;
-    fnb_customers: {
+    distribution_customers: {
       name: string;
       whatsapp_phone: string;
       address: string | null;
@@ -60,8 +60,8 @@ export function PickerQueueZone({
   
   const color = zoneColor || ZONE_COLORS[zoneName] || ZONE_COLORS['Unknown'];
   const urgentCount = orders.filter(o => {
-    if (!o.fnb_orders?.delivery_date) return false;
-    const hours = (new Date(o.fnb_orders.delivery_date).getTime() - Date.now()) / (1000 * 60 * 60);
+    if (!o.distribution_orders?.delivery_date) return false;
+    const hours = (new Date(o.distribution_orders.delivery_date).getTime() - Date.now()) / (1000 * 60 * 60);
     return hours < 2;
   }).length;
 

@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 interface Order {
   id: string;
   order_number: string;
-  fnb_customers: {
+  distribution_customers: {
     name: string;
     address: string | null;
     latitude: number | null;
@@ -134,7 +134,7 @@ export default function DriverMap({
 
     // Add new markers
     orders.forEach((order, index) => {
-      const customer = order.fnb_customers;
+      const customer = order.distribution_customers;
       if (!customer?.latitude || !customer?.longitude) return;
 
       const isSelected = order.id === selectedOrder;
@@ -180,7 +180,7 @@ export default function DriverMap({
       const bounds = new mapboxgl.LngLatBounds();
       
       orders.forEach(order => {
-        const customer = order.fnb_customers;
+        const customer = order.distribution_customers;
         if (customer?.latitude && customer?.longitude) {
           bounds.extend([customer.longitude, customer.latitude]);
         }
@@ -204,7 +204,7 @@ export default function DriverMap({
     if (!map.current || !selectedOrder) return;
 
     const order = orders.find(o => o.id === selectedOrder);
-    const customer = order?.fnb_customers;
+    const customer = order?.distribution_customers;
     
     if (customer?.latitude && customer?.longitude) {
       map.current.flyTo({

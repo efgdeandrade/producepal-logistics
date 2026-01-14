@@ -164,7 +164,7 @@ export default function FnbQuickPaste() {
       }, 0);
 
       const { data: order, error: orderError } = await supabase
-        .from('fnb_orders')
+        .from('distribution_orders')
         .insert({
           order_number: orderNumber,
           customer_id: selectedCustomer,
@@ -194,14 +194,14 @@ export default function FnbQuickPaste() {
       });
 
       const { error: itemsError } = await supabase
-        .from('fnb_order_items')
+        .from('distribution_order_items')
         .insert(orderItems);
 
       if (itemsError) throw itemsError;
 
       // Add to picker queue
       await supabase
-        .from('fnb_picker_queue')
+        .from('distribution_picker_queue')
         .insert({
           order_id: order.id,
           status: 'pending',
@@ -231,7 +231,7 @@ export default function FnbQuickPaste() {
     queryKey: ['fnb-products-quick'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('fnb_products')
+        .from('distribution_products')
         .select('id, code, name, name_pap, name_nl, name_es, price_xcg, unit')
         .eq('is_active', true)
         .order('name');
@@ -245,7 +245,7 @@ export default function FnbQuickPaste() {
     queryKey: ['fnb-customers-quick'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('fnb_customers')
+        .from('distribution_customers')
         .select('id, name, whatsapp_phone')
         .order('name');
       if (error) throw error;
@@ -258,8 +258,8 @@ export default function FnbQuickPaste() {
     queryKey: ['recent-order-customers'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('fnb_orders')
-        .select('customer_id, fnb_customers(id, name)')
+        .from('distribution_orders')
+        .select('customer_id, distribution_customers(id, name)')
         .order('created_at', { ascending: false })
         .limit(30);
       if (error) throw error;
@@ -267,9 +267,9 @@ export default function FnbQuickPaste() {
       const seen = new Set();
       const unique: { id: string; name: string }[] = [];
       for (const order of data || []) {
-        if (order.fnb_customers && !seen.has(order.customer_id)) {
+        if (order.distribution_customers && !seen.has(order.customer_id)) {
           seen.add(order.customer_id);
-          unique.push(order.fnb_customers as { id: string; name: string });
+          unique.push(order.distribution_customers as { id: string; name: string });
           if (unique.length >= 5) break;
         }
       }
@@ -374,7 +374,7 @@ export default function FnbQuickPaste() {
       }, 0);
 
       const { data: order, error: orderError } = await supabase
-        .from('fnb_orders')
+        .from('distribution_orders')
         .insert({
           order_number: orderNumber,
           customer_id: customerId,
@@ -400,13 +400,13 @@ export default function FnbQuickPaste() {
       }));
 
       const { error: itemsError } = await supabase
-        .from('fnb_order_items')
+        .from('distribution_order_items')
         .insert(orderItems);
 
       if (itemsError) throw itemsError;
 
       await supabase
-        .from('fnb_picker_queue')
+        .from('distribution_picker_queue')
         .insert({
           order_id: order.id,
           status: 'pending',
