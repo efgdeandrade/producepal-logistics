@@ -15,6 +15,13 @@ import { cn } from "@/lib/utils";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
+// Helper to escape HTML to prevent XSS
+function escapeHtml(text: string): string {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 interface AttendanceLocation {
   id: string;
   clock_in: string;
@@ -126,8 +133,8 @@ export function AttendanceMap() {
 
       const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(`
         <div class="p-2">
-          <p class="font-semibold">${location.employees?.full_name || "Unknown"}</p>
-          <p class="text-sm text-gray-500">${location.employees?.department || "No department"}</p>
+          <p class="font-semibold">${escapeHtml(location.employees?.full_name || "Unknown")}</p>
+          <p class="text-sm text-gray-500">${escapeHtml(location.employees?.department || "No department")}</p>
           <p class="text-xs text-gray-400">${format(new Date(location.clock_in), "h:mm a")}</p>
         </div>
       `);

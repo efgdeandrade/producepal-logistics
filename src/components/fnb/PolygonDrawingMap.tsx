@@ -12,6 +12,13 @@ const CURACAO_BOUNDS: [[number, number], [number, number]] = [
   [-68.7, 12.4],
 ];
 
+// Helper to escape HTML to prevent XSS
+function escapeHtml(text: string): string {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 interface Customer {
   id: string;
   name: string;
@@ -158,23 +165,22 @@ export default function PolygonDrawingMap({
         },
       });
 
-      // Add zone label
+      // Add zone label - use textContent for safety
       const centroid = calculateCentroid(zone.polygon_coordinates);
       const labelEl = document.createElement("div");
-      labelEl.innerHTML = `
-        <div style="
-          background: ${zone.color};
-          color: white;
-          padding: 4px 8px;
-          border-radius: 4px;
-          font-size: 12px;
-          font-weight: 600;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-          white-space: nowrap;
-        ">
-          ${zone.name}
-        </div>
+      const labelInner = document.createElement("div");
+      labelInner.style.cssText = `
+        background: ${escapeHtml(zone.color)};
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        white-space: nowrap;
       `;
+      labelInner.textContent = zone.name;
+      labelEl.appendChild(labelInner);
 
       const labelMarker = new mapboxgl.Marker({ element: labelEl })
         .setLngLat(centroid)
@@ -374,7 +380,7 @@ export default function PolygonDrawingMap({
         .setLngLat([customer.longitude, customer.latitude])
         .setPopup(
           new mapboxgl.Popup({ offset: 25 }).setHTML(`
-            <strong>${customer.name}</strong>
+            <strong>${escapeHtml(customer.name)}</strong>
             <br/><small>${isInZone ? "✓ In zone" : "Outside zone"}</small>
           `)
         )

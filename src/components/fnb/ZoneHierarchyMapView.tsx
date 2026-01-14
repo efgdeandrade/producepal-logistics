@@ -12,6 +12,13 @@ const CURACAO_BOUNDS: [[number, number], [number, number]] = [
   [-68.7, 12.4],
 ];
 
+// Helper to escape HTML to prevent XSS
+function escapeHtml(text: string): string {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 interface Zone {
   id: string;
   name: string;
@@ -229,8 +236,8 @@ export default function ZoneHierarchyMapView({
         .setLngLat([customer.longitude, customer.latitude])
         .setPopup(
           new mapboxgl.Popup({ offset: 25 }).setHTML(`
-            <strong>${customer.name}</strong>
-            ${customer.delivery_zone ? `<br/><small>Zone: ${customer.delivery_zone}</small>` : ""}
+            <strong>${escapeHtml(customer.name)}</strong>
+            ${customer.delivery_zone ? `<br/><small>Zone: ${escapeHtml(customer.delivery_zone)}</small>` : ""}
           `)
         )
         .addTo(map.current!);
