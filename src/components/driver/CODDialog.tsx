@@ -28,7 +28,7 @@ interface DeliveryOrder {
   id: string;
   order_number: string;
   total_xcg: number | null;
-  fnb_customers: {
+  distribution_customers: {
     name: string;
     customer_type: string;
   } | null;
@@ -53,8 +53,8 @@ export default function CODDialog({
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isSupermarket = order?.fnb_customers?.customer_type === 'supermarket';
-  const isCredit = order?.fnb_customers?.customer_type === 'credit';
+  const isSupermarket = order?.distribution_customers?.customer_type === 'supermarket';
+  const isCredit = order?.distribution_customers?.customer_type === 'credit';
 
   // Reset state when order changes
   useState(() => {
@@ -135,7 +135,7 @@ export default function CODDialog({
         <div className="flex items-center justify-between px-6 pb-4 border-b">
           <div>
             <h2 className="text-lg font-semibold">Complete Delivery</h2>
-            <p className="text-sm text-muted-foreground">{order.fnb_customers?.name}</p>
+            <p className="text-sm text-muted-foreground">{order.distribution_customers?.name}</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-5 w-5" />

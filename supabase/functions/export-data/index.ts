@@ -38,7 +38,7 @@ serve(async (req) => {
     const body = await req.json();
     const { table, select = "*", filters, orderBy, limit = 10000, format } = body;
 
-    const ALLOWED_TABLES = ["fnb_orders", "fnb_order_items", "fnb_customers", "fnb_products", "customers", "products"];
+    const ALLOWED_TABLES = ["distribution_orders", "distribution_order_items", "distribution_customers", "distribution_products", "customers", "products"];
 
     if (!ALLOWED_TABLES.includes(table)) {
       return new Response(JSON.stringify({ error: `Table not allowed` }), {

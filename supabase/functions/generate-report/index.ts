@@ -58,8 +58,8 @@ serve(async (req) => {
       case "daily-sales-summary": {
         const date = parameters.date as string || new Date().toISOString().split("T")[0];
         const result = await supabase
-          .from("fnb_orders")
-          .select("id, order_number, total_xcg, status, created_at, customer:fnb_customers(name)")
+          .from("distribution_orders")
+          .select("id, order_number, total_xcg, status, created_at, customer:distribution_customers(name)")
           .gte("created_at", `${date}T00:00:00`)
           .lte("created_at", `${date}T23:59:59`)
           .order("created_at", { ascending: false });
@@ -72,7 +72,7 @@ serve(async (req) => {
       case "weekly-revenue-report": {
         const { startDate, endDate } = parameters as { startDate: string; endDate: string };
         const result = await supabase
-          .from("fnb_orders")
+          .from("distribution_orders")
           .select("id, order_number, total_xcg, status, created_at, delivery_date")
           .gte("created_at", startDate)
           .lte("created_at", endDate)
@@ -86,7 +86,7 @@ serve(async (req) => {
       case "customer-order-history": {
         const customerId = parameters.customer_id as string;
         const result = await supabase
-          .from("fnb_orders")
+          .from("distribution_orders")
           .select("id, order_number, total_xcg, status, created_at, delivery_date")
           .eq("customer_id", customerId)
           .order("created_at", { ascending: false })
@@ -105,7 +105,7 @@ serve(async (req) => {
         };
         
         let query = supabase
-          .from("fnb_orders")
+          .from("distribution_orders")
           .select("id, order_number, status, created_at, delivery_date, delivered_at, driver_name")
           .gte("created_at", startDate)
           .lte("created_at", endDate);
@@ -123,14 +123,14 @@ serve(async (req) => {
       case "product-sales-analysis": {
         const { startDate, endDate } = parameters as { startDate: string; endDate: string };
         const result = await supabase
-          .from("fnb_order_items")
+          .from("distribution_order_items")
           .select(`
             id, 
             quantity, 
             unit_price_xcg, 
             total_xcg,
-            product:fnb_products(name, code, category),
-            order:fnb_orders(created_at)
+            product:distribution_products(name, code, category),
+            order:distribution_orders(created_at)
           `)
           .gte("order.created_at", startDate)
           .lte("order.created_at", endDate);
@@ -143,7 +143,7 @@ serve(async (req) => {
       case "cod-collection-report": {
         const { startDate, endDate } = parameters as { startDate: string; endDate: string };
         const result = await supabase
-          .from("fnb_orders")
+          .from("distribution_orders")
           .select(`
             id, 
             order_number, 
@@ -152,7 +152,7 @@ serve(async (req) => {
             cod_collected_at, 
             cod_reconciled_at, 
             driver_name,
-            customer:fnb_customers(name)
+            customer:distribution_customers(name)
           `)
           .gte("created_at", startDate)
           .lte("created_at", endDate)

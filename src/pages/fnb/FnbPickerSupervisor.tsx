@@ -397,9 +397,9 @@ export default function FnbPickerSupervisor() {
                       <div key={item.id} className="p-3 border rounded-lg bg-amber-50 dark:bg-amber-950">
                         <div className="flex justify-between items-start mb-2">
                           <div>
-                            <p className="font-medium text-sm">{item.fnb_products?.name}</p>
+                            <p className="font-medium text-sm">{item.distribution_products?.name}</p>
                             <p className="text-xs text-muted-foreground">
-                              {item.fnb_orders?.order_number} • {item.fnb_orders?.fnb_customers?.name}
+                              {item.distribution_orders?.order_number} • {item.distribution_orders?.distribution_customers?.name}
                             </p>
                           </div>
                           <Badge variant="outline" className="text-xs">{item.short_reason}</Badge>

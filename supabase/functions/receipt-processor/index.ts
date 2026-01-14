@@ -80,7 +80,7 @@ serve(async (req) => {
     // Verify user has permission to access this order
     // Check if user is admin/management or the assigned driver
     const { data: order, error: orderError } = await supabaseAuth
-      .from("fnb_orders")
+      .from("distribution_orders")
       .select("id, driver_id")
       .eq("id", orderId)
       .single();
@@ -254,7 +254,7 @@ IMPORTANT: Return ONLY the JSON object, no markdown formatting or explanation.`
     }
 
     const { error: updateError } = await supabase
-      .from("fnb_orders")
+      .from("distribution_orders")
       .update(updateData)
       .eq("id", orderId);
 

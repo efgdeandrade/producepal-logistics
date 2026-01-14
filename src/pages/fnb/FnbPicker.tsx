@@ -249,10 +249,9 @@ const PICKER_UNITS = [
 
       return data?.map((q: any) => ({
         ...q,
-        // Map distribution_orders to fnb_orders for component compatibility
-        fnb_orders: q.distribution_orders ? {
+        distribution_orders: q.distribution_orders ? {
           ...q.distribution_orders,
-          fnb_customers: q.distribution_orders.distribution_customers
+          distribution_customers: q.distribution_orders.distribution_customers
         } : null,
         itemCount: countMap[q.order_id] || 0,
       })) || [];
@@ -361,10 +360,9 @@ const PICKER_UNITS = [
       if (error) throw error;
       return data?.map((item: any) => ({
         ...item,
-        // Map for component compatibility
-        fnb_orders: item.distribution_orders ? {
+        distribution_orders: item.distribution_orders ? {
           ...item.distribution_orders,
-          fnb_customers: item.distribution_orders.distribution_customers
+          distribution_customers: item.distribution_orders.distribution_customers
         } : null,
       })) || [];
     },
@@ -398,11 +396,10 @@ const PICKER_UNITS = [
       if (error) throw error;
       return data?.map((item: any) => ({
         ...item,
-        // Map for component compatibility
-        fnb_products: item.distribution_products,
-        fnb_orders: item.distribution_orders ? {
+        distribution_products: item.distribution_products,
+        distribution_orders: item.distribution_orders ? {
           ...item.distribution_orders,
-          fnb_customers: item.distribution_orders.distribution_customers
+          distribution_customers: item.distribution_orders.distribution_customers
         } : null,
       })) || [];
     },
@@ -454,7 +451,7 @@ const PICKER_UNITS = [
       if (error) throw error;
       return data?.map((item: any) => ({
         ...item,
-        fnb_products: item.distribution_products,
+        distribution_products: item.distribution_products,
       })) || [];
     },
     enabled: !!viewingCompletedOrder && !!completedOrders,
@@ -466,7 +463,7 @@ const PICKER_UNITS = [
     
     const grouped: Record<string, any[]> = {};
     queueItems.forEach((item: any) => {
-      const zone = item.fnb_orders?.fnb_customers?.delivery_zone || 'Unassigned';
+      const zone = item.distribution_orders?.distribution_customers?.delivery_zone || 'Unassigned';
       if (!grouped[zone]) grouped[zone] = [];
       grouped[zone].push(item);
     });
@@ -501,7 +498,7 @@ const PICKER_UNITS = [
       if (error) throw error;
       return data?.map((item: any) => ({
         ...item,
-        fnb_products: item.distribution_products,
+        distribution_products: item.distribution_products,
       })) || [];
     },
     enabled: !!selectedQueue,
@@ -515,7 +512,7 @@ const PICKER_UNITS = [
       const initialReasons: Record<string, string> = {};
       orderItems.forEach((item: any) => {
         initialQuantities[item.id] = item.picked_quantity ?? item.quantity;
-        initialUnits[item.id] = item.picked_unit || item.order_unit || item.fnb_products?.unit || 'pcs';
+        initialUnits[item.id] = item.picked_unit || item.order_unit || item.distribution_products?.unit || 'pcs';
         if (item.short_reason) {
           initialReasons[item.id] = item.short_reason;
         }
@@ -573,11 +570,11 @@ const PICKER_UNITS = [
         if (queueItem.status === 'queued') {
           claimMutation.mutate(queueItem.id);
           setSelectedQueue(queueItem.id);
-          toast.success(`Auto-claimed order for ${queueItem.fnb_orders?.fnb_customers?.name || 'customer'}`);
+          toast.success(`Auto-claimed order for ${queueItem.distribution_orders?.distribution_customers?.name || 'customer'}`);
         } else if (queueItem.status === 'in_progress') {
           // If already in progress, just select it
           setSelectedQueue(queueItem.id);
-          toast.info(`Viewing order for ${queueItem.fnb_orders?.fnb_customers?.name || 'customer'}`);
+          toast.info(`Viewing order for ${queueItem.distribution_orders?.distribution_customers?.name || 'customer'}`);
         }
       } else if (queueItems.length > 0) {
         // Queue loaded but order not found
@@ -737,9 +734,9 @@ const PICKER_UNITS = [
       if (orderItems) {
         for (const item of orderItems) {
           const pickedQty = pickedQuantities[item.id] ?? item.quantity;
-          const pickedUnit = pickedUnits[item.id] || item.order_unit || item.fnb_products?.unit || 'pcs';
+          const pickedUnit = pickedUnits[item.id] || item.order_unit || item.distribution_products?.unit || 'pcs';
           const shortQty = Math.max(0, item.quantity - pickedQty);
-          const isWeightBased = item.fnb_products?.is_weight_based || false;
+          const isWeightBased = item.distribution_products?.is_weight_based || false;
           const isOverPicked = pickedQty > item.quantity;
           
           await supabase
@@ -877,7 +874,7 @@ const PICKER_UNITS = [
   // For fixed items, use an average weight estimate (0.5kg per unit as fallback)
   const expectedWeight = orderItems?.reduce((sum: number, item: any) => {
     const pickedQty = pickedQuantities[item.id] ?? item.quantity;
-    const isWeightBased = item.fnb_products?.is_weight_based || false;
+    const isWeightBased = item.distribution_products?.is_weight_based || false;
     
     if (isWeightBased) {
       // Weight-based: picked quantity is already in kg (or weight unit)
@@ -1196,7 +1193,7 @@ const PICKER_UNITS = [
                     const completedTime = order.completed_at 
                       ? new Date(order.completed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                       : '';
-                    const isEditable = order.fnb_orders?.status === 'ready';
+                    const isEditable = order.distribution_orders?.status === 'ready';
                     const isViewing = viewingCompletedOrder === order.id;
                     
                     return (
@@ -1217,11 +1214,11 @@ const PICKER_UNITS = [
                             <div className="flex items-center justify-between">
                               <div>
                                 <p className="font-medium text-sm flex items-center gap-2">
-                                  {order.fnb_orders?.order_number}
+                                  {order.distribution_orders?.order_number}
                                   <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                  {order.fnb_orders?.fnb_customers?.name}
+                                  {order.distribution_orders?.distribution_customers?.name}
                                 </p>
                                 <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                                   <Clock className="h-3 w-3" />
@@ -1255,12 +1252,12 @@ const PICKER_UNITS = [
                                     className="flex items-center justify-between text-sm p-2 bg-white/50 dark:bg-black/20 rounded"
                                   >
                                     <div>
-                                      <p className="font-medium">{item.fnb_products?.name}</p>
-                                      <p className="text-xs text-muted-foreground">{item.fnb_products?.code}</p>
+                                      <p className="font-medium">{item.distribution_products?.name}</p>
+                                      <p className="text-xs text-muted-foreground">{item.distribution_products?.code}</p>
                                     </div>
                                     <div className="text-right">
                                       <p className="font-bold">
-                                        {item.picked_quantity ?? item.quantity} {item.fnb_products?.unit}
+                                        {item.picked_quantity ?? item.quantity} {item.distribution_products?.unit}
                                       </p>
                                       {item.short_quantity > 0 && (
                                         <p className="text-xs text-orange-600 dark:text-orange-400">
@@ -1340,7 +1337,7 @@ const PICKER_UNITS = [
               <CardTitle className="flex items-center gap-2">
                 <Package className="h-5 w-5" />
                 {selectedQueueItem
-                  ? `Order ${selectedQueueItem.fnb_orders?.order_number}`
+                  ? `Order ${selectedQueueItem.distribution_orders?.order_number}`
                   : 'Select an Order'}
               </CardTitle>
             </CardHeader>
@@ -1350,15 +1347,15 @@ const PICKER_UNITS = [
                   {/* Customer Info */}
                   <div className="p-3 bg-muted rounded-lg">
                     <p className="font-medium">
-                      {selectedQueueItem.fnb_orders?.fnb_customers?.name}
+                      {selectedQueueItem.distribution_orders?.distribution_customers?.name}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {selectedQueueItem.fnb_orders?.fnb_customers?.address}
+                      {selectedQueueItem.distribution_orders?.distribution_customers?.address}
                     </p>
-                    {selectedQueueItem.fnb_orders?.notes && (
+                    {selectedQueueItem.distribution_orders?.notes && (
                       <p className="text-sm mt-2 text-orange-600 dark:text-orange-400 flex items-start gap-1">
                         <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                        {selectedQueueItem.fnb_orders.notes}
+                        {selectedQueueItem.distribution_orders.notes}
                       </p>
                     )}
                   </div>

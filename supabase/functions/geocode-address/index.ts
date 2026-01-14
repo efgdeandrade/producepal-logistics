@@ -95,7 +95,7 @@ serve(async (req) => {
 
     // Fetch active delivery zones (both major and sub)
     const { data: zones, error: zonesError } = await supabase
-      .from('fnb_delivery_zones')
+      .from('distribution_delivery_zones')
       .select('id, name, zone_type, parent_zone_id, center_latitude, center_longitude, radius_meters')
       .eq('is_active', true)
       .not('center_latitude', 'is', null)
@@ -192,7 +192,7 @@ serve(async (req) => {
       }
 
       const { error: updateError } = await supabase
-        .from('fnb_customers')
+        .from('distribution_customers')
         .update(updateData)
         .eq('id', customerId);
 

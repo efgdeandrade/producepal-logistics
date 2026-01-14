@@ -21,12 +21,12 @@ interface Invoice {
   due_date: string;
   customer_memo: string | null;
   total_xcg: number;
-  fnb_customers: {
+  distribution_customers: {
     name: string;
     whatsapp_phone: string;
     address: string | null;
   };
-  fnb_invoice_items: InvoiceItem[];
+  distribution_invoice_items: InvoiceItem[];
 }
 
 // Normalize names for matching (trim, collapse spaces, case-insensitive ready)
@@ -403,7 +403,7 @@ Deno.serve(async (req) => {
         let qbItemId = null;
         if (item.product_id) {
           const { data: productData } = await supabase
-            .from('fnb_products')
+            .from('distribution_products')
             .select('quickbooks_item_id')
             .eq('id', item.product_id)
             .single();
@@ -429,7 +429,7 @@ Deno.serve(async (req) => {
             // Cache the QuickBooks Item ID for future syncs
             if (item.product_id) {
               await supabase
-                .from('fnb_products')
+                .from('distribution_products')
                 .update({ quickbooks_item_id: foundItem.Id })
                 .eq('id', item.product_id);
               console.log('Cached QuickBooks Item ID for product:', item.product_id);
@@ -451,7 +451,7 @@ Deno.serve(async (req) => {
             // Cache the QuickBooks Item ID
             if (item.product_id) {
               await supabase
-                .from('fnb_products')
+                .from('distribution_products')
                 .update({ quickbooks_item_id: createdItem.Id })
                 .eq('id', item.product_id);
               console.log('Cached newly created QuickBooks Item ID for product:', item.product_id);
@@ -510,7 +510,7 @@ Deno.serve(async (req) => {
 
       // Step 5: Update our invoice with QB details
       await supabase
-        .from('fnb_invoices')
+        .from('distribution_invoices')
         .update({
           status: 'synced',
           quickbooks_invoice_id: qbInvoiceId,
@@ -522,7 +522,7 @@ Deno.serve(async (req) => {
         .eq('id', invoice_id);
 
       // Log activity
-      await supabase.from('fnb_invoice_activity').insert({
+      await supabase.from('distribution_invoice_activity').insert({
         invoice_id,
         action: 'synced',
         details: { 
@@ -556,7 +556,7 @@ Deno.serve(async (req) => {
 
       // Update invoice with error
       await supabase
-        .from('fnb_invoices')
+        .from('distribution_invoices')
         .update({
           status: 'failed',
           quickbooks_sync_status: 'failed',
@@ -565,7 +565,7 @@ Deno.serve(async (req) => {
         .eq('id', invoice_id);
 
       // Log activity
-      await supabase.from('fnb_invoice_activity').insert({
+      await supabase.from('distribution_invoice_activity').insert({
         invoice_id,
         action: 'sync_failed',
         details: { error: qbError.message },

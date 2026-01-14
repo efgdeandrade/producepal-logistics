@@ -83,7 +83,7 @@ export default function FnbStandingOrders() {
     queryKey: ['fnb-customers-for-standing'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('fnb_customers')
+        .from('distribution_customers')
         .select('id, name, whatsapp_phone')
         .order('name');
       if (error) throw error;
@@ -95,7 +95,7 @@ export default function FnbStandingOrders() {
     queryKey: ['fnb-products-for-standing'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('fnb_products')
+        .from('distribution_products')
         .select('id, code, name, price_xcg, unit')
         .eq('is_active', true)
         .order('name');

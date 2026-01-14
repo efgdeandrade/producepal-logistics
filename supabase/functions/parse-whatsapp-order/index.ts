@@ -62,7 +62,7 @@ serve(async (req) => {
 
     // Fetch verified context words - only essential ones with usage
     const { data: contextWords } = await supabase
-      .from('fnb_context_words')
+      .from('distribution_context_words')
       .select('word, word_type, meaning')
       .eq('is_verified', true)
       .gt('usage_count', 0)
@@ -328,7 +328,7 @@ Extract items with: raw_text, interpreted_product, matched_product_code (from li
         try {
           // Try to upsert - increment usage_count if already exists
           const { error: upsertError } = await supabase
-            .from('fnb_context_words')
+            .from('distribution_context_words')
             .upsert({
               word: word.word.toLowerCase().trim(),
               word_type: word.word_type,

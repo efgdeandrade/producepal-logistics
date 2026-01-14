@@ -54,12 +54,12 @@ interface OrderWithDetails {
   receipt_verified_at: string | null;
   quickbooks_invoice_id: string | null;
   notes: string | null;
-  fnb_customers: {
+  distribution_customers: {
     name: string;
     delivery_zone: string | null;
     customer_type: CustomerType;
   } | null;
-  fnb_order_items: { id: string }[];
+  distribution_order_items: { id: string }[];
 }
 
 const isStandingOrder = (order: OrderWithDetails) => {
@@ -139,7 +139,7 @@ export default function FnbWeeklyBoard() {
     queryFn: async () => {
       const weekEnd = addDays(weekStart, 6);
       const { data, error } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select(`
           id,
           order_number,
@@ -152,8 +152,8 @@ export default function FnbWeeklyBoard() {
           receipt_verified_at,
           quickbooks_invoice_id,
           notes,
-          fnb_customers (name, delivery_zone, customer_type),
-          fnb_order_items (id)
+          distribution_customers (name, delivery_zone, customer_type),
+          distribution_order_items (id)
         `)
         .gte("delivery_date", format(weekStart, "yyyy-MM-dd"))
         .lte("delivery_date", format(weekEnd, "yyyy-MM-dd"))
@@ -179,10 +179,10 @@ export default function FnbWeeklyBoard() {
     const total = dayOrders.length;
     const delivered = dayOrders.filter((o) => o.status === "delivered").length;
     const pendingReceipts = dayOrders.filter(
-      (o) => o.fnb_customers?.customer_type === "supermarket" && o.status === "delivered" && !o.receipt_verified_at
+      (o) => o.distribution_customers?.customer_type === "supermarket" && o.status === "delivered" && !o.receipt_verified_at
     ).length;
     const codTotal = dayOrders
-      .filter((o) => o.fnb_customers?.customer_type === "cod" || o.payment_method === "cod")
+      .filter((o) => o.distribution_customers?.customer_type === "cod" || o.payment_method === "cod")
       .reduce((sum, o) => sum + (o.total_xcg || 0), 0);
     
     return { total, delivered, pendingReceipts, codTotal };
@@ -211,7 +211,7 @@ export default function FnbWeeklyBoard() {
   };
 
   const renderOrderCard = (order: OrderWithDetails, compact = false) => {
-    const customerType = order.fnb_customers?.customer_type || "regular";
+    const customerType = order.distribution_customers?.customer_type || "regular";
     const isSupermarket = customerType === "supermarket";
     const needsReceipt = isSupermarket && order.status === "delivered" && !order.receipt_verified_at;
     const hasReceipt = !!order.receipt_photo_url;
@@ -223,7 +223,7 @@ export default function FnbWeeklyBoard() {
         key={order.id}
         className={cn(
           "mb-2 cursor-pointer hover:shadow-md transition-shadow border-l-4",
-          getZoneColor(order.fnb_customers?.delivery_zone || null),
+          getZoneColor(order.distribution_customers?.delivery_zone || null),
           needsReceipt && "ring-2 ring-orange-400"
         )}
         onClick={() => navigate(`/fnb/orders`)}
@@ -235,7 +235,7 @@ export default function FnbWeeklyBoard() {
                 {isStandingOrder(order) && (
                   <Repeat className="h-3.5 w-3.5 text-blue-500 shrink-0" />
                 )}
-                <p className="font-medium text-sm truncate">{order.fnb_customers?.name || "Unknown"}</p>
+                <p className="font-medium text-sm truncate">{order.distribution_customers?.name || "Unknown"}</p>
               </div>
               <p className="text-xs text-muted-foreground">{order.order_number}</p>
             </div>
@@ -539,7 +539,7 @@ export default function FnbWeeklyBoard() {
                   {Object.entries(ordersByDriver).map(([driver, driverOrders]) => {
                     const driverTotal = driverOrders.reduce((sum, o) => sum + (o.total_xcg || 0), 0);
                     const driverCOD = driverOrders
-                      .filter((o) => o.fnb_customers?.customer_type === "cod" || o.payment_method === "cod")
+                      .filter((o) => o.distribution_customers?.customer_type === "cod" || o.payment_method === "cod")
                       .reduce((sum, o) => sum + (o.total_xcg || 0), 0);
 
                     return (
