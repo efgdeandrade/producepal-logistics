@@ -20,13 +20,66 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Verify the caller is authenticated
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      console.error('Webhook dispatcher called without authorization header');
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Create a client with the user's token to verify authentication
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+    if (authError || !user) {
+      console.error('Webhook dispatcher authentication failed:', authError?.message);
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Check if user has admin or management role
+    const { data: roles, error: rolesError } = await supabaseClient
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id);
+
+    if (rolesError) {
+      console.error('Error fetching user roles:', rolesError.message);
+      return new Response(JSON.stringify({ error: 'Failed to verify permissions' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const hasPermission = roles?.some(r => 
+      ['admin', 'management'].includes(r.role as string)
+    );
+
+    if (!hasPermission) {
+      console.error('User does not have permission to dispatch webhooks:', user.id);
+      return new Response(JSON.stringify({ error: 'Forbidden - insufficient permissions' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Use service role for database operations
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
     const { event_type, payload } = await req.json();
-    console.log('Dispatching webhook for event:', event_type);
+    console.log('Dispatching webhook for event:', event_type, 'by user:', user.id);
 
     // Get active webhooks subscribed to this event
     const { data: webhooks } = await supabase
