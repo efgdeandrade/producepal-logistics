@@ -99,6 +99,8 @@ import NotFound from "./pages/NotFound";
 import Install from "./pages/Install";
 import Offline from "./pages/Offline";
 import ResetPassword from "./pages/ResetPassword";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import EULA from "./pages/EULA";
 
 // Integrations
 import IntegrationHub from "./pages/integrations/IntegrationHub";
@@ -219,6 +221,10 @@ const App = () => (
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/install" element={<Install />} />
+                  
+                  {/* Legal Pages - Public, no auth required */}
+                  <Route path="/privacy" element={<PrivacyPolicy />} />
+                  <Route path="/eula" element={<EULA />} />
 
                   {/* Executive Dashboard - Full layout */}
                   <Route path="/" element={<ProtectedWithLayout><ExecutiveDashboard /></ProtectedWithLayout>} />
