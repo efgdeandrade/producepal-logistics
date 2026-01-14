@@ -45,6 +45,33 @@ const CURACAO_BOUNDS: [[number, number], [number, number]] = [
 ];
 const CURACAO_CENTER: [number, number] = [-68.99, 12.17];
 
+// Helper function to calculate distance in meters between two points
+function getDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000; // Earth's radius in meters
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+// Helper function to create circle polygon from center and radius
+function createCirclePolygon(center: [number, number], radiusMeters: number, numPoints: number = 64): [number, number][] {
+  const coords: [number, number][] = [];
+  for (let i = 0; i < numPoints; i++) {
+    const angle = (i / numPoints) * 2 * Math.PI;
+    const dx = radiusMeters * Math.cos(angle);
+    const dy = radiusMeters * Math.sin(angle);
+    const lat = center[1] + (dy / 111320);
+    const lng = center[0] + (dx / (111320 * Math.cos(center[1] * Math.PI / 180)));
+    coords.push([lng, lat]);
+  }
+  coords.push(coords[0]); // Close the polygon
+  return coords;
+}
+
 export function CustomerLocationPicker({
   open,
   onOpenChange,
@@ -69,10 +96,10 @@ export function CustomerLocationPicker({
 
   // Fetch zones for display and detection
   const { data: zones } = useQuery({
-    queryKey: ['fnb-delivery-zones-all'],
+    queryKey: ['distribution-delivery-zones-all'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('fnb_delivery_zones')
+        .from('distribution_delivery_zones')
         .select('*')
         .eq('is_active', true);
       if (error) throw error;
@@ -496,55 +523,4 @@ export function CustomerLocationPicker({
       </DialogContent>
     </Dialog>
   );
-}
-
-// Utility: Check if point is inside polygon (ray casting algorithm)
-function isPointInPolygon(point: [number, number], polygon: [number, number][]): boolean {
-  const [x, y] = point;
-  let inside = false;
-
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const [xi, yi] = polygon[i];
-    const [xj, yj] = polygon[j];
-
-    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) {
-      inside = !inside;
-    }
-  }
-
-  return inside;
-}
-
-// Utility: Calculate distance between two points in meters (Haversine)
-function getDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371000;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-// Utility: Create a circle polygon from center point and radius in meters
-function createCirclePolygon(center: [number, number], radiusMeters: number, points = 64): [number, number][] {
-  const coords: [number, number][] = [];
-  const [lng, lat] = center;
-  
-  // Convert radius from meters to degrees (approximate)
-  const latRadius = radiusMeters / 111320;
-  const lngRadius = radiusMeters / (111320 * Math.cos(lat * Math.PI / 180));
-  
-  for (let i = 0; i <= points; i++) {
-    const angle = (i / points) * 2 * Math.PI;
-    const x = lng + lngRadius * Math.cos(angle);
-    const y = lat + latRadius * Math.sin(angle);
-    coords.push([x, y]);
-  }
-  
-  return coords;
 }

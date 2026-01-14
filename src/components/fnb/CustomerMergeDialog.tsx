@@ -69,11 +69,11 @@ export function CustomerMergeDialog({
       
       for (const customer of customers) {
         const [orders, conversations, mappings, patterns, standingItems] = await Promise.all([
-          supabase.from('fnb_orders').select('id', { count: 'exact', head: true }).eq('customer_id', customer.id),
-          supabase.from('fnb_conversations').select('id', { count: 'exact', head: true }).eq('customer_id', customer.id),
-          supabase.from('fnb_customer_product_mappings').select('id', { count: 'exact', head: true }).eq('customer_id', customer.id),
-          supabase.from('fnb_customer_patterns').select('id', { count: 'exact', head: true }).eq('customer_id', customer.id),
-          supabase.from('fnb_standing_order_items').select('id', { count: 'exact', head: true }).eq('customer_id', customer.id),
+          supabase.from('distribution_orders').select('id', { count: 'exact', head: true }).eq('customer_id', customer.id),
+          supabase.from('distribution_conversations').select('id', { count: 'exact', head: true }).eq('customer_id', customer.id),
+          supabase.from('distribution_customer_product_mappings').select('id', { count: 'exact', head: true }).eq('customer_id', customer.id),
+          supabase.from('distribution_customer_patterns').select('id', { count: 'exact', head: true }).eq('customer_id', customer.id),
+          supabase.from('distribution_standing_order_items').select('id', { count: 'exact', head: true }).eq('customer_id', customer.id),
         ]);
         
         stats[customer.id] = {
@@ -117,7 +117,7 @@ export function CustomerMergeDialog({
         secondary_id: secondaryId,
       });
       
-      queryClient.invalidateQueries({ queryKey: ['fnb-customers'] });
+      queryClient.invalidateQueries({ queryKey: ['distribution-customers'] });
       toast.success(`Successfully merged "${secondary?.name}" into "${primary?.name}"`);
       onMergeComplete();
       onOpenChange(false);

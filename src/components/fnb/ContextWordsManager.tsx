@@ -45,7 +45,7 @@ export function ContextWordsManager() {
     queryKey: ['context-words'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('fnb_context_words')
+        .from('distribution_context_words')
         .select('*')
         .order('is_verified', { ascending: true })
         .order('usage_count', { ascending: false });
@@ -59,7 +59,7 @@ export function ContextWordsManager() {
   const verifyMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from('fnb_context_words')
+        .from('distribution_context_words')
         .update({ is_verified: true, verified_at: new Date().toISOString() })
         .eq('id', id);
       if (error) throw error;
@@ -77,7 +77,7 @@ export function ContextWordsManager() {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from('fnb_context_words')
+        .from('distribution_context_words')
         .delete()
         .eq('id', id);
       if (error) throw error;
@@ -95,7 +95,7 @@ export function ContextWordsManager() {
   const addMutation = useMutation({
     mutationFn: async (word: typeof newWord) => {
       const { error } = await supabase
-        .from('fnb_context_words')
+        .from('distribution_context_words')
         .insert({
           word: word.word.toLowerCase().trim(),
           word_type: word.word_type,
