@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -128,6 +128,19 @@ export default function Auth() {
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? 'Signing in...' : 'Sign In'}
             </Button>
+
+            <div className="mt-6 pt-4 border-t text-center text-sm text-muted-foreground">
+              <p>
+                By signing in, you agree to our{' '}
+                <Link to="/privacy" className="text-primary hover:underline">
+                  Privacy Policy
+                </Link>{' '}
+                and{' '}
+                <Link to="/eula" className="text-primary hover:underline">
+                  Terms of Service
+                </Link>
+              </p>
+            </div>
           </form>
         </CardContent>
       </Card>
