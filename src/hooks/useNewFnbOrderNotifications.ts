@@ -39,7 +39,7 @@ export function useNewFnbOrderNotifications() {
   }, []);
 
   useEffect(() => {
-    console.log('[useNewFnbOrderNotifications] Setting up real-time subscription for fnb_orders INSERT');
+    console.log('[useNewFnbOrderNotifications] Setting up real-time subscription for distribution_orders INSERT');
     
     const channel = supabase
       .channel('new-fnb-order-notifications')
@@ -48,7 +48,7 @@ export function useNewFnbOrderNotifications() {
         { 
           event: 'INSERT', 
           schema: 'public', 
-          table: 'fnb_orders' 
+          table: 'distribution_orders' 
         },
         async (payload) => {
           console.log('[useNewFnbOrderNotifications] New order detected:', payload.new);
@@ -56,12 +56,12 @@ export function useNewFnbOrderNotifications() {
           try {
             // Fetch order details with customer info
             const { data: orderData, error } = await supabase
-              .from('fnb_orders')
+              .from('distribution_orders')
               .select(`
                 id, order_number, status,
-                fnb_customers(name, delivery_zone)
+                distribution_customers(name, delivery_zone)
               `)
-              .eq('id', payload.new.id)
+              .eq('id', (payload.new as any).id)
               .single();
 
             if (error) {
@@ -73,11 +73,11 @@ export function useNewFnbOrderNotifications() {
               console.log('[useNewFnbOrderNotifications] Order details fetched:', orderData);
               
               const notification: OrderNotification = {
-                id: `order-${orderData.id}-${Date.now()}`,
-                orderId: orderData.id,
-                orderNumber: orderData.order_number,
-                customerName: orderData.fnb_customers?.name || 'Unknown Customer',
-                zone: orderData.fnb_customers?.delivery_zone || null,
+                id: `order-${(orderData as any).id}-${Date.now()}`,
+                orderId: (orderData as any).id,
+                orderNumber: (orderData as any).order_number,
+                customerName: (orderData as any).distribution_customers?.name || 'Unknown Customer',
+                zone: (orderData as any).distribution_customers?.delivery_zone || null,
                 createdAt: new Date()
               };
 
