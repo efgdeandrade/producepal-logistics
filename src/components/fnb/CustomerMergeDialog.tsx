@@ -98,7 +98,7 @@ export function CustomerMergeDialog({
       const secondaryId = customers.find(c => c.id !== primaryId)?.id;
       if (!secondaryId) throw new Error('Could not determine secondary customer');
 
-      const { error } = await supabase.rpc('merge_fnb_customers', {
+      const { error } = await supabase.rpc('merge_distribution_customers', {
         primary_id: primaryId,
         secondary_id: secondaryId,
       });

@@ -28,10 +28,10 @@ export function GlobalAliasManager() {
 
   // Fetch products for dropdown
   const { data: products = [] } = useQuery({
-    queryKey: ["fnb-products"],
+    queryKey: ["distribution-products"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("fnb_products")
+        .from("distribution_products")
         .select("id, code, name")
         .eq("is_active", true)
         .order("name");
@@ -42,10 +42,10 @@ export function GlobalAliasManager() {
 
   // Fetch existing aliases
   const { data: aliases = [], isLoading } = useQuery({
-    queryKey: ["fnb-product-aliases", filterLanguage, searchTerm],
+    queryKey: ["distribution-product-aliases", filterLanguage, searchTerm],
     queryFn: async () => {
       let query = supabase
-        .from("fnb_product_aliases")
+        .from("distribution_product_aliases")
         .select(`
           id,
           alias,
@@ -53,7 +53,7 @@ export function GlobalAliasManager() {
           confidence_score,
           created_at,
           product_id,
-          fnb_products (id, code, name)
+          distribution_products (id, code, name)
         `)
         .order("created_at", { ascending: false });
 
@@ -74,7 +74,7 @@ export function GlobalAliasManager() {
   // Add new alias
   const addAliasMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("fnb_product_aliases").insert({
+      const { error } = await supabase.from("distribution_product_aliases").insert({
         alias: newAlias.toLowerCase().trim(),
         language: newLanguage,
         product_id: selectedProductId,
@@ -83,7 +83,7 @@ export function GlobalAliasManager() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["fnb-product-aliases"] });
+      queryClient.invalidateQueries({ queryKey: ["distribution-product-aliases"] });
       setNewAlias("");
       setSelectedProductId("");
       toast.success("Alias added successfully");
@@ -96,11 +96,11 @@ export function GlobalAliasManager() {
   // Delete alias
   const deleteAliasMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("fnb_product_aliases").delete().eq("id", id);
+      const { error } = await supabase.from("distribution_product_aliases").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["fnb-product-aliases"] });
+      queryClient.invalidateQueries({ queryKey: ["distribution-product-aliases"] });
       toast.success("Alias deleted");
     },
     onError: (error) => {
@@ -218,7 +218,7 @@ export function GlobalAliasManager() {
             <p className="text-sm">Add your first alias above</p>
           </div>
         ) : (
-          aliases.map((alias) => (
+          aliases.map((alias: any) => (
             <Card key={alias.id} className="p-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex-1 min-w-0">
@@ -226,7 +226,7 @@ export function GlobalAliasManager() {
                     <span className="font-medium truncate">"{alias.alias}"</span>
                     <span className="text-muted-foreground">→</span>
                     <span className="text-sm truncate">
-                      {alias.fnb_products?.name || "Unknown"}
+                      {alias.distribution_products?.name || "Unknown"}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 mt-1">

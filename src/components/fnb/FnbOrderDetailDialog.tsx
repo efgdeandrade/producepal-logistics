@@ -75,7 +75,7 @@ export function FnbOrderDetailDialog({ order, open, onOpenChange }: FnbOrderDeta
     mutationFn: async (orderId: string) => {
       // Log the cancellation
       const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from('fnb_order_modifications').insert({
+      await supabase.from('distribution_order_modifications').insert({
         order_id: orderId,
         modified_by: user?.id,
         modified_by_email: user?.email,
@@ -85,9 +85,9 @@ export function FnbOrderDetailDialog({ order, open, onOpenChange }: FnbOrderDeta
         notes: 'Order cancelled',
       });
 
-      await supabase.from('fnb_picker_queue').delete().eq('order_id', orderId);
+      await supabase.from('distribution_picker_queue').delete().eq('order_id', orderId);
       const { error } = await supabase
-        .from('fnb_orders')
+        .from('distribution_orders')
         .update({ status: 'cancelled' })
         .eq('id', orderId);
       if (error) throw error;
@@ -115,10 +115,10 @@ export function FnbOrderDetailDialog({ order, open, onOpenChange }: FnbOrderDeta
     queryFn: async () => {
       if (!order) return [];
       const { data, error } = await supabase
-        .from('fnb_order_items')
+        .from('distribution_order_items')
         .select(`
           *,
-          fnb_products(code, name, unit)
+          distribution_products(code, name, unit)
         `)
         .eq('order_id', order.id);
       if (error) throw error;
@@ -132,7 +132,7 @@ export function FnbOrderDetailDialog({ order, open, onOpenChange }: FnbOrderDeta
     queryFn: async () => {
       if (!order) return [];
       const { data, error } = await supabase
-        .from('fnb_conversations')
+        .from('distribution_conversations')
         .select('*')
         .eq('order_id', order.id)
         .order('created_at', { ascending: true });
@@ -148,7 +148,7 @@ export function FnbOrderDetailDialog({ order, open, onOpenChange }: FnbOrderDeta
     queryFn: async () => {
       if (!order) return [];
       const { data, error } = await supabase
-        .from('fnb_order_modifications')
+        .from('distribution_order_modifications')
         .select('*')
         .eq('order_id', order.id)
         .order('created_at', { ascending: false });
@@ -181,8 +181,8 @@ export function FnbOrderDetailDialog({ order, open, onOpenChange }: FnbOrderDeta
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Customer</p>
-                <p className="font-medium">{order.fnb_customers?.name}</p>
-                <p className="text-sm">{order.fnb_customers?.whatsapp_phone}</p>
+                <p className="font-medium">{order.distribution_customers?.name || order.fnb_customers?.name}</p>
+                <p className="text-sm">{order.distribution_customers?.whatsapp_phone || order.fnb_customers?.whatsapp_phone}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Status</p>
@@ -234,10 +234,10 @@ export function FnbOrderDetailDialog({ order, open, onOpenChange }: FnbOrderDeta
                     {orderItems.map((item: any) => (
                       <TableRow key={item.id}>
                         <TableCell>
-                          {item.fnb_products?.name} ({item.fnb_products?.code})
+                          {item.distribution_products?.name || item.fnb_products?.name} ({item.distribution_products?.code || item.fnb_products?.code})
                         </TableCell>
                         <TableCell>
-                          {item.quantity} {item.fnb_products?.unit}
+                          {item.quantity} {item.distribution_products?.unit || item.fnb_products?.unit}
                         </TableCell>
                         <TableCell>{item.unit_price_xcg?.toFixed(2)}</TableCell>
                         <TableCell>{item.total_xcg?.toFixed(2)}</TableCell>

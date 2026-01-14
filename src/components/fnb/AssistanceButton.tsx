@@ -51,7 +51,7 @@ export function AssistanceButton({
   const mutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase
-        .from('fnb_assistance_queue')
+        .from('distribution_assistance_queue')
         .insert({
           picker_queue_id: pickerQueueId,
           picker_name: pickerName,
