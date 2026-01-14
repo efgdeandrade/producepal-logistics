@@ -45,17 +45,17 @@ export default function FnbDeliveryManagement() {
     queryKey: ["fnb-orders-ready"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select(`
           *,
-          fnb_customers (name, address, whatsapp_phone, delivery_zone),
-          fnb_order_items (id, quantity, product_id, fnb_products (name))
+          distribution_customers (name, address, whatsapp_phone, delivery_zone),
+          distribution_order_items (id, quantity, product_id, distribution_products (name))
         `)
         .eq("status", "ready")
         .neq("is_pickup", true)
         .order("delivery_date", { ascending: true });
       if (error) throw error;
-      return data;
+      return (data || []) as any[];
     },
   });
 
@@ -64,16 +64,16 @@ export default function FnbDeliveryManagement() {
     queryKey: ["fnb-orders-out-for-delivery"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select(`
           *,
-          fnb_customers (name, address, whatsapp_phone, delivery_zone),
-          fnb_order_items (id, quantity, product_id, fnb_products (name))
+          distribution_customers (name, address, whatsapp_phone, delivery_zone),
+          distribution_order_items (id, quantity, product_id, distribution_products (name))
         `)
         .eq("status", "out_for_delivery")
         .order("assigned_at", { ascending: false });
       if (error) throw error;
-      return data;
+      return (data || []) as any[];
     },
   });
 
@@ -94,7 +94,7 @@ export default function FnbDeliveryManagement() {
   const assignDriverMutation = useMutation({
     mutationFn: async ({ orderIds, driverId, driverName }: { orderIds: string[]; driverId: string; driverName: string }) => {
       const { error } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .update({
           driver_id: driverId,
           driver_name: driverName,
@@ -217,7 +217,7 @@ export default function FnbDeliveryManagement() {
   const groupOrdersByZone = (orders: any[]) => {
     const grouped: Record<string, any[]> = {};
     orders?.forEach((order) => {
-      const zone = order.fnb_customers?.delivery_zone || "Unassigned Zone";
+      const zone = order.distribution_customers?.delivery_zone || "Unassigned Zone";
       if (!grouped[zone]) grouped[zone] = [];
       grouped[zone].push(order);
     });
@@ -260,24 +260,24 @@ export default function FnbDeliveryManagement() {
             <div className="flex items-center justify-between mb-2">
               <div className="font-semibold">{order.order_number}</div>
               <div className="flex gap-1">
-                {order.fnb_customers?.delivery_zone && (
+                {order.distribution_customers?.delivery_zone && (
                   <Badge variant="secondary" className="text-xs">
                     <Route className="h-3 w-3 mr-1" />
-                    {order.fnb_customers.delivery_zone}
+                    {order.distribution_customers.delivery_zone}
                   </Badge>
                 )}
-                <Badge variant="outline">{order.fnb_order_items?.length || 0} items</Badge>
+                <Badge variant="outline">{order.distribution_order_items?.length || 0} items</Badge>
               </div>
             </div>
             <div className="space-y-1 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <User className="h-4 w-4" />
-                {order.fnb_customers?.name || "Unknown Customer"}
+                {order.distribution_customers?.name || "Unknown Customer"}
               </div>
-              {order.fnb_customers?.address && (
+              {order.distribution_customers?.address && (
                 <div className="flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
-                  {order.fnb_customers.address}
+                  {order.distribution_customers.address}
                 </div>
               )}
               <div className="flex items-center gap-2">
@@ -304,8 +304,8 @@ export default function FnbDeliveryManagement() {
   );
 
   // Get unique zones for summary
-  const zoneSummary = readyOrders?.reduce((acc: Record<string, number>, order) => {
-    const zone = order.fnb_customers?.delivery_zone || "Unassigned";
+  const zoneSummary = readyOrders?.reduce((acc: Record<string, number>, order: any) => {
+    const zone = order.distribution_customers?.delivery_zone || "Unassigned";
     acc[zone] = (acc[zone] || 0) + 1;
     return acc;
   }, {});
@@ -333,7 +333,7 @@ export default function FnbDeliveryManagement() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              {Object.entries(zoneSummary).map(([zone, count]) => (
+              {Object.entries(zoneSummary).map(([zone, count]: [string, any]) => (
                 <Badge key={zone} variant="outline" className="text-sm py-1 px-3">
                   {zone}: {count} orders
                 </Badge>
@@ -415,9 +415,9 @@ export default function FnbDeliveryManagement() {
             <p className="text-center py-8 text-muted-foreground">No orders ready for delivery</p>
           ) : (
             Object.entries(groupOrders(readyOrders || [])).map(([key, orders]) => {
-              const groupOrderIds = orders.map((o) => o.id);
-              const allSelected = groupOrderIds.every((id) => selectedOrders.includes(id));
-              const someSelected = groupOrderIds.some((id) => selectedOrders.includes(id));
+              const groupOrderIds = orders.map((o: any) => o.id);
+              const allSelected = groupOrderIds.every((id: string) => selectedOrders.includes(id));
+              const someSelected = groupOrderIds.some((id: string) => selectedOrders.includes(id));
               
               return (
                 <Card key={key}>
@@ -437,7 +437,7 @@ export default function FnbDeliveryManagement() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {orders.map((order) => renderOrderCard(order, true))}
+                    {orders.map((order: any) => renderOrderCard(order, true))}
                   </CardContent>
                 </Card>
               );
@@ -463,7 +463,7 @@ export default function FnbDeliveryManagement() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {orders.map((order) => renderOrderCard(order))}
+                  {orders.map((order: any) => renderOrderCard(order))}
                 </CardContent>
               </Card>
             ))
@@ -472,16 +472,36 @@ export default function FnbDeliveryManagement() {
       </Tabs>
 
       {/* Add Driver Dialog */}
-      <Dialog open={addDriverOpen} onOpenChange={(open) => !open && handleCloseDriverDialog()}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog open={addDriverOpen} onOpenChange={handleCloseDriverDialog}>
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Add New Driver</DialogTitle>
             <DialogDescription>
-              Create a new driver account. They will receive a password reset link to set up their account.
+              Create a new driver account. They will receive a password reset link.
             </DialogDescription>
           </DialogHeader>
-
-          {!showResetLink ? (
+          
+          {showResetLink ? (
+            <div className="space-y-4">
+              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                <p className="text-sm font-medium text-green-800 dark:text-green-200 mb-2">
+                  Driver created successfully!
+                </p>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Share this link with the driver to set their password:
+                </p>
+                <div className="flex gap-2">
+                  <Input value={resetLink} readOnly className="text-xs" />
+                  <Button size="icon" variant="outline" onClick={handleCopyLink}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button onClick={handleCloseDriverDialog}>Done</Button>
+              </DialogFooter>
+            </div>
+          ) : (
             <form onSubmit={handleCreateDriver} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="fullName">Full Name</Label>
@@ -489,10 +509,10 @@ export default function FnbDeliveryManagement() {
                   id="fullName"
                   value={driverForm.fullName}
                   onChange={(e) => setDriverForm({ ...driverForm, fullName: e.target.value })}
-                  placeholder="Enter driver's full name"
+                  placeholder="John Doe"
                 />
                 {formErrors.fullName && (
-                  <p className="text-sm text-destructive">{formErrors.fullName}</p>
+                  <p className="text-xs text-destructive">{formErrors.fullName}</p>
                 )}
               </div>
               <div className="space-y-2">
@@ -502,10 +522,10 @@ export default function FnbDeliveryManagement() {
                   type="email"
                   value={driverForm.email}
                   onChange={(e) => setDriverForm({ ...driverForm, email: e.target.value })}
-                  placeholder="Enter driver's email"
+                  placeholder="driver@example.com"
                 />
                 {formErrors.email && (
-                  <p className="text-sm text-destructive">{formErrors.email}</p>
+                  <p className="text-xs text-destructive">{formErrors.email}</p>
                 )}
               </div>
               <DialogFooter>
@@ -517,28 +537,6 @@ export default function FnbDeliveryManagement() {
                 </Button>
               </DialogFooter>
             </form>
-          ) : (
-            <div className="space-y-4">
-              <div className="p-3 bg-muted rounded-lg">
-                <p className="text-sm font-medium mb-2">Password Reset Link</p>
-                <div className="flex gap-2">
-                  <Input
-                    value={resetLink}
-                    readOnly
-                    className="text-xs"
-                  />
-                  <Button size="icon" variant="outline" onClick={handleCopyLink}>
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Share this link with the driver to set their password.
-                </p>
-              </div>
-              <DialogFooter>
-                <Button onClick={handleCloseDriverDialog}>Done</Button>
-              </DialogFooter>
-            </div>
           )}
         </DialogContent>
       </Dialog>

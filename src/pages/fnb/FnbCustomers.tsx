@@ -375,12 +375,12 @@ export default function FnbCustomers() {
     queryKey: ['fnb-pricing-tiers-active'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('fnb_pricing_tiers')
+        .from('distribution_pricing_tiers')
         .select('id, name, is_default')
         .eq('is_active', true)
         .order('sort_order');
       if (error) throw error;
-      return data || [];
+      return (data || []) as { id: string; name: string; is_default: boolean }[];
     },
   });
 
@@ -390,7 +390,7 @@ export default function FnbCustomers() {
 
   const createMutation = useMutation({
     mutationFn: async (customer: Omit<FnbCustomer, 'id'>) => {
-      const { error } = await supabase.from('fnb_customers').insert(customer);
+      const { error } = await supabase.from('distribution_customers').insert(customer as any);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -406,7 +406,7 @@ export default function FnbCustomers() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...customer }: FnbCustomer) => {
-      const { error } = await supabase.from('fnb_customers').update(customer).eq('id', id);
+      const { error } = await supabase.from('distribution_customers').update(customer as any).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -422,7 +422,7 @@ export default function FnbCustomers() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('fnb_customers').delete().eq('id', id);
+      const { error } = await supabase.from('distribution_customers').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
