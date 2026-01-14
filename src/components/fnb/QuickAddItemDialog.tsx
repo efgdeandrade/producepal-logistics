@@ -34,10 +34,10 @@ export function QuickAddItemDialog({
 
   // Fetch available products
   const { data: products, isLoading } = useQuery({
-    queryKey: ['fnb-products-active'],
+    queryKey: ['distribution-products-active'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('fnb_products')
+        .from('distribution_products')
         .select('*')
         .eq('is_active', true)
         .order('name');
@@ -57,7 +57,7 @@ export function QuickAddItemDialog({
 
       // Add item to order
       const { error: itemError } = await supabase
-        .from('fnb_order_items')
+        .from('distribution_order_items')
         .insert({
           order_id: orderId,
           product_id: selectedProduct.id,
@@ -69,21 +69,21 @@ export function QuickAddItemDialog({
 
       // Update order total
       const { data: items } = await supabase
-        .from('fnb_order_items')
+        .from('distribution_order_items')
         .select('total_xcg')
         .eq('order_id', orderId);
       
       const newTotal = items?.reduce((sum, item) => sum + (item.total_xcg || 0), 0) || 0;
       
       const { error: orderError } = await supabase
-        .from('fnb_orders')
+        .from('distribution_orders')
         .update({ total_xcg: newTotal })
         .eq('id', orderId);
       if (orderError) throw orderError;
 
       // Log the modification
       const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from('fnb_order_modifications').insert({
+      await supabase.from('distribution_order_modifications').insert({
         order_id: orderId,
         modified_by: user?.id,
         modified_by_email: user?.email,
@@ -98,10 +98,10 @@ export function QuickAddItemDialog({
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['fnb-orders'] });
-      queryClient.invalidateQueries({ queryKey: ['fnb-order-items'] });
-      queryClient.invalidateQueries({ queryKey: ['fnb-picker-items'] });
-      queryClient.invalidateQueries({ queryKey: ['fnb-picker-all-items'] });
+      queryClient.invalidateQueries({ queryKey: ['distribution-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['distribution-order-items'] });
+      queryClient.invalidateQueries({ queryKey: ['distribution-picker-items'] });
+      queryClient.invalidateQueries({ queryKey: ['distribution-picker-all-items'] });
       toast.success(`Added ${quantity} x ${selectedProduct.name} to order`);
       setSelectedProduct(null);
       setQuantity('1');

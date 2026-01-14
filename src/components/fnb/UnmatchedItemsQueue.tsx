@@ -16,10 +16,10 @@ export function UnmatchedItemsQueue() {
 
   // Fetch unmatched items
   const { data: unmatchedItems = [], isLoading } = useQuery({
-    queryKey: ["fnb-unmatched-items"],
+    queryKey: ["distribution-unmatched-items"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("fnb_unmatched_items")
+        .from("distribution_unmatched_items")
         .select(`
           id,
           raw_text,
@@ -28,7 +28,7 @@ export function UnmatchedItemsQueue() {
           detected_quantity,
           detected_unit,
           created_at,
-          fnb_customers (id, name)
+          distribution_customers (id, name)
         `)
         .eq("is_resolved", false)
         .order("created_at", { ascending: false })
@@ -40,10 +40,10 @@ export function UnmatchedItemsQueue() {
 
   // Fetch products for dropdown
   const { data: products = [] } = useQuery({
-    queryKey: ["fnb-products"],
+    queryKey: ["distribution-products"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("fnb_products")
+        .from("distribution_products")
         .select("id, code, name")
         .eq("is_active", true)
         .order("name");
@@ -55,12 +55,12 @@ export function UnmatchedItemsQueue() {
   // Resolve item mutation
   const resolveMutation = useMutation({
     mutationFn: async ({ itemId, productId, asGlobal }: { itemId: string; productId: string; asGlobal: boolean }) => {
-      const item = unmatchedItems.find((i) => i.id === itemId);
+      const item = unmatchedItems.find((i: any) => i.id === itemId);
       if (!item) throw new Error("Item not found");
 
       // Update the unmatched item as resolved
       const { error: updateError } = await supabase
-        .from("fnb_unmatched_items")
+        .from("distribution_unmatched_items")
         .update({
           is_resolved: true,
           resolved_product_id: productId,
@@ -73,7 +73,7 @@ export function UnmatchedItemsQueue() {
 
       if (asGlobal) {
         // Add as global alias
-        const { error: aliasError } = await supabase.from("fnb_product_aliases").insert({
+        const { error: aliasError } = await supabase.from("distribution_product_aliases").insert({
           alias: item.raw_text.toLowerCase().trim(),
           language: item.detected_language || "en",
           product_id: productId,
@@ -84,7 +84,7 @@ export function UnmatchedItemsQueue() {
         }
       } else if (item.customer_id) {
         // Add as customer-specific mapping
-        const { error: mappingError } = await supabase.from("fnb_customer_product_mappings").upsert({
+        const { error: mappingError } = await supabase.from("distribution_customer_product_mappings").upsert({
           customer_id: item.customer_id,
           customer_sku: item.raw_text.toLowerCase().trim(),
           customer_product_name: item.raw_text,
@@ -100,9 +100,9 @@ export function UnmatchedItemsQueue() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["fnb-unmatched-items"] });
-      queryClient.invalidateQueries({ queryKey: ["fnb-product-aliases"] });
-      queryClient.invalidateQueries({ queryKey: ["fnb-customer-mappings"] });
+      queryClient.invalidateQueries({ queryKey: ["distribution-unmatched-items"] });
+      queryClient.invalidateQueries({ queryKey: ["distribution-product-aliases"] });
+      queryClient.invalidateQueries({ queryKey: ["distribution-customer-mappings"] });
       toast.success("Item resolved and learned!");
     },
     onError: (error) => {
@@ -114,13 +114,13 @@ export function UnmatchedItemsQueue() {
   const skipMutation = useMutation({
     mutationFn: async (itemId: string) => {
       const { error } = await supabase
-        .from("fnb_unmatched_items")
+        .from("distribution_unmatched_items")
         .update({ is_resolved: true })
         .eq("id", itemId);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["fnb-unmatched-items"] });
+      queryClient.invalidateQueries({ queryKey: ["distribution-unmatched-items"] });
       toast.success("Item skipped");
     },
   });
@@ -174,14 +174,14 @@ export function UnmatchedItemsQueue() {
         </div>
       ) : (
         <div className="space-y-3">
-          {unmatchedItems.map((item) => (
+          {unmatchedItems.map((item: any) => (
             <Card key={item.id} className="p-4">
               <div className="space-y-3">
                 {/* Original text */}
                 <div>
                   <p className="font-medium text-lg">"{item.raw_text}"</p>
                   <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-                    <span>From: {item.fnb_customers?.name || "Unknown customer"}</span>
+                    <span>From: {item.distribution_customers?.name || "Unknown customer"}</span>
                     <span>•</span>
                     <span>{new Date(item.created_at || "").toLocaleDateString()}</span>
                     {item.detected_language && (

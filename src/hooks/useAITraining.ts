@@ -48,20 +48,20 @@ export function useAITraining() {
     queryKey: ['ai-training-queue'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('fnb_ai_match_logs')
+        .from('distribution_ai_match_logs')
         .select(`
           *,
-          customer:fnb_customers(id, name),
-          matched_product:fnb_products!fnb_ai_match_logs_matched_product_id_fkey(id, name, code),
-          corrected_product:fnb_products!fnb_ai_match_logs_corrected_product_id_fkey(id, name, code),
-          order:fnb_orders(id, order_number)
+          customer:distribution_customers(id, name),
+          matched_product:distribution_products!distribution_ai_match_logs_matched_product_id_fkey(id, name, code),
+          corrected_product:distribution_products!distribution_ai_match_logs_corrected_product_id_fkey(id, name, code),
+          order:distribution_orders(id, order_number)
         `)
         .eq('needs_review', true)
         .order('created_at', { ascending: false })
         .limit(100);
 
       if (error) throw error;
-      return data as MatchLog[];
+      return data as unknown as MatchLog[];
     },
   });
 
@@ -70,17 +70,17 @@ export function useAITraining() {
     queryKey: ['ai-training-stats'],
     queryFn: async () => {
       const { data: allLogs, error } = await supabase
-        .from('fnb_ai_match_logs')
+        .from('distribution_ai_match_logs')
         .select('confidence, was_corrected, match_source, needs_review')
         .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
 
       if (error) throw error;
 
       const total = allLogs?.length || 0;
-      const highConfidence = allLogs?.filter(l => l.confidence === 'high').length || 0;
-      const corrected = allLogs?.filter(l => l.was_corrected).length || 0;
-      const unmatched = allLogs?.filter(l => l.match_source === 'unmatched').length || 0;
-      const pendingReview = allLogs?.filter(l => l.needs_review).length || 0;
+      const highConfidence = allLogs?.filter((l: any) => l.confidence === 'high').length || 0;
+      const corrected = allLogs?.filter((l: any) => l.was_corrected).length || 0;
+      const unmatched = allLogs?.filter((l: any) => l.match_source === 'unmatched').length || 0;
+      const pendingReview = allLogs?.filter((l: any) => l.needs_review).length || 0;
 
       return {
         total,
@@ -99,7 +99,7 @@ export function useAITraining() {
   const logMatchMutation = useMutation({
     mutationFn: async (params: LogMatchParams) => {
       const { error } = await supabase
-        .from('fnb_ai_match_logs')
+        .from('distribution_ai_match_logs')
         .insert({
           raw_text: params.raw_text,
           interpreted_text: params.interpreted_text,
@@ -125,14 +125,14 @@ export function useAITraining() {
       
       // Get the log to potentially create alias
       const { data: log } = await supabase
-        .from('fnb_ai_match_logs')
+        .from('distribution_ai_match_logs')
         .select('raw_text, matched_product_id')
         .eq('id', logId)
         .single();
 
       // Update the log
       const { error } = await supabase
-        .from('fnb_ai_match_logs')
+        .from('distribution_ai_match_logs')
         .update({
           needs_review: false,
           reviewed_at: new Date().toISOString(),
@@ -143,12 +143,12 @@ export function useAITraining() {
       if (error) throw error;
 
       // Optionally add as global alias
-      if (addAsAlias && log?.matched_product_id && log?.raw_text) {
+      if (addAsAlias && (log as any)?.matched_product_id && (log as any)?.raw_text) {
         const { error: aliasError } = await supabase
-          .from('fnb_product_aliases')
+          .from('distribution_product_aliases')
           .insert({
-            product_id: log.matched_product_id,
-            alias: log.raw_text.toLowerCase().trim(),
+            product_id: (log as any).matched_product_id,
+            alias: (log as any).raw_text.toLowerCase().trim(),
             language: language || 'pap',
             confidence_score: 1.0,
           });
@@ -182,14 +182,14 @@ export function useAITraining() {
 
       // Get the log for the raw text
       const { data: log } = await supabase
-        .from('fnb_ai_match_logs')
+        .from('distribution_ai_match_logs')
         .select('raw_text')
         .eq('id', logId)
         .single();
 
       // Update the log
       const { error } = await supabase
-        .from('fnb_ai_match_logs')
+        .from('distribution_ai_match_logs')
         .update({
           was_corrected: true,
           corrected_product_id: correctProductId,
@@ -202,12 +202,12 @@ export function useAITraining() {
       if (error) throw error;
 
       // Add as global alias with correct product
-      if (addAsAlias && log?.raw_text) {
+      if (addAsAlias && (log as any)?.raw_text) {
         const { error: aliasError } = await supabase
-          .from('fnb_product_aliases')
+          .from('distribution_product_aliases')
           .insert({
             product_id: correctProductId,
-            alias: log.raw_text.toLowerCase().trim(),
+            alias: (log as any).raw_text.toLowerCase().trim(),
             language: language || 'pap',
             confidence_score: 1.0,
           });
@@ -231,7 +231,7 @@ export function useAITraining() {
       const { data: { user } } = await supabase.auth.getUser();
 
       const { error } = await supabase
-        .from('fnb_ai_match_logs')
+        .from('distribution_ai_match_logs')
         .update({
           needs_review: false,
           reviewed_at: new Date().toISOString(),
