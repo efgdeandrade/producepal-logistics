@@ -48,6 +48,7 @@ export default function FnbQuickPaste() {
   const [clipboardContent, setClipboardContent] = useState<string | null>(null);
   const [clipboardChecked, setClipboardChecked] = useState(false);
   const [correctionsCount, setCorrectionsCount] = useState(0);
+  const [isAutoParsingRef, setIsAutoParsing] = useState(false);
   
   // PO Import state
   const [showPOUpload, setShowPOUpload] = useState(false);
@@ -285,6 +286,40 @@ export default function FnbQuickPaste() {
     reset
   } = useConversationImport();
 
+  // Auto-parse when ?auto=true is in URL (from FAB quick tap)
+  useEffect(() => {
+    const isAutoMode = searchParams.get('auto') === 'true';
+    if (!isAutoMode || !clipboardChecked || isAutoParsingRef || isParsing) return;
+    
+    // Need clipboard content, customer, and products loaded
+    const savedCustomer = localStorage.getItem('fuik_last_order_customer');
+    const customerToUse = customerId || savedCustomer;
+    
+    if (clipboardContent && customerToUse && products.length > 0) {
+      setIsAutoParsing(true);
+      // Clear the auto param from URL
+      setSearchParams({}, { replace: true });
+      
+      // Set customer if not already set
+      if (!customerId && savedCustomer) {
+        setCustomerId(savedCustomer);
+      }
+      
+      // Auto-parse
+      setConversationText(clipboardContent);
+      parseConversation(clipboardContent, products, customerToUse).then(() => {
+        setStep('review');
+        setIsAutoParsing(false);
+      }).catch(() => {
+        setIsAutoParsing(false);
+        toast.error('Auto-parse failed. Please try manually.');
+      });
+    } else if (isAutoMode && clipboardChecked && products.length > 0) {
+      // Clear the auto param if we can't auto-parse (no clipboard or no customer)
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, clipboardChecked, clipboardContent, customerId, products, isAutoParsingRef, isParsing, parseConversation, setSearchParams]);
+
   const handlePasteFromClipboard = async () => {
     vibrateTap();
     try {
@@ -480,8 +515,19 @@ export default function FnbQuickPaste() {
 
       {/* Main Content - Scrollable */}
       <main className="flex-1 overflow-y-auto pb-safe">
+        {/* Auto-parsing loading overlay */}
+        {isAutoParsingRef && (
+          <div className="absolute inset-0 z-50 bg-background/95 flex flex-col items-center justify-center gap-4">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <div className="text-center">
+              <p className="text-lg font-medium">Quick parsing...</p>
+              <p className="text-sm text-muted-foreground">{parseStage || 'Reading clipboard'}</p>
+            </div>
+          </div>
+        )}
+
         {/* STEP 1: Paste */}
-        {step === 'paste' && (
+        {step === 'paste' && !isAutoParsingRef && (
           <div className="p-4 space-y-4">
             {/* Customer Selection - Full width, stacked */}
             <Card>

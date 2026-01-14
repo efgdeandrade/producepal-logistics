@@ -22,7 +22,7 @@ export function QuickOrderFAB({ className }: QuickOrderFABProps) {
   
   return (
     <Link
-      to="/quick-paste"
+      to="/quick-paste?auto=true"
       onClick={() => vibrateTap()}
       className={cn(
         // Position - bottom right, above bottom nav
