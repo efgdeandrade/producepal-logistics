@@ -40,12 +40,12 @@ export default function FnbPickerSupervisor() {
   useEffect(() => {
     const channel = supabase
       .channel('supervisor-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'fnb_picker_queue' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'distribution_picker_queue' }, () => {
         queryClient.invalidateQueries({ queryKey: ['fnb-picker-leaderboard'] });
         queryClient.invalidateQueries({ queryKey: ['fnb-active-pickers'] });
         queryClient.invalidateQueries({ queryKey: ['fnb-zone-stats'] });
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'fnb_order_items' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'distribution_order_items' }, () => {
         queryClient.invalidateQueries({ queryKey: ['fnb-pending-shortages'] });
         queryClient.invalidateQueries({ queryKey: ['fnb-active-pickers'] });
       })
@@ -62,14 +62,14 @@ export default function FnbPickerSupervisor() {
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0];
       const { data } = await supabase
-        .from('fnb_picker_queue')
+        .from('distribution_picker_queue')
         .select('picker_name, completed_at, pick_start_time, order_id')
         .eq('status', 'completed')
         .gte('completed_at', today)
         .not('picker_name', 'is', null);
 
       const { data: activePickers } = await supabase
-        .from('fnb_picker_queue')
+        .from('distribution_picker_queue')
         .select('picker_name')
         .eq('status', 'in_progress')
         .not('picker_name', 'is', null);
@@ -102,16 +102,16 @@ export default function FnbPickerSupervisor() {
     queryKey: ['fnb-active-pickers'],
     queryFn: async () => {
       const { data: activeQueues } = await supabase
-        .from('fnb_picker_queue')
+        .from('distribution_picker_queue')
         .select(`
           id,
           picker_name,
           pick_start_time,
           order_id,
-          fnb_orders!inner(
+          distribution_orders!inner(
             id,
             order_number,
-            fnb_customers(name)
+            distribution_customers(name)
           )
         `)
         .eq('status', 'in_progress')
@@ -122,9 +122,9 @@ export default function FnbPickerSupervisor() {
       }
 
       // Get item counts for each order
-      const orderIds = activeQueues.map(q => q.order_id);
+      const orderIds = activeQueues.map((q: any) => q.order_id);
       const { data: itemCounts } = await supabase
-        .from('fnb_order_items')
+        .from('distribution_order_items')
         .select('order_id, picked_quantity')
         .in('order_id', orderIds);
 
@@ -143,18 +143,18 @@ export default function FnbPickerSupervisor() {
         id: q.id,
         picker_name: q.picker_name,
         order_id: q.order_id,
-        order_number: q.fnb_orders?.order_number || 'N/A',
-        customer_name: q.fnb_orders?.fnb_customers?.name || 'Unknown',
+        order_number: q.distribution_orders?.order_number || 'N/A',
+        customer_name: q.distribution_orders?.distribution_customers?.name || 'Unknown',
         pick_start_time: q.pick_start_time || new Date().toISOString(),
         items_count: orderItemStats[q.order_id]?.total || 0,
         items_picked: orderItemStats[q.order_id]?.picked || 0,
       }));
 
       // Get idle pickers (completed today but not currently active)
-      const activeNames = new Set(activePickers.map(p => p.picker_name));
+      const activeNames = new Set(activePickers.map((p: any) => p.picker_name));
       const today = new Date().toISOString().split('T')[0];
       const { data: todaysPickers } = await supabase
-        .from('fnb_picker_queue')
+        .from('distribution_picker_queue')
         .select('picker_name')
         .gte('completed_at', today)
         .not('picker_name', 'is', null);
@@ -176,13 +176,13 @@ export default function FnbPickerSupervisor() {
       const today = new Date().toISOString().split('T')[0];
       
       const { data: queueData } = await supabase
-        .from('fnb_picker_queue')
+        .from('distribution_picker_queue')
         .select(`
           id,
           status,
           created_at,
-          fnb_orders!inner(
-            fnb_customers(delivery_zone)
+          distribution_orders!inner(
+            distribution_customers(delivery_zone)
           )
         `)
         .gte('created_at', today);
@@ -197,7 +197,7 @@ export default function FnbPickerSupervisor() {
       }> = {};
 
       queueData.forEach((q: any) => {
-        const zone = q.fnb_orders?.fnb_customers?.delivery_zone || 'Unknown';
+        const zone = q.distribution_orders?.distribution_customers?.delivery_zone || 'Unknown';
         if (!zoneMap[zone]) {
           zoneMap[zone] = { queued: 0, in_progress: 0, completed: 0, waitTimes: [] };
         }
@@ -232,10 +232,17 @@ export default function FnbPickerSupervisor() {
     queryKey: ['fnb-pending-shortages'],
     queryFn: async () => {
       const { data } = await supabase
-        .from('fnb_order_items')
-        .select(`*, fnb_products(name, code), fnb_orders(order_number, fnb_customers(name))`)
+        .from('distribution_order_items')
+        .select(`*, distribution_products(name, code), distribution_orders(order_number, distribution_customers(name))`)
         .eq('shortage_status', 'pending');
-      return data || [];
+      return data?.map((item: any) => ({
+        ...item,
+        fnb_products: item.distribution_products,
+        fnb_orders: item.distribution_orders ? {
+          ...item.distribution_orders,
+          fnb_customers: item.distribution_orders.distribution_customers
+        } : null,
+      })) || [];
     },
     refetchInterval: 10000,
   });
@@ -243,7 +250,7 @@ export default function FnbPickerSupervisor() {
   const approveMutation = useMutation({
     mutationFn: async ({ itemId, approved }: { itemId: string; approved: boolean }) => {
       await supabase
-        .from('fnb_order_items')
+        .from('distribution_order_items')
         .update({
           shortage_status: approved ? 'approved' : 'rejected',
           shortage_approved_by: user?.id,

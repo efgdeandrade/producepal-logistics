@@ -178,21 +178,21 @@ const PICKER_UNITS = [
       .channel('fnb-picker-queue-changes')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'fnb_picker_queue' },
+        { event: '*', schema: 'public', table: 'distribution_picker_queue' },
         () => {
           queryClient.invalidateQueries({ queryKey: ['fnb-picker-queue'] });
         }
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'fnb_orders' },
+        { event: '*', schema: 'public', table: 'distribution_orders' },
         () => {
           queryClient.invalidateQueries({ queryKey: ['fnb-picker-queue'] });
         }
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'fnb_order_items' },
+        { event: '*', schema: 'public', table: 'distribution_order_items' },
         () => {
           queryClient.invalidateQueries({ queryKey: ['fnb-picker-items'] });
           queryClient.invalidateQueries({ queryKey: ['fnb-picker-all-items'] });
@@ -216,21 +216,21 @@ const PICKER_UNITS = [
       const rangeEnd = endOfDay(dateRange?.to || dateRange?.from || new Date()).toISOString();
       
       const { data, error } = await supabase
-        .from('fnb_picker_queue')
+        .from('distribution_picker_queue')
         .select(`
           *,
-          fnb_orders!inner(
+          distribution_orders!inner(
             id,
             order_number,
             total_xcg,
             delivery_date,
             notes,
-            fnb_customers(name, whatsapp_phone, address, customer_type, delivery_zone)
+            distribution_customers(name, whatsapp_phone, address, customer_type, delivery_zone)
           )
         `)
         .in('status', ['queued', 'in_progress'])
-        .gte('fnb_orders.delivery_date', rangeStart)
-        .lte('fnb_orders.delivery_date', rangeEnd)
+        .gte('distribution_orders.delivery_date', rangeStart)
+        .lte('distribution_orders.delivery_date', rangeEnd)
         .order('priority', { ascending: false })
         .order('created_at', { ascending: true });
       if (error) throw error;
@@ -238,7 +238,7 @@ const PICKER_UNITS = [
       // Get item counts for each order
       const orderIds = data?.map((q: any) => q.order_id).filter(Boolean) || [];
       const { data: itemCounts } = await supabase
-        .from('fnb_order_items')
+        .from('distribution_order_items')
         .select('order_id')
         .in('order_id', orderIds);
 
@@ -249,6 +249,11 @@ const PICKER_UNITS = [
 
       return data?.map((q: any) => ({
         ...q,
+        // Map distribution_orders to fnb_orders for component compatibility
+        fnb_orders: q.distribution_orders ? {
+          ...q.distribution_orders,
+          fnb_customers: q.distribution_orders.distribution_customers
+        } : null,
         itemCount: countMap[q.order_id] || 0,
       })) || [];
     },
@@ -263,7 +268,7 @@ const PICKER_UNITS = [
       
       // Get today's completed orders by picker
       const { data, error } = await supabase
-        .from('fnb_picker_queue')
+        .from('distribution_picker_queue')
         .select('picker_name, completed_at, pick_start_time, order_id')
         .eq('status', 'completed')
         .gte('completed_at', today)
@@ -273,7 +278,7 @@ const PICKER_UNITS = [
 
       // Get active pickers
       const { data: activePickers } = await supabase
-        .from('fnb_picker_queue')
+        .from('distribution_picker_queue')
         .select('picker_name')
         .eq('status', 'in_progress')
         .not('picker_name', 'is', null);
@@ -301,7 +306,7 @@ const PICKER_UNITS = [
       const orderIds = data?.map((d: any) => d.order_id).filter(Boolean) || [];
       if (orderIds.length > 0) {
         const { data: items } = await supabase
-          .from('fnb_order_items')
+          .from('distribution_order_items')
           .select('order_id, quantity')
           .in('order_id', orderIds);
 
@@ -335,17 +340,17 @@ const PICKER_UNITS = [
       const today = new Date().toISOString().split('T')[0];
       
       const { data, error } = await supabase
-        .from('fnb_picker_queue')
+        .from('distribution_picker_queue')
         .select(`
           *,
-          fnb_orders(
+          distribution_orders(
             id,
             order_number,
             total_xcg,
             delivery_date,
             notes,
             status,
-            fnb_customers(name, whatsapp_phone, address, delivery_zone)
+            distribution_customers(name, whatsapp_phone, address, delivery_zone)
           )
         `)
         .eq('status', 'completed')
@@ -354,7 +359,14 @@ const PICKER_UNITS = [
         .limit(10);
       
       if (error) throw error;
-      return data || [];
+      return data?.map((item: any) => ({
+        ...item,
+        // Map for component compatibility
+        fnb_orders: item.distribution_orders ? {
+          ...item.distribution_orders,
+          fnb_customers: item.distribution_orders.distribution_customers
+        } : null,
+      })) || [];
     },
     enabled: !!pickerName,
     refetchInterval: 30000,
@@ -370,21 +382,29 @@ const PICKER_UNITS = [
       if (orderIds.length === 0) return [];
 
       const { data, error } = await supabase
-        .from('fnb_order_items')
+        .from('distribution_order_items')
         .select(`
           *,
-          fnb_products(id, code, name, unit),
+          distribution_products(id, code, name, unit),
           picked_by,
-          fnb_orders(
+          distribution_orders(
             id,
             order_number,
-            fnb_customers(name, delivery_zone)
+            distribution_customers(name, delivery_zone)
           )
         `)
         .in('order_id', orderIds);
       
       if (error) throw error;
-      return data || [];
+      return data?.map((item: any) => ({
+        ...item,
+        // Map for component compatibility
+        fnb_products: item.distribution_products,
+        fnb_orders: item.distribution_orders ? {
+          ...item.distribution_orders,
+          fnb_customers: item.distribution_orders.distribution_customers
+        } : null,
+      })) || [];
     },
     enabled: !!queueItems && queueItems.length > 0,
     refetchInterval: 30000,
@@ -425,14 +445,17 @@ const PICKER_UNITS = [
       if (!viewingOrder) return [];
 
       const { data, error } = await supabase
-        .from('fnb_order_items')
+        .from('distribution_order_items')
         .select(`
           *,
-          fnb_products(code, name, unit, is_weight_based)
+          distribution_products(code, name, unit, is_weight_based)
         `)
         .eq('order_id', viewingOrder.order_id);
       if (error) throw error;
-      return data || [];
+      return data?.map((item: any) => ({
+        ...item,
+        fnb_products: item.distribution_products,
+      })) || [];
     },
     enabled: !!viewingCompletedOrder && !!completedOrders,
   });
@@ -469,14 +492,17 @@ const PICKER_UNITS = [
       if (!queueItem) return [];
 
       const { data, error } = await supabase
-        .from('fnb_order_items')
+        .from('distribution_order_items')
         .select(`
           *,
-          fnb_products(code, name, unit, is_weight_based, weight_unit)
+          distribution_products(code, name, unit, is_weight_based, weight_unit)
         `)
         .eq('order_id', queueItem.order_id);
       if (error) throw error;
-      return data;
+      return data?.map((item: any) => ({
+        ...item,
+        fnb_products: item.distribution_products,
+      })) || [];
     },
     enabled: !!selectedQueue,
   });
@@ -504,7 +530,7 @@ const PICKER_UNITS = [
   const claimMutation = useMutation({
     mutationFn: async (queueId: string) => {
       const { error } = await supabase
-        .from('fnb_picker_queue')
+        .from('distribution_picker_queue')
         .update({
           claimed_by: user?.id,
           claimed_at: new Date().toISOString(),
@@ -519,7 +545,7 @@ const PICKER_UNITS = [
       const queueItem = queueItems?.find((q: any) => q.id === queueId);
       if (queueItem) {
         await supabase
-          .from('fnb_orders')
+          .from('distribution_orders')
           .update({ status: 'picking' })
           .eq('id', queueItem.order_id);
       }
@@ -576,7 +602,7 @@ const PICKER_UNITS = [
       // Non-blocking: Mark as 'reported' instead of 'pending' approval
       // This allows the picker to continue without waiting
       const { error } = await supabase
-        .from('fnb_order_items')
+        .from('distribution_order_items')
         .update({
           picked_quantity: availableQuantity,
           picked_by: user?.id,
@@ -623,7 +649,7 @@ const PICKER_UNITS = [
       const isFullyResolved = newShortQty === 0;
       
       const { error } = await supabase
-        .from('fnb_order_items')
+        .from('distribution_order_items')
         .update({
           picked_quantity: newPickedQuantity,
           short_quantity: newShortQty,
@@ -664,7 +690,7 @@ const PICKER_UNITS = [
       if (checked) {
         // Mark as picked by this picker
         const { error } = await supabase
-          .from('fnb_order_items')
+          .from('distribution_order_items')
           .update({
             picked_by: user?.id,
             picked_at: new Date().toISOString(),
@@ -677,7 +703,7 @@ const PICKER_UNITS = [
         const item = orderItems?.find((i: any) => i.id === itemId);
         if (item?.picked_by === user?.id) {
           const { error } = await supabase
-            .from('fnb_order_items')
+            .from('distribution_order_items')
             .update({
               picked_by: null,
               picked_at: null,
@@ -717,7 +743,7 @@ const PICKER_UNITS = [
           const isOverPicked = pickedQty > item.quantity;
           
           await supabase
-            .from('fnb_order_items')
+            .from('distribution_order_items')
             .update({
               picked_quantity: pickedQty,
               picked_by: user?.id,
@@ -739,7 +765,7 @@ const PICKER_UNITS = [
       }, 0) || 0;
 
       const { error: queueError } = await supabase
-        .from('fnb_picker_queue')
+        .from('distribution_picker_queue')
         .update({
           status: 'completed',
           completed_at: new Date().toISOString(),
@@ -750,7 +776,7 @@ const PICKER_UNITS = [
       if (queueError) throw queueError;
 
       const { error: orderError } = await supabase
-        .from('fnb_orders')
+        .from('distribution_orders')
         .update({ status: 'ready' })
         .eq('id', queueItem.order_id);
       if (orderError) throw orderError;
@@ -783,7 +809,7 @@ const PICKER_UNITS = [
 
       // Update picker queue status back to in_progress
       const { error: queueError } = await supabase
-        .from('fnb_picker_queue')
+        .from('distribution_picker_queue')
         .update({
           status: 'in_progress',
           completed_at: null,
@@ -798,7 +824,7 @@ const PICKER_UNITS = [
 
       // Update order status back to picking
       const { error: orderError } = await supabase
-        .from('fnb_orders')
+        .from('distribution_orders')
         .update({ status: 'picking' })
         .eq('id', completedOrder.order_id);
       if (orderError) throw orderError;
@@ -948,9 +974,6 @@ const PICKER_UNITS = [
                     dateRange?.from && !(isToday(dateRange.from) && (!dateRange.to || isToday(dateRange.to))) && "animate-pulse"
                   )}
                 >
-                  {dateRange?.from && !(isToday(dateRange.from) && (!dateRange.to || isToday(dateRange.to))) && (
-                    <AlertTriangle className="h-4 w-4" />
-                  )}
                   <CalendarIcon className="h-4 w-4" />
                   {dateRange?.from ? (
                     dateRange.to && dateRange.from.getTime() !== dateRange.to.getTime() ? (
@@ -958,63 +981,59 @@ const PICKER_UNITS = [
                         {format(dateRange.from, 'MMM d')} - {format(dateRange.to, 'MMM d')}
                       </>
                     ) : (
-                      format(dateRange.from, 'EEE, MMM d')
+                      format(dateRange.from, 'MMM d, yyyy')
                     )
                   ) : (
-                    'Select dates'
+                    'Pick date'
                   )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
+              <PopoverContent className="w-auto p-0" align="end">
                 <Calendar
+                  initialFocus
                   mode="range"
+                  defaultMonth={dateRange?.from}
                   selected={dateRange}
                   onSelect={setDateRange}
                   numberOfMonths={1}
-                  initialFocus
-                  className="pointer-events-auto"
                 />
+                <div className="p-3 border-t flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setDateRange({ from: new Date(), to: new Date() })}
+                  >
+                    Today
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setDateRange({
+                        from: startOfWeek(new Date(), { weekStartsOn: 1 }),
+                        to: endOfWeek(new Date(), { weekStartsOn: 1 })
+                      });
+                    }}
+                  >
+                    This Week
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const lastWeek = subWeeks(new Date(), 1);
+                      setDateRange({
+                        from: startOfWeek(lastWeek, { weekStartsOn: 1 }),
+                        to: endOfWeek(lastWeek, { weekStartsOn: 1 })
+                      });
+                    }}
+                  >
+                    Last Week
+                  </Button>
+                </div>
               </PopoverContent>
             </Popover>
-            
-            {/* Quick range buttons */}
-            <Button
-              variant={dateRange?.from && !(isToday(dateRange.from) && (!dateRange.to || isToday(dateRange.to))) ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setDateRange({ from: new Date(), to: new Date() })}
-              className={cn(
-                "text-primary",
-                dateRange?.from && !(isToday(dateRange.from) && (!dateRange.to || isToday(dateRange.to))) && "ring-2 ring-primary ring-offset-2"
-              )}
-            >
-              Today
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                const now = new Date();
-                setDateRange({
-                  from: startOfWeek(now, { weekStartsOn: 1 }),
-                  to: endOfWeek(now, { weekStartsOn: 1 })
-                });
-              }}
-            >
-              This Week
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                const lastWeek = subWeeks(new Date(), 1);
-                setDateRange({
-                  from: startOfWeek(lastWeek, { weekStartsOn: 1 }),
-                  to: endOfWeek(lastWeek, { weekStartsOn: 1 })
-                });
-              }}
-            >
-              Last Week
-            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -1365,141 +1384,64 @@ const PICKER_UNITS = [
                               Items Preview ({orderItems.length} items)
                             </h4>
                           </div>
-                          <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
-                            {orderItems.map((item: any) => {
-                              const isWeightBased = item.fnb_products?.is_weight_based || false;
-                              return (
-                                <div
-                                  key={item.id}
-                                  className="p-3 rounded-lg bg-muted/50 border border-border/50"
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <div>
-                                      <div className="flex items-center gap-1.5">
-                                        <p className="font-medium text-sm">{item.fnb_products?.name}</p>
-                                        {isWeightBased && (
-                                          <Scale className="h-3 w-3 text-blue-500" />
-                                        )}
-                                      </div>
-                                      <p className="text-xs text-muted-foreground">
-                                        {item.fnb_products?.code}
-                                      </p>
-                                    </div>
-                                    <div className="text-right">
-                                      <p className="font-bold text-sm">
-                                        {item.quantity} {item.fnb_products?.unit}
-                                      </p>
-                                    </div>
+                          <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                            {orderItems.map((item: any) => (
+                              <div
+                                key={item.id}
+                                className="py-2 px-3 rounded-lg border bg-muted/30"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <p className="text-sm font-medium">{item.fnb_products?.name}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {item.fnb_products?.code}
+                                    </p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-sm font-bold">
+                                      {item.quantity} {item.fnb_products?.unit}
+                                    </p>
                                   </div>
                                 </div>
-                              );
-                            })}
+                              </div>
+                            ))}
                           </div>
                         </div>
                       )}
                     </>
                   )}
 
-                  {/* Collaboration banner - shown when helping another picker */}
-                  {selectedQueueItem.status === 'in_progress' && !isOwner && canCollaborate && (
-                    <div className="p-4 bg-purple-50 dark:bg-purple-950 rounded-lg border border-purple-200 dark:border-purple-800">
-                      <div className="flex items-center gap-3">
-                        <User className="h-8 w-8 text-purple-600 dark:text-purple-400 shrink-0" />
-                        <div>
-                          <p className="font-medium text-purple-800 dark:text-purple-200">
-                            Helping {selectedQueueItem.picker_name}
-                          </p>
-                          <p className="text-sm text-purple-700 dark:text-purple-300">
-                            You can pick any unpicked items. Items picked by others are locked.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Items List with Quantity Adjustment - Allow collaboration */}
-                  {(isOwner || canCollaborate) && orderItems && (
-                    <>
-                      {/* Active Pickers Banner - Show who is picking this order */}
-                      {(() => {
-                        const activePickers = orderItems
-                          .filter((item: any) => item.picked_by && item.picker_name)
-                          .reduce((acc: { name: string; count: number; isMe: boolean }[], item: any) => {
-                            const existing = acc.find(p => p.name === item.picker_name);
-                            if (existing) {
-                              existing.count++;
-                            } else {
-                              acc.push({ 
-                                name: item.picker_name, 
-                                count: 1, 
-                                isMe: item.picked_by === user?.id 
-                              });
-                            }
-                            return acc;
-                          }, []);
-                        
-                        if (activePickers.length > 0) {
-                          return (
-                            <div className="flex items-center gap-2 flex-wrap p-2 bg-muted/50 rounded-lg">
-                              <span className="text-xs font-medium text-muted-foreground">Picking:</span>
-                              {activePickers.map((picker, idx) => (
-                                <Badge 
-                                  key={idx}
-                                  variant="outline" 
-                                  className={cn(
-                                    "text-xs",
-                                    picker.isMe 
-                                      ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 border-green-400" 
-                                      : "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 border-purple-400"
-                                  )}
-                                >
-                                  <User className="h-3 w-3 mr-1" />
-                                  {picker.isMe ? 'You' : picker.name} ({picker.count})
-                                </Badge>
-                              ))}
-                            </div>
-                          );
-                        }
-                        return null;
-                      })()}
-
-                      {/* Progress Bar */}
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-sm">
+                  {/* Picking Interface */}
+                  {selectedQueueItem.status === 'in_progress' && orderItems && (
+                    <div className="space-y-4">
+                      {/* Progress */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
                           <span>Progress</span>
-                          <span>{pickedCount} / {totalCount} items</span>
+                          <span className="font-medium">{pickedCount} / {totalCount} items</span>
                         </div>
                         <Progress value={progress} className="h-2" />
                       </div>
 
-                      {/* Reported Shortages Info - Non-blocking */}
-                      {hasReportedShortages && (
-                        <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg flex items-start gap-2">
-                          <AlertTriangle className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0" />
-                          <div>
-                            <p className="font-medium text-blue-800 dark:text-blue-200">Shortages Reported</p>
-                            <p className="text-sm text-blue-700 dark:text-blue-300">
-                              Supervisor has been notified - you can continue
-                            </p>
-                          </div>
-                        </div>
-                      )}
+                      {/* Add Item Button */}
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowQuickAddItem(true)}
+                          className="flex-1"
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Item
+                        </Button>
+                        <AssistanceButton
+                          pickerName={pickerName || 'Unknown'}
+                          orderNumber={selectedQueueItem.fnb_orders?.order_number}
+                        />
+                      </div>
 
+                      {/* Items List */}
                       <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                        <div className="sticky top-0 bg-card py-1 flex items-center justify-between">
-                          <h4 className="font-medium">Items to Pick</h4>
-                          {isOwner && selectedQueueItem.status === 'in_progress' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setShowQuickAddItem(true)}
-                              className="gap-1"
-                            >
-                              <Plus className="h-4 w-4" />
-                              Add Item
-                            </Button>
-                          )}
-                        </div>
                         {orderItems.map((item: any) => {
                           const pickedQty = pickedQuantities[item.id] ?? item.quantity;
                           const isShort = pickedQty < item.quantity;
@@ -1594,32 +1536,6 @@ const PICKER_UNITS = [
                                   </div>
                                 </div>
                               </div>
-                              {/* Status badges - shown inline */}
-                              {(isReported || (isOverPicked && isWeightBased)) && (
-                                <div className="flex items-center gap-2 mt-1 ml-8">
-                                  {isReported && editingShortageItem !== item.id && (
-                                    <>
-                                      <Badge variant="outline" className="text-xs text-blue-600 border-blue-400">
-                                        Shortage Reported
-                                      </Badge>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-5 px-1.5 text-xs text-blue-600 hover:text-blue-700"
-                                        onClick={() => setEditingShortageItem(item.id)}
-                                      >
-                                        <Edit className="h-3 w-3 mr-1" />
-                                        Edit
-                                      </Button>
-                                    </>
-                                  )}
-                                  {isOverPicked && isWeightBased && (
-                                    <Badge variant="outline" className="text-xs text-blue-600 border-blue-400">
-                                      Over-picked (+{(pickedQty - item.quantity).toFixed(2)})
-                                    </Badge>
-                                  )}
-                                </div>
-                              )}
 
                               {/* Quantity/Weight Input */}
                               <div className="mt-2 ml-8">
@@ -1674,35 +1590,6 @@ const PICKER_UNITS = [
                                         />
                                       )}
                                     </div>
-                                    
-                                    {/* Weight status message */}
-                                    {pickedQty > 0 && (
-                                      <div className={cn(
-                                        "flex items-center gap-2 text-sm px-3 py-1.5 rounded-md",
-                                        pickedQty === item.quantity && "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300",
-                                        pickedQty > item.quantity && "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300",
-                                        pickedQty < item.quantity && "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
-                                      )}>
-                                        {pickedQty === item.quantity && (
-                                          <>
-                                            <CheckCircle className="h-4 w-4" />
-                                            Exact weight matched
-                                          </>
-                                        )}
-                                        {pickedQty > item.quantity && (
-                                          <>
-                                            <Scale className="h-4 w-4" />
-                                            Over by {(pickedQty - item.quantity).toFixed(2)} {pickedUnits[item.id] || item.fnb_products?.weight_unit || 'kg'}
-                                          </>
-                                        )}
-                                        {pickedQty < item.quantity && (
-                                          <>
-                                            <AlertTriangle className="h-4 w-4" />
-                                            Short by {(item.quantity - pickedQty).toFixed(2)} {pickedUnits[item.id] || item.fnb_products?.weight_unit || 'kg'}
-                                          </>
-                                        )}
-                                      </div>
-                                    )}
                                   </div>
                                 ) : (
                                   /* Fixed quantity items: +/- buttons with unit selector */
@@ -1771,134 +1658,61 @@ const PICKER_UNITS = [
                                     </div>
                                   </div>
                                 )}
-                                
-                                {/* Save button when editing a reported shortage */}
-                                {editingShortageItem === item.id && (
-                                  <div className="flex gap-2 mt-2">
-                                    <Button
-                                      size="sm"
-                                      className="h-10"
-                                      onClick={() => resolveShortageByPickerMutation.mutate({
-                                        itemId: item.id,
-                                        newPickedQuantity: pickedQty,
-                                      })}
-                                      disabled={resolveShortageByPickerMutation.isPending}
-                                    >
-                                      <CheckCircle className="h-4 w-4 mr-1" />
-                                      {pickedQty >= item.quantity ? 'Resolve' : 'Update'}
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-10"
-                                      onClick={() => {
-                                        setEditingShortageItem(null);
-                                        setPickedQuantities(prev => ({
-                                          ...prev,
-                                          [item.id]: item.picked_quantity ?? item.quantity,
-                                        }));
+
+                                {/* Shortage Quick Buttons */}
+                                {isShort && !isReported && (
+                                  <div className="mt-2">
+                                    <ShortageQuickButtons
+                                      onReportShortage={(reason: string) => {
+                                        shortageRequestMutation.mutate({
+                                          itemId: item.id,
+                                          availableQuantity: pickedQty,
+                                          reason,
+                                        });
                                       }}
-                                    >
-                                      Cancel
-                                    </Button>
+                                      onOpenFullDialog={() => {
+                                        setShortageItem({
+                                          id: item.id,
+                                          productName: item.fnb_products?.name || 'Unknown',
+                                          productCode: item.fnb_products?.code || '',
+                                          orderedQuantity: item.quantity,
+                                          unit: item.fnb_products?.unit || 'pcs',
+                                        });
+                                      }}
+                                    />
                                   </div>
                                 )}
                               </div>
-
-                              {/* Inline Shortage Quick Buttons - only show for short items not yet reported */}
-                              {isShort && !isReported && (
-                                <div className="mt-3 space-y-2">
-                                  <p className="text-xs text-muted-foreground">
-                                    Short {(item.quantity - pickedQty).toFixed(isWeightBased ? 2 : 0)} - Select reason:
-                                  </p>
-                                  <ShortageQuickButtons
-                                    compact
-                                    onSelect={(reason) => {
-                                      setShortReasons(prev => ({
-                                        ...prev,
-                                        [item.id]: reason,
-                                      }));
-                                      // Auto-submit shortage with selected reason
-                                      shortageRequestMutation.mutate({
-                                        itemId: item.id,
-                                        availableQuantity: pickedQty,
-                                        reason,
-                                      });
-                                    }}
-                                    selectedReason={shortReasons[item.id]}
-                                    disabled={shortageRequestMutation.isPending}
-                                  />
-                                </div>
-                              )}
                             </div>
                           );
                         })}
                       </div>
 
-                      {/* Assistance Button */}
-                      <AssistanceButton
-                        pickerQueueId={selectedQueueItem.id}
-                        pickerName={pickerName}
-                        orderNumber={selectedQueueItem.fnb_orders?.order_number || ''}
-                        disabled={completeMutation.isPending}
-                      />
-
-                      {/* Complete Button - anyone can complete once all items are picked */}
-                      {(() => {
-                        const allItemsPicked = orderItems?.every(item => item.picked_by !== null) ?? false;
-                        const canComplete = isOwner || allItemsPicked;
-                        
-                        if (canComplete) {
-                          return (
-                            <Button
-                              className="w-full h-16 text-lg"
-                              onClick={() => {
-                                // Calculate total weight from individual items
-                                const totalWeight = orderItems?.reduce((sum: number, item: any) => {
-                                  const pickedQty = pickedQuantities[item.id] ?? item.quantity;
-                                  const isWeightBased = item.fnb_products?.is_weight_based || false;
-                                  return sum + (isWeightBased ? pickedQty : pickedQty * 0.5);
-                                }, 0) || 0;
-                                
-                                completeMutation.mutate({
-                                  queueId: selectedQueue!,
-                                  verifiedWeight: totalWeight,
-                                });
-                              }}
-                              disabled={
-                                !allItemsReviewed ||
-                                hasUnreasonedShorts ||
-                                completeMutation.isPending
-                              }
-                            >
-                              <CheckCircle className="mr-2 h-5 w-5" />
-                              Complete Order
-                            </Button>
-                          );
-                        }
-                        
-                        const pickedCount = orderItems?.filter(item => item.picked_by !== null).length || 0;
-                        const totalCount = orderItems?.length || 0;
-                        
-                        return (
-                          <div className="p-3 bg-muted rounded-lg text-center">
-                            <p className="text-sm text-muted-foreground">
-                              Pick remaining items to enable completion ({pickedCount}/{totalCount} picked)
-                            </p>
-                          </div>
-                        );
-                      })()}
-
-                      {hasUnreasonedShorts && isOwner && (
-                        <p className="text-sm text-amber-600 dark:text-amber-400 text-center">
-                          Please report shortages for items with reduced quantities
-                        </p>
-                      )}
-                    </>
+                      {/* Complete Button */}
+                      <div className="pt-4 border-t">
+                        <div className="flex items-center justify-between mb-2 text-sm">
+                          <span>Expected Weight</span>
+                          <span className="font-medium">{expectedWeight.toFixed(1)} kg</span>
+                        </div>
+                        <Button
+                          className="w-full h-14 text-lg"
+                          onClick={() => completeMutation.mutate({ queueId: selectedQueueItem.id, verifiedWeight: expectedWeight })}
+                          disabled={completeMutation.isPending || hasUnreasonedShorts}
+                        >
+                          <CheckCircle className="mr-2 h-5 w-5" />
+                          Complete Order
+                        </Button>
+                        {hasUnreasonedShorts && (
+                          <p className="text-xs text-destructive mt-2 text-center">
+                            Please report shortages for all items with reduced quantities
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
               ) : (
-                <div className="py-12 text-center text-muted-foreground">
+                <div className="text-center py-8 text-muted-foreground">
                   <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
                   <p>Select an order from the queue to start picking</p>
                 </div>
@@ -1908,15 +1722,15 @@ const PICKER_UNITS = [
         </div>
       </main>
 
-      {/* Weight Verification Dialog - No longer used, kept for potential future use */}
-
       {/* Shortage Request Dialog */}
       <ShortageRequestDialog
         open={!!shortageItem}
         onOpenChange={(open) => !open && setShortageItem(null)}
         item={shortageItem}
-        onSubmit={shortageRequestMutation.mutate}
-        isLoading={shortageRequestMutation.isPending}
+        onSubmit={(data: { itemId: string; availableQuantity: number; reason: string; notes?: string }) => {
+          shortageRequestMutation.mutate(data);
+        }}
+        isSubmitting={shortageRequestMutation.isPending}
       />
 
       {/* Quick Add Item Dialog */}
