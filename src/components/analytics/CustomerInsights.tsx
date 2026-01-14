@@ -15,7 +15,7 @@ export function CustomerInsights() {
     queryFn: async () => {
       // Get all customers
       const { data: customers, error: custError } = await supabase
-        .from("fnb_customers")
+        .from("distribution_customers")
         .select("id, name, customer_type, pricing_tier_id");
 
       if (custError) throw custError;
@@ -23,7 +23,7 @@ export function CustomerInsights() {
       // Get orders from last 30 days
       const startDate = format(subDays(new Date(), 30), "yyyy-MM-dd");
       const { data: orders, error: ordError } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select("customer_id, total_xcg, order_date")
         .gte("order_date", startDate)
         .in("status", ["delivered", "picked", "ready"]);
@@ -98,7 +98,7 @@ export function CustomerInsights() {
       const weeklyData = await Promise.all(
         weeks.map(async (week) => {
           const { data: orders } = await supabase
-            .from("fnb_orders")
+            .from("distribution_orders")
             .select("customer_id")
             .gte("order_date", week.start)
             .lt("order_date", week.end);

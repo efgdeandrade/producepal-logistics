@@ -25,7 +25,7 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0];
       const { data, error } = await supabase
-        .from('fnb_order_items')
+        .from('distribution_order_items')
         .select(`
           id,
           short_quantity,
@@ -33,8 +33,8 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
           picked_at,
           shortage_alerted_at,
           shortage_status,
-          fnb_products(name, code),
-          fnb_orders(order_number, fnb_customers(name))
+          distribution_products(name, code),
+          distribution_orders(order_number, distribution_customers(name))
         `)
         .gt('short_quantity', 0)
         .eq('shortage_status', 'reported')
@@ -54,7 +54,7 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0];
       const { data, error } = await supabase
-        .from('fnb_order_items')
+        .from('distribution_order_items')
         .select(`
           id,
           short_quantity,
@@ -63,8 +63,8 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
           shortage_resolved_by,
           picked_quantity,
           quantity,
-          fnb_products(name, code),
-          fnb_orders(order_number, fnb_customers(name))
+          distribution_products(name, code),
+          distribution_orders(order_number, distribution_customers(name))
         `)
         .eq('shortage_status', 'resolved')
         .gte('shortage_resolved_at', today)
@@ -89,7 +89,7 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
         
         // Also check picker_queue for picker_name
         const { data: queues } = await supabase
-          .from('fnb_picker_queue')
+          .from('distribution_picker_queue')
           .select('claimed_by, picker_name')
           .in('claimed_by', resolverIds);
         
@@ -113,11 +113,11 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
     queryKey: ['fnb-assistance-requests'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('fnb_assistance_queue')
+        .from('distribution_assistance_queue')
         .select(`
           *,
-          fnb_picker_queue(
-            fnb_orders(order_number, fnb_customers(name))
+          distribution_picker_queue(
+            distribution_orders(order_number, distribution_customers(name))
           )
         `)
         .eq('status', 'pending')
@@ -132,10 +132,10 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
   // Subscribe to realtime updates
   useEffect(() => {
     const channel = supabase
-      .channel('fnb-alerts-realtime')
+      .channel('distribution-alerts-realtime')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'fnb_assistance_queue' },
+        { event: 'INSERT', schema: 'public', table: 'distribution_assistance_queue' },
         () => {
           queryClient.invalidateQueries({ queryKey: ['fnb-assistance-requests'] });
           if (showAudioAlerts) {
@@ -150,7 +150,7 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'fnb_order_items' },
+        { event: '*', schema: 'public', table: 'distribution_order_items' },
         () => {
           queryClient.invalidateQueries({ queryKey: ['fnb-shortage-alerts'] });
         }
@@ -166,7 +166,7 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
   const acknowledgeMutation = useMutation({
     mutationFn: async (requestId: string) => {
       const { error } = await supabase
-        .from('fnb_assistance_queue')
+        .from('distribution_assistance_queue')
         .update({
           status: 'acknowledged',
           acknowledged_by: user?.id,
@@ -185,7 +185,7 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
   const resolveMutation = useMutation({
     mutationFn: async (requestId: string) => {
       const { error } = await supabase
-        .from('fnb_assistance_queue')
+        .from('distribution_assistance_queue')
         .update({
           status: 'resolved',
           resolved_at: new Date().toISOString(),
@@ -254,7 +254,7 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
                         {request.picker_name} needs help
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Order: {request.fnb_picker_queue?.fnb_orders?.order_number}
+                        Order: {request.distribution_picker_queue?.distribution_orders?.order_number}
                       </p>
                       <p className="text-xs mt-1">{request.reason}</p>
                       {request.notes && (
@@ -301,10 +301,10 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">
-                        {alert.fnb_products?.name}
+                        {alert.distribution_products?.name}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Order: {alert.fnb_orders?.order_number} • {alert.fnb_orders?.fnb_customers?.name}
+                        Order: {alert.distribution_orders?.order_number} • {alert.distribution_orders?.distribution_customers?.name}
                       </p>
                     </div>
                     <div className="text-right shrink-0">
@@ -338,10 +338,10 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">
-                        {item.fnb_products?.name}
+                        {item.distribution_products?.name}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Order: {item.fnb_orders?.order_number} • {item.fnb_orders?.fnb_customers?.name}
+                        Order: {item.distribution_orders?.order_number} • {item.distribution_orders?.distribution_customers?.name}
                       </p>
                       <div className="flex items-center gap-1 mt-1">
                         <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-200">

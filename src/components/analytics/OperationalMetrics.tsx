@@ -16,7 +16,7 @@ export function OperationalMetrics() {
       
       // Get today's orders with status
       const { data: orders, error } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select("id, status, created_at, delivered_at, driver_name")
         .eq("delivery_date", today);
 
@@ -66,7 +66,7 @@ export function OperationalMetrics() {
       const today = format(new Date(), "yyyy-MM-dd");
 
       const { data: pickerQueue, error } = await supabase
-        .from("fnb_picker_queue")
+        .from("distribution_picker_queue")
         .select("picker_name, status, claimed_at, completed_at")
         .gte("created_at", `${today}T00:00:00`);
 
@@ -103,7 +103,7 @@ export function OperationalMetrics() {
       const today = format(new Date(), "yyyy-MM-dd");
 
       const { data: orders, error } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select("driver_name, status, cod_amount_collected")
         .eq("delivery_date", today)
         .not("driver_name", "is", null);
