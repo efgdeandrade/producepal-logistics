@@ -304,7 +304,7 @@ serve(async (req) => {
 
     // 2. Get ready orders for the date - now including major_zone_id
     const { data: ordersData, error: ordersError } = await supabase
-      .from("fnb_orders")
+      .from("distribution_orders")
       .select(`
         id,
         order_number,
@@ -312,8 +312,8 @@ serve(async (req) => {
         total_xcg,
         priority,
         delivery_date,
-        fnb_customers!inner(id, name, address, latitude, longitude, delivery_zone, major_zone_id),
-        fnb_order_items(id)
+        distribution_customers!inner(id, name, address, latitude, longitude, delivery_zone, major_zone_id),
+        distribution_order_items(id)
       `)
       .eq("status", "ready")
       .eq("delivery_date", targetDate);
@@ -325,7 +325,7 @@ serve(async (req) => {
 
     // Fetch major zones for name lookup
     const { data: majorZonesData } = await supabase
-      .from("fnb_delivery_zones")
+      .from("distribution_delivery_zones")
       .select("id, name")
       .eq("zone_type", "major")
       .eq("is_active", true);
@@ -336,16 +336,16 @@ serve(async (req) => {
       id: o.id,
       order_number: o.order_number,
       customer_id: o.customer_id,
-      customer_name: o.fnb_customers.name,
-      customer_address: o.fnb_customers.address || "No address",
-      latitude: o.fnb_customers.latitude,
-      longitude: o.fnb_customers.longitude,
-      delivery_zone: o.fnb_customers.delivery_zone,
-      major_zone_id: o.fnb_customers.major_zone_id,
-      major_zone_name: o.fnb_customers.major_zone_id ? majorZoneMap.get(o.fnb_customers.major_zone_id) || null : null,
+      customer_name: o.distribution_customers.name,
+      customer_address: o.distribution_customers.address || "No address",
+      latitude: o.distribution_customers.latitude,
+      longitude: o.distribution_customers.longitude,
+      delivery_zone: o.distribution_customers.delivery_zone,
+      major_zone_id: o.distribution_customers.major_zone_id,
+      major_zone_name: o.distribution_customers.major_zone_id ? majorZoneMap.get(o.distribution_customers.major_zone_id) || null : null,
       total_xcg: o.total_xcg || 0,
       priority: o.priority || 0,
-      item_count: o.fnb_order_items?.length || 1
+      item_count: o.distribution_order_items?.length || 1
     }));
 
     console.log(`Found ${orders.length} ready orders`);

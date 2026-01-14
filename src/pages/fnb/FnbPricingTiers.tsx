@@ -74,14 +74,14 @@ export default function FnbPricingTiers() {
     queryKey: ['fnb-pricing-tiers'],
     queryFn: async () => {
       const { data: tiersData, error: tiersError } = await supabase
-        .from('fnb_pricing_tiers')
+        .from('distribution_pricing_tiers')
         .select('*')
         .order('sort_order');
       if (tiersError) throw tiersError;
 
       // Get customer counts per tier
       const { data: customerCounts, error: countError } = await supabase
-        .from('fnb_customers')
+        .from('distribution_customers')
         .select('pricing_tier_id');
       if (countError) throw countError;
 
@@ -104,12 +104,12 @@ export default function FnbPricingTiers() {
       // If setting as default, first unset existing default
       if (tier.is_default) {
         await supabase
-          .from('fnb_pricing_tiers')
+          .from('distribution_pricing_tiers')
           .update({ is_default: false })
           .eq('is_default', true);
       }
       
-      const { error } = await supabase.from('fnb_pricing_tiers').insert({
+      const { error } = await supabase.from('distribution_pricing_tiers').insert({
         ...tier,
         sort_order: (tiers?.length || 0) + 1,
       });
@@ -131,13 +131,13 @@ export default function FnbPricingTiers() {
       // If setting as default, first unset existing default
       if (tier.is_default) {
         await supabase
-          .from('fnb_pricing_tiers')
+          .from('distribution_pricing_tiers')
           .update({ is_default: false })
           .neq('id', id);
       }
       
       const { error } = await supabase
-        .from('fnb_pricing_tiers')
+        .from('distribution_pricing_tiers')
         .update({
           name: tier.name,
           description: tier.description,
@@ -163,11 +163,11 @@ export default function FnbPricingTiers() {
     mutationFn: async (id: string) => {
       // First, unassign customers from this tier
       await supabase
-        .from('fnb_customers')
+        .from('distribution_customers')
         .update({ pricing_tier_id: null })
         .eq('pricing_tier_id', id);
       
-      const { error } = await supabase.from('fnb_pricing_tiers').delete().eq('id', id);
+      const { error } = await supabase.from('distribution_pricing_tiers').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -184,13 +184,13 @@ export default function FnbPricingTiers() {
     mutationFn: async (tierId: string) => {
       // Unset existing default
       await supabase
-        .from('fnb_pricing_tiers')
+        .from('distribution_pricing_tiers')
         .update({ is_default: false })
         .eq('is_default', true);
       
       // Set new default
       const { error } = await supabase
-        .from('fnb_pricing_tiers')
+        .from('distribution_pricing_tiers')
         .update({ is_default: true })
         .eq('id', tierId);
       if (error) throw error;
@@ -207,7 +207,7 @@ export default function FnbPricingTiers() {
   const toggleActiveMutation = useMutation({
     mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
       const { error } = await supabase
-        .from('fnb_pricing_tiers')
+        .from('distribution_pricing_tiers')
         .update({ is_active })
         .eq('id', id);
       if (error) throw error;

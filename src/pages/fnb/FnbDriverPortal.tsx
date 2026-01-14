@@ -489,19 +489,19 @@ export default function FnbDriverPortal() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
-                {codDialogOrder?.fnb_customers?.customer_type === 'supermarket' 
-                  ? 'Complete Supermarket Delivery' 
-                  : 'Record Payment & Delivery'}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="text-sm text-muted-foreground">
-                <p>Customer: <span className="font-medium text-foreground">{codDialogOrder?.fnb_customers?.name}</span></p>
-                <p>Order: <span className="font-medium text-foreground">{codDialogOrder?.order_number}</span></p>
-                <p>Order Total: <span className="font-medium text-foreground">{codDialogOrder?.total_xcg?.toFixed(2)} XCG</span></p>
-                {codDialogOrder?.fnb_customers?.customer_type && (
-                  <p>Type: <span className="font-medium text-foreground capitalize">{codDialogOrder.fnb_customers.customer_type}</span></p>
-                )}
+              {codDialogOrder?.distribution_customers?.customer_type === 'supermarket' 
+                ? 'Complete Supermarket Delivery' 
+                : 'Record Payment & Delivery'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="text-sm text-muted-foreground">
+              <p>Customer: <span className="font-medium text-foreground">{codDialogOrder?.distribution_customers?.name}</span></p>
+              <p>Order: <span className="font-medium text-foreground">{codDialogOrder?.order_number}</span></p>
+              <p>Order Total: <span className="font-medium text-foreground">{codDialogOrder?.total_xcg?.toFixed(2)} XCG</span></p>
+              {codDialogOrder?.distribution_customers?.customer_type && (
+                <p>Type: <span className="font-medium text-foreground capitalize">{codDialogOrder.distribution_customers.customer_type}</span></p>
+              )}
               </div>
 
               {/* Payment Method */}
@@ -536,7 +536,7 @@ export default function FnbDriverPortal() {
               )}
 
               {/* Receipt Photo - Required for Supermarket */}
-              {codDialogOrder?.fnb_customers?.customer_type === 'supermarket' && (
+              {codDialogOrder?.distribution_customers?.customer_type === 'supermarket' && (
                 <div>
                   <Label className="mb-2 block">
                     Signed Receipt Photo <span className="text-destructive">*</span>
@@ -578,7 +578,7 @@ export default function FnbDriverPortal() {
               )}
 
               {/* Optional receipt for non-supermarket */}
-              {codDialogOrder?.fnb_customers?.customer_type !== 'supermarket' && (
+              {codDialogOrder?.distribution_customers?.customer_type !== 'supermarket' && (
                 <div>
                   <Label className="mb-2 block">Receipt Photo (Optional)</Label>
                   <input
@@ -656,18 +656,18 @@ export default function FnbDriverPortal() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {codDialogOrder?.fnb_customers?.customer_type === 'supermarket' 
+              {codDialogOrder?.distribution_customers?.customer_type === 'supermarket' 
                 ? 'Complete Supermarket Delivery' 
                 : 'Record Payment & Delivery'}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="text-sm text-muted-foreground">
-              <p>Customer: <span className="font-medium text-foreground">{codDialogOrder?.fnb_customers?.name}</span></p>
+              <p>Customer: <span className="font-medium text-foreground">{codDialogOrder?.distribution_customers?.name}</span></p>
               <p>Order: <span className="font-medium text-foreground">{codDialogOrder?.order_number}</span></p>
               <p>Order Total: <span className="font-medium text-foreground">{codDialogOrder?.total_xcg?.toFixed(2)} XCG</span></p>
-              {codDialogOrder?.fnb_customers?.customer_type && (
-                <p>Type: <span className="font-medium text-foreground capitalize">{codDialogOrder.fnb_customers.customer_type}</span></p>
+              {codDialogOrder?.distribution_customers?.customer_type && (
+                <p>Type: <span className="font-medium text-foreground capitalize">{codDialogOrder.distribution_customers.customer_type}</span></p>
               )}
             </div>
 
@@ -703,7 +703,7 @@ export default function FnbDriverPortal() {
             )}
 
             {/* Receipt Photo - Required for Supermarket */}
-            {codDialogOrder?.fnb_customers?.customer_type === 'supermarket' && (
+            {codDialogOrder?.distribution_customers?.customer_type === 'supermarket' && (
               <div>
                 <Label className="mb-2 block">
                   Signed Receipt Photo <span className="text-destructive">*</span>
@@ -745,7 +745,7 @@ export default function FnbDriverPortal() {
             )}
 
             {/* Optional receipt for non-supermarket */}
-            {codDialogOrder?.fnb_customers?.customer_type !== 'supermarket' && (
+            {codDialogOrder?.distribution_customers?.customer_type !== 'supermarket' && (
               <div>
                 <Label className="mb-2 block">Receipt Photo (Optional)</Label>
                 <input

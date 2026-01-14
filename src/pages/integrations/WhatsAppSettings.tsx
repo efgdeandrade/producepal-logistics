@@ -186,9 +186,9 @@ const WhatsAppSettings = () => {
                         <div className="flex items-center gap-2">
                           <Phone className="h-3 w-3" />
                           <span className="text-sm font-medium">{msg.phone_number}</span>
-                          {msg.fnb_customers?.name && (
+                          {msg.distribution_customers?.name && (
                             <Badge variant="outline" className="text-xs">
-                              {msg.fnb_customers.name}
+                              {msg.distribution_customers.name}
                             </Badge>
                           )}
                         </div>

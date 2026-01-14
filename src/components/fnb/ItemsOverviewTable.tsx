@@ -17,10 +17,10 @@ interface QueueItem {
   id: string;
   order_id: string;
   status: string;
-  fnb_orders?: {
+  distribution_orders?: {
     id: string;
     order_number: string;
-    fnb_customers?: {
+    distribution_customers?: {
       name: string;
       delivery_zone?: string;
     };
@@ -35,16 +35,16 @@ interface OrderItem {
   picked_quantity: number | null;
   picked_by: string | null;
   order_unit: string | null;
-  fnb_products?: {
+  distribution_products?: {
     id: string;
     code: string;
     name: string;
     unit: string;
   };
-  fnb_orders?: {
+  distribution_orders?: {
     id: string;
     order_number: string;
-    fnb_customers?: {
+    distribution_customers?: {
       name: string;
       delivery_zone?: string;
     };
@@ -95,7 +95,7 @@ export function ItemsOverviewTable({ queueItems, allOrderItems, isLoading }: Ite
 
     allOrderItems.forEach((item) => {
       const productId = item.product_id;
-      const product = item.fnb_products;
+      const product = item.distribution_products;
       if (!productId || !product) return;
 
       const existing = itemMap.get(productId);
@@ -104,9 +104,9 @@ export function ItemsOverviewTable({ queueItems, allOrderItems, isLoading }: Ite
       
       // Extract customer info
       const customerInfo: CustomerInfo = {
-        name: item.fnb_orders?.fnb_customers?.name || 'Unknown',
-        zone: item.fnb_orders?.fnb_customers?.delivery_zone,
-        orderNumber: item.fnb_orders?.order_number || '',
+        name: item.distribution_orders?.distribution_customers?.name || 'Unknown',
+        zone: item.distribution_orders?.distribution_customers?.delivery_zone,
+        orderNumber: item.distribution_orders?.order_number || '',
         quantity: ordered,
         isPicked,
       };
