@@ -1435,8 +1435,9 @@ const PICKER_UNITS = [
                           Add Item
                         </Button>
                         <AssistanceButton
+                          pickerQueueId={selectedQueueItem.id}
                           pickerName={pickerName || 'Unknown'}
-                          orderNumber={selectedQueueItem.fnb_orders?.order_number}
+                          orderNumber={selectedQueueItem.distribution_orders?.order_number}
                         />
                       </div>
 
@@ -1663,22 +1664,14 @@ const PICKER_UNITS = [
                                 {isShort && !isReported && (
                                   <div className="mt-2">
                                     <ShortageQuickButtons
-                                      onReportShortage={(reason: string) => {
+                                      onSelect={(reason: string) => {
                                         shortageRequestMutation.mutate({
                                           itemId: item.id,
                                           availableQuantity: pickedQty,
                                           reason,
                                         });
                                       }}
-                                      onOpenFullDialog={() => {
-                                        setShortageItem({
-                                          id: item.id,
-                                          productName: item.fnb_products?.name || 'Unknown',
-                                          productCode: item.fnb_products?.code || '',
-                                          orderedQuantity: item.quantity,
-                                          unit: item.fnb_products?.unit || 'pcs',
-                                        });
-                                      }}
+                                      compact
                                     />
                                   </div>
                                 )}
@@ -1727,17 +1720,18 @@ const PICKER_UNITS = [
         open={!!shortageItem}
         onOpenChange={(open) => !open && setShortageItem(null)}
         item={shortageItem}
-        onSubmit={(data: { itemId: string; availableQuantity: number; reason: string; notes?: string }) => {
+        onSubmit={(data) => {
           shortageRequestMutation.mutate(data);
+          setShortageItem(null);
         }}
-        isSubmitting={shortageRequestMutation.isPending}
+        isLoading={shortageRequestMutation.isPending}
       />
 
       {/* Quick Add Item Dialog */}
       {selectedQueueItem && (
         <QuickAddItemDialog
           orderId={selectedQueueItem.order_id}
-          orderNumber={selectedQueueItem.fnb_orders?.order_number || ''}
+          orderNumber={selectedQueueItem.distribution_orders?.order_number || ''}
           open={showQuickAddItem}
           onOpenChange={setShowQuickAddItem}
         />
