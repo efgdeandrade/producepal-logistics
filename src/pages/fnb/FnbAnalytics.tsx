@@ -42,28 +42,28 @@ export default function FnbAnalytics() {
     queryKey: ["fnb-analytics-orders", dateRange],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select(`
           *,
-          fnb_customers (name, delivery_zone),
-          fnb_order_items (quantity, total_xcg, product_id, fnb_products (name, code))
+          distribution_customers (name, delivery_zone),
+          distribution_order_items (quantity, total_xcg, product_id, distribution_products (name, code))
         `)
         .gte("created_at", getDateRangeStart())
         .not("status", "eq", "cancelled")
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return data;
+      return data as any[];
     },
   });
 
   // Calculate metrics
-  const totalRevenue = orders?.reduce((sum, o) => sum + (o.total_xcg || 0), 0) || 0;
+  const totalRevenue = orders?.reduce((sum: number, o: any) => sum + (o.total_xcg || 0), 0) || 0;
   const totalOrders = orders?.length || 0;
   const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-  const deliveredOrders = orders?.filter((o) => o.status === "delivered") || [];
+  const deliveredOrders = orders?.filter((o: any) => o.status === "delivered") || [];
 
   // Daily revenue chart data
-  const dailyRevenue = orders?.reduce((acc: Record<string, number>, order) => {
+  const dailyRevenue = orders?.reduce((acc: Record<string, number>, order: any) => {
     const date = format(new Date(order.created_at), "MMM d");
     acc[date] = (acc[date] || 0) + (order.total_xcg || 0);
     return acc;
@@ -75,9 +75,9 @@ export default function FnbAnalytics() {
   }));
 
   // Top products
-  const productSales = orders?.reduce((acc: Record<string, { name: string; quantity: number; revenue: number }>, order) => {
-    order.fnb_order_items?.forEach((item: any) => {
-      const name = item.fnb_products?.name || "Unknown";
+  const productSales = orders?.reduce((acc: Record<string, { name: string; quantity: number; revenue: number }>, order: any) => {
+    order.distribution_order_items?.forEach((item: any) => {
+      const name = item.distribution_products?.name || "Unknown";
       if (!acc[name]) acc[name] = { name, quantity: 0, revenue: 0 };
       acc[name].quantity += item.quantity || 0;
       acc[name].revenue += item.total_xcg || 0;
@@ -95,8 +95,8 @@ export default function FnbAnalytics() {
   }));
 
   // Top customers
-  const customerSales = orders?.reduce((acc: Record<string, { name: string; orders: number; revenue: number }>, order) => {
-    const name = order.fnb_customers?.name || "Unknown";
+  const customerSales = orders?.reduce((acc: Record<string, { name: string; orders: number; revenue: number }>, order: any) => {
+    const name = order.distribution_customers?.name || "Unknown";
     if (!acc[name]) acc[name] = { name, orders: 0, revenue: 0 };
     acc[name].orders += 1;
     acc[name].revenue += order.total_xcg || 0;
@@ -108,8 +108,8 @@ export default function FnbAnalytics() {
     .slice(0, 10);
 
   // Zone performance
-  const zoneStats = orders?.reduce((acc: Record<string, { zone: string; orders: number; revenue: number }>, order) => {
-    const zone = order.fnb_customers?.delivery_zone || "Unassigned";
+  const zoneStats = orders?.reduce((acc: Record<string, { zone: string; orders: number; revenue: number }>, order: any) => {
+    const zone = order.distribution_customers?.delivery_zone || "Unassigned";
     if (!acc[zone]) acc[zone] = { zone, orders: 0, revenue: 0 };
     acc[zone].orders += 1;
     acc[zone].revenue += order.total_xcg || 0;
@@ -122,15 +122,15 @@ export default function FnbAnalytics() {
 
   // Delivery performance
   const deliveryTimes = deliveredOrders
-    .filter((o) => o.assigned_at && o.delivered_at)
-    .map((o) => differenceInMinutes(new Date(o.delivered_at), new Date(o.assigned_at)));
+    .filter((o: any) => o.assigned_at && o.delivered_at)
+    .map((o: any) => differenceInMinutes(new Date(o.delivered_at), new Date(o.assigned_at)));
 
   const avgDeliveryTime = deliveryTimes.length > 0
     ? Math.round(deliveryTimes.reduce((a, b) => a + b, 0) / deliveryTimes.length)
     : 0;
 
   // Orders by status
-  const statusCounts = orders?.reduce((acc: Record<string, number>, order) => {
+  const statusCounts = orders?.reduce((acc: Record<string, number>, order: any) => {
     acc[order.status] = (acc[order.status] || 0) + 1;
     return acc;
   }, {});
@@ -141,7 +141,7 @@ export default function FnbAnalytics() {
   }));
 
   // Orders by day of week
-  const dayOfWeekOrders = orders?.reduce((acc: Record<string, number>, order) => {
+  const dayOfWeekOrders = orders?.reduce((acc: Record<string, number>, order: any) => {
     const day = format(new Date(order.created_at), "EEE");
     acc[day] = (acc[day] || 0) + 1;
     return acc;
@@ -161,7 +161,7 @@ export default function FnbAnalytics() {
     deliveriesWithTime: number;
     codDue: number;
     codCollected: number;
-  }>, order) => {
+  }>, order: any) => {
     const driverName = order.driver_name || "Unassigned";
     if (!acc[driverName]) {
       acc[driverName] = {
