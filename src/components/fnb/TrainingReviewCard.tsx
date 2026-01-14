@@ -25,10 +25,10 @@ export function TrainingReviewCard({ log, onConfirm, onCorrect, onSkip, isLoadin
   const [selectedProductId, setSelectedProductId] = useState<string>('');
 
   const { data: products } = useQuery({
-    queryKey: ['fnb-products-for-training'],
+    queryKey: ['distribution-products-for-training'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('fnb_products')
+        .from('distribution_products')
         .select('id, name, code')
         .eq('is_active', true)
         .order('name');

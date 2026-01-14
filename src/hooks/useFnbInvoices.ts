@@ -38,14 +38,14 @@ export interface Invoice {
   quickbooks_synced_at: string | null;
   created_at: string;
   updated_at: string;
-  fnb_customers?: {
+  distribution_customers?: {
     id: string;
     name: string;
     whatsapp_phone: string;
     address: string | null;
   };
-  fnb_invoice_items?: InvoiceItem[];
-  fnb_invoice_orders?: { order_id: string; fnb_orders?: { order_number: string } }[];
+  distribution_invoice_items?: InvoiceItem[];
+  distribution_invoice_orders?: { order_id: string; distribution_orders?: { order_number: string } }[];
 }
 
 export interface ReadyOrder {
@@ -80,15 +80,15 @@ export function useFnbInvoices() {
   // Fetch all invoices with optional status filter
   const useInvoices = (statusFilter?: string) => {
     return useQuery({
-      queryKey: ['fnb-invoices', statusFilter],
+      queryKey: ['distribution-invoices', statusFilter],
       queryFn: async () => {
         let query = supabase
-          .from('fnb_invoices')
+          .from('distribution_invoices')
           .select(`
             *,
-            fnb_customers (id, name, whatsapp_phone, address),
-            fnb_invoice_items (*),
-            fnb_invoice_orders (order_id, fnb_orders (order_number))
+            distribution_customers (id, name, whatsapp_phone, address),
+            distribution_invoice_items (*),
+            distribution_invoice_orders (order_id, distribution_orders (order_number))
           `)
           .order('created_at', { ascending: false });
 
@@ -106,17 +106,17 @@ export function useFnbInvoices() {
   // Fetch single invoice by ID
   const useInvoice = (invoiceId: string | undefined) => {
     return useQuery({
-      queryKey: ['fnb-invoice', invoiceId],
+      queryKey: ['distribution-invoice', invoiceId],
       queryFn: async () => {
         if (!invoiceId) return null;
 
         const { data, error } = await supabase
-          .from('fnb_invoices')
+          .from('distribution_invoices')
           .select(`
             *,
-            fnb_customers (id, name, whatsapp_phone, address),
-            fnb_invoice_items (*),
-            fnb_invoice_orders (order_id, fnb_orders (order_number))
+            distribution_customers (id, name, whatsapp_phone, address),
+            distribution_invoice_items (*),
+            distribution_invoice_orders (order_id, distribution_orders (order_number))
           `)
           .eq('id', invoiceId)
           .single();
@@ -131,10 +131,10 @@ export function useFnbInvoices() {
   // Fetch orders ready for invoicing (status = 'ready' and no invoice_id)
   const useReadyOrders = () => {
     return useQuery({
-      queryKey: ['fnb-orders-ready-for-invoice'],
+      queryKey: ['distribution-orders-ready-for-invoice'],
       queryFn: async () => {
         const { data, error } = await supabase
-          .from('fnb_orders')
+          .from('distribution_orders')
           .select(`
             id,
             order_number,
@@ -142,13 +142,13 @@ export function useFnbInvoices() {
             total_xcg,
             delivery_date,
             status,
-            fnb_customers (name),
-            fnb_order_items (
+            distribution_customers (name),
+            distribution_order_items (
               id,
               quantity,
               picked_quantity,
               unit_price_xcg,
-              fnb_products (id, name, code, is_ob_eligible)
+              distribution_products (id, name, code, is_ob_eligible)
             )
           `)
           .eq('status', 'ready')
@@ -161,19 +161,19 @@ export function useFnbInvoices() {
           id: order.id,
           order_number: order.order_number,
           customer_id: order.customer_id,
-          customer_name: order.fnb_customers?.name || 'Unknown',
+          customer_name: order.distribution_customers?.name || 'Unknown',
           total_xcg: order.total_xcg || 0,
           delivery_date: order.delivery_date,
           status: order.status,
-          items: (order.fnb_order_items || []).map((item: any) => ({
+          items: (order.distribution_order_items || []).map((item: any) => ({
             id: item.id,
-            product_id: item.fnb_products?.id,
-            product_name: item.fnb_products?.name || 'Unknown',
-            product_code: item.fnb_products?.code || '',
+            product_id: item.distribution_products?.id,
+            product_name: item.distribution_products?.name || 'Unknown',
+            product_code: item.distribution_products?.code || '',
             quantity: item.quantity,
             picked_quantity: item.picked_quantity,
             unit_price_xcg: item.unit_price_xcg,
-            is_ob_eligible: item.fnb_products?.is_ob_eligible || false,
+            is_ob_eligible: item.distribution_products?.is_ob_eligible || false,
           })),
         })) as ReadyOrder[];
       },
@@ -187,17 +187,17 @@ export function useFnbInvoices() {
 
       // Get order details
       const { data: orders, error: ordersError } = await supabase
-        .from('fnb_orders')
+        .from('distribution_orders')
         .select(`
           id,
           order_number,
           customer_id,
-          fnb_order_items (
+          distribution_order_items (
             id,
             quantity,
             picked_quantity,
             unit_price_xcg,
-            fnb_products (id, name, code, is_ob_eligible)
+            distribution_products (id, name, code, is_ob_eligible)
           )
         `)
         .in('id', orderIds);
@@ -221,15 +221,15 @@ export function useFnbInvoices() {
       const invoiceItems: Omit<InvoiceItem, 'id' | 'invoice_id'>[] = [];
       
       orders.forEach((order: any) => {
-        (order.fnb_order_items || []).forEach((item: any) => {
+        (order.distribution_order_items || []).forEach((item: any) => {
           const qty = item.picked_quantity ?? item.quantity;
           const lineTotal = Number((qty * item.unit_price_xcg).toFixed(2));
-          const isOBEligible = item.fnb_products?.is_ob_eligible || false;
+          const isOBEligible = item.distribution_products?.is_ob_eligible || false;
           
           invoiceItems.push({
             order_item_id: item.id,
-            product_id: item.fnb_products?.id,
-            product_name: item.fnb_products?.name || 'Unknown Product',
+            product_id: item.distribution_products?.id,
+            product_name: item.distribution_products?.name || 'Unknown Product',
             description: null,
             quantity: qty,
             unit_price_xcg: item.unit_price_xcg,
@@ -249,7 +249,7 @@ export function useFnbInvoices() {
 
       // Create invoice
       const { data: invoice, error: invoiceError } = await supabase
-        .from('fnb_invoices')
+        .from('distribution_invoices')
         .insert({
           status: 'draft',
           invoice_date: today.toISOString().split('T')[0],
@@ -273,7 +273,7 @@ export function useFnbInvoices() {
       }));
 
       const { error: itemsError } = await supabase
-        .from('fnb_invoice_items')
+        .from('distribution_invoice_items')
         .insert(itemsToInsert);
 
       if (itemsError) throw itemsError;
@@ -285,21 +285,21 @@ export function useFnbInvoices() {
       }));
 
       const { error: linkError } = await supabase
-        .from('fnb_invoice_orders')
+        .from('distribution_invoice_orders')
         .insert(orderLinks);
 
       if (linkError) throw linkError;
 
       // Update orders with invoice_id
       const { error: updateError } = await supabase
-        .from('fnb_orders')
+        .from('distribution_orders')
         .update({ invoice_id: invoice.id })
         .in('id', orderIds);
 
       if (updateError) throw updateError;
 
       // Log activity
-      await supabase.from('fnb_invoice_activity').insert({
+      await supabase.from('distribution_invoice_activity').insert({
         invoice_id: invoice.id,
         action: 'created',
         details: { order_ids: orderIds, order_numbers: orderNumbers },
@@ -309,8 +309,8 @@ export function useFnbInvoices() {
       return invoice;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['fnb-invoices'] });
-      queryClient.invalidateQueries({ queryKey: ['fnb-orders-ready-for-invoice'] });
+      queryClient.invalidateQueries({ queryKey: ['distribution-invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['distribution-orders-ready-for-invoice'] });
       toast.success('Invoice created successfully');
     },
     onError: (error: Error) => {
@@ -339,7 +339,7 @@ export function useFnbInvoices() {
       }
 
       const { error: updateError } = await supabase
-        .from('fnb_invoices')
+        .from('distribution_invoices')
         .update(updates)
         .eq('id', invoiceId);
 
@@ -348,7 +348,7 @@ export function useFnbInvoices() {
       // Update items if provided
       if (items) {
         // Delete existing items and re-insert
-        await supabase.from('fnb_invoice_items').delete().eq('invoice_id', invoiceId);
+        await supabase.from('distribution_invoice_items').delete().eq('invoice_id', invoiceId);
         
         const itemsToInsert = items.map((item) => ({
           ...item,
@@ -357,14 +357,14 @@ export function useFnbInvoices() {
         }));
 
         const { error: itemsError } = await supabase
-          .from('fnb_invoice_items')
+          .from('distribution_invoice_items')
           .insert(itemsToInsert);
 
         if (itemsError) throw itemsError;
       }
 
       // Log activity
-      await supabase.from('fnb_invoice_activity').insert({
+      await supabase.from('distribution_invoice_activity').insert({
         invoice_id: invoiceId,
         action: 'updated',
         details: { updates: Object.keys(updates) },
@@ -372,8 +372,8 @@ export function useFnbInvoices() {
       });
     },
     onSuccess: (_, { invoiceId }) => {
-      queryClient.invalidateQueries({ queryKey: ['fnb-invoices'] });
-      queryClient.invalidateQueries({ queryKey: ['fnb-invoice', invoiceId] });
+      queryClient.invalidateQueries({ queryKey: ['distribution-invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['distribution-invoice', invoiceId] });
       toast.success('Invoice updated');
     },
     onError: (error: Error) => {
@@ -385,7 +385,7 @@ export function useFnbInvoices() {
   const confirmInvoice = useMutation({
     mutationFn: async (invoiceId: string) => {
       const { error } = await supabase
-        .from('fnb_invoices')
+        .from('distribution_invoices')
         .update({
           status: 'confirmed',
           confirmed_by: user?.id,
@@ -395,15 +395,15 @@ export function useFnbInvoices() {
 
       if (error) throw error;
 
-      await supabase.from('fnb_invoice_activity').insert({
+      await supabase.from('distribution_invoice_activity').insert({
         invoice_id: invoiceId,
         action: 'confirmed',
         performed_by: user?.id,
       });
     },
     onSuccess: (_, invoiceId) => {
-      queryClient.invalidateQueries({ queryKey: ['fnb-invoices'] });
-      queryClient.invalidateQueries({ queryKey: ['fnb-invoice', invoiceId] });
+      queryClient.invalidateQueries({ queryKey: ['distribution-invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['distribution-invoice', invoiceId] });
       toast.success('Invoice confirmed');
     },
     onError: (error: Error) => {
@@ -416,7 +416,7 @@ export function useFnbInvoices() {
     mutationFn: async (invoiceId: string) => {
       // Get linked order IDs first
       const { data: links } = await supabase
-        .from('fnb_invoice_orders')
+        .from('distribution_invoice_orders')
         .select('order_id')
         .eq('invoice_id', invoiceId);
 
@@ -425,22 +425,22 @@ export function useFnbInvoices() {
       // Clear invoice_id from orders
       if (orderIds.length > 0) {
         await supabase
-          .from('fnb_orders')
+          .from('distribution_orders')
           .update({ invoice_id: null })
           .in('id', orderIds);
       }
 
       // Delete invoice (cascade will handle items, orders, activity)
       const { error } = await supabase
-        .from('fnb_invoices')
+        .from('distribution_invoices')
         .delete()
         .eq('id', invoiceId);
 
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['fnb-invoices'] });
-      queryClient.invalidateQueries({ queryKey: ['fnb-orders-ready-for-invoice'] });
+      queryClient.invalidateQueries({ queryKey: ['distribution-invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['distribution-orders-ready-for-invoice'] });
       toast.success('Invoice deleted');
     },
     onError: (error: Error) => {
@@ -461,8 +461,8 @@ export function useFnbInvoices() {
       return data;
     },
     onSuccess: (data, invoiceId) => {
-      queryClient.invalidateQueries({ queryKey: ['fnb-invoices'] });
-      queryClient.invalidateQueries({ queryKey: ['fnb-invoice', invoiceId] });
+      queryClient.invalidateQueries({ queryKey: ['distribution-invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['distribution-invoice', invoiceId] });
       if (data?.quickbooks_invoice_number) {
         toast.success(`Synced to QuickBooks: ${data.quickbooks_invoice_number}`);
       } else {
