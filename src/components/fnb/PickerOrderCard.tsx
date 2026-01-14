@@ -1,7 +1,8 @@
 import { Badge } from '@/components/ui/badge';
 import { Clock, Package, User, MapPin, AlertTriangle, Crown } from 'lucide-react';
-import { format, differenceInHours, differenceInMinutes, isPast } from 'date-fns';
+import { differenceInHours, differenceInMinutes, isBefore } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { nowCuracao, formatCuracao, parseDateCuracao } from '@/lib/dateUtils';
 
 interface PickerOrderCardProps {
   order: {
@@ -41,12 +42,14 @@ export function PickerOrderCard({
   currentPickerName,
   pickProgress,
 }: PickerOrderCardProps) {
+  const now = nowCuracao();
   const deliveryDate = order.fnb_orders?.delivery_date
-    ? new Date(order.fnb_orders.delivery_date)
+    ? parseDateCuracao(order.fnb_orders.delivery_date)
     : null;
   
-  const isUrgent = deliveryDate && (isPast(deliveryDate) || differenceInHours(deliveryDate, new Date()) < 2);
-  const isWarning = deliveryDate && !isUrgent && differenceInHours(deliveryDate, new Date()) < 4;
+  const isOverdue = deliveryDate && isBefore(deliveryDate, now);
+  const isUrgent = deliveryDate && (isOverdue || differenceInHours(deliveryDate, now) < 2);
+  const isWarning = deliveryDate && !isUrgent && differenceInHours(deliveryDate, now) < 4;
   
   const customerType = order.fnb_orders?.fnb_customers?.customer_type || 'regular';
   const isVIP = customerType === 'supermarket' || customerType === 'premium';
@@ -55,12 +58,12 @@ export function PickerOrderCard({
   const getTimeDisplay = () => {
     if (!deliveryDate) return null;
     
-    if (isPast(deliveryDate)) {
+    if (isOverdue) {
       return { text: 'OVERDUE', className: 'text-destructive font-bold animate-pulse' };
     }
     
-    const hours = differenceInHours(deliveryDate, new Date());
-    const mins = differenceInMinutes(deliveryDate, new Date()) % 60;
+    const hours = differenceInHours(deliveryDate, now);
+    const mins = differenceInMinutes(deliveryDate, now) % 60;
     
     if (hours < 1) {
       return { text: `${mins}m`, className: 'text-destructive font-bold' };
@@ -69,7 +72,7 @@ export function PickerOrderCard({
       return { text: `${hours}h ${mins}m`, className: 'text-orange-600 dark:text-orange-400 font-semibold' };
     }
     
-    return { text: format(deliveryDate, 'h:mm a'), className: 'text-muted-foreground' };
+    return { text: formatCuracao(deliveryDate, 'h:mm a'), className: 'text-muted-foreground' };
   };
 
   const timeDisplay = getTimeDisplay();

@@ -11,7 +11,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { useLocation } from "react-router-dom";
-import { format, getWeek } from "date-fns";
+import { nowCuracao, formatCuracao, weekNumberCuracao } from "@/lib/dateUtils";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -64,11 +64,11 @@ const routeLabels: Record<string, string> = {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState(nowCuracao());
   const isMobile = useIsMobile();
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    const timer = setInterval(() => setCurrentTime(nowCuracao()), 1000);
     return () => clearInterval(timer);
   }, []);
   
@@ -97,7 +97,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           {/* Time + Notifications */}
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground font-mono">
-              {format(currentTime, 'HH:mm')}
+              {formatCuracao(currentTime, 'HH:mm')}
             </span>
             <NotificationCenter />
             <OfflineIndicator />
@@ -144,16 +144,16 @@ export function AppLayout({ children }: AppLayoutProps) {
             {/* Time/Date/Week Display + Notifications */}
             <div className="ml-auto flex items-center gap-2 sm:gap-3">
               <div className="flex flex-col text-right">
-                <div className="flex items-center gap-1 sm:gap-2">
+              <div className="flex items-center gap-1 sm:gap-2">
                   <span className="text-xs sm:text-sm font-medium text-foreground">
-                    {format(currentTime, 'MMM d')}
+                    {formatCuracao(currentTime, 'MMM d')}
                   </span>
                   <span className="text-xs sm:text-sm text-muted-foreground font-mono">
-                    {format(currentTime, 'HH:mm')}
+                    {formatCuracao(currentTime, 'HH:mm')}
                   </span>
                 </div>
                 <span className="text-[10px] sm:text-xs text-muted-foreground">
-                  Week {getWeek(currentTime)}
+                  Week {weekNumberCuracao()}
                 </span>
               </div>
               <Separator orientation="vertical" className="h-6" />

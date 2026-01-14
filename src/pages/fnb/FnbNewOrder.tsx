@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { format } from 'date-fns';
+import { todayStringCuracao, parseDateCuracao, todayCuracao, formatCuracao, isBeforeCuracao } from '@/lib/dateUtils';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import {
@@ -97,9 +98,7 @@ export default function FnbNewOrder() {
   const isEditMode = !!orderId;
   
   const [customerId, setCustomerId] = useState<string>('');
-  const [deliveryDate, setDeliveryDate] = useState<string>(
-    format(new Date(), 'yyyy-MM-dd')
-  );
+  const [deliveryDate, setDeliveryDate] = useState<string>(todayStringCuracao());
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<OrderItem[]>([{ productId: '', quantity: 1, unit: 'pcs', unitPrice: 0, total: 0 }]);
   const [orderNumber, setOrderNumber] = useState('');
@@ -299,7 +298,7 @@ export default function FnbNewOrder() {
   useEffect(() => {
     if (existingOrder) {
       setCustomerId(existingOrder.customer_id || '');
-      setDeliveryDate(existingOrder.delivery_date || format(new Date(), 'yyyy-MM-dd'));
+      setDeliveryDate(existingOrder.delivery_date || todayStringCuracao());
       setDeliveryStation(existingOrder.delivery_station || '');
       setNotes(existingOrder.notes || '');
       setOrderNumber(existingOrder.order_number);
@@ -767,11 +766,10 @@ export default function FnbNewOrder() {
     },
   });
 
-  // Check if delivery date is in the past
+  // Check if delivery date is in the past (using Curaçao timezone)
   const checkDeliveryDate = (date: string): { blocked: boolean; isPast: boolean; message?: string } => {
-    const deliveryDateObj = new Date(date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const deliveryDateObj = parseDateCuracao(date);
+    const today = todayCuracao();
     
     const oneYearAgo = new Date(today);
     oneYearAgo.setFullYear(today.getFullYear() - 1);
@@ -781,16 +779,16 @@ export default function FnbNewOrder() {
       return { 
         blocked: true, 
         isPast: true,
-        message: `Date ${format(deliveryDateObj, 'MMMM d, yyyy')} is more than a year in the past. Please check the year.` 
+        message: `Date ${formatCuracao(deliveryDateObj, 'MMMM d, yyyy')} is more than a year in the past. Please check the year.` 
       };
     }
     
     // Warn if in the past
-    if (deliveryDateObj < today) {
+    if (isBeforeCuracao(date, today)) {
       return { 
         blocked: false, 
         isPast: true,
-        message: `You selected ${format(deliveryDateObj, 'EEEE, MMMM d, yyyy')} which is in the past.` 
+        message: `You selected ${formatCuracao(deliveryDateObj, 'EEEE, MMMM d, yyyy')} which is in the past.` 
       };
     }
     
