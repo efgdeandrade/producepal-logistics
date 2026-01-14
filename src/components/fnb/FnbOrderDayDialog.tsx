@@ -75,13 +75,13 @@ interface OrderWithDetails {
   receipt_verified_at: string | null;
   quickbooks_invoice_id: string | null;
   notes: string | null;
-  fnb_customers: {
+  distribution_customers: {
     name: string;
     whatsapp_phone?: string;
     delivery_zone: string | null;
     customer_type: CustomerType;
   } | null;
-  fnb_order_items?: { id: string; quantity?: number }[];
+  distribution_order_items?: { id: string; quantity?: number }[];
 }
 
 const isStandingOrder = (order: OrderWithDetails) => {
@@ -325,10 +325,10 @@ export function FnbOrderDayDialog({ day, orders, open, onOpenChange, onOrderUpda
     delivered: orders.filter((o) => o.status === 'delivered').length,
     pending: orders.filter((o) => o.status === 'pending').length,
     pendingReceipts: orders.filter(
-      (o) => o.fnb_customers?.customer_type === 'supermarket' && o.status === 'delivered' && !o.receipt_verified_at
+      (o) => o.distribution_customers?.customer_type === 'supermarket' && o.status === 'delivered' && !o.receipt_verified_at
     ).length,
     codTotal: orders
-      .filter((o) => o.fnb_customers?.customer_type === 'cod' || o.payment_method === 'cod')
+      .filter((o) => o.distribution_customers?.customer_type === 'cod' || o.payment_method === 'cod')
       .reduce((sum, o) => sum + (o.total_xcg || 0), 0),
     totalXCG: orders.reduce((sum, o) => sum + (o.total_xcg || 0), 0),
   };
@@ -342,18 +342,18 @@ export function FnbOrderDayDialog({ day, orders, open, onOpenChange, onOrderUpda
   }, {} as Record<string, OrderWithDetails[]>);
 
   const renderOrderCard = (order: OrderWithDetails) => {
-    const customerType = order.fnb_customers?.customer_type || 'regular';
+    const customerType = order.distribution_customers?.customer_type || 'regular';
     const isSupermarket = customerType === 'supermarket';
     const needsReceipt = isSupermarket && order.status === 'delivered' && !order.receipt_verified_at;
     const hasReceipt = !!order.receipt_photo_url;
     const isVerified = !!order.receipt_verified_at;
-    const totalItems = order.fnb_order_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+    const totalItems = order.distribution_order_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
 
     return (
       <Card
         className={cn(
           'transition-shadow border-l-4',
-          getZoneColor(order.fnb_customers?.delivery_zone || null),
+          getZoneColor(order.distribution_customers?.delivery_zone || null),
           needsReceipt && 'ring-2 ring-orange-400'
         )}
       >
@@ -367,7 +367,7 @@ export function FnbOrderDayDialog({ day, orders, open, onOpenChange, onOrderUpda
                 {isStandingOrder(order) && (
                   <Repeat className="h-3.5 w-3.5 text-blue-500 shrink-0" />
                 )}
-                <p className="font-medium text-sm truncate">{order.fnb_customers?.name || 'Unknown'}</p>
+                <p className="font-medium text-sm truncate">{order.distribution_customers?.name || 'Unknown'}</p>
               </div>
               <p className="text-xs text-muted-foreground">{order.order_number}</p>
               <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
@@ -485,9 +485,9 @@ export function FnbOrderDayDialog({ day, orders, open, onOpenChange, onOrderUpda
               {customerTypeIcons[customerType]}
               <span className="text-xs">{customerTypeLabels[customerType]}</span>
             </div>
-            {order.fnb_customers?.delivery_zone && (
+            {order.distribution_customers?.delivery_zone && (
               <Badge variant="outline" className="text-xs">
-                {order.fnb_customers.delivery_zone}
+                {order.distribution_customers.delivery_zone}
               </Badge>
             )}
           </div>
@@ -601,10 +601,10 @@ export function FnbOrderDayDialog({ day, orders, open, onOpenChange, onOrderUpda
                   {activeOrder ? (
                     <Card className={cn(
                       "w-full opacity-95 shadow-xl rotate-1 border-l-4",
-                      getZoneColor(activeOrder.fnb_customers?.delivery_zone || null)
+                      getZoneColor(activeOrder.distribution_customers?.delivery_zone || null)
                     )}>
                       <CardContent className="p-3">
-                        <p className="font-semibold">{activeOrder.fnb_customers?.name || 'Unknown'}</p>
+                        <p className="font-semibold">{activeOrder.distribution_customers?.name || 'Unknown'}</p>
                         <p className="text-xs text-muted-foreground">{activeOrder.order_number}</p>
                       </CardContent>
                     </Card>
@@ -618,7 +618,7 @@ export function FnbOrderDayDialog({ day, orders, open, onOpenChange, onOrderUpda
                 {Object.entries(ordersByDriver).map(([driver, driverOrders]) => {
                   const driverTotal = driverOrders.reduce((sum, o) => sum + (o.total_xcg || 0), 0);
                   const driverCOD = driverOrders
-                    .filter((o) => o.fnb_customers?.customer_type === 'cod' || o.payment_method === 'cod')
+                    .filter((o) => o.distribution_customers?.customer_type === 'cod' || o.payment_method === 'cod')
                     .reduce((sum, o) => sum + (o.total_xcg || 0), 0);
 
                   return (
