@@ -47,7 +47,7 @@ export function DriverAdminDashboard() {
     queryFn: async () => {
       const today = format(new Date(), "yyyy-MM-dd");
       const { data, error } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select(`
           id,
           order_number,
@@ -60,7 +60,7 @@ export function DriverAdminDashboard() {
           assigned_at,
           delivered_at,
           delivery_date,
-          fnb_customers (name, customer_type)
+          distribution_customers (name, customer_type)
         `)
         .gte("delivery_date", today)
         .not("driver_id", "is", null);
@@ -77,7 +77,7 @@ export function DriverAdminDashboard() {
     queryFn: async () => {
       const startDate = format(subDays(new Date(), parseInt(dateRange)), "yyyy-MM-dd");
       const { data, error } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select(`
           id,
           status,

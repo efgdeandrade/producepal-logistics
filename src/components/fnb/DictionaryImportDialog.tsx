@@ -236,7 +236,7 @@ export function DictionaryImportDialog({ trigger }: DictionaryImportDialogProps)
       const batch = words.slice(i * batchSize, (i + 1) * batchSize);
       
       const { error } = await supabase
-        .from('fnb_context_words')
+        .from('distribution_context_words')
         .upsert(
           batch.map(w => ({
             word: w.word.toLowerCase().trim(),
@@ -263,7 +263,7 @@ export function DictionaryImportDialog({ trigger }: DictionaryImportDialogProps)
       const batch = words.slice(i * batchSize, (i + 1) * batchSize);
       
       await supabase
-        .from('fnb_translations')
+        .from('distribution_translations')
         .upsert(
           batch.map(w => ({
             papiamentu: w.word.toLowerCase().trim(),
@@ -376,7 +376,7 @@ export function DictionaryImportDialog({ trigger }: DictionaryImportDialogProps)
                     <div className="flex flex-wrap gap-2">
                       {curatedByType[type.value]?.map(word => (
                         <Badge key={word.word} variant="secondary" className="text-xs">
-                          {word.word} = {word.meaning}
+                          {word.word} → {word.meaning}
                         </Badge>
                       ))}
                     </div>
@@ -387,33 +387,22 @@ export function DictionaryImportDialog({ trigger }: DictionaryImportDialogProps)
             
             {importing && (
               <div className="space-y-2">
-                <Progress value={progress} className="h-2" />
-                <p className="text-sm text-muted-foreground text-center">
-                  Importing... {progress}%
-                </p>
+                <Progress value={progress} />
+                <p className="text-sm text-muted-foreground text-center">Importing... {progress}%</p>
               </div>
             )}
             
             {results.success > 0 && !importing && (
-              <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950 rounded-lg">
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
-                <span className="text-sm">
-                  Successfully imported {results.success} words!
-                </span>
+              <div className="flex items-center gap-2 text-sm text-green-600">
+                <CheckCircle2 className="h-4 w-4" />
+                Successfully imported {results.success} words
               </div>
             )}
             
             {results.errors.length > 0 && (
-              <div className="p-3 bg-red-50 dark:bg-red-950 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <AlertCircle className="h-5 w-5 text-red-600" />
-                  <span className="text-sm font-medium">Some errors occurred:</span>
-                </div>
-                <ul className="text-xs text-red-600 space-y-1">
-                  {results.errors.slice(0, 5).map((error, i) => (
-                    <li key={i}>{error}</li>
-                  ))}
-                </ul>
+              <div className="flex items-center gap-2 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4" />
+                {results.errors.length} errors occurred
               </div>
             )}
             
@@ -422,13 +411,14 @@ export function DictionaryImportDialog({ trigger }: DictionaryImportDialogProps)
               disabled={importing || filteredCuratedCount === 0}
               className="w-full"
             >
-              {importing ? "Importing..." : `Import ${filteredCuratedCount} Words`}
+              <Upload className="h-4 w-4 mr-2" />
+              Import {filteredCuratedCount} Words
             </Button>
           </TabsContent>
           
           <TabsContent value="custom" className="space-y-4 mt-4">
-            <div className="space-y-3">
-              <Label htmlFor="word-type">Word Type</Label>
+            <div className="space-y-2">
+              <Label>Word Type</Label>
               <Select value={selectedType} onValueChange={setSelectedType}>
                 <SelectTrigger>
                   <SelectValue />
@@ -436,36 +426,33 @@ export function DictionaryImportDialog({ trigger }: DictionaryImportDialogProps)
                 <SelectContent>
                   {WORD_TYPES.map(type => (
                     <SelectItem key={type.value} value={type.value}>
-                      <div>
-                        <div>{type.label}</div>
-                        <div className="text-xs text-muted-foreground">{type.examples}</div>
-                      </div>
+                      {type.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                Examples: {WORD_TYPES.find(t => t.value === selectedType)?.examples}
+              </p>
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="custom-words">Dictionary Entries</Label>
+              <Label>Paste your words (one per line)</Label>
               <Textarea
-                id="custom-words"
-                placeholder="Enter words, one per line. Format: word = meaning&#10;&#10;Example:&#10;siboyo = onion&#10;tomati = tomato&#10;manda = send"
                 value={customText}
                 onChange={(e) => setCustomText(e.target.value)}
+                placeholder={"kaha = box\ntros = bunch\nsiboyo = onion"}
                 className="h-[200px] font-mono text-sm"
               />
               <p className="text-xs text-muted-foreground">
-                Supported formats: "word = meaning", "word: meaning", or "word - meaning"
+                Supported formats: word = meaning, word: meaning, word - meaning
               </p>
             </div>
             
             {importing && (
               <div className="space-y-2">
-                <Progress value={progress} className="h-2" />
-                <p className="text-sm text-muted-foreground text-center">
-                  Importing... {progress}%
-                </p>
+                <Progress value={progress} />
+                <p className="text-sm text-muted-foreground text-center">Importing... {progress}%</p>
               </div>
             )}
             
@@ -474,7 +461,8 @@ export function DictionaryImportDialog({ trigger }: DictionaryImportDialogProps)
               disabled={importing || !customText.trim()}
               className="w-full"
             >
-              {importing ? "Importing..." : "Import Custom Words"}
+              <Upload className="h-4 w-4 mr-2" />
+              Import Custom Words
             </Button>
           </TabsContent>
         </Tabs>

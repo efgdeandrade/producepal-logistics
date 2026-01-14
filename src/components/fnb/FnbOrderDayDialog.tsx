@@ -215,7 +215,7 @@ export function FnbOrderDayDialog({ day, orders, open, onOpenChange, onOrderUpda
       const { data: { user } } = await supabase.auth.getUser();
       
       // Log the status change
-      await supabase.from('fnb_order_modifications').insert({
+      await supabase.from('distribution_order_modifications').insert({
         order_id: orderId,
         modified_by: user?.id,
         modified_by_email: user?.email,
@@ -225,7 +225,7 @@ export function FnbOrderDayDialog({ day, orders, open, onOpenChange, onOrderUpda
       });
 
       const { error } = await supabase
-        .from('fnb_orders')
+        .from('distribution_orders')
         .update({ status: newStatus })
         .eq('id', orderId);
       if (error) throw error;
@@ -246,7 +246,7 @@ export function FnbOrderDayDialog({ day, orders, open, onOpenChange, onOrderUpda
       const { data: { user } } = await supabase.auth.getUser();
       
       // Log the date change
-      await supabase.from('fnb_order_modifications').insert({
+      await supabase.from('distribution_order_modifications').insert({
         order_id: orderId,
         modified_by: user?.id,
         modified_by_email: user?.email,
@@ -255,7 +255,7 @@ export function FnbOrderDayDialog({ day, orders, open, onOpenChange, onOrderUpda
       });
 
       const { error } = await supabase
-        .from('fnb_orders')
+        .from('distribution_orders')
         .update({ delivery_date: newDate })
         .eq('id', orderId);
       if (error) throw error;
@@ -274,7 +274,7 @@ export function FnbOrderDayDialog({ day, orders, open, onOpenChange, onOrderUpda
   const reorderMutation = useMutation({
     mutationFn: async (reorderedOrders: OrderWithDetails[]) => {
       const updates = reorderedOrders.map((o, index) => 
-        supabase.from('fnb_orders').update({ priority: index }).eq('id', o.id)
+        supabase.from('distribution_orders').update({ priority: index }).eq('id', o.id)
       );
       
       const results = await Promise.all(updates);

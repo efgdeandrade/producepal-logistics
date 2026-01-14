@@ -30,7 +30,7 @@ export function RevenueAnalytics() {
       const startDate = subDays(endDate, 30);
 
       const { data: orders, error } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select("order_date, total_xcg, status")
         .gte("order_date", format(startDate, "yyyy-MM-dd"))
         .lte("order_date", format(endDate, "yyyy-MM-dd"))
@@ -74,14 +74,14 @@ export function RevenueAnalytics() {
 
       // This week
       const { data: thisWeekOrders } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select("total_xcg")
         .gte("order_date", format(thisWeekStart, "yyyy-MM-dd"))
         .in("status", ["delivered", "picked", "ready"]);
 
       // Last week
       const { data: lastWeekOrders } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select("total_xcg")
         .gte("order_date", format(lastWeekStart, "yyyy-MM-dd"))
         .lt("order_date", format(thisWeekStart, "yyyy-MM-dd"))
