@@ -2,7 +2,7 @@ import { X, Check, Sparkles, Zap, AlertTriangle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { SearchableSelect } from '@/components/ui/searchable-select';
+import { ResponsiveSearchableSelect } from '@/components/ui/responsive-searchable-select';
 import { MobileQuantityInput } from './MobileQuantityInput';
 import { cn } from '@/lib/utils';
 
@@ -127,7 +127,7 @@ export function MobileProductCard({
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Product
           </label>
-          <SearchableSelect
+          <ResponsiveSearchableSelect
             options={products.map(p => ({
               value: p.id,
               label: `${p.name} (${p.code})`,

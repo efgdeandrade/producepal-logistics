@@ -232,3 +232,15 @@ All colors MUST be HSL.
     padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
   }
 }
+
+/* Mobile drawer scroll behavior */
+.drawer-scroll {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Touch-optimized list items */
+.mobile-list-item {
+  min-height: 48px;
+  touch-action: manipulation;
+}
