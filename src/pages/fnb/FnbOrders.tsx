@@ -109,19 +109,19 @@ interface OrderWithDetails {
   is_pickup: boolean | null;
   po_number: string | null;
   notes: string | null;
-  fnb_customers: {
+  distribution_customers: {
     name: string;
     whatsapp_phone?: string;
     delivery_zone: string | null;
     customer_type: CustomerType;
   } | null;
-  fnb_order_items?: { 
+  distribution_order_items?: { 
     id: string;
     quantity: number;
     picked_quantity: number | null;
     short_quantity: number | null;
     unit_price_xcg: number;
-    fnb_products: {
+    distribution_products: {
       name: string;
       code: string;
     } | null;
@@ -261,8 +261,8 @@ export default function FnbOrders() {
   const [isDragging, setIsDragging] = useState(false);
   const [activeDropTarget, setActiveDropTarget] = useState<string | null>(null);
 
-  // Real-time updates for fnb_orders - auto-refresh when orders are created/updated/deleted
-  const { lastUpdate } = useRealtimeUpdates(['fnb_orders'], [['fnb-orders-weekly']]);
+  // Real-time updates for distribution_orders - auto-refresh when orders are created/updated/deleted
+  const { lastUpdate } = useRealtimeUpdates(['distribution_orders'], [['fnb-orders-weekly']]);
 
   // Track time since last update
   const [timeAgo, setTimeAgo] = useState<string>('Just now');
@@ -370,7 +370,7 @@ export default function FnbOrders() {
     queryFn: async () => {
       const weekEnd = addDays(weekStart, 6);
       let query = supabase
-        .from('fnb_orders')
+        .from('distribution_orders')
         .select(`
           id,
           order_number,
@@ -386,8 +386,8 @@ export default function FnbOrders() {
           is_pickup,
           po_number,
           notes,
-          fnb_customers (name, whatsapp_phone, delivery_zone, customer_type),
-          fnb_order_items (id, quantity, picked_quantity, short_quantity, unit_price_xcg, fnb_products (name, code))
+          distribution_customers (name, whatsapp_phone, delivery_zone, customer_type),
+          distribution_order_items (id, quantity, picked_quantity, short_quantity, unit_price_xcg, distribution_products (name, code))
         `)
         .gte('delivery_date', format(weekStart, 'yyyy-MM-dd'))
         .lte('delivery_date', format(weekEnd, 'yyyy-MM-dd'))
@@ -420,7 +420,7 @@ export default function FnbOrders() {
       dayOrders = dayOrders.filter(
         (o) =>
           o.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          o.fnb_customers?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+          o.distribution_customers?.name?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -436,16 +436,16 @@ export default function FnbOrders() {
     const delivered = dayOrders.filter((o) => o.status === 'delivered').length;
     const pending = dayOrders.filter((o) => o.status === 'pending').length;
     const pendingReceipts = dayOrders.filter(
-      (o) => o.fnb_customers?.customer_type === 'supermarket' && o.status === 'delivered' && !o.receipt_verified_at
+      (o) => o.distribution_customers?.customer_type === 'supermarket' && o.status === 'delivered' && !o.receipt_verified_at
     ).length;
     const codTotal = dayOrders
-      .filter((o) => o.fnb_customers?.customer_type === 'cod' || o.payment_method === 'cod')
+      .filter((o) => o.distribution_customers?.customer_type === 'cod' || o.payment_method === 'cod')
       .reduce((sum, o) => sum + (o.total_xcg || 0), 0);
     const totalXCG = dayOrders.reduce((sum, o) => sum + (o.total_xcg || 0), 0);
     
     // Total items count
     const totalItems = dayOrders.reduce((sum, order) => {
-      return sum + (order.fnb_order_items?.reduce((itemSum, item) => 
+      return sum + (order.distribution_order_items?.reduce((itemSum, item) => 
         itemSum + (item.quantity || 0), 0) || 0);
     }, 0);
     
@@ -453,7 +453,7 @@ export default function FnbOrders() {
     let totalOrdered = 0;
     let totalPicked = 0;
     dayOrders.forEach(order => {
-      order.fnb_order_items?.forEach(item => {
+      order.distribution_order_items?.forEach(item => {
         if (item.picked_quantity !== null) {
           totalOrdered += item.quantity || 0;
           totalPicked += item.picked_quantity || 0;
@@ -476,7 +476,7 @@ export default function FnbOrders() {
     mutationFn: async (orderId: string) => {
       // Add to picker queue
       const { error: queueError } = await supabase
-        .from('fnb_picker_queue')
+        .from('distribution_picker_queue')
         .insert({
           order_id: orderId,
           status: 'queued',
@@ -487,7 +487,7 @@ export default function FnbOrders() {
       
       // Update order status
       const { error: updateError } = await supabase
-        .from('fnb_orders')
+        .from('distribution_orders')
         .update({ status: 'confirmed' })
         .eq('id', orderId);
       
@@ -651,13 +651,13 @@ export default function FnbOrders() {
   };
 
   const renderOrderCard = (order: OrderWithDetails) => {
-    const customerType = order.fnb_customers?.customer_type || 'regular';
+    const customerType = order.distribution_customers?.customer_type || 'regular';
     const isSupermarket = customerType === 'supermarket';
     const needsReceipt = isSupermarket && order.status === 'delivered' && !order.receipt_verified_at;
     const hasReceipt = !!order.receipt_photo_url;
     const isVerified = !!order.receipt_verified_at;
     const isExpanded = expandedOrders.has(order.id);
-    const totalItems = order.fnb_order_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+    const totalItems = order.distribution_order_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
 
     const isPendingStandingOrder = order.status === 'pending' && isStandingOrder(order);
 
@@ -670,7 +670,7 @@ export default function FnbOrders() {
         <Card
           className={cn(
             'mb-2 transition-shadow border-l-4',
-            getZoneColor(order.fnb_customers?.delivery_zone || null),
+            getZoneColor(order.distribution_customers?.delivery_zone || null),
             needsReceipt && 'ring-2 ring-orange-400',
             isPendingStandingOrder && 'ring-2 ring-amber-400 animate-pulse',
             isExpanded && 'shadow-md'
@@ -694,7 +694,7 @@ export default function FnbOrders() {
                     {isStandingOrder(order) && (
                       <Repeat className="h-4 w-4 text-blue-500 shrink-0" />
                     )}
-                    <p className="font-semibold text-base line-clamp-1">{order.fnb_customers?.name || 'Unknown'}</p>
+                    <p className="font-semibold text-base line-clamp-1">{order.distribution_customers?.name || 'Unknown'}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <Badge className={cn('text-xs', statusColors[order.status])}>
@@ -747,9 +747,9 @@ export default function FnbOrders() {
                   {customerTypeIcons[customerType]}
                   <span className="text-xs">{customerTypeLabels[customerType]}</span>
                 </div>
-                {order.fnb_customers?.delivery_zone && (
+                {order.distribution_customers?.delivery_zone && (
                   <Badge variant="outline" className="text-xs">
-                    {order.fnb_customers.delivery_zone}
+                    {order.distribution_customers.delivery_zone}
                   </Badge>
                 )}
               </div>
@@ -771,13 +771,13 @@ export default function FnbOrders() {
               )}
 
               {/* Order Items */}
-              {order.fnb_order_items && order.fnb_order_items.length > 0 && (
+              {order.distribution_order_items && order.distribution_order_items.length > 0 && (
                 <div className="space-y-1">
                   <p className="text-xs font-medium">Items:</p>
                   <div className="space-y-1 pl-2 max-h-32 overflow-y-auto">
-                    {order.fnb_order_items.map((item) => (
+                    {order.distribution_order_items.map((item) => (
                       <div key={item.id} className="flex items-center justify-between text-xs">
-                        <span className="truncate flex-1">{item.fnb_products?.name || 'Unknown Product'}</span>
+                        <span className="truncate flex-1">{item.distribution_products?.name || 'Unknown Product'}</span>
                         <span className="text-muted-foreground ml-2">x {item.quantity}</span>
                       </div>
                     ))}
@@ -913,12 +913,12 @@ export default function FnbOrders() {
           <ExportButton
             data={(orders || []).map(o => ({
               order_number: o.order_number,
-              customer: o.fnb_customers?.name || 'Unknown',
+              customer: o.distribution_customers?.name || 'Unknown',
               status: o.status,
               delivery_date: o.delivery_date,
               total_xcg: o.total_xcg,
-              items: o.fnb_order_items?.length || 0,
-              zone: o.fnb_customers?.delivery_zone || '',
+              items: o.distribution_order_items?.length || 0,
+              zone: o.distribution_customers?.delivery_zone || '',
               driver: o.driver_name || '',
             }))}
             filename="fnb-orders"
@@ -1193,17 +1193,17 @@ export default function FnbOrders() {
               {activeOrder ? (
                 <Card className={cn(
                   "w-64 opacity-95 shadow-xl rotate-2 border-l-4",
-                  getZoneColor(activeOrder.fnb_customers?.delivery_zone || null)
+                  getZoneColor(activeOrder.distribution_customers?.delivery_zone || null)
                 )}>
                   <CardContent className="p-3">
-                    <p className="font-semibold">{activeOrder.fnb_customers?.name || 'Unknown'}</p>
+                    <p className="font-semibold">{activeOrder.distribution_customers?.name || 'Unknown'}</p>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Package className="h-3 w-3" />
-                      <span>{activeOrder.fnb_order_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0} items</span>
+                      <span>{activeOrder.distribution_order_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0} items</span>
                     </div>
-                    {activeOrder.fnb_customers?.delivery_zone && (
+                    {activeOrder.distribution_customers?.delivery_zone && (
                       <Badge variant="outline" className="text-xs mt-2">
-                        {activeOrder.fnb_customers.delivery_zone}
+                        {activeOrder.distribution_customers.delivery_zone}
                       </Badge>
                     )}
                   </CardContent>

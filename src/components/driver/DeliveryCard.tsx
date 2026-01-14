@@ -18,18 +18,18 @@ interface DeliveryOrder {
   order_number: string;
   total_xcg: number | null;
   notes: string | null;
-  fnb_customers: {
+  distribution_customers: {
     name: string;
     address: string | null;
     whatsapp_phone: string;
     customer_type: string;
   } | null;
-  fnb_order_items: Array<{
+  distribution_order_items: Array<{
     id: string;
     quantity: number;
     picked_quantity: number | null;
     short_quantity: number | null;
-    fnb_products: { name: string } | null;
+    distribution_products: { name: string } | null;
   }>;
 }
 
@@ -54,7 +54,7 @@ export default function DeliveryCard({
   onWhatsApp,
   onDeliver,
 }: DeliveryCardProps) {
-  const customer = order.fnb_customers;
+  const customer = order.distribution_customers;
   const customerType = customer?.customer_type || 'cod';
 
   const getCustomerTypeIcon = () => {
@@ -115,7 +115,7 @@ export default function DeliveryCard({
         <div className="flex items-center gap-2">
           <div className="text-right">
             <p className="font-semibold">{order.total_xcg?.toFixed(0)} XCG</p>
-            <p className="text-xs text-muted-foreground">{order.fnb_order_items?.length} items</p>
+            <p className="text-xs text-muted-foreground">{order.distribution_order_items?.length} items</p>
           </div>
           <ChevronRight className={`h-5 w-5 text-muted-foreground transition-transform ${isSelected ? 'rotate-90' : ''}`} />
         </div>
@@ -139,15 +139,15 @@ export default function DeliveryCard({
               Order Items
             </p>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-              {order.fnb_order_items?.slice(0, 6).map((item) => (
+              {order.distribution_order_items?.slice(0, 6).map((item) => (
                 <div key={item.id} className="text-sm flex justify-between">
-                  <span className="truncate">{item.fnb_products?.name}</span>
+                  <span className="truncate">{item.distribution_products?.name}</span>
                   <span className="text-muted-foreground ml-1">×{item.picked_quantity || item.quantity}</span>
                 </div>
               ))}
-              {order.fnb_order_items && order.fnb_order_items.length > 6 && (
+              {order.distribution_order_items && order.distribution_order_items.length > 6 && (
                 <p className="text-xs text-muted-foreground col-span-2">
-                  +{order.fnb_order_items.length - 6} more items
+                  +{order.distribution_order_items.length - 6} more items
                 </p>
               )}
             </div>
