@@ -37,8 +37,8 @@ export const builtInReportTemplates: ReportTemplate[] = [
     category: "sales",
     icon: "DollarSign",
     queryConfig: {
-      table: "fnb_orders",
-      select: "id, order_number, total_xcg, status, created_at, customer:fnb_customers(name)",
+      table: "distribution_orders",
+      select: "id, order_number, total_xcg, status, created_at, customer:distribution_customers(name)",
     },
     parameters: [
       {
@@ -74,7 +74,7 @@ export const builtInReportTemplates: ReportTemplate[] = [
     category: "sales",
     icon: "TrendingUp",
     queryConfig: {
-      table: "fnb_orders",
+      table: "distribution_orders",
       select: "id, order_number, total_xcg, status, created_at, delivery_date",
     },
     parameters: [
@@ -105,8 +105,8 @@ export const builtInReportTemplates: ReportTemplate[] = [
     category: "customers",
     icon: "Users",
     queryConfig: {
-      table: "fnb_orders",
-      select: "id, order_number, total_xcg, status, created_at, delivery_date, items:fnb_order_items(quantity, unit_price_xcg, product:fnb_products(name))",
+      table: "distribution_orders",
+      select: "id, order_number, total_xcg, status, created_at, delivery_date, items:distribution_order_items(quantity, unit_price_xcg, product:distribution_products(name))",
     },
     parameters: [
       {
@@ -147,7 +147,7 @@ export const builtInReportTemplates: ReportTemplate[] = [
     category: "operations",
     icon: "Truck",
     queryConfig: {
-      table: "fnb_orders",
+      table: "distribution_orders",
       select: "id, order_number, status, created_at, delivery_date, delivered_at, driver_name",
     },
     parameters: [
@@ -189,8 +189,8 @@ export const builtInReportTemplates: ReportTemplate[] = [
     category: "sales",
     icon: "Package",
     queryConfig: {
-      table: "fnb_order_items",
-      select: "id, quantity, unit_price_xcg, total_xcg, product:fnb_products(name, code, category)",
+      table: "distribution_order_items",
+      select: "id, quantity, unit_price_xcg, total_xcg, product:distribution_products(name, code, category)",
     },
     parameters: [
       {
@@ -226,8 +226,8 @@ export const builtInReportTemplates: ReportTemplate[] = [
     category: "finance",
     icon: "Wallet",
     queryConfig: {
-      table: "fnb_orders",
-      select: "id, order_number, cod_amount_due, cod_amount_collected, cod_collected_at, cod_reconciled_at, driver_name, customer:fnb_customers(name)",
+      table: "distribution_orders",
+      select: "id, order_number, cod_amount_due, cod_amount_collected, cod_collected_at, cod_reconciled_at, driver_name, customer:distribution_customers(name)",
     },
     parameters: [
       {
@@ -272,7 +272,7 @@ export const builtInReportTemplates: ReportTemplate[] = [
     category: "operations",
     icon: "ClipboardList",
     queryConfig: {
-      table: "fnb_order_items",
+      table: "distribution_order_items",
       select: "id, picked_quantity, quantity, picked_at, picker_name, short_quantity",
     },
     parameters: [
@@ -309,7 +309,7 @@ export const builtInReportTemplates: ReportTemplate[] = [
     category: "operations",
     icon: "MapPin",
     queryConfig: {
-      table: "fnb_customers",
+      table: "distribution_customers",
       select: "id, name, delivery_zone, major_zone_id, pricing_tier_id",
     },
     parameters: [

@@ -1389,15 +1389,15 @@ const PICKER_UNITS = [
                               >
                                 <div className="flex items-center justify-between">
                                   <div>
-                                    <p className="text-sm font-medium">{item.fnb_products?.name}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {item.fnb_products?.code}
-                                    </p>
+                                    <p className="text-sm font-medium">{item.distribution_products?.name}</p>
+                                                  <p className="text-xs text-muted-foreground">
+                                                      {item.distribution_products?.code}
+                                                    </p>
                                   </div>
                                   <div className="text-right">
-                                    <p className="text-sm font-bold">
-                                      {item.quantity} {item.fnb_products?.unit}
-                                    </p>
+                                                    <p className="text-sm font-bold">
+                                                      {item.quantity} {item.distribution_products?.unit}
+                                                    </p>
                                   </div>
                                 </div>
                               </div>
@@ -1445,7 +1445,7 @@ const PICKER_UNITS = [
                           const isShort = pickedQty < item.quantity;
                           const isOverPicked = pickedQty > item.quantity;
                           const isReported = item.shortage_status === 'reported';
-                          const isWeightBased = item.fnb_products?.is_weight_based || false;
+                          const isWeightBased = item.distribution_products?.is_weight_based || false;
                           const isComplete = pickedQty === item.quantity;
 
                           // Visual status: green for complete, blue for reported, orange for short
@@ -1501,7 +1501,7 @@ const PICKER_UNITS = [
                                       <p className={cn(
                                         "text-sm font-medium truncate",
                                         isChecked && "line-through text-muted-foreground"
-                                      )}>{item.fnb_products?.name}</p>
+                                      )}>{item.distribution_products?.name}</p>
                                       {isWeightBased && (
                                         <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 shrink-0">
                                           <Scale className="h-3 w-3 mr-1" />
@@ -1522,15 +1522,15 @@ const PICKER_UNITS = [
                                         </Badge>
                                       )}
                                     </div>
-                                    <p className="text-xs text-muted-foreground">
-                                      {item.fnb_products?.code}
-                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                      {item.distribution_products?.code}
+                                                    </p>
                                   </div>
                                   <div className="text-right shrink-0 ml-2">
                                     <p className="text-xs text-muted-foreground">Ordered</p>
-                                    <p className="text-sm font-bold">
-                                      {item.quantity} {item.fnb_products?.unit}
-                                    </p>
+                                                    <p className="text-sm font-bold">
+                                                      {item.quantity} {item.distribution_products?.unit}
+                                                    </p>
                                   </div>
                                 </div>
                               </div>
@@ -1561,7 +1561,7 @@ const PICKER_UNITS = [
                                           disabled={isCheckedByOther || (isReported && editingShortageItem !== item.id)}
                                         />
                                         <Select
-                                          value={pickedUnits[item.id] || item.order_unit || item.fnb_products?.weight_unit || 'kg'}
+                                          value={pickedUnits[item.id] || item.order_unit || item.distribution_products?.weight_unit || 'kg'}
                                           onValueChange={(v) => setPickedUnits({ ...pickedUnits, [item.id]: v })}
                                           disabled={isCheckedByOther || (isReported && editingShortageItem !== item.id)}
                                         >
@@ -1583,7 +1583,7 @@ const PICKER_UNITS = [
                                         <WeightAccuracyIndicator
                                           expectedWeight={item.quantity}
                                           actualWeight={pickedQty}
-                                          unit={pickedUnits[item.id] || item.fnb_products?.weight_unit || 'kg'}
+                                          unit={pickedUnits[item.id] || item.distribution_products?.weight_unit || 'kg'}
                                           size="sm"
                                         />
                                       )}
@@ -1638,7 +1638,7 @@ const PICKER_UNITS = [
                                         +
                                       </Button>
                                       <Select
-                                        value={pickedUnits[item.id] || item.order_unit || item.fnb_products?.unit || 'pcs'}
+                                        value={pickedUnits[item.id] || item.order_unit || item.distribution_products?.unit || 'pcs'}
                                         onValueChange={(v) => setPickedUnits({ ...pickedUnits, [item.id]: v })}
                                         disabled={isCheckedByOther || (isReported && editingShortageItem !== item.id)}
                                       >
