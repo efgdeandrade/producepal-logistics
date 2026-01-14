@@ -57,38 +57,38 @@ const useDashboardStats = () => {
 
       // Distribution orders today
       const { count: distributionOrdersToday } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select("*", { count: "exact", head: true })
         .gte("created_at", todayStart)
         .lte("created_at", todayEnd);
 
       // Active deliveries
       const { count: activeDeliveries } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select("*", { count: "exact", head: true })
         .in("status", ["picked", "dispatched", "in_transit"]);
 
       // Distribution revenue today
       const { data: distributionRevenue } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select("total_xcg")
         .eq("status", "delivered")
         .gte("delivered_at", todayStart)
-        .lte("delivered_at", todayEnd);
+        .lte("delivered_at", todayEnd) as { data: { total_xcg: number }[] | null };
 
       const todayRevenue = distributionRevenue?.reduce((sum, o) => sum + (o.total_xcg || 0), 0) || 0;
 
       // Pending issues (orders with shortages)
       const { count: pendingIssues } = await supabase
-        .from("fnb_order_items")
+        .from("distribution_order_items")
         .select("*", { count: "exact", head: true })
         .eq("shortage_status", "pending");
 
       // Weekly comparison data
       const { data: weeklyOrders } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select("created_at, total_xcg, status")
-        .gte("created_at", weekAgo);
+        .gte("created_at", weekAgo) as { data: { created_at: string; total_xcg: number; status: string }[] | null };
 
       return {
         importOrdersToday: importOrdersToday || 0,
@@ -169,21 +169,21 @@ const useDepartmentHealth = () => {
     queryFn: async () => {
       // Distribution health
       const { count: pickingQueue } = await supabase
-        .from("fnb_picker_queue")
+        .from("distribution_picker_queue")
         .select("*", { count: "exact", head: true })
         .in("status", ["pending", "in_progress"]);
 
       const { data: codCollected } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select("cod_amount_collected")
         .not("cod_amount_collected", "is", null)
-        .gte("cod_collected_at", startOfDay(new Date()).toISOString());
+        .gte("cod_collected_at", startOfDay(new Date()).toISOString()) as { data: { cod_amount_collected: number }[] | null };
 
       const todayCOD = codCollected?.reduce((sum, o) => sum + (o.cod_amount_collected || 0), 0) || 0;
 
       // Logistics health
       const { count: driversActive } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select("driver_id", { count: "exact", head: true })
         .not("driver_id", "is", null)
         .in("status", ["dispatched", "in_transit"]);

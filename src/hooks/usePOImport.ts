@@ -219,15 +219,15 @@ export function usePOImport() {
   ): Promise<MatchedItem[]> => {
     // Fetch existing mappings for this customer
     const { data: mappings } = await supabase
-      .from('fnb_customer_product_mappings')
+      .from('distribution_customer_product_mappings')
       .select('*')
-      .eq('customer_id', customerId);
+      .eq('customer_id', customerId) as { data: any[] | null };
 
     const matchedItems: MatchedItem[] = [];
 
     for (const item of extractedItems) {
       // Try to find mapping by SKU
-      const mapping = mappings?.find(m => 
+      const mapping = mappings?.find((m: any) => 
         m.customer_sku.toLowerCase() === item.sku.toLowerCase()
       );
 
@@ -345,18 +345,18 @@ export function usePOImport() {
     // For each mapping, check if it already exists and update confidence
     for (const item of mappingsToSave) {
       const { data: existing } = await supabase
-        .from('fnb_customer_product_mappings')
+        .from('distribution_customer_product_mappings')
         .select('confidence_score')
         .eq('customer_id', customerId)
         .eq('customer_sku', item.sku)
-        .single();
+        .single() as { data: { confidence_score: number } | null };
       
       const newConfidence = existing 
         ? Math.min((existing.confidence_score || 1.0) + 0.5, 5.0) // Increase confidence on re-verification, max 5
         : 1.0;
 
       const { error } = await supabase
-        .from('fnb_customer_product_mappings')
+        .from('distribution_customer_product_mappings')
         .upsert({
           customer_id: customerId,
           customer_sku: item.sku,

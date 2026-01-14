@@ -84,10 +84,10 @@ export default function FnbCODReconciliation() {
     queryFn: async () => {
       const { start, end } = getDateRange();
       let query = supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select(`
           *,
-          fnb_customers (name)
+          distribution_customers (name)
         `)
         .eq("status", "delivered")
         .eq("payment_method", "cod")
@@ -103,7 +103,7 @@ export default function FnbCODReconciliation() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data;
+      return data as any[];
     },
   });
 
@@ -113,10 +113,10 @@ export default function FnbCODReconciliation() {
     queryFn: async () => {
       const { start, end } = getDateRange();
       const { data, error } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .select(`
           *,
-          fnb_customers (name)
+          distribution_customers (name)
         `)
         .eq("status", "delivered")
         .eq("payment_method", "cod")
@@ -125,7 +125,7 @@ export default function FnbCODReconciliation() {
         .lte("cod_reconciled_at", `${end}T23:59:59`)
         .order("cod_reconciled_at", { ascending: false });
       if (error) throw error;
-      return data;
+      return data as any[];
     },
   });
 
@@ -146,7 +146,7 @@ export default function FnbCODReconciliation() {
   const reconcileMutation = useMutation({
     mutationFn: async ({ orderIds, notes }: { orderIds: string[]; notes: string }) => {
       const { error } = await supabase
-        .from("fnb_orders")
+        .from("distribution_orders")
         .update({
           cod_reconciled_at: new Date().toISOString(),
           cod_reconciled_by: user?.id,
@@ -163,7 +163,7 @@ export default function FnbCODReconciliation() {
       setReconcileDialogOpen(false);
       setReconcileNotes("");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error("Failed to reconcile: " + error.message);
     },
   });

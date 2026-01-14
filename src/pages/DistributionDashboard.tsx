@@ -28,12 +28,12 @@ export default function DistributionDashboard() {
       const dayEnd = endOfDay(today).toISOString();
       
       const { data, error } = await supabase
-        .from("fnb_orders")
-        .select("*, fnb_customers(name)")
+        .from("distribution_orders")
+        .select("*, distribution_customers(name)")
         .gte("delivery_date", dayStart.split("T")[0])
         .lte("delivery_date", dayEnd.split("T")[0]);
       if (error) throw error;
-      return data || [];
+      return data as any[] || [];
     },
   });
 
@@ -42,25 +42,25 @@ export default function DistributionDashboard() {
     queryKey: ["picker-queue-summary"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("fnb_picker_queue")
+        .from("distribution_picker_queue")
         .select("*")
         .in("status", ["pending", "in_progress"]);
       if (error) throw error;
-      return data || [];
+      return data as any[] || [];
     },
   });
 
   // Calculate stats
   const orderStats = {
     total: todayOrders?.length || 0,
-    pending: todayOrders?.filter((o) => o.status === "pending").length || 0,
-    picking: todayOrders?.filter((o) => o.status === "picking").length || 0,
-    ready: todayOrders?.filter((o) => o.status === "ready").length || 0,
-    delivered: todayOrders?.filter((o) => o.status === "delivered").length || 0,
-    totalValue: todayOrders?.reduce((sum, o) => sum + (o.total_xcg || 0), 0) || 0,
+    pending: todayOrders?.filter((o: any) => o.status === "pending").length || 0,
+    picking: todayOrders?.filter((o: any) => o.status === "picking").length || 0,
+    ready: todayOrders?.filter((o: any) => o.status === "ready").length || 0,
+    delivered: todayOrders?.filter((o: any) => o.status === "delivered").length || 0,
+    totalValue: todayOrders?.reduce((sum: number, o: any) => sum + (o.total_xcg || 0), 0) || 0,
     codCollected: todayOrders
-      ?.filter((o) => o.cod_amount_collected)
-      .reduce((sum, o) => sum + (o.cod_amount_collected || 0), 0) || 0,
+      ?.filter((o: any) => o.cod_amount_collected)
+      .reduce((sum: number, o: any) => sum + (o.cod_amount_collected || 0), 0) || 0,
   };
 
   const completionRate = orderStats.total > 0 

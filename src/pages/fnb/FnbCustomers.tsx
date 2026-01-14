@@ -292,7 +292,7 @@ export default function FnbCustomers() {
       const chunks = chunk(candidates, 200);
       for (const batch of chunks) {
         const { error } = await supabase
-          .from('fnb_customers')
+          .from('distribution_customers')
           .upsert(batch, { onConflict: 'whatsapp_phone', ignoreDuplicates: true });
         if (error) throw error;
       }
@@ -315,11 +315,11 @@ export default function FnbCustomers() {
     queryKey: ['fnb-customers'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('fnb_customers')
+        .from('distribution_customers')
         .select('*')
         .order('name');
       if (error) throw error;
-      return data as FnbCustomer[];
+      return data as unknown as FnbCustomer[];
     },
   });
 
@@ -330,13 +330,13 @@ export default function FnbCustomers() {
     queryKey: ['fnb-major-zones'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('fnb_delivery_zones')
+        .from('distribution_delivery_zones')
         .select('id, name')
         .eq('zone_type', 'major')
         .eq('is_active', true)
         .order('name');
       if (error) throw error;
-      return (data || []) as MajorZone[];
+      return (data || []) as unknown as MajorZone[];
     },
   });
 
@@ -345,13 +345,13 @@ export default function FnbCustomers() {
     queryKey: ['fnb-sub-zones'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('fnb_delivery_zones')
+        .from('distribution_delivery_zones')
         .select('id, name, parent_zone_id')
         .eq('zone_type', 'sub')
         .eq('is_active', true)
         .order('name');
       if (error) throw error;
-      return (data || []) as SubZone[];
+      return (data || []) as unknown as SubZone[];
     },
   });
 
