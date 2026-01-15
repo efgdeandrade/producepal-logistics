@@ -15,6 +15,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
+import { FnbAlertsCard } from "@/components/fnb/FnbAlertsCard";
 
 export default function DistributionDashboard() {
   const navigate = useNavigate();
@@ -205,38 +206,44 @@ export default function DistributionDashboard() {
         </Card>
       </div>
 
-      {/* Order Status Overview */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Today's Order Status</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-5">
-            <div className="text-center p-4 rounded-lg bg-muted/50">
-              <div className="text-3xl font-bold text-yellow-600">{orderStats.pending}</div>
-              <p className="text-sm text-muted-foreground">Pending</p>
-            </div>
-            <div className="text-center p-4 rounded-lg bg-muted/50">
-              <div className="text-3xl font-bold text-blue-600">{orderStats.picking}</div>
-              <p className="text-sm text-muted-foreground">Picking</p>
-            </div>
-            <div className="text-center p-4 rounded-lg bg-muted/50">
-              <div className="text-3xl font-bold text-purple-600">{orderStats.ready}</div>
-              <p className="text-sm text-muted-foreground">Ready</p>
-            </div>
-            <div className="text-center p-4 rounded-lg bg-muted/50">
-              <div className="text-3xl font-bold text-green-600">{orderStats.delivered}</div>
-              <p className="text-sm text-muted-foreground">Delivered</p>
-            </div>
-            <div className="text-center p-4 rounded-lg bg-primary/10">
-              <div className="text-3xl font-bold text-primary">
-                ${orderStats.totalValue.toLocaleString()}
+      {/* Alerts and Order Status */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Operational Alerts */}
+        <FnbAlertsCard compact={true} />
+
+        {/* Order Status Overview */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Today's Order Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 grid-cols-5">
+              <div className="text-center p-3 rounded-lg bg-muted/50">
+                <div className="text-2xl font-bold text-yellow-600">{orderStats.pending}</div>
+                <p className="text-xs text-muted-foreground">Pending</p>
               </div>
-              <p className="text-sm text-muted-foreground">Total Value</p>
+              <div className="text-center p-3 rounded-lg bg-muted/50">
+                <div className="text-2xl font-bold text-blue-600">{orderStats.picking}</div>
+                <p className="text-xs text-muted-foreground">Picking</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-muted/50">
+                <div className="text-2xl font-bold text-purple-600">{orderStats.ready}</div>
+                <p className="text-xs text-muted-foreground">Ready</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-muted/50">
+                <div className="text-2xl font-bold text-green-600">{orderStats.delivered}</div>
+                <p className="text-xs text-muted-foreground">Delivered</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-primary/10">
+                <div className="text-2xl font-bold text-primary">
+                  ${orderStats.totalValue.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">Value</p>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

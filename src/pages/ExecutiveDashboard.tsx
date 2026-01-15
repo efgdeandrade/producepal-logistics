@@ -37,6 +37,7 @@ import {
 } from "recharts";
 import { format, subDays, startOfDay, endOfDay, startOfWeek, endOfWeek } from "date-fns";
 import { useExecutiveDashboardRealtime } from "@/hooks/useRealtimeUpdates";
+import { FnbAlertsCard } from "@/components/fnb/FnbAlertsCard";
 
 // Fetch dashboard stats
 const useDashboardStats = () => {
@@ -578,51 +579,8 @@ export default function ExecutiveDashboard() {
 
       {/* Quick Actions / Alerts */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
-              Alerts & Issues
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {stats?.pendingIssues ? (
-                <div className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <AlertTriangle className="h-4 w-4 text-amber-500" />
-                    <span className="text-sm">Pending shortage approvals</span>
-                  </div>
-                  <Badge variant="secondary">{stats.pendingIssues}</Badge>
-                </div>
-              ) : null}
-              {hrMetrics?.expiringDocs ? (
-                <div className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <FileCheck className="h-4 w-4 text-red-500" />
-                    <span className="text-sm">Documents expiring soon</span>
-                  </div>
-                  <Badge variant="destructive">{hrMetrics.expiringDocs}</Badge>
-                </div>
-              ) : null}
-              {hrMetrics?.pendingDocs ? (
-                <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <FileCheck className="h-4 w-4 text-blue-500" />
-                    <span className="text-sm">Pending document reviews</span>
-                  </div>
-                  <Badge variant="secondary">{hrMetrics.pendingDocs}</Badge>
-                </div>
-              ) : null}
-              {!stats?.pendingIssues && !hrMetrics?.expiringDocs && !hrMetrics?.pendingDocs && (
-                <div className="flex items-center justify-center py-8 text-muted-foreground">
-                  <CheckCircle className="h-5 w-5 mr-2 text-green-500" />
-                  No active alerts
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        {/* Distribution Alerts - Live from picker station */}
+        <FnbAlertsCard compact={true} />
 
         <Card>
           <CardHeader>
