@@ -45,6 +45,32 @@ serve(async (req) => {
   }
 
   try {
+    // Initialize Supabase client early for auth check
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Authentication check
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: No authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: Invalid token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Geocode request by user ${user.id}`);
+
     const mapboxToken = Deno.env.get('MAPBOX_PUBLIC_TOKEN');
     if (!mapboxToken) {
       console.error('MAPBOX_PUBLIC_TOKEN not configured');
@@ -88,10 +114,7 @@ serve(async (req) => {
     const [longitude, latitude] = geocodeData.features[0].center;
     console.log(`Coordinates found: ${latitude}, ${longitude}`);
 
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // Supabase client already initialized above for auth check
 
     // Fetch active delivery zones (both major and sub)
     const { data: zones, error: zonesError } = await supabase

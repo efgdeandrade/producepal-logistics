@@ -25,6 +25,45 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    // Authentication check
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: No authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
+
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: Invalid token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Role check - requires admin or management role for sending notifications
+    const { data: roles, error: rolesError } = await supabaseClient
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id);
+
+    if (rolesError || !roles?.some(r => ['admin', 'management'].includes(r.role))) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: Insufficient permissions to send push notifications' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Push notification request by user ${user.id}`);
+
     const {
       user_ids,
       all_users,
@@ -40,11 +79,6 @@ const handler = async (req: Request): Promise<Response> => {
     if (!title || !body) {
       throw new Error("Missing required fields: title, body");
     }
-
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
 
     // Fetch push subscriptions
     let query = supabaseClient.from("push_subscriptions").select("*");
