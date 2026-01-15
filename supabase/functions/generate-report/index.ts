@@ -44,6 +44,23 @@ serve(async (req) => {
       });
     }
 
+    // Check if user has required role for report generation
+    const { data: roles } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id);
+
+    const allowedRoles = ['admin', 'management', 'accounting'];
+    const hasPermission = roles?.some(r => allowedRoles.includes(r.role as string));
+
+    if (!hasPermission) {
+      console.log(`User ${user.id} attempted report generation without permission`);
+      return new Response(
+        JSON.stringify({ error: 'Insufficient permissions to generate reports' }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const startTime = Date.now();
     const body: ReportRequest = await req.json();
     const { templateId, reportType, parameters, format = "json" } = body;

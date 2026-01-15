@@ -123,12 +123,14 @@ serve(async (req) => {
 
     console.log(`User ${email} created successfully by admin ${user.id}`);
 
+    // Note: Password is NOT returned in response to prevent logging/exposure
+    // User will be required to reset password on first login (must_change_password = true)
     return new Response(
       JSON.stringify({
         success: true,
         userId,
         email,
-        temporaryPassword: securePassword,
+        message: 'User created successfully. Password reset required on first login.',
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
