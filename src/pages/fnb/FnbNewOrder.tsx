@@ -902,7 +902,7 @@ export default function FnbNewOrder() {
     return (
       <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background">
         <Header />
-        <main className="container py-6">
+        <main className="container px-4 md:px-6 py-6">
           <p className="text-center text-muted-foreground">Loading order...</p>
         </main>
       </div>
@@ -912,38 +912,40 @@ export default function FnbNewOrder() {
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background">
       <Header />
-      <main className="container py-6">
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="icon" asChild>
+      <main className="container px-4 md:px-6 py-6">
+        <div className="flex flex-wrap items-center gap-3 md:gap-4 mb-6">
+          <Button variant="ghost" size="icon" asChild className="shrink-0">
             <Link to="/distribution/orders">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold tracking-tight">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight truncate">
               {isEditMode ? `Edit Order ${orderNumber}` : 'New Order'}
             </h1>
-            <p className="text-muted-foreground">
-              {isEditMode ? 'Update order details and items' : 'Manually create an order for customers'}
+            <p className="text-muted-foreground text-sm truncate">
+              {isEditMode ? 'Update order details and items' : 'Create an order for customers'}
             </p>
           </div>
           {!isEditMode && (
-            <div className="flex gap-2">
+            <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0">
               <Button
                 variant="default"
                 onClick={() => setShowQuickPaste(true)}
-                className="gap-2"
+                className="flex-1 sm:flex-none gap-2"
               >
                 <MessageSquare className="h-4 w-4" />
-                Paste Order
+                <span className="hidden sm:inline">Paste Order</span>
+                <span className="sm:hidden">Paste</span>
               </Button>
               <Button
                 variant="outline"
                 onClick={() => setShowPOUpload(true)}
-                className="gap-2"
+                className="flex-1 sm:flex-none gap-2"
               >
                 <Upload className="h-4 w-4" />
-                Import PO
+                <span className="hidden sm:inline">Import PO</span>
+                <span className="sm:hidden">Import</span>
               </Button>
             </div>
           )}
