@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { AlertTriangle, HelpCircle, Check, Clock, Package, Bell, CheckCircle, User } from 'lucide-react';
+import { AlertTriangle, HelpCircle, Check, Clock, Package, Bell, CheckCircle, User, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,6 +19,7 @@ interface FnbAlertsCardProps {
 export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbAlertsCardProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Fetch active shortage alerts (pending/reported)
   const { data: shortageAlerts } = useQuery({
@@ -33,8 +35,9 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
           picked_at,
           shortage_alerted_at,
           shortage_status,
+          order_id,
           distribution_products(name, code),
-          distribution_orders(order_number, distribution_customers(name))
+          distribution_orders(id, order_number, distribution_customers(name))
         `)
         .gt('short_quantity', 0)
         .eq('shortage_status', 'reported')
@@ -63,8 +66,9 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
           shortage_resolved_by,
           picked_quantity,
           quantity,
+          order_id,
           distribution_products(name, code),
-          distribution_orders(order_number, distribution_customers(name))
+          distribution_orders(id, order_number, distribution_customers(name))
         `)
         .eq('shortage_status', 'resolved')
         .gte('shortage_resolved_at', today)
@@ -117,7 +121,8 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
         .select(`
           *,
           distribution_picker_queue(
-            distribution_orders(order_number, distribution_customers(name))
+            order_id,
+            distribution_orders(id, order_number, distribution_customers(name))
           )
         `)
         .eq('status', 'pending')
@@ -214,6 +219,12 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
     }
   };
 
+  const handleAlertClick = (orderId: string | null | undefined) => {
+    if (orderId) {
+      navigate(`/fnb/orders/edit/${orderId}`);
+    }
+  };
+
   return (
     <Card className={cn(
       totalAlerts > 0 && 'border-orange-400/50 bg-orange-50/50 dark:bg-orange-950/20'
@@ -246,12 +257,14 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
               {assistanceRequests.slice(0, compact ? 2 : 5).map((request: any) => (
                 <div
                   key={request.id}
-                  className="p-3 rounded-lg bg-orange-100 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-800"
+                  className="p-3 rounded-lg bg-orange-100 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-800 cursor-pointer hover:bg-orange-200 dark:hover:bg-orange-900/50 transition-colors group"
+                  onClick={() => handleAlertClick(request.distribution_picker_queue?.order_id)}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">
+                      <p className="font-medium text-sm truncate flex items-center gap-1">
                         {request.picker_name} needs help
+                        <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-70 transition-opacity" />
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Order: {request.distribution_picker_queue?.distribution_orders?.order_number}
@@ -268,7 +281,10 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
                         size="sm"
                         variant="outline"
                         className="h-7 px-2"
-                        onClick={() => acknowledgeMutation.mutate(request.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          acknowledgeMutation.mutate(request.id);
+                        }}
                         disabled={acknowledgeMutation.isPending}
                       >
                         <Check className="h-3 w-3" />
@@ -296,12 +312,14 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
               {shortageAlerts.slice(0, compact ? 3 : 5).map((alert: any) => (
                 <div
                   key={alert.id}
-                  className="p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-sm"
+                  className="p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-sm cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors group"
+                  onClick={() => handleAlertClick(alert.order_id || alert.distribution_orders?.id)}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">
+                      <p className="font-medium truncate flex items-center gap-1">
                         {alert.distribution_products?.name}
+                        <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-70 transition-opacity" />
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Order: {alert.distribution_orders?.order_number} • {alert.distribution_orders?.distribution_customers?.name}
@@ -333,12 +351,14 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
               {resolvedShortages.slice(0, compact ? 2 : 5).map((item: any) => (
                 <div
                   key={item.id}
-                  className="p-2 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-sm"
+                  className="p-2 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-sm cursor-pointer hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors group"
+                  onClick={() => handleAlertClick(item.order_id || item.distribution_orders?.id)}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">
+                      <p className="font-medium truncate flex items-center gap-1">
                         {item.distribution_products?.name}
+                        <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-70 transition-opacity" />
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Order: {item.distribution_orders?.order_number} • {item.distribution_orders?.distribution_customers?.name}
