@@ -35,6 +35,7 @@ interface Anomaly {
   suggested_message_en: string;
   suggested_message_pap: string;
   suggested_message_nl: string;
+  suggested_message_es: string;
   status: string;
   distribution_customers?: {
     name: string;

@@ -313,17 +313,20 @@ serve(async (req) => {
         anomaly.suggested_message_en = generateTemplateMessage(anomaly, 'en');
         anomaly.suggested_message_pap = generateTemplateMessage(anomaly, 'pap');
         anomaly.suggested_message_nl = generateTemplateMessage(anomaly, 'nl');
+        anomaly.suggested_message_es = generateTemplateMessage(anomaly, 'es');
       } else {
         try {
           const messages = await generateAIMessages(anomaly, lovableApiKey);
           anomaly.suggested_message_en = messages.en;
           anomaly.suggested_message_pap = messages.pap;
           anomaly.suggested_message_nl = messages.nl;
+          anomaly.suggested_message_es = messages.es;
         } catch (err) {
           console.error('Error generating AI messages:', err);
           anomaly.suggested_message_en = generateTemplateMessage(anomaly, 'en');
           anomaly.suggested_message_pap = generateTemplateMessage(anomaly, 'pap');
           anomaly.suggested_message_nl = generateTemplateMessage(anomaly, 'nl');
+          anomaly.suggested_message_es = generateTemplateMessage(anomaly, 'es');
         }
       }
     }
@@ -380,38 +383,41 @@ function generateTemplateMessage(anomaly: any, language: string): string {
   const customerName = anomaly.details?.customer_name || 'Valued Customer';
   
   if (anomaly.anomaly_type === 'missing_order') {
-    const templates = {
+    const templates: Record<string, string> = {
       en: `Hi ${customerName}! 👋 We noticed we haven't received your usual order today. Just checking in to make sure everything is okay. Would you like to place an order for delivery? Let us know if you need anything! 🍎🥬`,
       pap: `Bon dia ${customerName}! 👋 Nos a nota ku nos no a risibi bo órdu regular awe. Nos ta check pa wak si tur kos ta bon. Bo ke hasi un órdu pa entrega? Laga nos sa si bo mester algo! 🍎🥬`,
       nl: `Hallo ${customerName}! 👋 We merkten dat we uw gebruikelijke bestelling vandaag niet hebben ontvangen. Even checken of alles goed gaat. Wilt u een bestelling plaatsen voor bezorging? Laat het ons weten! 🍎🥬`,
+      es: `¡Hola ${customerName}! 👋 Notamos que no hemos recibido tu pedido habitual hoy. Solo queríamos verificar que todo esté bien. ¿Te gustaría hacer un pedido para entrega? ¡Avísanos si necesitas algo! 🍎🥬`,
     };
-    return templates[language as keyof typeof templates] || templates.en;
+    return templates[language] || templates.en;
   }
   
   if (anomaly.anomaly_type === 'missing_item') {
     const productName = anomaly.details?.product_name || 'product';
-    const templates = {
+    const templates: Record<string, string> = {
       en: `Hi ${customerName}! 👋 We noticed your order today didn't include ${productName}, which you usually order. Would you like to add it? Just let us know! 🍎`,
       pap: `Bon dia ${customerName}! 👋 Nos a nota ku bo órdu di awe no tin ${productName}, ku bo ta ordena normalmente. Bo ke agregá? Laga nos sa! 🍎`,
       nl: `Hallo ${customerName}! 👋 We merkten dat uw bestelling vandaag geen ${productName} bevat, wat u normaal bestelt. Wilt u het toevoegen? Laat het ons weten! 🍎`,
+      es: `¡Hola ${customerName}! 👋 Notamos que tu pedido de hoy no incluyó ${productName}, que normalmente ordenas. ¿Te gustaría agregarlo? ¡Avísanos! 🍎`,
     };
-    return templates[language as keyof typeof templates] || templates.en;
+    return templates[language] || templates.en;
   }
   
   if (anomaly.anomaly_type === 'inactive_customer') {
     const days = anomaly.details?.days_since_last_order || 'a while';
-    const templates = {
+    const templates: Record<string, string> = {
       en: `Hi ${customerName}! 👋 We miss you! It's been ${days} days since your last order. Everything okay? We're here whenever you're ready to order again. Hope to hear from you soon! 🍎🥬`,
       pap: `Bon dia ${customerName}! 👋 Nos ta stima bo! Ta ${days} dia pasa nos no a tende di bo. Tur kos ta bon? Nos ta aki ora bo ta kla pa ordena atrobe. Spera di tende di bo pronto! 🍎🥬`,
       nl: `Hallo ${customerName}! 👋 We missen u! Het is ${days} dagen geleden sinds uw laatste bestelling. Gaat alles goed? We zijn er wanneer u weer klaar bent om te bestellen. Hopen snel van u te horen! 🍎🥬`,
+      es: `¡Hola ${customerName}! 👋 ¡Te extrañamos! Han pasado ${days} días desde tu último pedido. ¿Todo bien? Estamos aquí cuando estés listo para ordenar de nuevo. ¡Esperamos saber de ti pronto! 🍎🥬`,
     };
-    return templates[language as keyof typeof templates] || templates.en;
+    return templates[language] || templates.en;
   }
 
   return `Hi ${customerName}, we wanted to check in with you. Let us know if you need anything!`;
 }
 
-async function generateAIMessages(anomaly: any, apiKey: string): Promise<{ en: string; pap: string; nl: string }> {
+async function generateAIMessages(anomaly: any, apiKey: string): Promise<{ en: string; pap: string; nl: string; es: string }> {
   const customerName = anomaly.details?.customer_name || 'Valued Customer';
   
   let context = '';
@@ -433,7 +439,7 @@ The message should:
 - Be concise (2-3 sentences max)
 - Offer to help
 
-Generate the message in THREE languages as a JSON object with keys "en" (English), "pap" (Papiamentu), and "nl" (Dutch).
+Generate the message in FOUR languages as a JSON object with keys "en" (English), "pap" (Papiamentu), "nl" (Dutch), and "es" (Spanish).
 ONLY return the JSON object, nothing else.`;
 
   const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {

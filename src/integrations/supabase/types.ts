@@ -1669,6 +1669,7 @@ export type Database = {
           severity: string | null
           status: string | null
           suggested_message_en: string | null
+          suggested_message_es: string | null
           suggested_message_nl: string | null
           suggested_message_pap: string | null
         }
@@ -1686,6 +1687,7 @@ export type Database = {
           severity?: string | null
           status?: string | null
           suggested_message_en?: string | null
+          suggested_message_es?: string | null
           suggested_message_nl?: string | null
           suggested_message_pap?: string | null
         }
@@ -1703,6 +1705,7 @@ export type Database = {
           severity?: string | null
           status?: string | null
           suggested_message_en?: string | null
+          suggested_message_es?: string | null
           suggested_message_nl?: string | null
           suggested_message_pap?: string | null
         }

@@ -1,0 +1,2 @@
+ALTER TABLE distribution_order_anomalies 
+ADD COLUMN suggested_message_es TEXT;
