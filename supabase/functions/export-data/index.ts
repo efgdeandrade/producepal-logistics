@@ -35,6 +35,23 @@ serve(async (req) => {
       });
     }
 
+    // Check if user has required role for data export
+    const { data: roles } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id);
+
+    const allowedRoles = ['admin', 'management', 'accounting'];
+    const hasPermission = roles?.some(r => allowedRoles.includes(r.role as string));
+
+    if (!hasPermission) {
+      console.log(`User ${user.id} attempted data export without permission`);
+      return new Response(
+        JSON.stringify({ error: 'Insufficient permissions to export data' }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const body = await req.json();
     const { table, select = "*", filters, orderBy, limit = 10000, format } = body;
 
