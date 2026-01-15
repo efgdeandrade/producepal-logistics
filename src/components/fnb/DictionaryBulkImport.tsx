@@ -42,17 +42,24 @@ export function DictionaryBulkImport() {
     try {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
       
-      // Convert to JSON - the data starts from row 1 (no headers)
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
-        header: ['word', 'type', 'meaning', 'usage', 'extra'],
-        defval: ''
-      }) as DictionaryEntry[];
+      // Combine entries from ALL sheets
+      let allEntries: DictionaryEntry[] = [];
+      
+      workbook.SheetNames.forEach((sheetName) => {
+        const worksheet = workbook.Sheets[sheetName];
+        
+        // Convert each sheet to JSON - the data starts from row 1 (no headers)
+        const sheetData = XLSX.utils.sheet_to_json(worksheet, { 
+          header: ['word', 'type', 'meaning', 'usage', 'extra'],
+          defval: ''
+        }) as DictionaryEntry[];
+        
+        allEntries = allEntries.concat(sheetData);
+      });
       
       // Filter out empty rows and clean data
-      const validEntries = jsonData.filter(row => 
+      const validEntries = allEntries.filter(row => 
         row.word && 
         typeof row.word === 'string' && 
         row.word.trim().length > 0 &&
@@ -62,7 +69,7 @@ export function DictionaryBulkImport() {
       );
       
       setParsedEntries(validEntries);
-      toast.success(`Parsed ${validEntries.length} dictionary entries`);
+      toast.success(`Parsed ${validEntries.length} entries from ${workbook.SheetNames.length} sheets`);
     } catch (error) {
       console.error('Parse error:', error);
       toast.error('Failed to parse Excel file');
