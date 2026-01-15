@@ -24,12 +24,21 @@ interface ContextWord {
 }
 
 const WORD_TYPES = [
+  // Functional types (order-specific)
   { value: 'unit', label: 'Unit', color: 'bg-blue-500' },
   { value: 'quantity_phrase', label: 'Quantity', color: 'bg-green-500' },
   { value: 'product_modifier', label: 'Modifier', color: 'bg-purple-500' },
   { value: 'action', label: 'Action', color: 'bg-orange-500' },
   { value: 'connector', label: 'Connector', color: 'bg-gray-500' },
   { value: 'time_reference', label: 'Time', color: 'bg-pink-500' },
+  // Dictionary types (general vocabulary)
+  { value: 'noun', label: 'Noun', color: 'bg-cyan-500' },
+  { value: 'verb', label: 'Verb', color: 'bg-amber-500' },
+  { value: 'adjective', label: 'Adjective', color: 'bg-indigo-500' },
+  { value: 'adverb', label: 'Adverb', color: 'bg-teal-500' },
+  { value: 'preposition', label: 'Preposition', color: 'bg-rose-500' },
+  { value: 'interjection', label: 'Interjection', color: 'bg-slate-500' },
+  { value: 'phrase', label: 'Phrase', color: 'bg-emerald-500' },
 ];
 
 export function ContextWordsManager() {

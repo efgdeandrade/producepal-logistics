@@ -9,6 +9,7 @@ import { AIStatsOverview } from "@/components/fnb/AIStatsOverview";
 import { GlobalAliasManager } from "@/components/fnb/GlobalAliasManager";
 import { ContextWordsManager } from "@/components/fnb/ContextWordsManager";
 import { DictionaryImportDialog } from "@/components/fnb/DictionaryImportDialog";
+import { DictionaryBulkImport } from "@/components/fnb/DictionaryBulkImport";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useQuery } from "@tanstack/react-query";
 import { supabase as supabaseClient } from "@/integrations/supabase/client";
@@ -157,7 +158,8 @@ export default function FnbTrainingHub() {
         </TabsContent>
 
         {/* Context Words Tab */}
-        <TabsContent value="words">
+        <TabsContent value="words" className="space-y-4">
+          <DictionaryBulkImport />
           <ContextWordsManager />
         </TabsContent>
 

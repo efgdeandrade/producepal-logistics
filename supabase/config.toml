@@ -89,3 +89,6 @@ verify_jwt = false
 
 [functions.order-pattern-analyzer]
 verify_jwt = true
+
+[functions.import-dictionary]
+verify_jwt = true
