@@ -1261,6 +1261,50 @@ export type Database = {
           },
         ]
       }
+      distribution_customer_schedules: {
+        Row: {
+          confidence_score: number | null
+          created_at: string | null
+          customer_id: string | null
+          expected_order_days: number[] | null
+          id: string
+          last_analyzed_at: string | null
+          total_orders_analyzed: number | null
+          typical_order_time: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string | null
+          customer_id?: string | null
+          expected_order_days?: number[] | null
+          id?: string
+          last_analyzed_at?: string | null
+          total_orders_analyzed?: number | null
+          typical_order_time?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string | null
+          customer_id?: string | null
+          expected_order_days?: number[] | null
+          id?: string
+          last_analyzed_at?: string | null
+          total_orders_analyzed?: number | null
+          typical_order_time?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "distribution_customer_schedules_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       distribution_customers: {
         Row: {
           address: string | null
@@ -1603,6 +1647,68 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "fnb_invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribution_order_anomalies: {
+        Row: {
+          anomaly_type: string
+          created_at: string | null
+          customer_id: string | null
+          details: Json | null
+          detected_at: string | null
+          expected_date: string | null
+          id: string
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string | null
+          status: string | null
+          suggested_message_en: string | null
+          suggested_message_nl: string | null
+          suggested_message_pap: string | null
+        }
+        Insert: {
+          anomaly_type: string
+          created_at?: string | null
+          customer_id?: string | null
+          details?: Json | null
+          detected_at?: string | null
+          expected_date?: string | null
+          id?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string | null
+          status?: string | null
+          suggested_message_en?: string | null
+          suggested_message_nl?: string | null
+          suggested_message_pap?: string | null
+        }
+        Update: {
+          anomaly_type?: string
+          created_at?: string | null
+          customer_id?: string | null
+          details?: Json | null
+          detected_at?: string | null
+          expected_date?: string | null
+          id?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string | null
+          status?: string | null
+          suggested_message_en?: string | null
+          suggested_message_nl?: string | null
+          suggested_message_pap?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "distribution_order_anomalies_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "distribution_customers"

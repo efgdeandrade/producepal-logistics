@@ -86,3 +86,6 @@ verify_jwt = false
 
 [functions.quickbooks-oauth-init]
 verify_jwt = false
+
+[functions.order-pattern-analyzer]
+verify_jwt = true
