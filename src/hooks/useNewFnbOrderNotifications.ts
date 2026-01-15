@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { playOrderNotificationSound } from "@/utils/audioNotification";
+import { playOrderNotificationSound, preWarmAudio, hasUserInteracted } from "@/utils/audioNotification";
+import { toast } from "sonner";
 
 export interface OrderNotification {
   id: string;
@@ -8,24 +9,38 @@ export interface OrderNotification {
   orderNumber: string;
   customerName: string;
   zone: string | null;
+  queueId: string | null; // Added for direct picking
   createdAt: Date;
 }
+
+const SOUND_STORAGE_KEY = 'fnb-order-sound-enabled';
 
 export function useNewFnbOrderNotifications() {
   const [notifications, setNotifications] = useState<OrderNotification[]>([]);
   const [isMinimized, setIsMinimized] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(() => {
-    const stored = localStorage.getItem('fnb-order-sound-enabled');
+    const stored = localStorage.getItem(SOUND_STORAGE_KEY);
     return stored !== null ? stored === 'true' : true;
   });
 
-  const toggleSound = useCallback(() => {
-    setSoundEnabled(prev => {
-      const newValue = !prev;
-      localStorage.setItem('fnb-order-sound-enabled', String(newValue));
-      return newValue;
-    });
-  }, []);
+  const toggleSound = useCallback(async () => {
+    const newValue = !soundEnabled;
+    
+    // Pre-warm audio when enabling sound
+    if (newValue) {
+      const success = await preWarmAudio();
+      if (success) {
+        toast.success('Sound notifications enabled');
+      } else if (!hasUserInteracted()) {
+        toast.warning('Click anywhere on page first to enable sound');
+      }
+    } else {
+      toast.info('Sound notifications disabled');
+    }
+    
+    setSoundEnabled(newValue);
+    localStorage.setItem(SOUND_STORAGE_KEY, String(newValue));
+  }, [soundEnabled]);
 
   const minimize = useCallback(() => setIsMinimized(true), []);
   const expand = useCallback(() => setIsMinimized(false), []);
@@ -54,6 +69,8 @@ export function useNewFnbOrderNotifications() {
           console.log('[useNewFnbOrderNotifications] New order detected:', payload.new);
           
           try {
+            const orderId = (payload.new as any).id;
+            
             // Fetch order details with customer info
             const { data: orderData, error } = await supabase
               .from('distribution_orders')
@@ -61,7 +78,7 @@ export function useNewFnbOrderNotifications() {
                 id, order_number, status,
                 distribution_customers(name, delivery_zone)
               `)
-              .eq('id', (payload.new as any).id)
+              .eq('id', orderId)
               .single();
 
             if (error) {
@@ -69,8 +86,31 @@ export function useNewFnbOrderNotifications() {
               return;
             }
 
+            // Also fetch the queue entry for this order (may be created shortly after)
+            let queueId: string | null = null;
+            
+            // Try fetching queue entry with a small delay to allow for queue creation
+            const fetchQueueId = async () => {
+              const { data: queueData } = await supabase
+                .from('distribution_picker_queue')
+                .select('id')
+                .eq('order_id', orderId)
+                .maybeSingle();
+              
+              return queueData?.id || null;
+            };
+            
+            // Try immediately first
+            queueId = await fetchQueueId();
+            
+            // If not found, try again after a short delay
+            if (!queueId) {
+              await new Promise(resolve => setTimeout(resolve, 500));
+              queueId = await fetchQueueId();
+            }
+
             if (orderData) {
-              console.log('[useNewFnbOrderNotifications] Order details fetched:', orderData);
+              console.log('[useNewFnbOrderNotifications] Order details fetched:', orderData, 'queueId:', queueId);
               
               const notification: OrderNotification = {
                 id: `order-${(orderData as any).id}-${Date.now()}`,
@@ -78,6 +118,7 @@ export function useNewFnbOrderNotifications() {
                 orderNumber: (orderData as any).order_number,
                 customerName: (orderData as any).distribution_customers?.name || 'Unknown Customer',
                 zone: (orderData as any).distribution_customers?.delivery_zone || null,
+                queueId: queueId,
                 createdAt: new Date()
               };
 

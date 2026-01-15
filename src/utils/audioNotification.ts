@@ -22,6 +22,54 @@ if (typeof window !== 'undefined') {
 }
 
 /**
+ * Check if user has interacted with the page
+ */
+export const hasUserInteracted = (): boolean => userHasInteracted;
+
+/**
+ * Pre-warm audio context - call when user explicitly enables sound
+ */
+export const preWarmAudio = async (): Promise<boolean> => {
+  userHasInteracted = true;
+  const ctx = await getAudioContext();
+  if (ctx) {
+    try {
+      // Play a silent tone to fully unlock audio
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.01);
+      console.log('[AudioNotification] Audio pre-warmed successfully');
+      return true;
+    } catch (e) {
+      console.log('[AudioNotification] Pre-warm failed:', e);
+      return false;
+    }
+  }
+  return false;
+};
+
+/**
+ * Fallback beep using HTML5 Audio for browsers that block Web Audio
+ */
+const playFallbackBeep = (): void => {
+  try {
+    // Simple beep tone as base64-encoded WAV
+    const beepData = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU';
+    const audioElement = new Audio(beepData);
+    audioElement.volume = 0.3;
+    audioElement.play().catch(() => {
+      console.log('[AudioNotification] Fallback audio also blocked - needs user interaction');
+    });
+  } catch (e) {
+    console.log('[AudioNotification] HTML5 Audio fallback failed');
+  }
+};
+
+/**
  * Gets or creates the AudioContext, handling browser autoplay policies
  */
 export const getAudioContext = async (): Promise<AudioContext | null> => {
@@ -52,7 +100,8 @@ export const getAudioContext = async (): Promise<AudioContext | null> => {
 export const playOrderNotificationSound = async (): Promise<void> => {
   const ctx = await getAudioContext();
   if (!ctx) {
-    console.log('[AudioNotification] Cannot play sound - no AudioContext available');
+    console.log('[AudioNotification] Cannot play Web Audio - trying fallback');
+    playFallbackBeep();
     return;
   }
 
@@ -86,6 +135,7 @@ export const playOrderNotificationSound = async (): Promise<void> => {
     console.log('[AudioNotification] Order notification sound played');
   } catch (error) {
     console.error('[AudioNotification] Error playing order sound:', error);
+    playFallbackBeep();
   }
 };
 
@@ -95,7 +145,8 @@ export const playOrderNotificationSound = async (): Promise<void> => {
 export const playUrgentNotificationSound = async (): Promise<void> => {
   const ctx = await getAudioContext();
   if (!ctx) {
-    console.log('[AudioNotification] Cannot play sound - no AudioContext available');
+    console.log('[AudioNotification] Cannot play sound - trying fallback');
+    playFallbackBeep();
     return;
   }
 
@@ -123,5 +174,6 @@ export const playUrgentNotificationSound = async (): Promise<void> => {
     console.log('[AudioNotification] Urgent notification sound played');
   } catch (error) {
     console.error('[AudioNotification] Error playing urgent sound:', error);
+    playFallbackBeep();
   }
 };

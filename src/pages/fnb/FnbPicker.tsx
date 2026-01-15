@@ -921,15 +921,47 @@ const PICKER_UNITS = [
         isMinimized={notificationsMinimized}
         onMinimize={minimizeNotifications}
         onExpand={expandNotifications}
-        onPickOrder={(notification) => {
-          // Find queue item and claim it
-          const queueItem = queueItems?.find((q: any) => q.order_id === notification.orderId);
-          if (queueItem) {
-            if (queueItem.status === 'queued') {
-              claimMutation.mutate(queueItem.id);
-            }
-            setSelectedQueue(queueItem.id);
+        onPickOrder={async (notification) => {
+          // Use queueId from notification or fetch it directly
+          let queueId = notification.queueId;
+          
+          // If no queueId in notification, try to find in current data
+          if (!queueId) {
+            const queueItem = queueItems?.find((q: any) => q.order_id === notification.orderId);
+            queueId = queueItem?.id;
           }
+          
+          // If still not found, fetch directly from database
+          if (!queueId) {
+            const { data } = await supabase
+              .from('distribution_picker_queue')
+              .select('id, status')
+              .eq('order_id', notification.orderId)
+              .maybeSingle();
+            
+            if (data) {
+              queueId = data.id;
+              // Claim if still queued
+              if (data.status === 'queued') {
+                claimMutation.mutate(queueId);
+              }
+            }
+          } else {
+            // Check status in local data or claim directly
+            const queueItem = queueItems?.find((q: any) => q.id === queueId);
+            if (!queueItem || queueItem.status === 'queued') {
+              claimMutation.mutate(queueId);
+            }
+          }
+          
+          if (queueId) {
+            setSelectedQueue(queueId);
+            queryClient.invalidateQueries({ queryKey: ['fnb-picker-queue'] });
+            toast.success(`Order selected for ${notification.customerName}`);
+          } else {
+            toast.error('Order may have been picked by another picker');
+          }
+          
           dismissNotification(notification.id);
         }}
         onDismiss={dismissNotification}
