@@ -36,6 +36,7 @@ interface Anomaly {
   suggested_message_en: string;
   suggested_message_pap: string;
   suggested_message_nl: string;
+  suggested_message_es: string;
   status: string;
   distribution_customers?: {
     name: string;
@@ -65,6 +66,8 @@ export function AnomalyDetailDialog({
     switch (selectedLanguage) {
       case "en":
         return anomaly.suggested_message_en || "";
+      case "es":
+        return anomaly.suggested_message_es || "";
       case "pap":
         return anomaly.suggested_message_pap || "";
       case "nl":
@@ -208,6 +211,7 @@ export function AnomalyDetailDialog({
             <Tabs value={selectedLanguage} onValueChange={setSelectedLanguage}>
               <TabsList>
                 <TabsTrigger value="en">English</TabsTrigger>
+                <TabsTrigger value="es">Español</TabsTrigger>
                 <TabsTrigger value="pap">Papiamentu</TabsTrigger>
                 <TabsTrigger value="nl">Dutch</TabsTrigger>
               </TabsList>
