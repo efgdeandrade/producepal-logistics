@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { FnbAlertsCard } from "@/components/fnb/FnbAlertsCard";
+import { MissingOrdersCard } from "@/components/fnb/MissingOrdersCard";
 
 export default function DistributionDashboard() {
   const navigate = useNavigate();
@@ -205,6 +206,9 @@ export default function DistributionDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Order Intelligence - Missing Orders Detection */}
+      <MissingOrdersCard />
 
       {/* Alerts and Order Status */}
       <div className="grid gap-4 lg:grid-cols-2">
