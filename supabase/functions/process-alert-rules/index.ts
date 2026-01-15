@@ -22,23 +22,57 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const requestData: ProcessAlertRequest = await req.json();
-    console.log("Processing alerts for:", requestData);
-
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
+    // Authentication check
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: No authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
+
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: Invalid token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Role check - requires admin or management role for processing alerts
+    const { data: roles, error: rolesError } = await supabaseClient
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id);
+
+    if (rolesError || !roles?.some(r => ['admin', 'management'].includes(r.role))) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: Insufficient permissions to process alert rules' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Alert rules processing initiated by user ${user.id}`);
+
+    const requestData: ProcessAlertRequest = await req.json();
+    console.log("Processing alerts for:", requestData);
+
     // Fetch active alert rules
-    const { data: rules, error: rulesError } = await supabaseClient
+    const { data: rules, error: rulesError2 } = await supabaseClient
       .from("alert_rules")
       .select("*")
       .eq("is_active", true);
 
-    if (rulesError) {
-      console.error("Error fetching alert rules:", rulesError);
-      throw rulesError;
+    if (rulesError2) {
+      console.error("Error fetching alert rules:", rulesError2);
+      throw rulesError2;
     }
 
     console.log(`Found ${rules?.length || 0} active alert rules`);
