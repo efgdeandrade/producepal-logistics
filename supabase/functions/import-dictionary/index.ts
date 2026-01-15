@@ -96,17 +96,67 @@ serve(async (req) => {
   }
 
   try {
+    // Validate authorization header exists
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'No authorization header' }), {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized: No valid authorization header' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    
+    // Create client with the user's auth token to validate the JWT
+    const supabaseAuth = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
+
+    // Validate the JWT token using getClaims
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      console.error('JWT validation error:', claimsError);
+      return new Response(JSON.stringify({ error: 'Unauthorized: Invalid token' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const userId = claimsData.claims.sub as string;
+    console.log(`Dictionary import request from user: ${userId}`);
+
+    // Check if user has admin or management role
+    const { data: roles, error: rolesError } = await supabaseAuth
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId);
+
+    if (rolesError) {
+      console.error('Role check error:', rolesError);
+      return new Response(JSON.stringify({ error: 'Failed to verify user permissions' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const userRoles = roles?.map(r => r.role) || [];
+    const hasAdminAccess = userRoles.some(role => ['admin', 'management'].includes(role));
+
+    if (!hasAdminAccess) {
+      console.warn(`User ${userId} attempted dictionary import without proper role. Roles: ${userRoles.join(', ')}`);
+      return new Response(JSON.stringify({ error: 'Forbidden: Admin or management access required' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log(`Authorized user ${userId} with roles: ${userRoles.join(', ')}`);
+
+    // Create service role client for database operations
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { words, markAsVerified = false } = await req.json();
     
@@ -173,7 +223,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Import complete: ${inserted} inserted/updated, ${skipped} skipped, ${errors} errors`);
+    console.log(`Import complete by user ${userId}: ${inserted} inserted/updated, ${skipped} skipped, ${errors} errors`);
     
     return new Response(JSON.stringify({
       success: true,
