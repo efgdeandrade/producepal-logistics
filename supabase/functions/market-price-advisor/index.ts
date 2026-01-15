@@ -51,24 +51,24 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
-    // Create client for auth validation
+    // Create client for auth validation using user's token
     const supabaseAuth = createClient(supabaseUrl, supabaseServiceKey, {
+      global: { headers: { Authorization: authHeader } },
       auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    // Validate JWT token
-    const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
+    // Validate JWT token by getting user
+    const { data: userData, error: userError } = await supabaseAuth.auth.getUser();
     
-    if (claimsError || !claimsData?.claims) {
-      console.error('JWT validation error:', claimsError);
+    if (userError || !userData?.user) {
+      console.error('JWT validation error:', userError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized: Invalid token' }),
         { status: 401, headers: { ...dynamicCorsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const userId = claimsData.claims.sub as string;
+    const userId = userData.user.id;
     console.log(`Market price analysis request from user: ${userId}`);
 
     // Check if user has admin or management role
@@ -276,10 +276,8 @@ Return ONLY valid JSON in this exact format (no other text):
       throw new Error('Invalid AI response format');
     }
 
-    // Store snapshots in database
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // Store snapshots in database using service client
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const snapshots = analysis.marketAnalysis.map((item: any) => ({
       product_code: item.productCode,
