@@ -181,6 +181,8 @@ const PICKER_UNITS = [
         { event: '*', schema: 'public', table: 'distribution_picker_queue' },
         () => {
           queryClient.invalidateQueries({ queryKey: ['fnb-picker-queue'] });
+          queryClient.invalidateQueries({ queryKey: ['fnb-picker-leaderboard'] });
+          queryClient.invalidateQueries({ queryKey: ['fnb-completed-orders-today'] });
         }
       )
       .on(
@@ -188,14 +190,18 @@ const PICKER_UNITS = [
         { event: '*', schema: 'public', table: 'distribution_orders' },
         () => {
           queryClient.invalidateQueries({ queryKey: ['fnb-picker-queue'] });
+          queryClient.invalidateQueries({ queryKey: ['fnb-completed-orders-today'] });
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'distribution_order_items' },
         () => {
+          // Invalidate ALL related queries for full real-time updates
           queryClient.invalidateQueries({ queryKey: ['fnb-picker-items'] });
           queryClient.invalidateQueries({ queryKey: ['fnb-picker-all-items'] });
+          queryClient.invalidateQueries({ queryKey: ['fnb-picker-queue'] }); // Update item counts
+          queryClient.invalidateQueries({ queryKey: ['fnb-completed-order-items'] });
         }
       )
       .subscribe();
@@ -256,7 +262,7 @@ const PICKER_UNITS = [
         itemCount: countMap[q.order_id] || 0,
       })) || [];
     },
-    refetchInterval: 30000,
+    refetchInterval: 10000,
   });
 
   // Fetch leaderboard stats
@@ -367,7 +373,7 @@ const PICKER_UNITS = [
       })) || [];
     },
     enabled: !!pickerName,
-    refetchInterval: 30000,
+    refetchInterval: 15000,
   });
 
   // Fetch all order items for the items overview table
@@ -404,7 +410,7 @@ const PICKER_UNITS = [
       })) || [];
     },
     enabled: !!queueItems && queueItems.length > 0,
-    refetchInterval: 30000,
+    refetchInterval: 10000,
   });
 
   // Calculate progress for each order
