@@ -1479,15 +1479,18 @@ const PICKER_UNITS = [
                       {/* Items List */}
                       <div className="space-y-2 max-h-[400px] overflow-y-auto">
                         {orderItems.map((item: any) => {
-                          const pickedQty = pickedQuantities[item.id] ?? item.quantity;
+                          const pickedQty = pickedQuantities[item.id] ?? (item.picked_quantity ?? item.quantity);
                           const isShort = pickedQty < item.quantity;
                           const isOverPicked = pickedQty > item.quantity;
                           const isReported = item.shortage_status === 'reported';
+                          const isResolved = item.shortage_status === 'resolved';
                           const isWeightBased = item.distribution_products?.is_weight_based || false;
                           const isComplete = pickedQty === item.quantity;
+                          const isEditingThis = editingShortageItem === item.id;
 
-                          // Visual status: green for complete, blue for reported, orange for short
+                          // Visual status: green for resolved/complete, blue for reported, orange for short
                           const getBorderColor = () => {
+                            if (isResolved) return 'border-green-400 dark:border-green-600';
                             if (isReported) return 'border-blue-400 dark:border-blue-600';
                             if (isOverPicked && isWeightBased) return 'border-blue-400 dark:border-blue-600';
                             if (isShort) return 'border-orange-400 dark:border-orange-600';
@@ -1496,6 +1499,7 @@ const PICKER_UNITS = [
                           };
 
                           const getBgColor = () => {
+                            if (isResolved) return 'bg-green-50 dark:bg-green-950';
                             if (isReported) return 'bg-blue-50 dark:bg-blue-950';
                             if (isOverPicked && isWeightBased) return 'bg-blue-50 dark:bg-blue-950';
                             if (isShort) return 'bg-orange-50 dark:bg-orange-950';
@@ -1695,8 +1699,8 @@ const PICKER_UNITS = [
                                   </div>
                                 )}
 
-                                {/* Shortage Quick Buttons */}
-                                {isShort && !isReported && (
+                                {/* Shortage Quick Buttons - only show if short and not already reported/resolved */}
+                                {isShort && !isReported && !isResolved && (
                                   <div className="mt-2">
                                     <ShortageQuickButtons
                                       onSelect={(reason: string) => {
@@ -1708,6 +1712,95 @@ const PICKER_UNITS = [
                                       }}
                                       compact
                                     />
+                                  </div>
+                                )}
+
+                                {/* Reported Shortage - Edit & Resolve UI */}
+                                {isReported && (
+                                  <div className="mt-2 p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <AlertTriangle className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                                        <span className="text-xs text-blue-700 dark:text-blue-300 truncate">
+                                          Short: {item.short_quantity} ({item.short_reason || 'No reason'})
+                                        </span>
+                                      </div>
+                                      
+                                      {isEditingThis ? (
+                                        <div className="flex gap-2">
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-7 text-xs"
+                                            onClick={() => {
+                                              setEditingShortageItem(null);
+                                              // Reset to original picked quantity
+                                              setPickedQuantities(prev => ({
+                                                ...prev,
+                                                [item.id]: item.picked_quantity || 0,
+                                              }));
+                                            }}
+                                          >
+                                            <X className="h-3 w-3 mr-1" />
+                                            Cancel
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            className="h-7 text-xs"
+                                            onClick={() => {
+                                              resolveShortageByPickerMutation.mutate({
+                                                itemId: item.id,
+                                                newPickedQuantity: pickedQty,
+                                              });
+                                            }}
+                                            disabled={resolveShortageByPickerMutation.isPending}
+                                          >
+                                            <CheckCircle className="h-3 w-3 mr-1" />
+                                            {pickedQty >= item.quantity ? 'Resolve' : 'Update'}
+                                          </Button>
+                                        </div>
+                                      ) : (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-7 text-xs"
+                                          onClick={() => {
+                                            setEditingShortageItem(item.id);
+                                            // Initialize with current picked quantity
+                                            setPickedQuantities(prev => ({
+                                              ...prev,
+                                              [item.id]: item.picked_quantity || 0,
+                                            }));
+                                          }}
+                                        >
+                                          <Edit className="h-3 w-3 mr-1" />
+                                          Edit & Resolve
+                                        </Button>
+                                      )}
+                                    </div>
+                                    <div className="mt-1 text-xs text-muted-foreground">
+                                      Picked: {item.picked_quantity || 0} of {item.quantity} {item.distribution_products?.unit}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Resolved Shortage - Green status display */}
+                                {isResolved && (
+                                  <div className="mt-2 p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                                    <div className="flex items-center gap-2">
+                                      <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                                      <span className="text-xs text-green-700 dark:text-green-300 font-medium">
+                                        Shortage Resolved
+                                      </span>
+                                      {item.shortage_resolved_at && (
+                                        <span className="text-xs text-muted-foreground">
+                                          • {format(new Date(item.shortage_resolved_at), 'h:mm a')}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="mt-1 text-xs text-muted-foreground">
+                                      Original shortage: {item.short_reason || 'N/A'} • Now: {item.picked_quantity} of {item.quantity} {item.distribution_products?.unit}
+                                    </div>
                                   </div>
                                 )}
                               </div>
