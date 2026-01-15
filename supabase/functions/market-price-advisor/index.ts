@@ -32,11 +32,72 @@ interface ProductInfo {
 }
 
 serve(async (req) => {
+  const dynamicCorsHeaders = getCorsHeaders(req);
+  
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: dynamicCorsHeaders });
   }
 
   try {
+    // Validate authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: No valid authorization header' }),
+        { status: 401, headers: { ...dynamicCorsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    
+    // Create client for auth validation
+    const supabaseAuth = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
+
+    // Validate JWT token
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      console.error('JWT validation error:', claimsError);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: Invalid token' }),
+        { status: 401, headers: { ...dynamicCorsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const userId = claimsData.claims.sub as string;
+    console.log(`Market price analysis request from user: ${userId}`);
+
+    // Check if user has admin or management role
+    const { data: roles, error: rolesError } = await supabaseAuth
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId);
+
+    if (rolesError) {
+      console.error('Role check error:', rolesError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to verify user permissions' }),
+        { status: 500, headers: { ...dynamicCorsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const userRoles = roles?.map(r => r.role) || [];
+    const hasAccess = userRoles.some(role => ['admin', 'management'].includes(role));
+
+    if (!hasAccess) {
+      console.warn(`User ${userId} attempted market analysis without proper role. Roles: ${userRoles.join(', ')}`);
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: Admin or management access required' }),
+        { status: 403, headers: { ...dynamicCorsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Authorized user ${userId} with roles: ${userRoles.join(', ')}`);
+
     const { products } = await req.json() as { products: ProductInfo[] };
     
     if (!products || products.length === 0) {
@@ -170,14 +231,14 @@ Return ONLY valid JSON in this exact format (no other text):
       if (aiResponse.status === 429) {
         return new Response(
           JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 429, headers: { ...dynamicCorsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       
       if (aiResponse.status === 402) {
         return new Response(
           JSON.stringify({ error: 'AI service quota exceeded. Please contact support.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 402, headers: { ...dynamicCorsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       
@@ -259,7 +320,7 @@ Return ONLY valid JSON in this exact format (no other text):
         success: true,
         analysis: analysis
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...dynamicCorsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
@@ -271,7 +332,7 @@ Return ONLY valid JSON in this exact format (no other text):
       }),
       { 
         status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } 
       }
     );
   }
