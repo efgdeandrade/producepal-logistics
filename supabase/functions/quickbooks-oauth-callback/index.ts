@@ -29,19 +29,15 @@ Deno.serve(async (req) => {
     const error = url.searchParams.get('error');
     const errorDescription = url.searchParams.get('error_description');
 
-    console.log('=== QUICKBOOKS OAUTH CALLBACK START ===');
-    console.log('Callback URL:', req.url);
-    console.log('Has code:', !!code);
-    console.log('RealmId from callback:', realmId);
-    console.log('Error:', error);
-    console.log('Error Description:', errorDescription);
+    // Security: Only log non-sensitive operational info
+    console.log('QuickBooks OAuth callback received');
 
     // Get the app URL for redirects
     const appUrl = Deno.env.get('APP_URL') || 'https://dnxzpkbobzwjcuyfgdnh.lovable.app';
 
     // Handle OAuth error
     if (error) {
-      console.error('OAuth error from QuickBooks:', error, errorDescription);
+      console.error('OAuth error from QuickBooks');
       return Response.redirect(
         `${appUrl}/settings/integrations/quickbooks/connect?error=${encodeURIComponent(errorDescription || error)}`,
         302
@@ -66,18 +62,8 @@ Deno.serve(async (req) => {
     // Build redirect URI (must match exactly what was used in the authorization request)
     const redirectUri = `${supabaseUrl}/functions/v1/quickbooks-oauth-callback`;
 
-    // === DIAGNOSTIC LOGGING (NO SECRETS EXPOSED) ===
-    console.log('=== DIAGNOSTIC INFO ===');
-    console.log('Client ID preview:', clientId ? `${clientId.substring(0, 6)}... (length: ${clientId.length})` : 'NOT SET');
-    console.log('Client Secret length:', clientSecret ? `${clientSecret.length} chars` : 'NOT SET');
-    console.log('SUPABASE_URL:', supabaseUrl || 'NOT SET');
-    console.log('Redirect URI being sent:', redirectUri);
-    console.log('Configured RealmId:', configuredRealmId || 'NOT SET');
-    console.log('Auth code preview:', code ? `${code.substring(0, 10)}... (length: ${code.length})` : 'MISSING');
-    console.log('=======================');
-
     if (!clientId || !clientSecret) {
-      console.error('QuickBooks credentials not configured - Client ID:', !!clientId, 'Client Secret:', !!clientSecret);
+      console.error('QuickBooks credentials not configured');
       return Response.redirect(
         `${appUrl}/settings/integrations/quickbooks/connect?error=${encodeURIComponent('QuickBooks credentials not configured')}`,
         302
@@ -87,8 +73,6 @@ Deno.serve(async (req) => {
     // Build Authorization header using UTF-8 safe encoding
     const authString = `${clientId}:${clientSecret}`;
     const authHeader = `Basic ${base64Encode(authString)}`;
-    console.log('Auth header format check - starts with "Basic ":', authHeader.startsWith('Basic '));
-    console.log('Auth header total length:', authHeader.length);
 
     // Build token request body
     const tokenRequestBody = new URLSearchParams({
@@ -96,12 +80,6 @@ Deno.serve(async (req) => {
       code: code,
       redirect_uri: redirectUri,
     });
-
-    console.log('=== TOKEN REQUEST DETAILS ===');
-    console.log('Token endpoint: https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer');
-    console.log('Grant type: authorization_code');
-    console.log('Redirect URI in request:', redirectUri);
-    console.log('=============================');
 
     // Exchange authorization code for tokens
     const tokenResponse = await fetch('https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer', {
@@ -116,24 +94,16 @@ Deno.serve(async (req) => {
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
-      console.error('=== TOKEN EXCHANGE ERROR ===');
-      console.error('HTTP Status:', tokenResponse.status);
-      console.error('HTTP Status Text:', tokenResponse.statusText);
-      console.error('Response Headers:', JSON.stringify(Object.fromEntries(tokenResponse.headers.entries()), null, 2));
-      console.error('Response Body:', errorText);
-      console.error('============================');
+      console.error('Token exchange failed with status:', tokenResponse.status);
       
       return Response.redirect(
-        `${appUrl}/settings/integrations/quickbooks/connect?error=${encodeURIComponent(`Token exchange failed: ${errorText}`)}`,
+        `${appUrl}/settings/integrations/quickbooks/connect?error=${encodeURIComponent('Token exchange failed')}`,
         302
       );
     }
 
     const tokens = await tokenResponse.json();
-    console.log('Token exchange successful!');
-    console.log('Access token received:', !!tokens.access_token);
-    console.log('Refresh token received:', !!tokens.refresh_token);
-    console.log('Expires in:', tokens.expires_in, 'seconds');
+    console.log('Token exchange successful');
 
     // Calculate token expiry (access token typically expires in 1 hour)
     const expiresAt = new Date();
@@ -149,21 +119,17 @@ Deno.serve(async (req) => {
     const finalRealmId = realmId || configuredRealmId;
 
     if (!finalRealmId) {
-      console.error('No realm ID available - callback realmId:', realmId, 'configured:', configuredRealmId);
+      console.error('No realm ID available');
       return Response.redirect(
         `${appUrl}/settings/integrations/quickbooks/connect?error=${encodeURIComponent('No QuickBooks Company ID (Realm ID) available')}`,
         302
       );
     }
 
-    console.log('Using Realm ID:', finalRealmId);
-
     // Detect sandbox vs production based on realm ID pattern or explicit flag
     // QuickBooks sandbox realm IDs are typically shorter and start with specific patterns
     // For safety, default to sandbox mode during development
     const isSandbox = true; // Set to false for production deployments
-    
-    console.log('Storing tokens with is_sandbox:', isSandbox);
 
     // Upsert tokens (update if realm_id exists, otherwise insert)
     const { error: dbError } = await supabase
@@ -180,15 +146,14 @@ Deno.serve(async (req) => {
       });
 
     if (dbError) {
-      console.error('Failed to store tokens in database:', dbError);
+      console.error('Failed to store tokens in database');
       return Response.redirect(
         `${appUrl}/settings/integrations/quickbooks/connect?error=${encodeURIComponent('Failed to store tokens in database')}`,
         302
       );
     }
 
-    console.log('Tokens stored successfully for realm:', finalRealmId);
-    console.log('=== QUICKBOOKS OAUTH CALLBACK SUCCESS ===');
+    console.log('QuickBooks connection completed successfully');
 
     // Redirect back to the app with success
     return Response.redirect(
@@ -197,12 +162,9 @@ Deno.serve(async (req) => {
     );
 
   } catch (error: unknown) {
-    console.error('=== UNHANDLED EXCEPTION ===');
-    console.error('Error:', error instanceof Error ? error.message : 'Unknown error');
-    console.error('Stack:', error instanceof Error ? error.stack : 'No stack trace');
-    console.error('===========================');
+    console.error('QuickBooks OAuth callback error');
     
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = 'An unexpected error occurred';
     const appUrl = Deno.env.get('APP_URL') || 'https://dnxzpkbobzwjcuyfgdnh.lovable.app';
     
     return Response.redirect(
