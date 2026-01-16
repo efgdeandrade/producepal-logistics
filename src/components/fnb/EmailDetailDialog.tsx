@@ -45,16 +45,23 @@ import {
   AlertTriangle,
   Trash2,
   Plus,
+  MessageSquare,
+  RefreshCw,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { ResponsiveSearchableSelect } from '@/components/ui/responsive-searchable-select';
+import { EmailAttachmentViewer } from './EmailAttachmentViewer';
+import { EmailThreadView } from './EmailThreadView';
+import { ReplyComposer } from './ReplyComposer';
+import { OrderPreviewCard } from './OrderPreviewCard';
 
 interface EmailDetailDialogProps {
   email: {
     id: string;
     message_id: string;
+    thread_id?: string | null;
     from_email: string;
     from_name: string | null;
     subject: string;
@@ -92,6 +99,8 @@ export function EmailDetailDialog({ email, open, onClose }: EmailDetailDialogPro
   const [poNumber, setPoNumber] = useState<string>(email.extracted_data?.po_number || '');
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showReplyComposer, setShowReplyComposer] = useState(false);
+  const [isReprocessing, setIsReprocessing] = useState(false);
 
   // Fetch customers
   const { data: customers = [] } = useQuery({
@@ -290,6 +299,28 @@ export function EmailDetailDialog({ email, open, onClose }: EmailDetailDialogPro
     },
   });
 
+  // Reprocess mutation
+  const reprocessMutation = useMutation({
+    mutationFn: async () => {
+      setIsReprocessing(true);
+      const { data, error } = await supabase.functions.invoke('process-email-order', {
+        body: { emailId: email.id },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast.success('Email reprocessed successfully');
+      queryClient.invalidateQueries({ queryKey: ['email-inbox'] });
+    },
+    onError: (error: Error) => {
+      toast.error(`Reprocessing failed: ${error.message}`);
+    },
+    onSettled: () => {
+      setIsReprocessing(false);
+    },
+  });
+
   const addOrderItem = () => {
     setOrderItems([
       ...orderItems,
@@ -317,6 +348,12 @@ export function EmailDetailDialog({ email, open, onClose }: EmailDetailDialogPro
     setOrderItems(orderItems.filter((_, i) => i !== index));
   };
 
+  const handleReply = async (replyData: { to: string; cc?: string; subject: string; body: string }) => {
+    // Reply is handled in ReplyComposer
+    setShowReplyComposer(false);
+    queryClient.invalidateQueries({ queryKey: ['email-thread', email.thread_id] });
+  };
+
   const customerOptions = customers.map(c => ({
     value: c.id,
     label: c.name,
@@ -331,9 +368,12 @@ export function EmailDetailDialog({ email, open, onClose }: EmailDetailDialogPro
     ? Math.round(email.extraction_confidence * 100) 
     : null;
 
+  // Find customer name for order preview
+  const customerName = customers.find(c => c.id === customerId)?.name;
+
   return (
     <Dialog open={open} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Mail className="h-5 w-5" />
@@ -342,16 +382,41 @@ export function EmailDetailDialog({ email, open, onClose }: EmailDetailDialogPro
         </DialogHeader>
 
         <Tabs defaultValue="order" className="flex-1 overflow-hidden flex flex-col">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="order">Order Details</TabsTrigger>
             <TabsTrigger value="email">Original Email</TabsTrigger>
+            <TabsTrigger value="attachments" className="gap-1">
+              Attachments
+              {attachments.length > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5">{attachments.length}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="thread">
+              <MessageSquare className="h-4 w-4 mr-1" />
+              Thread
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="order" className="flex-1 overflow-auto space-y-4 mt-4">
             {email.status === 'error' && email.error_message && (
-              <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-lg">
-                <AlertTriangle className="h-4 w-4" />
-                <span className="text-sm">{email.error_message}</span>
+              <div className="flex items-center justify-between gap-2 p-3 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span className="text-sm">{email.error_message}</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => reprocessMutation.mutate()}
+                  disabled={isReprocessing}
+                >
+                  {isReprocessing ? (
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                  )}
+                  Reprocess
+                </Button>
               </div>
             )}
 
@@ -362,6 +427,25 @@ export function EmailDetailDialog({ email, open, onClose }: EmailDetailDialogPro
                   {confidence}%
                 </Badge>
               </div>
+            )}
+
+            {/* Order Preview Card */}
+            {orderItems.length > 0 && customerName && (
+              <OrderPreviewCard
+                customerName={customerName}
+                deliveryDate={deliveryDate ? format(deliveryDate, 'PPP') : undefined}
+                poNumber={poNumber || undefined}
+                items={orderItems.map(item => ({
+                  productName: item.product_name || products.find((p: any) => p.id === item.product_id)?.name || 'Unknown',
+                  quantity: item.quantity,
+                  unit: item.unit,
+                  unitPrice: item.unit_price,
+                  confidence: item.confidence as 'high' | 'medium' | 'low' | undefined,
+                }))}
+                totalAmount={orderItems.reduce((sum, item) => sum + item.quantity * item.unit_price, 0)}
+                onConfirm={() => confirmMutation.mutate()}
+                onCancel={() => declineMutation.mutate()}
+              />
             )}
 
             <div className="grid grid-cols-2 gap-4">
@@ -516,25 +600,6 @@ export function EmailDetailDialog({ email, open, onClose }: EmailDetailDialogPro
                 </div>
               )}
             </div>
-
-            {attachments.length > 0 && (
-              <>
-                <Separator />
-                <div className="space-y-2">
-                  <h3 className="font-semibold flex items-center gap-2">
-                    <Paperclip className="h-4 w-4" />
-                    Attachments ({attachments.length})
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {attachments.map((att: any) => (
-                      <Badge key={att.id} variant="secondary">
-                        {att.file_name}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
           </TabsContent>
 
           <TabsContent value="email" className="flex-1 overflow-auto mt-4">
@@ -566,17 +631,83 @@ export function EmailDetailDialog({ email, open, onClose }: EmailDetailDialogPro
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="attachments" className="flex-1 overflow-auto mt-4">
+            <EmailAttachmentViewer
+              attachments={attachments.map(att => ({
+                id: att.id,
+                fileName: att.file_name,
+                mimeType: att.mime_type,
+                size: att.size_bytes,
+                storagePath: att.storage_path,
+              }))}
+            />
+          </TabsContent>
+
+          <TabsContent value="thread" className="flex-1 overflow-auto mt-4 space-y-4">
+            {email.thread_id && (
+              <EmailThreadView
+                threadId={email.thread_id}
+                currentEmailId={email.id}
+              />
+            )}
+            
+            {!email.thread_id && (
+              <div className="text-center text-muted-foreground py-8">
+                <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No thread history available</p>
+              </div>
+            )}
+
+            <Separator />
+
+            {showReplyComposer ? (
+              <ReplyComposer
+                originalEmail={{
+                  id: email.id,
+                  messageId: email.message_id,
+                  threadId: email.thread_id || undefined,
+                  from: email.from_email,
+                  subject: email.subject,
+                  body: email.body_text || '',
+                }}
+                onSend={handleReply}
+                onCancel={() => setShowReplyComposer(false)}
+              />
+            ) : (
+              <Button onClick={() => setShowReplyComposer(true)} className="w-full">
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Reply to Email
+              </Button>
+            )}
+          </TabsContent>
         </Tabs>
 
         <div className="flex justify-between pt-4 border-t mt-4">
-          <Button
-            variant="outline"
-            onClick={() => declineMutation.mutate()}
-            disabled={isProcessing || email.status === 'confirmed' || email.status === 'declined'}
-          >
-            <XCircle className="h-4 w-4 mr-2" />
-            Decline
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => declineMutation.mutate()}
+              disabled={isProcessing || email.status === 'confirmed' || email.status === 'declined'}
+            >
+              <XCircle className="h-4 w-4 mr-2" />
+              Decline
+            </Button>
+            {(email.status === 'error' || email.status === 'pending_review') && (
+              <Button
+                variant="outline"
+                onClick={() => reprocessMutation.mutate()}
+                disabled={isReprocessing}
+              >
+                {isReprocessing ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                Reprocess
+              </Button>
+            )}
+          </div>
           
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose}>

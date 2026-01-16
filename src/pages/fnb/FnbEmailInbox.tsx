@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Mail,
   Search,
@@ -19,12 +20,15 @@ import {
   AlertCircle,
   Loader2,
   ArrowLeft,
+  Bell,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { EmailDetailDialog } from '@/components/fnb/EmailDetailDialog';
+import { EmailBulkActions } from '@/components/fnb/EmailBulkActions';
+import { useEmailInboxRealtime } from '@/hooks/useEmailInboxRealtime';
 
 type EmailStatus = 'new' | 'processing' | 'pending_review' | 'confirmed' | 'declined' | 'error';
 
@@ -72,7 +76,19 @@ export default function FnbEmailInbox() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedEmail, setSelectedEmail] = useState<EmailInboxItem | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const queryClient = useQueryClient();
+
+  // Use realtime hook
+  const { newEmailCount, clearNewCount } = useEmailInboxRealtime((newEmail) => {
+    // Show toast for new emails
+    toast.info(`New email from ${newEmail.from_name || newEmail.from_email}`, {
+      description: newEmail.subject,
+      icon: <Bell className="h-4 w-4" />,
+    });
+    // Refetch emails
+    refetch();
+  });
 
   const { data: emails = [], isLoading, refetch } = useQuery({
     queryKey: ['email-inbox', statusFilter],
@@ -134,6 +150,33 @@ export default function FnbEmailInbox() {
     queryClient.invalidateQueries({ queryKey: ['email-inbox-counts'] });
   };
 
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(filteredEmails.map(e => e.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectOne = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedIds(prev => [...prev, id]);
+    } else {
+      setSelectedIds(prev => prev.filter(i => i !== id));
+    }
+  };
+
+  const handleBulkActionComplete = () => {
+    setSelectedIds([]);
+    queryClient.invalidateQueries({ queryKey: ['email-inbox'] });
+    queryClient.invalidateQueries({ queryKey: ['email-inbox-counts'] });
+  };
+
+  const handleRefresh = () => {
+    clearNewCount();
+    refetch();
+  };
+
   return (
     <div className="container mx-auto py-6 space-y-6 max-w-6xl">
       <div className="flex items-center justify-between">
@@ -144,11 +187,18 @@ export default function FnbEmailInbox() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold">Email Inbox</h1>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              Email Inbox
+              {newEmailCount > 0 && (
+                <Badge variant="default" className="bg-blue-500">
+                  {newEmailCount} new
+                </Badge>
+              )}
+            </h1>
             <p className="text-muted-foreground">Incoming order emails from customers</p>
           </div>
         </div>
-        <Button onClick={() => refetch()} variant="outline" size="sm">
+        <Button onClick={handleRefresh} variant="outline" size="sm">
           <RefreshCw className="h-4 w-4 mr-2" />
           Refresh
         </Button>
@@ -164,6 +214,13 @@ export default function FnbEmailInbox() {
             className="pl-10"
           />
         </div>
+        
+        {selectedIds.length > 0 && (
+          <EmailBulkActions
+            selectedIds={selectedIds}
+            onComplete={handleBulkActionComplete}
+          />
+        )}
       </div>
 
       <Tabs value={statusFilter} onValueChange={setStatusFilter}>
@@ -206,67 +263,93 @@ export default function FnbEmailInbox() {
             </div>
           ) : (
             <div className="divide-y">
+              {/* Select All Header */}
+              <div className="flex items-center gap-4 p-3 bg-muted/30 border-b">
+                <Checkbox
+                  checked={selectedIds.length === filteredEmails.length && filteredEmails.length > 0}
+                  onCheckedChange={handleSelectAll}
+                />
+                <span className="text-sm text-muted-foreground">
+                  {selectedIds.length > 0 
+                    ? `${selectedIds.length} selected`
+                    : 'Select all'
+                  }
+                </span>
+              </div>
+              
               {filteredEmails.map((email) => {
                 const StatusIcon = statusConfig[email.status]?.icon || Mail;
+                const isSelected = selectedIds.includes(email.id);
                 return (
                   <div
                     key={email.id}
-                    onClick={() => handleEmailClick(email)}
                     className={cn(
-                      "flex items-center gap-4 p-4 hover:bg-muted/50 cursor-pointer transition-colors",
-                      email.status === 'new' && "bg-blue-50/50 dark:bg-blue-950/20"
+                      "flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors",
+                      email.status === 'new' && "bg-blue-50/50 dark:bg-blue-950/20",
+                      isSelected && "bg-primary/5"
                     )}
                   >
-                    <div className={cn(
-                      "w-2 h-2 rounded-full flex-shrink-0",
-                      statusConfig[email.status]?.color || "bg-gray-500"
-                    )} />
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={(checked) => handleSelectOne(email.id, checked as boolean)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
                     
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium truncate">
-                          {email.from_name || email.from_email}
-                        </span>
-                        {email.matched_customer && (
-                          <Badge variant="outline" className="flex-shrink-0">
-                            <User className="h-3 w-3 mr-1" />
-                            {email.matched_customer.name}
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-sm font-medium truncate">{email.subject}</p>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {email.body_text?.slice(0, 100)}...
-                      </p>
-                    </div>
-
-                    <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        {format(parseISO(email.received_at), 'MMM d, h:mm a')}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge 
-                          variant="secondary"
-                          className={cn(
-                            "text-xs",
-                            email.status === 'pending_review' && "bg-orange-100 text-orange-700",
-                            email.status === 'confirmed' && "bg-green-100 text-green-700",
-                            email.status === 'error' && "bg-red-100 text-red-700"
+                    <div 
+                      className="flex-1 flex items-center gap-4 cursor-pointer"
+                      onClick={() => handleEmailClick(email)}
+                    >
+                      <div className={cn(
+                        "w-2 h-2 rounded-full flex-shrink-0",
+                        statusConfig[email.status]?.color || "bg-gray-500"
+                      )} />
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-medium truncate">
+                            {email.from_name || email.from_email}
+                          </span>
+                          {email.matched_customer && (
+                            <Badge variant="outline" className="flex-shrink-0">
+                              <User className="h-3 w-3 mr-1" />
+                              {email.matched_customer.name}
+                            </Badge>
                           )}
-                        >
-                          <StatusIcon className="h-3 w-3 mr-1" />
-                          {statusConfig[email.status]?.label || email.status}
-                        </Badge>
-                        {email.linked_order && (
-                          <Badge variant="outline" className="text-xs">
-                            {email.linked_order.order_number}
-                          </Badge>
-                        )}
+                        </div>
+                        <p className="text-sm font-medium truncate">{email.subject}</p>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {email.body_text?.slice(0, 100)}...
+                        </p>
                       </div>
-                    </div>
 
-                    <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                      <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          {format(parseISO(email.received_at), 'MMM d, h:mm a')}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge 
+                            variant="secondary"
+                            className={cn(
+                              "text-xs",
+                              email.status === 'pending_review' && "bg-orange-100 text-orange-700",
+                              email.status === 'confirmed' && "bg-green-100 text-green-700",
+                              email.status === 'error' && "bg-red-100 text-red-700"
+                            )}
+                          >
+                            <StatusIcon className="h-3 w-3 mr-1" />
+                            {statusConfig[email.status]?.label || email.status}
+                          </Badge>
+                          {email.linked_order && (
+                            <Badge variant="outline" className="text-xs">
+                              {email.linked_order.order_number}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+
+                      <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                    </div>
                   </div>
                 );
               })}
