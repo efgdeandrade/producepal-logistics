@@ -122,3 +122,6 @@ verify_jwt = true
 
 [functions.send-gmail-reply]
 verify_jwt = true
+
+[functions.gmail-manual-sync]
+verify_jwt = true
