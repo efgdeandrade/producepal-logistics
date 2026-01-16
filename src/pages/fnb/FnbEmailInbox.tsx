@@ -77,6 +77,7 @@ export default function FnbEmailInbox() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedEmail, setSelectedEmail] = useState<EmailInboxItem | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isSyncing, setIsSyncing] = useState(false);
   const queryClient = useQueryClient();
 
   // Use realtime hook
@@ -175,9 +176,31 @@ export default function FnbEmailInbox() {
     queryClient.invalidateQueries({ queryKey: ['email-inbox-counts'] });
   };
 
-  const handleRefresh = () => {
-    refetch();
-    queryClient.invalidateQueries({ queryKey: ['email-inbox-counts'] });
+  const handleRefresh = async () => {
+    setIsSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('gmail-manual-sync');
+      
+      if (error) {
+        console.error('Sync error:', error);
+        toast.error('Failed to sync emails');
+        return;
+      }
+      
+      if (data?.newEmailCount > 0) {
+        toast.success(`Synced ${data.newEmailCount} new email(s)`);
+      } else {
+        toast.info('No new emails found');
+      }
+      
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ['email-inbox-counts'] });
+    } catch (err) {
+      console.error('Sync error:', err);
+      toast.error('Failed to sync emails');
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   return (
@@ -196,9 +219,9 @@ export default function FnbEmailInbox() {
             <p className="text-muted-foreground">Incoming order emails from customers</p>
           </div>
         </div>
-        <Button onClick={handleRefresh} variant="outline" size="sm">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
+        <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isSyncing}>
+          <RefreshCw className={cn("h-4 w-4 mr-2", isSyncing && "animate-spin")} />
+          {isSyncing ? 'Syncing...' : 'Sync Emails'}
         </Button>
       </div>
 

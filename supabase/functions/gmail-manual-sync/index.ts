@@ -17,47 +17,24 @@ serve(async (req) => {
   );
 
   try {
-    // Parse Pub/Sub message
-    const body = await req.json();
-    console.log("Received Pub/Sub notification:", JSON.stringify(body));
+    console.log("Manual Gmail sync triggered");
 
-    // Pub/Sub sends data in base64
-    const message = body.message;
-    if (!message || !message.data) {
-      console.log("No message data, acknowledging");
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Decode the notification
-    const decodedData = atob(message.data);
-    const notification = JSON.parse(decodedData);
-    console.log("Decoded notification:", notification);
-
-    const { emailAddress, historyId } = notification;
-
-    if (!emailAddress) {
-      console.log("No email address in notification");
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Find credentials for this email
+    // Get active Gmail credentials
     const { data: credentials, error: credError } = await supabase
       .from("gmail_credentials")
       .select("*")
-      .eq("email_address", emailAddress)
       .eq("is_active", true)
       .single();
 
     if (credError || !credentials) {
-      console.error("No active credentials found for:", emailAddress);
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      console.error("No active Gmail credentials found");
+      return new Response(
+        JSON.stringify({ success: false, error: "No Gmail connected", newEmailCount: 0 }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
+
+    console.log(`Found credentials for: ${credentials.email_address}`);
 
     // Refresh token if needed
     let accessToken = credentials.access_token;
@@ -72,13 +49,9 @@ serve(async (req) => {
       }
     }
 
-    // Get recent messages using history API
-    const lastHistoryId = credentials.history_id || historyId;
-    console.log(`Fetching history from ${lastHistoryId}`);
-
     // Fetch recent unread messages from inbox
     const listResponse = await fetch(
-      `https://www.googleapis.com/gmail/v1/users/me/messages?labelIds=INBOX&q=is:unread&maxResults=10`,
+      `https://www.googleapis.com/gmail/v1/users/me/messages?labelIds=INBOX&q=is:unread&maxResults=20`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
 
@@ -86,17 +59,15 @@ serve(async (req) => {
 
     if (!listData.messages || listData.messages.length === 0) {
       console.log("No new messages");
-      // Update history ID
-      await supabase
-        .from("gmail_credentials")
-        .update({ history_id: historyId })
-        .eq("id", credentials.id);
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ success: true, newEmailCount: 0, message: "No new emails" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     console.log(`Found ${listData.messages.length} unread messages`);
+
+    let newEmailCount = 0;
 
     // Process each message
     for (const msg of listData.messages) {
@@ -141,32 +112,36 @@ serve(async (req) => {
 
       for (const part of attachmentParts) {
         if (part.body.attachmentId) {
-          const attachmentResponse = await fetch(
-            `https://www.googleapis.com/gmail/v1/users/me/messages/${msg.id}/attachments/${part.body.attachmentId}`,
-            { headers: { Authorization: `Bearer ${accessToken}` } }
-          );
+          try {
+            const attachmentResponse = await fetch(
+              `https://www.googleapis.com/gmail/v1/users/me/messages/${msg.id}/attachments/${part.body.attachmentId}`,
+              { headers: { Authorization: `Bearer ${accessToken}` } }
+            );
 
-          const attachmentData = await attachmentResponse.json();
-          const fileData = base64UrlDecode(attachmentData.data);
+            const attachmentData = await attachmentResponse.json();
+            const fileData = base64UrlDecode(attachmentData.data);
 
-          // Store in Supabase Storage
-          const fileName = `${msg.id}/${part.filename}`;
-          const { error: uploadError } = await supabase.storage
-            .from("email-attachments")
-            .upload(fileName, fileData, {
-              contentType: part.mimeType,
-              upsert: true,
-            });
+            // Store in Supabase Storage
+            const fileName = `${msg.id}/${part.filename}`;
+            const { error: uploadError } = await supabase.storage
+              .from("email-attachments")
+              .upload(fileName, fileData, {
+                contentType: part.mimeType,
+                upsert: true,
+              });
 
-          if (!uploadError) {
-            attachments.push({
-              name: part.filename,
-              mimeType: part.mimeType,
-              storagePath: fileName,
-            });
-            console.log(`Stored attachment: ${part.filename}`);
-          } else {
-            console.error(`Failed to store attachment: ${uploadError.message}`);
+            if (!uploadError) {
+              attachments.push({
+                name: part.filename,
+                mimeType: part.mimeType,
+                storagePath: fileName,
+              });
+              console.log(`Stored attachment: ${part.filename}`);
+            } else {
+              console.error(`Failed to store attachment: ${uploadError.message}`);
+            }
+          } catch (attachError) {
+            console.error(`Error processing attachment: ${attachError}`);
           }
         }
       }
@@ -219,6 +194,7 @@ serve(async (req) => {
       }
 
       console.log(`Email stored with ID: ${emailRecord.id}`);
+      newEmailCount++;
 
       // Trigger order processing
       try {
@@ -231,22 +207,19 @@ serve(async (req) => {
       }
     }
 
-    // Update history ID
-    await supabase
-      .from("gmail_credentials")
-      .update({ history_id: historyId })
-      .eq("id", credentials.id);
+    console.log(`Manual sync complete: ${newEmailCount} new emails processed`);
 
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ success: true, newEmailCount, message: `Synced ${newEmailCount} new email(s)` }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (error: unknown) {
-    console.error("Error in email-webhook:", error);
+    console.error("Error in gmail-manual-sync:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    // Always return 200 to acknowledge Pub/Sub
-    return new Response(JSON.stringify({ success: true, error: errorMessage }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ success: false, error: errorMessage, newEmailCount: 0 }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+    );
   }
 });
 
