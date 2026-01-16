@@ -24,7 +24,8 @@ import {
   Eye,
   Camera,
   GraduationCap,
-  FileText
+  FileText,
+  Mail
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -35,6 +36,7 @@ interface DistributionLayoutProps {
 const distributionNavItems: PortalNavItem[] = [
   { path: '/distribution', label: 'Dashboard', icon: Home },
   { path: '/distribution/orders', label: 'Orders', icon: ShoppingCart },
+  { path: '/distribution/email-inbox', label: 'Email Inbox', icon: Mail },
   { path: '/distribution/customers', label: 'Customers', icon: Users },
   { path: '/distribution/products', label: 'Products', icon: Box },
   { path: '/distribution/picker', label: 'Picker Station', icon: ClipboardPaste },
