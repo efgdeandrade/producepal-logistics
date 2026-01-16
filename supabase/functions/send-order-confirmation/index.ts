@@ -74,9 +74,9 @@ serve(async (req) => {
 
     // Get template
     const { data: template } = await supabase
-      .from("email_templates")
+      .from("email_confirmation_templates")
       .select("*")
-      .eq("id", templateId || "default-confirmation")
+      .eq("is_default", true)
       .single();
 
     const defaultTemplate = {
@@ -96,7 +96,7 @@ serve(async (req) => {
       `,
     };
 
-    const templateToUse = template || defaultTemplate;
+    const templateToUse = template ? { subject: template.subject_template, body_html: template.body_template } : defaultTemplate;
 
     // Build items table
     const itemsTable = `
@@ -144,12 +144,12 @@ serve(async (req) => {
     // Send email via Resend
     const emailResponse = await resend.emails.send({
       from: "ProducePal <orders@fuik.co>",
-      to: [email.sender_email],
+      to: [email.from_email],
       subject: `Re: ${email.subject}`,
       html: emailBody,
       headers: {
-        "In-Reply-To": email.gmail_message_id,
-        "References": email.gmail_message_id,
+        "In-Reply-To": email.message_id,
+        "References": email.message_id,
       },
     });
 
@@ -160,7 +160,8 @@ serve(async (req) => {
       .from("email_inbox")
       .update({
         status: "confirmed",
-        confirmation_sent_at: new Date().toISOString(),
+        confirmed_at: new Date().toISOString(),
+        confirmation_email_sent: true,
       })
       .eq("id", email.id);
 

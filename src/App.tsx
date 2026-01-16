@@ -60,6 +60,7 @@ import FnbQuickPaste from "./pages/fnb/FnbQuickPaste";
 import FnbTrainingHub from "./pages/fnb/FnbTrainingHub";
 import FnbInvoices from "./pages/fnb/FnbInvoices";
 import FnbInvoiceDetail from "./pages/fnb/FnbInvoiceDetail";
+import FnbEmailInbox from "./pages/fnb/FnbEmailInbox";
 
 // Logistics Department
 import LogisticsDashboard from "./pages/LogisticsDashboard";
@@ -264,6 +265,7 @@ const App = () => (
                   <Route path="/distribution/training" element={<ProtectedDistribution><FnbTrainingHub /></ProtectedDistribution>} />
                   <Route path="/distribution/invoices" element={<ProtectedDistribution><FnbInvoices /></ProtectedDistribution>} />
                   <Route path="/distribution/invoices/:invoiceId" element={<ProtectedDistribution><FnbInvoiceDetail /></ProtectedDistribution>} />
+                  <Route path="/distribution/email-inbox" element={<ProtectedDistribution><FnbEmailInbox /></ProtectedDistribution>} />
                   
                   {/* Quick Paste - Uses Distribution layout */}
                   <Route path="/quick-paste" element={<ProtectedDistribution><FnbQuickPaste /></ProtectedDistribution>} />

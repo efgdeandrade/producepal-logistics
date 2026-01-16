@@ -45,7 +45,7 @@ serve(async (req) => {
       throw new Error(`Email not found: ${emailId}`);
     }
 
-    console.log(`Email from: ${email.sender_email}, Subject: ${email.subject}`);
+    console.log(`Email from: ${email.from_email}, Subject: ${email.subject}`);
 
     // Get products for matching
     const { data: products } = await supabase
@@ -76,16 +76,21 @@ serve(async (req) => {
     // Prepare content for AI extraction
     let contentToAnalyze = `Subject: ${email.subject}\n\nBody:\n${email.body_text}`;
 
-    // Process attachments if any
+    // Process attachments if any - fetch from attachments table
     const attachmentContents: string[] = [];
-    if (email.attachments_metadata && email.attachments_metadata.length > 0) {
-      for (const attachment of email.attachments_metadata) {
-        console.log(`Processing attachment: ${attachment.name}`);
+    const { data: attachments } = await supabase
+      .from("email_inbox_attachments")
+      .select("*")
+      .eq("email_id", emailId);
+
+    if (attachments && attachments.length > 0) {
+      for (const attachment of attachments) {
+        console.log(`Processing attachment: ${attachment.file_name}`);
         
         // Download attachment from storage
         const { data: fileData, error: downloadError } = await supabase.storage
           .from("email-attachments")
-          .download(attachment.storagePath);
+          .download(attachment.storage_path);
 
         if (downloadError) {
           console.error(`Failed to download attachment: ${downloadError.message}`);
@@ -97,12 +102,12 @@ serve(async (req) => {
         const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
         // For PDFs and spreadsheets, try to parse
-        if (attachment.mimeType.includes("pdf") || 
-            attachment.mimeType.includes("spreadsheet") ||
-            attachment.mimeType.includes("excel") ||
-            attachment.name.endsWith(".xlsx") ||
-            attachment.name.endsWith(".xls") ||
-            attachment.name.endsWith(".csv")) {
+        if (attachment.mime_type.includes("pdf") || 
+            attachment.mime_type.includes("spreadsheet") ||
+            attachment.mime_type.includes("excel") ||
+            attachment.file_name.endsWith(".xlsx") ||
+            attachment.file_name.endsWith(".xls") ||
+            attachment.file_name.endsWith(".csv")) {
           
           try {
             const parseResponse = await supabase.functions.invoke("parse-purchase-order", {
@@ -114,7 +119,7 @@ serve(async (req) => {
             });
 
             if (parseResponse.data) {
-              attachmentContents.push(`\n--- Attachment: ${attachment.name} ---\n${JSON.stringify(parseResponse.data, null, 2)}`);
+              attachmentContents.push(`\n--- Attachment: ${attachment.file_name} ---\n${JSON.stringify(parseResponse.data, null, 2)}`);
             }
           } catch (parseError) {
             console.error(`Failed to parse attachment: ${parseError}`);

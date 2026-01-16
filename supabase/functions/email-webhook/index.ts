@@ -104,7 +104,7 @@ serve(async (req) => {
       const { data: existing } = await supabase
         .from("email_inbox")
         .select("id")
-        .eq("gmail_message_id", msg.id)
+        .eq("message_id", msg.id)
         .single();
 
       if (existing) {
@@ -183,22 +183,35 @@ serve(async (req) => {
       const { data: emailRecord, error: insertError } = await supabase
         .from("email_inbox")
         .insert({
-          gmail_message_id: msg.id,
-          gmail_thread_id: threadId,
-          sender_email: senderEmail,
-          sender_name: extractName(headers.from || ""),
+          message_id: msg.id,
+          thread_id: threadId,
+          from_email: senderEmail,
+          from_name: extractName(headers.from || ""),
+          to_email: headers.to || "",
           subject,
           body_text: bodyText,
           body_html: extractHtmlBody(msgData.payload),
           received_at: new Date(parseInt(msgData.internalDate)).toISOString(),
-          has_attachments: attachments.length > 0,
-          attachment_count: attachments.length,
-          attachments_metadata: attachments,
           matched_customer_id: customer?.id || null,
           status: "new",
         })
         .select()
         .single();
+
+      // Store attachments in separate table
+      if (attachments.length > 0 && emailRecord) {
+        for (const attachment of attachments) {
+          await supabase
+            .from("email_inbox_attachments")
+            .insert({
+              email_id: emailRecord.id,
+              file_name: attachment.name,
+              mime_type: attachment.mimeType,
+              storage_path: attachment.storagePath,
+              file_size: 0,
+            });
+        }
+      }
 
       if (insertError) {
         console.error(`Failed to insert email: ${insertError.message}`);
