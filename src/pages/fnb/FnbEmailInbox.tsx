@@ -80,14 +80,17 @@ export default function FnbEmailInbox() {
   const queryClient = useQueryClient();
 
   // Use realtime hook
-  const { newEmailCount, clearNewCount } = useEmailInboxRealtime((newEmail) => {
-    // Show toast for new emails
-    toast.info(`New email from ${newEmail.from_name || newEmail.from_email}`, {
-      description: newEmail.subject,
-      icon: <Bell className="h-4 w-4" />,
-    });
-    // Refetch emails
-    refetch();
+  useEmailInboxRealtime({
+    onNewEmail: (newEmail) => {
+      // Show toast for new emails
+      toast.info(`New email from ${newEmail.from_name || newEmail.from_email}`, {
+        description: newEmail.subject,
+        icon: <Bell className="h-4 w-4" />,
+      });
+      // Refetch emails
+      queryClient.invalidateQueries({ queryKey: ['email-inbox'] });
+      queryClient.invalidateQueries({ queryKey: ['email-inbox-counts'] });
+    },
   });
 
   const { data: emails = [], isLoading, refetch } = useQuery({
@@ -173,8 +176,8 @@ export default function FnbEmailInbox() {
   };
 
   const handleRefresh = () => {
-    clearNewCount();
     refetch();
+    queryClient.invalidateQueries({ queryKey: ['email-inbox-counts'] });
   };
 
   return (
@@ -189,11 +192,6 @@ export default function FnbEmailInbox() {
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               Email Inbox
-              {newEmailCount > 0 && (
-                <Badge variant="default" className="bg-blue-500">
-                  {newEmailCount} new
-                </Badge>
-              )}
             </h1>
             <p className="text-muted-foreground">Incoming order emails from customers</p>
           </div>
@@ -217,8 +215,30 @@ export default function FnbEmailInbox() {
         
         {selectedIds.length > 0 && (
           <EmailBulkActions
-            selectedIds={selectedIds}
-            onComplete={handleBulkActionComplete}
+            selectedCount={selectedIds.length}
+            totalCount={filteredEmails.length}
+            onSelectAll={() => setSelectedIds(filteredEmails.map(e => e.id))}
+            onDeselectAll={() => setSelectedIds([])}
+            onMarkDeclined={async () => {
+              await supabase
+                .from('email_inbox')
+                .update({ status: 'declined', declined_at: new Date().toISOString() })
+                .in('id', selectedIds);
+              handleBulkActionComplete();
+              toast.success(`${selectedIds.length} emails marked as declined`);
+            }}
+            onReprocess={async () => {
+              for (const id of selectedIds) {
+                await supabase.functions.invoke('process-email-order', { body: { emailId: id } });
+              }
+              handleBulkActionComplete();
+              toast.success(`${selectedIds.length} emails queued for reprocessing`);
+            }}
+            onDelete={async () => {
+              await supabase.from('email_inbox').delete().in('id', selectedIds);
+              handleBulkActionComplete();
+              toast.success(`${selectedIds.length} emails deleted`);
+            }}
           />
         )}
       </div>

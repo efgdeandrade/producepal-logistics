@@ -431,18 +431,19 @@ export function EmailDetailDialog({ email, open, onClose }: EmailDetailDialogPro
 
             {/* Order Preview Card */}
             {orderItems.length > 0 && customerName && (
-              <OrderPreviewCard
+            <OrderPreviewCard
                 customerName={customerName}
                 deliveryDate={deliveryDate ? format(deliveryDate, 'PPP') : undefined}
                 poNumber={poNumber || undefined}
                 items={orderItems.map(item => ({
-                  productName: item.product_name || products.find((p: any) => p.id === item.product_id)?.name || 'Unknown',
+                  product_name: item.product_name || products.find((p: any) => p.id === item.product_id)?.name || 'Unknown',
                   quantity: item.quantity,
-                  unit: item.unit,
-                  unitPrice: item.unit_price,
-                  confidence: item.confidence as 'high' | 'medium' | 'low' | undefined,
+                  unit_price: item.unit_price,
+                  total: item.quantity * item.unit_price,
+                  confidence: item.confidence === 'high' ? 0.95 : item.confidence === 'medium' ? 0.75 : item.confidence === 'low' ? 0.5 : undefined,
+                  matched_product_id: item.product_id || undefined,
                 }))}
-                totalAmount={orderItems.reduce((sum, item) => sum + item.quantity * item.unit_price, 0)}
+                total={orderItems.reduce((sum, item) => sum + item.quantity * item.unit_price, 0)}
                 onConfirm={() => confirmMutation.mutate()}
                 onCancel={() => declineMutation.mutate()}
               />
@@ -635,11 +636,10 @@ export function EmailDetailDialog({ email, open, onClose }: EmailDetailDialogPro
           <TabsContent value="attachments" className="flex-1 overflow-auto mt-4">
             <EmailAttachmentViewer
               attachments={attachments.map(att => ({
-                id: att.id,
-                fileName: att.file_name,
-                mimeType: att.mime_type,
+                filename: att.filename,
+                content_type: att.mime_type,
                 size: att.size_bytes,
-                storagePath: att.storage_path,
+                storage_path: att.storage_path,
               }))}
             />
           </TabsContent>
@@ -663,15 +663,14 @@ export function EmailDetailDialog({ email, open, onClose }: EmailDetailDialogPro
 
             {showReplyComposer ? (
               <ReplyComposer
-                originalEmail={{
-                  id: email.id,
-                  messageId: email.message_id,
-                  threadId: email.thread_id || undefined,
-                  from: email.from_email,
-                  subject: email.subject,
-                  body: email.body_text || '',
+                emailId={email.id}
+                originalSubject={email.subject}
+                originalSender={email.from_email}
+                originalBody={email.body_text || ''}
+                onReply={() => {
+                  setShowReplyComposer(false);
+                  queryClient.invalidateQueries({ queryKey: ['email-thread', email.thread_id] });
                 }}
-                onSend={handleReply}
                 onCancel={() => setShowReplyComposer(false)}
               />
             ) : (
