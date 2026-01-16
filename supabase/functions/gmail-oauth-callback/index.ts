@@ -5,9 +5,12 @@ const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID");
 const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET");
 const GOOGLE_PUBSUB_TOPIC = Deno.env.get("GOOGLE_PUBSUB_TOPIC");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-const APP_URL = Deno.env.get("APP_URL") || "https://producepal-logistics.lovable.app";
+const DEFAULT_APP_URL = Deno.env.get("APP_URL") || "https://producepal-logistics.lovable.app";
 
 serve(async (req) => {
+  // Default redirect URL in case of early errors
+  let redirectBaseUrl = DEFAULT_APP_URL;
+  
   try {
     const url = new URL(req.url);
     const code = url.searchParams.get("code");
@@ -16,25 +19,29 @@ serve(async (req) => {
 
     if (error) {
       console.error("OAuth error from Google:", error);
-      return Response.redirect(`${APP_URL}/distribution/settings?gmail_error=${error}`);
+      return Response.redirect(`${redirectBaseUrl}/distribution/settings?gmail_error=${error}`);
     }
 
     if (!code || !state) {
       console.error("Missing code or state");
-      return Response.redirect(`${APP_URL}/distribution/settings?gmail_error=missing_params`);
+      return Response.redirect(`${redirectBaseUrl}/distribution/settings?gmail_error=missing_params`);
     }
 
-    // Decode state to get user ID
+    // Decode state to get user ID and returnUrl
     let userId: string;
     try {
       const stateData = JSON.parse(atob(state));
       userId = stateData.userId;
+      // Use returnUrl from state if provided, otherwise fall back to default
+      if (stateData.returnUrl) {
+        redirectBaseUrl = stateData.returnUrl;
+      }
     } catch (e) {
       console.error("Failed to decode state:", e);
-      return Response.redirect(`${APP_URL}/distribution/settings?gmail_error=invalid_state`);
+      return Response.redirect(`${redirectBaseUrl}/distribution/settings?gmail_error=invalid_state`);
     }
 
-    console.log(`Processing OAuth callback for user: ${userId}`);
+    console.log(`Processing OAuth callback for user: ${userId}, redirecting to: ${redirectBaseUrl}`);
 
     // Exchange code for tokens
     const redirectUri = `${SUPABASE_URL}/functions/v1/gmail-oauth-callback`;
@@ -54,7 +61,7 @@ serve(async (req) => {
 
     if (!tokenResponse.ok) {
       console.error("Token exchange failed:", tokenData);
-      return Response.redirect(`${APP_URL}/distribution/settings?gmail_error=token_exchange_failed`);
+      return Response.redirect(`${redirectBaseUrl}/distribution/settings?gmail_error=token_exchange_failed`);
     }
 
     console.log("Token exchange successful");
@@ -94,7 +101,7 @@ serve(async (req) => {
 
     if (upsertError) {
       console.error("Failed to store credentials:", upsertError);
-      return Response.redirect(`${APP_URL}/distribution/settings?gmail_error=storage_failed`);
+      return Response.redirect(`${redirectBaseUrl}/distribution/settings?gmail_error=storage_failed`);
     }
 
     console.log("Credentials stored successfully");
@@ -130,10 +137,9 @@ serve(async (req) => {
     }
 
     console.log("OAuth flow completed successfully");
-    return Response.redirect(`${APP_URL}/distribution/settings?gmail_connected=true`);
+    return Response.redirect(`${redirectBaseUrl}/distribution/settings?gmail_connected=true`);
   } catch (error) {
     console.error("Error in gmail-oauth-callback:", error);
-    const APP_URL = Deno.env.get("APP_URL") || "https://producepal-logistics.lovable.app";
-    return Response.redirect(`${APP_URL}/distribution/settings?gmail_error=unexpected`);
+    return Response.redirect(`${redirectBaseUrl}/distribution/settings?gmail_error=unexpected`);
   }
 });

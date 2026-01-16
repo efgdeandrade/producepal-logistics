@@ -42,7 +42,10 @@ export function useGmailCredentials() {
 
   const connect = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('gmail-oauth-init');
+      // Pass current origin so OAuth callback redirects back to correct environment
+      const { data, error } = await supabase.functions.invoke('gmail-oauth-init', {
+        body: { returnUrl: window.location.origin }
+      });
       
       if (error) {
         toast.error('Failed to initiate Gmail connection');
