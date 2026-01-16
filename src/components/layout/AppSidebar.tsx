@@ -34,6 +34,8 @@ import {
   Moon,
   Brain,
   Plug,
+  Mail,
+  Wallet,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -191,6 +193,7 @@ export function AppSidebar() {
         { title: "Dashboard", url: "/distribution", icon: LayoutDashboard },
         { title: "New Order", url: "/distribution/orders/new", icon: ShoppingCart },
         { title: "All Orders", url: "/distribution/orders", icon: ClipboardList },
+        { title: "Email Inbox", url: "/distribution/email-inbox", icon: Mail },
         { title: "Weekly Board", url: "/distribution/weekly", icon: Calendar },
         { title: "Standing Orders", url: "/distribution/standing-orders", icon: ClipboardList },
         { title: "Picker Station", url: "/distribution/picker", icon: Package },
@@ -201,9 +204,10 @@ export function AppSidebar() {
         { title: "Products", url: "/distribution/products", icon: Boxes },
         { title: "Pricing Tiers", url: "/distribution/pricing", icon: DollarSign },
         { title: "Zones", url: "/distribution/zones", icon: MapPin },
-        { title: "COD Reconciliation", url: "/distribution/cod", icon: DollarSign },
+        { title: "COD Reconciliation", url: "/distribution/cod", icon: Wallet },
         { title: "Analytics", url: "/distribution/analytics", icon: BarChart3 },
         { title: "AI Training", url: "/distribution/training", icon: Brain },
+        { title: "Settings", url: "/distribution/settings", icon: Settings },
       ],
     },
     {
