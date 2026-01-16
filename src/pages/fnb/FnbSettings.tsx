@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, MessageSquare, Webhook, Key, CheckCircle, AlertCircle, Brain, Settings, Mail, RefreshCw, Unplug, Loader2 } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Webhook, Key, CheckCircle, AlertCircle, Brain, Settings, Mail, RefreshCw, Unplug, Loader2, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -15,12 +15,14 @@ import { GlobalAliasManager } from '@/components/fnb/GlobalAliasManager';
 import { UnmatchedItemsQueue } from '@/components/fnb/UnmatchedItemsQueue';
 import { CustomerMappingsViewer } from '@/components/fnb/CustomerMappingsViewer';
 import { useGmailCredentials } from '@/hooks/useGmailCredentials';
-import { format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+import { format, differenceInDays, differenceInHours } from 'date-fns';
 
 export default function FnbSettings() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { credential, loading: gmailLoading, isConnected, isTokenExpired, isWatchExpired, connect, disconnect, refreshStatus } = useGmailCredentials();
   const [disconnecting, setDisconnecting] = useState(false);
+  const [renewingWatch, setRenewingWatch] = useState(false);
   
   const [whatsappConfig, setWhatsappConfig] = useState({
     phoneNumberId: '',
@@ -53,6 +55,43 @@ export default function FnbSettings() {
     await disconnect();
     setDisconnecting(false);
   };
+
+  const handleRenewWatch = async () => {
+    if (!credential?.id) return;
+    
+    setRenewingWatch(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('gmail-renew-watch', {
+        body: { credentialId: credential.id },
+      });
+      
+      if (error) throw error;
+      
+      toast.success('Gmail watch renewed successfully!');
+      refreshStatus();
+    } catch (err) {
+      console.error('Failed to renew watch:', err);
+      toast.error('Failed to renew Gmail watch');
+    } finally {
+      setRenewingWatch(false);
+    }
+  };
+
+  // Calculate watch expiration info
+  const watchExpirationInfo = credential?.watch_expiration ? (() => {
+    const expiration = new Date(credential.watch_expiration);
+    const now = new Date();
+    const daysUntil = differenceInDays(expiration, now);
+    const hoursUntil = differenceInHours(expiration, now);
+    
+    return {
+      expiration,
+      daysUntil,
+      hoursUntil,
+      isExpiringSoon: daysUntil <= 2,
+      isExpired: expiration < now,
+    };
+  })() : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -119,12 +158,55 @@ export default function FnbSettings() {
                       </Badge>
                     </div>
 
-                    {credential?.watch_expiration && (
-                      <div className="text-sm text-muted-foreground">
-                        <span className="font-medium">Watch expires:</span>{' '}
-                        {format(new Date(credential.watch_expiration), 'PPP')}
-                        {isWatchExpired && (
-                          <Badge variant="destructive" className="ml-2">Expired</Badge>
+                    {watchExpirationInfo && (
+                      <div className="p-3 bg-muted/50 rounded-lg space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm font-medium">Email Watch Status</span>
+                          </div>
+                          {watchExpirationInfo.isExpired ? (
+                            <Badge variant="destructive">Expired</Badge>
+                          ) : watchExpirationInfo.isExpiringSoon ? (
+                            <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300">
+                              Expiring Soon
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                              Active
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            {watchExpirationInfo.isExpired 
+                              ? `Expired ${format(watchExpirationInfo.expiration, 'PPP')}`
+                              : watchExpirationInfo.daysUntil > 0 
+                                ? `Expires in ${watchExpirationInfo.daysUntil} day${watchExpirationInfo.daysUntil !== 1 ? 's' : ''}`
+                                : `Expires in ${watchExpirationInfo.hoursUntil} hour${watchExpirationInfo.hoursUntil !== 1 ? 's' : ''}`
+                            }
+                          </span>
+                          <Button
+                            size="sm"
+                            variant={watchExpirationInfo.isExpired || watchExpirationInfo.isExpiringSoon ? "default" : "outline"}
+                            onClick={handleRenewWatch}
+                            disabled={renewingWatch}
+                          >
+                            {renewingWatch ? (
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-3 w-3 mr-1" />
+                            )}
+                            Renew Watch
+                          </Button>
+                        </div>
+                        {(watchExpirationInfo.isExpired || watchExpirationInfo.isExpiringSoon) && (
+                          <p className="text-xs text-muted-foreground">
+                            {watchExpirationInfo.isExpired 
+                              ? "The email watch has expired. Click 'Renew Watch' to resume receiving emails."
+                              : "The email watch is expiring soon. Consider renewing it to ensure uninterrupted email reception."
+                            }
+                          </p>
                         )}
                       </div>
                     )}
