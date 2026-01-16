@@ -2874,10 +2874,14 @@ export type Database = {
           from_email: string
           from_name: string | null
           id: string
+          is_reply: boolean | null
           linked_order_id: string | null
           matched_customer_id: string | null
           message_id: string
+          parent_email_id: string | null
           received_at: string
+          reply_message_id: string | null
+          reply_sent_at: string | null
           status: string
           subject: string | null
           thread_id: string | null
@@ -2899,10 +2903,14 @@ export type Database = {
           from_email: string
           from_name?: string | null
           id?: string
+          is_reply?: boolean | null
           linked_order_id?: string | null
           matched_customer_id?: string | null
           message_id: string
+          parent_email_id?: string | null
           received_at: string
+          reply_message_id?: string | null
+          reply_sent_at?: string | null
           status?: string
           subject?: string | null
           thread_id?: string | null
@@ -2924,10 +2932,14 @@ export type Database = {
           from_email?: string
           from_name?: string | null
           id?: string
+          is_reply?: boolean | null
           linked_order_id?: string | null
           matched_customer_id?: string | null
           message_id?: string
+          parent_email_id?: string | null
           received_at?: string
+          reply_message_id?: string | null
+          reply_sent_at?: string | null
           status?: string
           subject?: string | null
           thread_id?: string | null
@@ -2947,6 +2959,13 @@ export type Database = {
             columns: ["matched_customer_id"]
             isOneToOne: false
             referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_inbox_parent_email_id_fkey"
+            columns: ["parent_email_id"]
+            isOneToOne: false
+            referencedRelation: "email_inbox"
             referencedColumns: ["id"]
           },
         ]
