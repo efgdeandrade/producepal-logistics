@@ -2869,8 +2869,12 @@ export type Database = {
           declined_at: string | null
           declined_by: string | null
           error_message: string | null
+          extracted_customer_name: string | null
           extracted_data: Json | null
+          extracted_delivery_date: string | null
+          extracted_po_number: string | null
           extraction_confidence: number | null
+          extraction_notes: string | null
           from_email: string
           from_name: string | null
           id: string
@@ -2879,6 +2883,8 @@ export type Database = {
           matched_customer_id: string | null
           message_id: string
           parent_email_id: string | null
+          processing_completed_at: string | null
+          processing_started_at: string | null
           received_at: string
           reply_message_id: string | null
           reply_sent_at: string | null
@@ -2898,8 +2904,12 @@ export type Database = {
           declined_at?: string | null
           declined_by?: string | null
           error_message?: string | null
+          extracted_customer_name?: string | null
           extracted_data?: Json | null
+          extracted_delivery_date?: string | null
+          extracted_po_number?: string | null
           extraction_confidence?: number | null
+          extraction_notes?: string | null
           from_email: string
           from_name?: string | null
           id?: string
@@ -2908,6 +2918,8 @@ export type Database = {
           matched_customer_id?: string | null
           message_id: string
           parent_email_id?: string | null
+          processing_completed_at?: string | null
+          processing_started_at?: string | null
           received_at: string
           reply_message_id?: string | null
           reply_sent_at?: string | null
@@ -2927,8 +2939,12 @@ export type Database = {
           declined_at?: string | null
           declined_by?: string | null
           error_message?: string | null
+          extracted_customer_name?: string | null
           extracted_data?: Json | null
+          extracted_delivery_date?: string | null
+          extracted_po_number?: string | null
           extraction_confidence?: number | null
+          extraction_notes?: string | null
           from_email?: string
           from_name?: string | null
           id?: string
@@ -2937,6 +2953,8 @@ export type Database = {
           matched_customer_id?: string | null
           message_id?: string
           parent_email_id?: string | null
+          processing_completed_at?: string | null
+          processing_started_at?: string | null
           received_at?: string
           reply_message_id?: string | null
           reply_sent_at?: string | null
