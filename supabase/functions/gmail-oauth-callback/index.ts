@@ -88,15 +88,16 @@ serve(async (req) => {
     const { error: upsertError } = await supabase
       .from("gmail_credentials")
       .upsert({
-        user_id: userId,
+        id: userId,
         email_address: emailAddress,
         access_token: tokenData.access_token,
         refresh_token: tokenData.refresh_token,
-        token_expires_at: expiresAt,
+        token_expiry: expiresAt,
         is_active: true,
+        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }, {
-        onConflict: "user_id",
+        onConflict: "id",
       });
 
     if (upsertError) {
@@ -133,7 +134,7 @@ serve(async (req) => {
         .update({
           watch_expiration: new Date(parseInt(watchData.expiration)).toISOString(),
         })
-        .eq("user_id", userId);
+        .eq("id", userId);
     }
 
     console.log("OAuth flow completed successfully");
