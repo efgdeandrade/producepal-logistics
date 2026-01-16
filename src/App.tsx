@@ -106,6 +106,7 @@ import EULA from "./pages/EULA";
 
 // Integrations
 import IntegrationHub from "./pages/integrations/IntegrationHub";
+import GmailSettings from "./pages/integrations/GmailSettings";
 import WhatsAppSettings from "./pages/integrations/WhatsAppSettings";
 import QuickBooksSync from "./pages/integrations/QuickBooksSync";
 import QuickBooksConnect from "./pages/integrations/QuickBooksConnect";
@@ -299,6 +300,7 @@ const App = () => (
                   {/* ========== SETTINGS & ADMIN (Full Layout) ========== */}
                   <Route path="/settings" element={<ProtectedWithLayout requiredRole="admin"><Settings /></ProtectedWithLayout>} />
                   <Route path="/settings/integrations" element={<ProtectedWithLayout requiredRole="admin"><IntegrationHub /></ProtectedWithLayout>} />
+                  <Route path="/settings/integrations/gmail" element={<ProtectedWithLayout requiredRole="admin"><GmailSettings /></ProtectedWithLayout>} />
                   <Route path="/settings/integrations/whatsapp" element={<ProtectedWithLayout requiredRole="admin"><WhatsAppSettings /></ProtectedWithLayout>} />
                   <Route path="/settings/integrations/quickbooks" element={<ProtectedWithLayout requiredRole="admin"><QuickBooksSync /></ProtectedWithLayout>} />
                   <Route path="/settings/integrations/quickbooks/connect" element={<ProtectedWithLayout requiredRole="admin"><QuickBooksConnect /></ProtectedWithLayout>} />
