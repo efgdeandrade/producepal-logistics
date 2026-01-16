@@ -1898,6 +1898,7 @@ export type Database = {
           receipt_photo_url: string | null
           receipt_verified_at: string | null
           receipt_verified_by: string | null
+          source_email_id: string | null
           standing_order_template_id: string | null
           status: string | null
           total_xcg: number | null
@@ -1941,6 +1942,7 @@ export type Database = {
           receipt_photo_url?: string | null
           receipt_verified_at?: string | null
           receipt_verified_by?: string | null
+          source_email_id?: string | null
           standing_order_template_id?: string | null
           status?: string | null
           total_xcg?: number | null
@@ -1984,12 +1986,20 @@ export type Database = {
           receipt_photo_url?: string | null
           receipt_verified_at?: string | null
           receipt_verified_by?: string | null
+          source_email_id?: string | null
           standing_order_template_id?: string | null
           status?: string | null
           total_xcg?: number | null
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "distribution_orders_source_email_id_fkey"
+            columns: ["source_email_id"]
+            isOneToOne: false
+            referencedRelation: "email_inbox"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fnb_orders_customer_id_fkey"
             columns: ["customer_id"]
@@ -2809,6 +2819,185 @@ export type Database = {
           },
         ]
       }
+      email_confirmation_templates: {
+        Row: {
+          body_template: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          is_default: boolean | null
+          name: string
+          subject_template: string
+          updated_at: string
+        }
+        Insert: {
+          body_template: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name: string
+          subject_template: string
+          updated_at?: string
+        }
+        Update: {
+          body_template?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name?: string
+          subject_template?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      email_inbox: {
+        Row: {
+          body_html: string | null
+          body_text: string | null
+          confirmation_email_sent: boolean | null
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          declined_at: string | null
+          declined_by: string | null
+          error_message: string | null
+          extracted_data: Json | null
+          extraction_confidence: number | null
+          from_email: string
+          from_name: string | null
+          id: string
+          linked_order_id: string | null
+          matched_customer_id: string | null
+          message_id: string
+          received_at: string
+          status: string
+          subject: string | null
+          thread_id: string | null
+          to_email: string | null
+          updated_at: string
+        }
+        Insert: {
+          body_html?: string | null
+          body_text?: string | null
+          confirmation_email_sent?: boolean | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          declined_at?: string | null
+          declined_by?: string | null
+          error_message?: string | null
+          extracted_data?: Json | null
+          extraction_confidence?: number | null
+          from_email: string
+          from_name?: string | null
+          id?: string
+          linked_order_id?: string | null
+          matched_customer_id?: string | null
+          message_id: string
+          received_at: string
+          status?: string
+          subject?: string | null
+          thread_id?: string | null
+          to_email?: string | null
+          updated_at?: string
+        }
+        Update: {
+          body_html?: string | null
+          body_text?: string | null
+          confirmation_email_sent?: boolean | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          declined_at?: string | null
+          declined_by?: string | null
+          error_message?: string | null
+          extracted_data?: Json | null
+          extraction_confidence?: number | null
+          from_email?: string
+          from_name?: string | null
+          id?: string
+          linked_order_id?: string | null
+          matched_customer_id?: string | null
+          message_id?: string
+          received_at?: string
+          status?: string
+          subject?: string | null
+          thread_id?: string | null
+          to_email?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_inbox_linked_order_id_fkey"
+            columns: ["linked_order_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_inbox_matched_customer_id_fkey"
+            columns: ["matched_customer_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_inbox_attachments: {
+        Row: {
+          created_at: string
+          email_id: string
+          extracted_data: Json | null
+          extraction_confidence: number | null
+          filename: string
+          id: string
+          mime_type: string | null
+          processed_at: string | null
+          size_bytes: number | null
+          storage_path: string | null
+        }
+        Insert: {
+          created_at?: string
+          email_id: string
+          extracted_data?: Json | null
+          extraction_confidence?: number | null
+          filename: string
+          id?: string
+          mime_type?: string | null
+          processed_at?: string | null
+          size_bytes?: number | null
+          storage_path?: string | null
+        }
+        Update: {
+          created_at?: string
+          email_id?: string
+          extracted_data?: Json | null
+          extraction_confidence?: number | null
+          filename?: string
+          id?: string
+          mime_type?: string | null
+          processed_at?: string | null
+          size_bytes?: number | null
+          storage_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_inbox_attachments_email_id_fkey"
+            columns: ["email_id"]
+            isOneToOne: false
+            referencedRelation: "email_inbox"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_documents: {
         Row: {
           created_at: string | null
@@ -2997,6 +3186,45 @@ export type Database = {
           sync_status?: string | null
           type?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      gmail_credentials: {
+        Row: {
+          access_token: string
+          created_at: string
+          email_address: string
+          history_id: string | null
+          id: string
+          is_active: boolean | null
+          refresh_token: string
+          token_expiry: string
+          updated_at: string
+          watch_expiration: string | null
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          email_address: string
+          history_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          refresh_token: string
+          token_expiry: string
+          updated_at?: string
+          watch_expiration?: string | null
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          email_address?: string
+          history_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          refresh_token?: string
+          token_expiry?: string
+          updated_at?: string
+          watch_expiration?: string | null
         }
         Relationships: []
       }
