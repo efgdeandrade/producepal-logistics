@@ -110,3 +110,6 @@ verify_jwt = true
 
 [functions.send-order-confirmation]
 verify_jwt = true
+
+[functions.gmail-disconnect]
+verify_jwt = true
