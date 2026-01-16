@@ -101,7 +101,7 @@ export default function FnbEmailInbox() {
         .select(`
           *,
           matched_customer:distribution_customers(id, name),
-          linked_order:distribution_orders(id, order_number)
+          linked_order:distribution_orders!email_inbox_linked_order_id_fkey(id, order_number)
         `)
         .order('received_at', { ascending: false });
 
