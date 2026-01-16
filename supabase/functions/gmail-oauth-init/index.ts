@@ -32,7 +32,16 @@ serve(async (req) => {
       throw new Error("Unauthorized");
     }
 
-    console.log(`Generating OAuth URL for user: ${user.id}`);
+    // Get returnUrl from request body (for dynamic redirect after OAuth)
+    let returnUrl: string | undefined;
+    try {
+      const body = await req.json();
+      returnUrl = body?.returnUrl;
+    } catch {
+      // No body or invalid JSON, that's fine
+    }
+
+    console.log(`Generating OAuth URL for user: ${user.id}, returnUrl: ${returnUrl || 'default'}`);
 
     // Build OAuth URL
     const redirectUri = `${SUPABASE_URL}/functions/v1/gmail-oauth-callback`;
@@ -43,7 +52,11 @@ serve(async (req) => {
       "https://www.googleapis.com/auth/pubsub",
     ];
 
-    const state = btoa(JSON.stringify({ userId: user.id }));
+    // Include returnUrl in state so callback knows where to redirect
+    const state = btoa(JSON.stringify({ 
+      userId: user.id,
+      returnUrl: returnUrl 
+    }));
 
     const params = new URLSearchParams({
       client_id: GOOGLE_CLIENT_ID!,
