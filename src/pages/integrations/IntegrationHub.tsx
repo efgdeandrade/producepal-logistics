@@ -2,7 +2,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useIntegrations, useWebhooks } from '@/hooks/useIntegrations';
-import { MessageSquare, RefreshCw, Webhook, Plug, ArrowRight, Settings } from 'lucide-react';
+import { useGmailCredentials } from '@/hooks/useGmailCredentials';
+import { MessageSquare, RefreshCw, Webhook, Plug, ArrowRight, Settings, Mail } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 
@@ -10,12 +11,21 @@ const IntegrationHub = () => {
   const navigate = useNavigate();
   const { integrations, loading: integrationsLoading } = useIntegrations();
   const { webhooks, loading: webhooksLoading } = useWebhooks();
+  const { isConnected: gmailConnected, loading: gmailLoading } = useGmailCredentials();
 
   const whatsappIntegration = integrations.find(i => i.type === 'whatsapp');
   const quickbooksIntegration = integrations.find(i => i.type === 'quickbooks');
   const activeWebhooksCount = webhooks.filter(w => w.is_active).length;
 
   const integrationCards = [
+    {
+      title: 'Gmail',
+      description: 'Receive customer orders via email and send confirmations',
+      icon: Mail,
+      status: gmailConnected ? 'connected' : 'disconnected',
+      href: '/settings/integrations/gmail',
+      color: 'text-red-500',
+    },
     {
       title: 'WhatsApp Business',
       description: 'Receive orders via WhatsApp and send automated responses',
@@ -54,7 +64,7 @@ const IntegrationHub = () => {
     },
   ];
 
-  if (integrationsLoading || webhooksLoading) {
+  if (integrationsLoading || webhooksLoading || gmailLoading) {
     return (
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
