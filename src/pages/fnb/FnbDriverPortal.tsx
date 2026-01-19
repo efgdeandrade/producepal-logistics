@@ -452,7 +452,7 @@ export default function FnbDriverPortal() {
   // If admin/management, show tabs with dashboard + deliveries
   if (canSeeAdminDashboard) {
     return (
-      <div className="container mx-auto p-4 space-y-6">
+      <div className="px-4 md:container py-4 space-y-6 w-full max-w-full overflow-x-hidden">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate("/fnb")}>
             <ArrowLeft className="h-5 w-5" />
@@ -636,7 +636,7 @@ export default function FnbDriverPortal() {
 
   // Regular driver view (no tabs, just deliveries)
   return (
-    <div className="container mx-auto p-4 space-y-6 max-w-lg">
+    <div className="px-4 md:container py-4 space-y-6 max-w-lg w-full overflow-x-hidden">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate("/fnb")}>
           <ArrowLeft className="h-5 w-5" />

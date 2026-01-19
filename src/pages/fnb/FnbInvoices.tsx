@@ -177,7 +177,7 @@ export default function FnbInvoices() {
   );
 
   return (
-    <div className="container mx-auto p-4 pb-24 space-y-6">
+    <div className="px-4 md:container py-4 pb-24 space-y-6 w-full max-w-full overflow-x-hidden">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

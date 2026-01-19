@@ -312,7 +312,7 @@ export default function FnbWeeklyBoard() {
   }, {} as Record<string, OrderWithDetails[]>);
 
   return (
-    <div className="container max-w-screen-2xl py-6 space-y-6">
+    <div className="px-4 md:container max-w-screen-2xl py-6 space-y-6 w-full overflow-x-hidden">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
             <Link to="/fnb">
