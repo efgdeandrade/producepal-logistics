@@ -39,7 +39,8 @@ import {
 } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Link, useNavigate } from 'react-router-dom';
-import { format, addDays, startOfWeek, isSameDay, parseISO, getISOWeek } from 'date-fns';
+import { format, addDays, getISOWeek, parseISO } from 'date-fns';
+import { startOfWeekCuracao, isSameDayCuracao, todayCuracao, parseDateCuracao } from '@/lib/dateUtils';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
@@ -250,7 +251,7 @@ function DroppableDayColumn({
 export default function FnbOrders() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [weekStart, setWeekStart] = useState(() => startOfWeekCuracao());
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
@@ -409,7 +410,7 @@ export default function FnbOrders() {
   const getOrdersForDay = (day: Date) => {
     let dayOrders = orders?.filter((order) => {
       if (!order.delivery_date) return false;
-      return isSameDay(parseISO(order.delivery_date), day);
+      return isSameDayCuracao(order.delivery_date, day);
     }) || [];
 
     // Sort by priority within the day
@@ -469,7 +470,7 @@ export default function FnbOrders() {
 
   const previousWeek = () => setWeekStart(addDays(weekStart, -7));
   const nextWeek = () => setWeekStart(addDays(weekStart, 7));
-  const goToToday = () => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const goToToday = () => setWeekStart(startOfWeekCuracao());
 
   // Confirm a single order - add to picker queue and update status
   const confirmOrderMutation = useMutation({
@@ -618,7 +619,7 @@ export default function FnbOrders() {
     // Check if dropping on another order (reorder within day)
     const overOrder = orders?.find(o => o.id === over.id);
     if (overOrder && order.delivery_date === overOrder.delivery_date) {
-      const dayOrders = getOrdersForDay(parseISO(order.delivery_date!));
+      const dayOrders = getOrdersForDay(parseDateCuracao(order.delivery_date!));
       const oldIndex = dayOrders.findIndex(o => o.id === orderId);
       const newIndex = dayOrders.findIndex(o => o.id === over.id);
       
@@ -965,7 +966,7 @@ export default function FnbOrders() {
                       <Calendar
                         mode="single"
                         selected={weekStart}
-                        onSelect={(date) => date && setWeekStart(startOfWeek(date, { weekStartsOn: 1 }))}
+                        onSelect={(date) => date && setWeekStart(startOfWeekCuracao(date))}
                         initialFocus
                         className="pointer-events-auto"
                       />
@@ -1058,7 +1059,7 @@ export default function FnbOrders() {
               {weekDays.map((day) => {
                 const dayOrders = getOrdersForDay(day);
                 const stats = getDayStats(dayOrders);
-                const isToday = isSameDay(day, new Date());
+                const isToday = isSameDayCuracao(day, todayCuracao());
                 const dateStr = format(day, 'yyyy-MM-dd');
                 const isActiveDropTarget = activeDropTarget === dateStr;
 
