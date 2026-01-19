@@ -204,7 +204,7 @@ export default function FnbEmailInbox() {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6 max-w-6xl">
+    <div className="px-4 md:container py-6 space-y-6 max-w-6xl w-full overflow-x-hidden">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link to="/distribution">

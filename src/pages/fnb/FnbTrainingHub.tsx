@@ -48,7 +48,7 @@ export default function FnbTrainingHub() {
   const pendingCount = stats?.pendingReview || 0;
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-6">
+    <div className="flex-1 space-y-4 px-4 md:px-6 py-4 md:py-6 w-full max-w-full overflow-x-hidden">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">

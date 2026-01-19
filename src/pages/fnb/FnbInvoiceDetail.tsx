@@ -251,7 +251,7 @@ export default function FnbInvoiceDetail() {
   const orderNumbers = invoice.distribution_invoice_orders?.map(o => o.distribution_orders?.order_number).filter(Boolean) || [];
 
   return (
-    <div className="container mx-auto p-4 pb-24 space-y-6">
+    <div className="px-4 md:container py-4 pb-24 space-y-6 w-full max-w-full overflow-x-hidden">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
