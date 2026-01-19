@@ -29,6 +29,7 @@ export interface StandingOrderItem {
   product_id: string;
   default_quantity: number;
   default_price_xcg: number | null;
+  default_unit: string | null;
   sort_order: number;
   customer?: {
     id: string;
@@ -61,6 +62,7 @@ interface TemplateItemInput {
   product_id: string;
   default_quantity: number;
   default_price_xcg?: number | null;
+  default_unit?: string | null;
   sort_order?: number;
 }
 
@@ -187,6 +189,7 @@ export function useFnbStandingOrders() {
           product_id: item.product_id,
           default_quantity: item.default_quantity,
           default_price_xcg: item.default_price_xcg,
+          default_unit: item.default_unit,
           sort_order: item.sort_order ?? index,
         }));
 
@@ -271,6 +274,7 @@ export function useFnbStandingOrders() {
             order_id: (newOrder as any).id,
             product_id: item.product_id,
             quantity: item.default_quantity,
+            order_unit: item.default_unit,
             unit_price_xcg: item.default_price_xcg ?? productPrices[item.product_id] ?? 0,
             total_xcg: (item.default_price_xcg ?? productPrices[item.product_id] ?? 0) * item.default_quantity,
           }));
@@ -396,6 +400,7 @@ export function useFnbStandingOrders() {
         order_id: order.id,
         product_id: item.product_id,
         quantity: item.default_quantity,
+        order_unit: item.default_unit,
         unit_price_xcg: item.default_price_xcg ?? productPrices[item.product_id] ?? 0,
         total_xcg: (item.default_price_xcg ?? productPrices[item.product_id] ?? 0) * item.default_quantity,
       }));
@@ -545,6 +550,7 @@ export function useFnbStandingOrders() {
             order_id: (newOrder as any).id,
             product_id: item.product_id,
             quantity: item.default_quantity,
+            order_unit: item.default_unit,
             unit_price_xcg: item.default_price_xcg ?? item.product?.price_xcg ?? 0,
             total_xcg: (item.default_price_xcg ?? item.product?.price_xcg ?? 0) * item.default_quantity,
           }));
@@ -641,6 +647,7 @@ export function useFnbStandingOrders() {
             product_id: item.product_id,
             default_quantity: item.quantity,
             default_price_xcg: item.unit_price_xcg,
+            default_unit: item.order_unit,
             sort_order: sortOrder++,
           });
         }
