@@ -276,7 +276,7 @@ export default function FnbPickerSupervisor() {
         onDismiss={dismissNotification}
       />
       
-      <main className="container py-6 max-w-7xl">
+      <main className="px-4 md:container py-6 max-w-7xl w-full overflow-x-hidden">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" asChild>

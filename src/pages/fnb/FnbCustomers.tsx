@@ -614,7 +614,7 @@ export default function FnbCustomers() {
 
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background">
-      <div className="container py-6">
+      <div className="px-4 md:container py-6 w-full max-w-full overflow-x-hidden">
         <div className="flex items-center gap-4 mb-6">
           <Button variant="ghost" size="icon" asChild>
             <Link to="/distribution">

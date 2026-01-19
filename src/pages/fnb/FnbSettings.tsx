@@ -29,7 +29,7 @@ export default function FnbSettings() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="container py-6 max-w-4xl">
+      <main className="px-4 md:container py-6 max-w-4xl w-full overflow-x-hidden">
         <div className="flex items-center gap-4 mb-6">
           <Button variant="ghost" size="icon" asChild>
             <Link to="/distribution">

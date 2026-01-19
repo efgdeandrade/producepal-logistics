@@ -1034,7 +1034,7 @@ export default function FnbNewOrder() {
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Customer *</Label>
-                    <SearchableSelect
+                    <ResponsiveSearchableSelect
                       options={customers?.map((c: any) => ({
                         value: c.id,
                         label: c.name,

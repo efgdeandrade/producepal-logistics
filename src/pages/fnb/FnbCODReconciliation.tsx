@@ -225,7 +225,7 @@ export default function FnbCODReconciliation() {
   }, {});
 
   return (
-    <div className="container py-6 space-y-6">
+    <div className="px-4 md:container py-6 space-y-6 w-full max-w-full overflow-x-hidden">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
             <Link to="/fnb">
