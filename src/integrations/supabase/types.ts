@@ -2385,6 +2385,7 @@ export type Database = {
           customer_id: string
           default_price_xcg: number | null
           default_quantity: number
+          default_unit: string | null
           id: string
           product_id: string
           sort_order: number
@@ -2395,6 +2396,7 @@ export type Database = {
           customer_id: string
           default_price_xcg?: number | null
           default_quantity?: number
+          default_unit?: string | null
           id?: string
           product_id: string
           sort_order?: number
@@ -2405,6 +2407,7 @@ export type Database = {
           customer_id?: string
           default_price_xcg?: number | null
           default_quantity?: number
+          default_unit?: string | null
           id?: string
           product_id?: string
           sort_order?: number

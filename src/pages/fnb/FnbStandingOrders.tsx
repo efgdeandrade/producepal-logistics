@@ -44,11 +44,20 @@ import { useFnbStandingOrders } from '@/hooks/useFnbStandingOrders';
 // Cast the backend client to `any` in this page to avoid excessively-deep type instantiation errors
 const supabase = supabaseClient as any;
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
 interface EditingItem {
   customer_id: string;
   product_id: string;
   default_quantity: number;
   default_price_xcg: number | null;
+  default_unit: string;
 }
 
 interface EditingTemplate {
@@ -56,6 +65,16 @@ interface EditingTemplate {
   notes: string;
   items: EditingItem[];
 }
+
+const UNITS = [
+  { value: 'pcs', label: 'Pieces' },
+  { value: 'kg', label: 'Kg' },
+  { value: 'g', label: 'Grams' },
+  { value: 'lb', label: 'Lb' },
+  { value: 'oz', label: 'Oz' },
+  { value: 'case', label: 'Case' },
+  { value: 'tros', label: 'Tros' },
+];
 
 const DAY_NAMES = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -119,6 +138,7 @@ export default function FnbStandingOrders() {
           product_id: item.product_id,
           default_quantity: item.default_quantity,
           default_price_xcg: item.default_price_xcg,
+          default_unit: item.default_unit || item.product?.unit || 'pcs',
         })),
       });
       // Expand all customers by default when loading existing template
@@ -157,6 +177,7 @@ export default function FnbStandingOrders() {
           product_id: products[0].id,
           default_quantity: 1,
           default_price_xcg: products[0].price_xcg,
+          default_unit: products[0].unit || 'pcs',
         },
       ],
     }));
@@ -179,6 +200,7 @@ export default function FnbStandingOrders() {
           product_id: products[0].id,
           default_quantity: 1,
           default_price_xcg: products[0].price_xcg,
+          default_unit: products[0].unit || 'pcs',
         },
       ],
     }));
@@ -208,11 +230,12 @@ export default function FnbStandingOrders() {
       const newItems = [...prev.items];
       newItems[index] = { ...newItems[index], [field]: value };
       
-      // Update price when product changes
+      // Update price and unit when product changes
       if (field === 'product_id') {
         const product = products.find(p => p.id === value);
         if (product) {
           newItems[index].default_price_xcg = product.price_xcg;
+          newItems[index].default_unit = product.unit || 'pcs';
         }
       }
       
@@ -257,6 +280,7 @@ export default function FnbStandingOrders() {
             product_id: item.product_id,
             default_quantity: item.default_quantity,
             default_price_xcg: item.default_price_xcg ?? null,
+            default_unit: item.default_unit || 'pcs',
           })),
         }));
         // Expand all customers
@@ -522,9 +546,21 @@ export default function FnbStandingOrders() {
                                           min={0}
                                           step={0.5}
                                         />
-                                        <span className="text-xs text-muted-foreground w-8">
-                                          {product?.unit || 'ea'}
-                                        </span>
+                                        <Select
+                                          value={item.default_unit || 'pcs'}
+                                          onValueChange={v => handleUpdateItem(item.originalIndex, 'default_unit', v)}
+                                        >
+                                          <SelectTrigger className="w-24 h-10">
+                                            <SelectValue placeholder="Unit" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {UNITS.map((u) => (
+                                              <SelectItem key={u.value} value={u.value}>
+                                                {u.label}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
                                       </div>
 
                                       <Input
