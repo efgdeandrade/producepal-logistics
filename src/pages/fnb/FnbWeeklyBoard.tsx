@@ -32,7 +32,8 @@ import {
   Repeat
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { format, addDays, startOfWeek, isSameDay, parseISO } from "date-fns";
+import { format, addDays, parseISO } from "date-fns";
+import { startOfWeekCuracao, isSameDayCuracao, todayCuracao } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
 import { useFnbStandingOrders } from "@/hooks/useFnbStandingOrders";
 
@@ -102,7 +103,7 @@ const customerTypeLabels: Record<CustomerType, string> = {
 export default function FnbWeeklyBoard() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [weekStart, setWeekStart] = useState(() => startOfWeekCuracao());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -167,7 +168,7 @@ export default function FnbWeeklyBoard() {
   const getOrdersForDay = (day: Date) => {
     return orders?.filter((order) => {
       if (!order.delivery_date) return false;
-      return isSameDay(parseISO(order.delivery_date), day);
+      return isSameDayCuracao(order.delivery_date, day);
     }) || [];
   };
 
@@ -194,7 +195,7 @@ export default function FnbWeeklyBoard() {
   const nextWeek = () => {
     setWeekStart(addDays(weekStart, 7));
   };
-  const goToToday = () => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const goToToday = () => setWeekStart(startOfWeekCuracao());
 
   const handleGenerateWeek = async () => {
     setIsGenerating(true);
@@ -418,7 +419,7 @@ export default function FnbWeeklyBoard() {
             {weekDays.map((day) => {
               const dayOrders = getOrdersForDay(day);
               const stats = getDayStats(dayOrders);
-              const isToday = isSameDay(day, new Date());
+              const isToday = isSameDayCuracao(day, todayCuracao());
 
               return (
                 <Card
