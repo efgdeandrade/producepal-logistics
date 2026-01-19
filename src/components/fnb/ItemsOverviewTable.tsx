@@ -8,7 +8,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card';
-import { Package, ChevronDown, ChevronUp, Eye, EyeOff, Printer, Download, Users, Check } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Package, ChevronDown, ChevronUp, Eye, EyeOff, Printer, Download, Users, Check, Smartphone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import html2pdf from 'html2pdf.js';
@@ -83,6 +85,7 @@ export function ItemsOverviewTable({ queueItems, allOrderItems, isLoading }: Ite
   const [isOpen, setIsOpen] = useState(true);
   const [hideCompleted, setHideCompleted] = useState(false);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
+  const [showViewSheet, setShowViewSheet] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [isPrinting, setIsPrinting] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
@@ -161,6 +164,12 @@ export function ItemsOverviewTable({ queueItems, allOrderItems, isLoading }: Ite
     setShowPrintDialog(true);
   };
 
+  // Handle opening mobile view
+  const handleOpenMobileView = () => {
+    setSelectedItems(new Set(aggregatedItems.map(i => i.productId)));
+    setShowViewSheet(true);
+  };
+
   // Handle PDF generation
   const handlePrintPDF = async () => {
     if (!printRef.current || selectedItems.size === 0) return;
@@ -236,8 +245,17 @@ export function ItemsOverviewTable({ queueItems, allOrderItems, isLoading }: Ite
           </CardHeader>
           <CollapsibleContent>
             <CardContent className="pt-0">
-              {/* Toggle completed items and Print button */}
+              {/* Toggle completed items and Print/View buttons */}
               <div className="flex justify-end gap-2 mb-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleOpenMobileView}
+                  className="text-xs h-7"
+                >
+                  <Smartphone className="h-3 w-3 mr-1" />
+                  View
+                </Button>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -419,43 +437,87 @@ export function ItemsOverviewTable({ queueItems, allOrderItems, isLoading }: Ite
         </DialogContent>
       </Dialog>
 
-      {/* Hidden print template */}
+      {/* Mobile View Sheet */}
+      <Sheet open={showViewSheet} onOpenChange={setShowViewSheet}>
+        <SheetContent side="bottom" className="h-[85vh]">
+          <SheetHeader className="pb-4 border-b">
+            <SheetTitle className="flex items-center justify-between">
+              <span>Picking List</span>
+              <Badge variant="secondary">{format(new Date(), 'PP')}</Badge>
+            </SheetTitle>
+          </SheetHeader>
+          
+          {/* Stats summary */}
+          <div className="flex justify-between py-3 text-sm border-b">
+            <span>Total Orders: <strong>{stats.totalOrders}</strong></span>
+            <span>Items: <strong>{aggregatedItems.length}</strong></span>
+          </div>
+          
+          <ScrollArea className="h-[calc(85vh-140px)] mt-2">
+            <div className="space-y-2 pr-4">
+              {aggregatedItems.map(item => (
+                <div 
+                  key={item.productId} 
+                  className={cn(
+                    "flex items-center justify-between p-3 rounded-lg border",
+                    item.completionPercentage >= 100 && "bg-green-50 dark:bg-green-950/20 border-green-200"
+                  )}
+                >
+                  <div className="flex-1 min-w-0 mr-3">
+                    <div className="font-medium truncate">{item.productName}</div>
+                    <div className="text-xs text-muted-foreground">{item.productCode}</div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="font-bold text-lg">{item.totalOrdered}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {item.orderCount} order{item.orderCount > 1 ? 's' : ''}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
+
+      {/* Hidden print template - optimized for 80mm */}
       <div className="fixed left-[-9999px]">
-        <div ref={printRef} className="p-6 bg-white text-black" style={{ width: '80mm' }}>
-          <div className="text-center mb-4">
-            <h1 className="text-lg font-bold">PICKING LIST</h1>
-            <p className="text-sm">{format(new Date(), 'PPpp')}</p>
+        <div ref={printRef} className="p-2 bg-white text-black" style={{ width: '72mm' }}>
+          <div className="text-center mb-2">
+            <h1 className="text-sm font-bold">PICKING LIST</h1>
+            <p className="text-xs">{format(new Date(), 'PP p')}</p>
           </div>
           
-          <div className="border-t border-b border-dashed py-2 mb-3">
-            <p className="text-sm">Total Orders: {stats.totalOrders}</p>
-            <p className="text-sm">Items Listed: {selectedItems.size}</p>
+          <div className="border-t border-b border-dashed py-1 mb-2 text-xs">
+            <div className="flex justify-between">
+              <span>Orders: {stats.totalOrders}</span>
+              <span>Items: {selectedItems.size}</span>
+            </div>
           </div>
           
-          <table className="w-full text-sm">
+          <table className="w-full" style={{ fontSize: '10px' }}>
             <thead>
               <tr className="border-b">
-                <th className="text-left py-1">Item</th>
-                <th className="text-right py-1">Qty</th>
-                <th className="text-right py-1">Orders</th>
+                <th className="text-left py-0.5" style={{ width: '55%' }}>Item</th>
+                <th className="text-right py-0.5" style={{ width: '25%' }}>Qty</th>
+                <th className="text-right py-0.5" style={{ width: '20%' }}>Ord</th>
               </tr>
             </thead>
             <tbody>
               {itemsToPrint.map(item => (
                 <tr key={item.productId} className="border-b border-dotted">
-                  <td className="py-1">
-                    <div className="font-medium">{item.productName}</div>
-                    <div className="text-xs opacity-70">{item.productCode}</div>
+                  <td className="py-0.5">
+                    <div className="font-medium truncate" style={{ maxWidth: '110px' }}>{item.productName}</div>
                   </td>
-                  <td className="text-right py-1">{item.totalOrdered} {item.unit}</td>
-                  <td className="text-right py-1">{item.orderCount}</td>
+                  <td className="text-right py-0.5 whitespace-nowrap">{item.totalOrdered}</td>
+                  <td className="text-right py-0.5">{item.orderCount}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           
-          <div className="mt-4 pt-2 border-t border-dashed text-center text-xs opacity-70">
-            Generated by Distribution System
+          <div className="mt-2 pt-1 border-t border-dashed text-center" style={{ fontSize: '8px' }}>
+            Distribution System
           </div>
         </div>
       </div>
