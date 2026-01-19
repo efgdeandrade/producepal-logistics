@@ -249,7 +249,7 @@ export default function FnbPricingTiers() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="container py-6">
+      <main className="px-4 md:container py-6 w-full overflow-x-hidden">
         <div className="flex items-center gap-4 mb-6">
           <Button variant="ghost" size="icon" asChild>
             <Link to="/fnb">

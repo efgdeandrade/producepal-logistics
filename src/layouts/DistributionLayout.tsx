@@ -59,7 +59,7 @@ export function DistributionLayout({ children }: DistributionLayoutProps) {
 
   if (isMobile) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
+      <div className="min-h-screen max-w-full bg-background flex flex-col overflow-x-hidden">
         {/* Mobile Header */}
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 safe-area-top">
           <div className="flex h-14 items-center px-4 gap-3">
@@ -80,9 +80,11 @@ export function DistributionLayout({ children }: DistributionLayoutProps) {
           </div>
         </header>
 
-        {/* Mobile Main Content */}
-        <main className="flex-1 pb-20">
-          {children}
+        {/* Mobile Main Content - prevent horizontal scroll */}
+        <main className="flex-1 pb-20 overflow-x-hidden w-full">
+          <div className="w-full max-w-full overflow-x-hidden">
+            {children}
+          </div>
         </main>
 
         {/* Mobile Bottom Navigation */}

@@ -46,7 +46,7 @@ export default function FnbDashboard() {
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background">
       <Header />
-      <main className="container py-6">
+      <main className="px-4 md:container py-6 w-full max-w-full overflow-x-hidden">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Distribution</h1>

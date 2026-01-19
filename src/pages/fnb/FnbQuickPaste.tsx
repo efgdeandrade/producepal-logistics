@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { SearchableSelect } from '@/components/ui/searchable-select';
+import { ResponsiveSearchableSelect } from '@/components/ui/responsive-searchable-select';
 import { MobileProductCard } from '@/components/mobile/MobileProductCard';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase as supabaseClient } from '@/integrations/supabase/client';
@@ -540,7 +540,7 @@ export default function FnbQuickPaste() {
                   <User className="h-4 w-4 text-muted-foreground" />
                   Customer
                 </label>
-                <SearchableSelect
+                <ResponsiveSearchableSelect
                   options={customers.map(c => ({ value: c.id, label: c.name }))}
                   value={customerId || ''}
                   onValueChange={(val) => {

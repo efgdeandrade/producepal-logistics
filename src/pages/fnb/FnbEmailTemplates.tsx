@@ -74,7 +74,7 @@ export default function FnbEmailTemplates() {
 
   if (loading) {
     return (
-      <div className="container py-6 space-y-6">
+      <div className="px-4 md:container py-6 space-y-6 w-full max-w-full overflow-x-hidden">
         <Skeleton className="h-10 w-64" />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
@@ -86,7 +86,7 @@ export default function FnbEmailTemplates() {
   }
 
   return (
-    <div className="container py-6 space-y-6">
+    <div className="px-4 md:container py-6 space-y-6 w-full max-w-full overflow-x-hidden">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">

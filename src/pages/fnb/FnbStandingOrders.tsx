@@ -24,7 +24,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { SearchableSelect } from '@/components/ui/searchable-select';
+import { ResponsiveSearchableSelect } from '@/components/ui/responsive-searchable-select';
 import { 
   ArrowLeft, 
   Plus, 
@@ -315,7 +315,7 @@ export default function FnbStandingOrders() {
 
   if (loading) {
     return (
-      <div className="container py-6">
+      <div className="px-4 md:container py-6">
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -324,7 +324,7 @@ export default function FnbStandingOrders() {
   }
 
   return (
-    <div className="container py-6 space-y-6">
+    <div className="w-full max-w-full overflow-x-hidden px-4 md:container py-6 space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
           <Link to="/distribution">
@@ -440,7 +440,7 @@ export default function FnbStandingOrders() {
                   </Label>
                   <div className="flex gap-2">
                     <div className="flex-1">
-                      <SearchableSelect
+                      <ResponsiveSearchableSelect
                         options={customerOptions}
                         value={newCustomerId}
                         onValueChange={setNewCustomerId}
@@ -504,7 +504,7 @@ export default function FnbStandingOrders() {
                                       className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg"
                                     >
                                       <div className="flex-1">
-                                        <SearchableSelect
+                                        <ResponsiveSearchableSelect
                                           options={productOptions}
                                           value={item.product_id}
                                           onValueChange={v => handleUpdateItem(item.originalIndex, 'product_id', v)}

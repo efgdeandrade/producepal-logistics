@@ -213,7 +213,7 @@ export default function FnbAnalytics() {
 
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background">
-      <div className="container py-6 space-y-6">
+      <div className="px-4 md:container py-6 space-y-6 w-full max-w-full overflow-x-hidden">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
             <Link to="/distribution">

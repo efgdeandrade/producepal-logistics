@@ -967,7 +967,7 @@ const PICKER_UNITS = [
         onDismiss={dismissNotification}
       />
       
-      <main className="container py-4 max-w-7xl">
+      <main className="px-4 md:container py-4 max-w-7xl w-full overflow-x-hidden">
         {/* Header with Session Info */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-3">

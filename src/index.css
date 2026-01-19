@@ -244,3 +244,18 @@ All colors MUST be HSL.
   min-height: 48px;
   touch-action: manipulation;
 }
+
+/* Global mobile overflow prevention */
+@media (max-width: 768px) {
+  html, body, #root {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+  
+  /* Ensure all main containers respect mobile bounds */
+  .container {
+    max-width: 100%;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
