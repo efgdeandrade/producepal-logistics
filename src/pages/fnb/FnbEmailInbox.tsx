@@ -183,7 +183,40 @@ export default function FnbEmailInbox() {
       
       if (error) {
         console.error('Sync error:', error);
-        toast.error('Failed to sync emails');
+        // Check for auth-related errors
+        const errorMessage = error.message || '';
+        if (errorMessage.includes('authentication') || errorMessage.includes('invalid_grant') || errorMessage.includes('OAuth')) {
+          toast.error('Gmail connection expired', {
+            description: 'Please reconnect Gmail in Settings → Integrations → Gmail',
+            duration: 8000,
+          });
+        } else if (errorMessage.includes('No Gmail connected')) {
+          toast.error('Gmail not connected', {
+            description: 'Connect Gmail in Settings → Integrations',
+            duration: 5000,
+          });
+        } else {
+          toast.error('Failed to sync emails');
+        }
+        return;
+      }
+
+      // Check for error in response body
+      if (data?.success === false) {
+        const errorMsg = data.error || '';
+        if (errorMsg.includes('authentication') || errorMsg.includes('OAuth') || errorMsg.includes('credential')) {
+          toast.error('Gmail connection expired', {
+            description: 'Please reconnect Gmail in Settings → Integrations → Gmail',
+            duration: 8000,
+          });
+        } else if (errorMsg.includes('No Gmail connected')) {
+          toast.error('Gmail not connected', {
+            description: 'Connect Gmail in Settings → Integrations',
+            duration: 5000,
+          });
+        } else {
+          toast.error(errorMsg || 'Failed to sync emails');
+        }
         return;
       }
       
