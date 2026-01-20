@@ -382,6 +382,87 @@ export function useConversationImport() {
     return { matched, unmatched };
   }, [matchItem]);
 
+  // Smart product selection for AI - ensures relevant products are included
+  const selectProductsForAI = useCallback((
+    allProducts: Product[],
+    text: string,
+    customerPatterns: CustomerPattern[],
+    globalAliases: { alias: string; product_id: string }[],
+    maxProducts: number = 60
+  ): Product[] => {
+    const textLower = text.toLowerCase();
+    const selectedIds = new Set<string>();
+    const selected: Product[] = [];
+    
+    // 1. Add customer's frequently ordered products first (up to 15)
+    for (const pattern of customerPatterns.slice(0, 15)) {
+      const product = allProducts.find(p => p.id === pattern.product_id);
+      if (product && !selectedIds.has(product.id)) {
+        selectedIds.add(product.id);
+        selected.push(product);
+      }
+    }
+    
+    // 2. Add products that appear in the text (substring match on first 4+ chars)
+    for (const product of allProducts) {
+      if (selected.length >= maxProducts) break;
+      if (selectedIds.has(product.id)) continue;
+      
+      const namesToCheck = [
+        product.name,
+        product.name_pap,
+        product.name_nl,
+        product.name_es,
+        product.code
+      ].filter(Boolean).map(n => n!.toLowerCase());
+      
+      for (const name of namesToCheck) {
+        // Check if product name (4+ chars) appears in text or vice versa
+        const namePrefix = name.slice(0, Math.min(4, name.length));
+        const nameWords = name.split(/\s+/);
+        
+        // Match if text contains product name prefix OR any significant word from name
+        const textMatch = textLower.includes(namePrefix) || 
+          nameWords.some(word => word.length >= 4 && textLower.includes(word));
+        
+        // Also check if any text word appears in the product name
+        const textWords = textLower.split(/\s+/).filter(w => w.length >= 3);
+        const reverseMatch = textWords.some(word => name.includes(word));
+        
+        if (textMatch || reverseMatch) {
+          selectedIds.add(product.id);
+          selected.push(product);
+          break;
+        }
+      }
+    }
+    
+    // 3. Add products with global aliases that match text
+    for (const alias of globalAliases) {
+      if (selected.length >= maxProducts) break;
+      const aliasLower = alias.alias.toLowerCase();
+      if (textLower.includes(aliasLower.slice(0, 4))) {
+        const product = allProducts.find(p => p.id === alias.product_id);
+        if (product && !selectedIds.has(product.id)) {
+          selectedIds.add(product.id);
+          selected.push(product);
+        }
+      }
+    }
+    
+    // 4. Fill remaining slots with distributed alphabetical products for coverage
+    const remaining = maxProducts - selected.length;
+    if (remaining > 0) {
+      const unselected = allProducts.filter(p => !selectedIds.has(p.id));
+      const step = Math.max(1, Math.floor(unselected.length / remaining));
+      for (let i = 0; i < unselected.length && selected.length < maxProducts; i += step) {
+        selected.push(unselected[i]);
+      }
+    }
+    
+    return selected;
+  }, []);
+
   // Helper to wrap promise with timeout
   const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> => {
     return Promise.race([
@@ -479,8 +560,8 @@ export function useConversationImport() {
           // Check if this is a simple order (few unmatched items)
           const isSimple = unmatched.length <= 3;
           
-          // Only send top 40 products to AI for speed
-          const topProducts = products.slice(0, 40);
+          // Smart product selection - includes text-matched and customer-frequent products
+          const topProducts = selectProductsForAI(products, text, customerPatterns, globalAliases, 60);
           
           try {
             // Wrap with 12 second client-side timeout - fail fast
@@ -596,8 +677,8 @@ export function useConversationImport() {
         const lineCount = text.split('\n').filter(l => l.trim() && /\d/.test(l)).length;
         const isSimple = lineCount <= 3;
         
-        // Only send top 40 products to AI for speed
-        const topProducts = products.slice(0, 40);
+        // Smart product selection - includes text-matched and customer-frequent products
+        const topProducts = selectProductsForAI(products, text, customerPatterns, globalAliases, 60);
         
         try {
           // Wrap with 30 second client-side timeout
