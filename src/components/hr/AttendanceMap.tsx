@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useMapboxToken } from "@/hooks/useMapboxToken";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -38,24 +39,7 @@ export function AttendanceMap() {
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [mapToken, setMapToken] = useState<string | null>(null);
-
-  // Fetch Mapbox token
-  useEffect(() => {
-    const fetchToken = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke(
-          "get-mapbox-token"
-        );
-        if (!error && data?.token) {
-          setMapToken(data.token);
-        }
-      } catch (err) {
-        console.error("Failed to fetch Mapbox token:", err);
-      }
-    };
-    fetchToken();
-  }, []);
+  const { token: mapToken } = useMapboxToken();
 
   const { data: locations, isLoading } = useQuery({
     queryKey: ["attendance-locations", selectedDate.toISOString()],
@@ -157,15 +141,7 @@ export function AttendanceMap() {
     }
   }, [locations]);
 
-  if (!mapToken) {
-    return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </CardContent>
-      </Card>
-    );
-  }
+  // Map initializes immediately with fallback token - no loading needed
 
   return (
     <Card>

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { useMapboxToken } from '@/hooks/useMapboxToken';
 import {
   Dialog,
   DialogContent,
@@ -11,7 +12,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { MapPin, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { MapPin, Loader2 } from 'lucide-react';
 
 interface DeliveryZone {
   id: string;
@@ -83,16 +84,14 @@ export function CustomerLocationPicker({
   const map = useRef<mapboxgl.Map | null>(null);
   const marker = useRef<mapboxgl.Marker | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
-  const [mapToken, setMapToken] = useState<string | null>(null);
-  const [mapError, setMapError] = useState<string | null>(null);
-  const [tokenLoading, setTokenLoading] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [detectedZone, setDetectedZone] = useState<{
     name: string;
     majorZoneId?: string;
     majorZoneName?: string;
   } | null>(null);
-  const retryCount = useRef(0);
+  
+  const { token: mapToken } = useMapboxToken();
 
   // Fetch zones for display and detection
   const { data: zones } = useQuery({
@@ -107,62 +106,11 @@ export function CustomerLocationPicker({
     },
   });
 
-  // Fetch Mapbox token when dialog opens
-  const fetchMapToken = async (retry = false) => {
-    if (retry) {
-      retryCount.current += 1;
-    } else {
-      retryCount.current = 0;
-    }
-    
-    setTokenLoading(true);
-    setMapError(null);
-    
-    try {
-      console.log('[MapToken] Fetching token, attempt:', retryCount.current + 1);
-      const { data, error } = await supabase.functions.invoke('get-mapbox-token');
-      
-      if (error) {
-        console.error('[MapToken] Function error:', error);
-        if (retryCount.current < 2) {
-          // Auto-retry once after a delay
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          return fetchMapToken(true);
-        }
-        setMapError('Failed to load map. Check your connection and try again.');
-        return;
-      }
-      
-      if (data?.token) {
-        console.log('[MapToken] Token received successfully');
-        setMapToken(data.token);
-      } else if (data?.error) {
-        console.error('[MapToken] Token error:', data.error);
-        setMapError(data.error === 'Mapbox token not configured' 
-          ? 'Map is not configured. Please add your Mapbox token in backend secrets.'
-          : data.error);
-      } else {
-        console.error('[MapToken] Invalid response:', data);
-        setMapError('Invalid token response');
-      }
-    } catch (err) {
-      console.error('[MapToken] Fetch error:', err);
-      if (retryCount.current < 2) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        return fetchMapToken(true);
-      }
-      setMapError('Failed to connect to map service');
-    } finally {
-      setTokenLoading(false);
-    }
-  };
-
   // Reset state when dialog opens
   useEffect(() => {
     if (open) {
       // Reset all state when opening
       setDetectedZone(null);
-      setMapError(null);
       setMapLoaded(false);
       
       // Set initial location if provided
@@ -171,15 +119,6 @@ export function CustomerLocationPicker({
       } else {
         setSelectedLocation(null);
       }
-      
-      // Delay token fetch slightly to ensure dialog container is ready
-      const timer = setTimeout(() => {
-        if (!mapToken) {
-          fetchMapToken();
-        }
-      }, 150);
-      
-      return () => clearTimeout(timer);
     } else {
       // Full cleanup when closing
       marker.current?.remove();
@@ -191,7 +130,7 @@ export function CustomerLocationPicker({
     }
   }, [open]);
 
-  // Initialize map when token is available
+  // Initialize map when dialog opens and token is available
   useEffect(() => {
     if (!open || !mapContainer.current || map.current || !mapToken) return;
 
@@ -229,11 +168,6 @@ export function CustomerLocationPicker({
           setSelectedLocation({ lat: initialLocation.lat, lng: initialLocation.lng });
         }
       }, 100);
-    });
-
-    map.current.on('error', (e) => {
-      console.error('[Map] Mapbox error:', e);
-      setMapError('Map failed to load. Check token or network.');
     });
 
     // Click to place marker
@@ -442,36 +376,19 @@ export function CustomerLocationPicker({
           <div ref={mapContainer} className="absolute inset-0" />
           
           {/* Loading state */}
-          {(tokenLoading || (!mapLoaded && !mapError && mapToken)) && (
+          {!mapLoaded && mapToken && (
             <div className="absolute inset-0 flex items-center justify-center bg-muted">
               <div className="flex flex-col items-center gap-2">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">
-                  {tokenLoading ? 'Loading map configuration...' : 'Initializing map...'}
+                  Initializing map...
                 </span>
               </div>
             </div>
           )}
 
-          {/* Error state */}
-          {mapError && (
-            <div className="absolute inset-0 flex items-center justify-center bg-muted">
-              <div className="flex flex-col items-center gap-3 text-center p-4">
-                <AlertTriangle className="h-10 w-10 text-destructive" />
-                <div className="space-y-1">
-                  <p className="font-medium text-destructive">Map Failed to Load</p>
-                  <p className="text-sm text-muted-foreground max-w-xs">{mapError}</p>
-                </div>
-                <Button variant="outline" size="sm" onClick={() => fetchMapToken()}>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Retry
-                </Button>
-              </div>
-            </div>
-          )}
-
           {/* Instructions overlay - only show when map is loaded */}
-          {mapLoaded && !mapError && (
+          {mapLoaded && (
             <div className="absolute top-3 left-3 bg-background/90 backdrop-blur-sm px-3 py-2 rounded-md text-sm shadow">
               Click on the map to place a pin, or drag the marker to adjust
             </div>

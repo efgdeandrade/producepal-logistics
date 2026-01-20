@@ -4,6 +4,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Undo2, Trash2, Check, MousePointer2 } from "lucide-react";
+import { useMapboxToken } from "@/hooks/useMapboxToken";
 
 // Curaçao coordinates
 const CURACAO_CENTER: [number, number] = [-68.9900, 12.1696];
@@ -61,6 +62,8 @@ export default function PolygonDrawingMap({
   const [mapLoaded, setMapLoaded] = useState(false);
   const [vertices, setVertices] = useState<[number, number][]>(initialPolygon || []);
   const [isDrawing, setIsDrawing] = useState(!initialPolygon || initialPolygon.length === 0);
+  
+  const { token } = useMapboxToken();
 
   // Sync vertices state with initialPolygon prop changes
   useEffect(() => {
@@ -75,9 +78,9 @@ export default function PolygonDrawingMap({
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || map.current) return;
+    if (!mapContainer.current || map.current || !token) return;
 
-    mapboxgl.accessToken = "pk.eyJ1IjoiZnVpayIsImEiOiJjbWppanJ1NmgxczhlM2VvdHVvYWdrdTk4In0.PMmNjfuH2z3Rg26Idf0mjg";
+    mapboxgl.accessToken = token;
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
@@ -97,7 +100,7 @@ export default function PolygonDrawingMap({
       map.current?.remove();
       map.current = null;
     };
-  }, []);
+  }, [token]);
 
   // Render existing zones as reference layers (reactive effect)
   useEffect(() => {

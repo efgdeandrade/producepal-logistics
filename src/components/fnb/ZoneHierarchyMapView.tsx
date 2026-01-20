@@ -4,6 +4,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Users, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useMapboxToken } from "@/hooks/useMapboxToken";
 
 // Curaçao coordinates
 const CURACAO_CENTER: [number, number] = [-68.9900, 12.1696];
@@ -85,15 +86,16 @@ export default function ZoneHierarchyMapView({
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [expandedMajorZones, setExpandedMajorZones] = useState<Set<string>>(new Set());
+  const { token } = useMapboxToken();
 
   const majorZones = zones.filter((z) => z.zone_type === "major");
   const subZones = zones.filter((z) => z.zone_type === "sub");
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || map.current) return;
+    if (!mapContainer.current || map.current || !token) return;
 
-    mapboxgl.accessToken = "pk.eyJ1IjoiZnVpayIsImEiOiJjbWppanJ1NmgxczhlM2VvdHVvYWdrdTk4In0.PMmNjfuH2z3Rg26Idf0mjg";
+    mapboxgl.accessToken = token;
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
@@ -119,7 +121,7 @@ export default function ZoneHierarchyMapView({
       map.current?.remove();
       map.current = null;
     };
-  }, []);
+  }, [token]);
 
   // Draw zones
   useEffect(() => {
