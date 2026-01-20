@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useMapboxToken } from "@/hooks/useMapboxToken";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -69,13 +70,13 @@ const FnbDispatch = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const { token: mapToken } = useMapboxToken();
   
   const [selectedDate, setSelectedDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
   const [assignments, setAssignments] = useState<RouteAssignment[]>([]);
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState<string | null>(null);
-  const [draggedOrder, setDraggedOrder] = useState<{ orderId: string; fromDriver: string } | null>(null);
 
   // Fetch ready orders
   const { data: readyOrders = [], isLoading: ordersLoading } = useQuery({
@@ -141,27 +142,21 @@ const FnbDispatch = () => {
 
   // Initialize map
   useEffect(() => {
-    const initMap = async () => {
-      if (!mapContainer.current || map.current) return;
+    if (!mapContainer.current || map.current || !mapToken) return;
 
-      const { data } = await supabase.functions.invoke("get-mapbox-token");
-      if (!data?.token) return;
+    mapboxgl.accessToken = mapToken;
+    
+    map.current = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: "mapbox://styles/mapbox/light-v11",
+      center: [-68.9900, 12.1696],
+      zoom: 11
+    });
 
-      mapboxgl.accessToken = data.token;
-      
-      map.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: "mapbox://styles/mapbox/light-v11",
-        center: [-68.9900, 12.1696],
-        zoom: 11
-      });
+    map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
 
-      map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
-    };
-
-    initMap();
     return () => { map.current?.remove(); map.current = null; };
-  }, []);
+  }, [mapToken]);
 
   // Update map markers
   useEffect(() => {

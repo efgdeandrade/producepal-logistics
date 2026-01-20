@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { useMapboxToken } from '@/hooks/useMapboxToken';
 
 interface Order {
   id: string;
@@ -39,27 +38,7 @@ export default function DriverMap({
   const map = useRef<mapboxgl.Map | null>(null);
   const driverMarker = useRef<mapboxgl.Marker | null>(null);
   const orderMarkers = useRef<Map<string, mapboxgl.Marker>>(new Map());
-  const [mapToken, setMapToken] = useState<string | null>(null);
-  const [mapError, setMapError] = useState<string | null>(null);
-
-  // Fetch Mapbox token from edge function
-  useEffect(() => {
-    async function fetchToken() {
-      try {
-        const { data, error } = await supabase.functions.invoke('get-mapbox-token');
-        if (error) throw error;
-        if (data?.token) {
-          setMapToken(data.token);
-        } else {
-          setMapError('Mapbox token not configured');
-        }
-      } catch (err) {
-        console.error('Failed to fetch Mapbox token:', err);
-        setMapError('Failed to load map');
-      }
-    }
-    fetchToken();
-  }, []);
+  const { token: mapToken } = useMapboxToken();
 
   // Initialize map
   useEffect(() => {
@@ -221,24 +200,7 @@ export default function DriverMap({
     }
   }, [selectedOrder, orders]);
 
-  if (mapError) {
-    return (
-      <div className="h-full w-full flex items-center justify-center bg-muted">
-        <div className="text-center p-4">
-          <p className="text-muted-foreground">{mapError}</p>
-          <p className="text-sm text-muted-foreground mt-2">Add MAPBOX_PUBLIC_TOKEN to secrets</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!mapToken) {
-    return (
-      <div className="h-full w-full flex items-center justify-center bg-muted">
-        <div className="animate-pulse text-muted-foreground">Loading map...</div>
-      </div>
-    );
-  }
+  // Map will initialize with fallback token immediately - no loading state needed
 
   return (
     <div ref={mapContainer} className="h-full w-full" />
