@@ -11,11 +11,13 @@ import {
   SidebarMenuItem,
   SidebarFooter,
 } from '@/components/ui/sidebar';
+import { useEmailInboxCount } from '@/hooks/useEmailInboxCount';
 
 export interface PortalNavItem {
   path: string;
   label: string;
   icon: LucideIcon;
+  showBadge?: boolean;
 }
 
 interface PortalSidebarProps {
@@ -27,6 +29,7 @@ interface PortalSidebarProps {
 
 export function PortalSidebar({ portalName, portalPath, portalIcon, navItems }: PortalSidebarProps) {
   const location = useLocation();
+  const { unreadCount } = useEmailInboxCount();
   
   const isActive = (path: string) => {
     if (path === portalPath) {
@@ -49,6 +52,7 @@ export function PortalSidebar({ portalName, portalPath, portalIcon, navItems }: 
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.path);
+            const showBadge = item.showBadge && unreadCount > 0;
             
             return (
               <SidebarMenuItem key={item.path}>
@@ -63,7 +67,17 @@ export function PortalSidebar({ portalName, portalPath, portalIcon, navItems }: 
                     )}
                   >
                     <Icon className="h-4 w-4" />
-                    <span>{item.label}</span>
+                    <span className="flex-1">{item.label}</span>
+                    {showBadge && (
+                      <span className={cn(
+                        "min-w-[20px] h-[20px] flex items-center justify-center rounded-full text-[11px] font-bold px-1",
+                        active 
+                          ? "bg-primary-foreground text-primary" 
+                          : "bg-destructive text-destructive-foreground"
+                      )}>
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
