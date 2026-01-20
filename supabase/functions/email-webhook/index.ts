@@ -76,9 +76,9 @@ serve(async (req) => {
     const lastHistoryId = credentials.history_id || historyId;
     console.log(`Fetching history from ${lastHistoryId}`);
 
-    // Fetch recent unread messages from inbox
+    // Fetch recent messages from inbox (not just unread - check DB for processed status)
     const listResponse = await fetch(
-      `https://www.googleapis.com/gmail/v1/users/me/messages?labelIds=INBOX&q=is:unread&maxResults=10`,
+      `https://www.googleapis.com/gmail/v1/users/me/messages?labelIds=INBOX&maxResults=20`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
 

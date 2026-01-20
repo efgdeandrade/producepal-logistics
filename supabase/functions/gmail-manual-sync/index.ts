@@ -49,16 +49,26 @@ serve(async (req) => {
       }
     }
 
-    // Fetch recent unread messages from inbox
+    // Fetch recent messages from inbox (not just unread - we filter by processed status in our DB)
+    console.log("Fetching messages from Gmail API...");
     const listResponse = await fetch(
-      `https://www.googleapis.com/gmail/v1/users/me/messages?labelIds=INBOX&q=is:unread&maxResults=20`,
+      `https://www.googleapis.com/gmail/v1/users/me/messages?labelIds=INBOX&maxResults=50`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
 
     const listData = await listResponse.json();
+    console.log("Gmail API response:", JSON.stringify(listData).substring(0, 500));
+
+    if (listData.error) {
+      console.error("Gmail API error:", listData.error);
+      return new Response(
+        JSON.stringify({ success: false, error: listData.error.message, newEmailCount: 0 }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+      );
+    }
 
     if (!listData.messages || listData.messages.length === 0) {
-      console.log("No new messages");
+      console.log("No messages found in inbox");
       return new Response(
         JSON.stringify({ success: true, newEmailCount: 0, message: "No new emails" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
