@@ -37,7 +37,7 @@ const distributionNavItems: PortalNavItem[] = [
   { path: '/distribution', label: 'Dashboard', icon: Home },
   { path: '/distribution/orders/new', label: 'New Order', icon: ShoppingCart },
   { path: '/distribution/orders', label: 'All Orders', icon: ClipboardPaste },
-  { path: '/distribution/email-inbox', label: 'Email Inbox', icon: Mail },
+  { path: '/distribution/email-inbox', label: 'Email Inbox', icon: Mail, showBadge: true },
   { path: '/distribution/weekly', label: 'Weekly Board', icon: Calendar },
   { path: '/distribution/standing-orders', label: 'Standing Orders', icon: Repeat },
   { path: '/distribution/picker', label: 'Picker Station', icon: Box },
