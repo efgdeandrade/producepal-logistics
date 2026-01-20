@@ -88,23 +88,26 @@ export function MobileProductCard({
       className
     )}>
       <CardContent className="p-4 space-y-4">
-        {/* Header: Raw text + Badge + Remove */}
-        <div className="flex items-start justify-between gap-2 min-w-0 overflow-hidden">
-          <div className="flex-1 min-w-0 overflow-hidden">
-            <p className="text-sm text-muted-foreground italic truncate">
+        {/* Header: Raw text + Remove button, Badge below */}
+        <div className="space-y-2">
+          {/* First row: Raw text + Delete button */}
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm text-muted-foreground italic line-clamp-2 flex-1 min-w-0">
               "{rawText}"
             </p>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            {getConfidenceBadge()}
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
               onClick={onRemove}
             >
               <X className="h-4 w-4" />
             </Button>
+          </div>
+          
+          {/* Second row: Confidence badge */}
+          <div className="flex">
+            {getConfidenceBadge()}
           </div>
         </div>
 
