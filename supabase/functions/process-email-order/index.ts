@@ -141,39 +141,44 @@ serve(async (req) => {
       .select("*")
       .eq("email_id", emailId);
 
+    console.log(`Found ${attachments?.length || 0} attachments for email ${emailId}`);
+    
     if (attachments && attachments.length > 0) {
       for (const attachment of attachments) {
-        console.log(`Processing attachment: ${attachment.file_name}`);
+        console.log(`Processing attachment: ${attachment.filename} (${attachment.mime_type})`);
         
         const { data: fileData, error: downloadError } = await supabase.storage
           .from("email-attachments")
           .download(attachment.storage_path);
 
         if (downloadError) {
-          console.error(`Failed to download attachment: ${downloadError.message}`);
+          console.error(`Failed to download attachment ${attachment.filename}: ${downloadError.message}`);
           continue;
         }
 
         const arrayBuffer = await fileData.arrayBuffer();
         const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+        console.log(`Attachment ${attachment.filename} downloaded, size: ${arrayBuffer.byteLength} bytes`);
 
         if (attachment.mime_type.includes("pdf") || 
             attachment.mime_type.includes("spreadsheet") ||
             attachment.mime_type.includes("excel") ||
-            attachment.file_name.endsWith(".xlsx") ||
-            attachment.file_name.endsWith(".xls") ||
-            attachment.file_name.endsWith(".csv")) {
+            attachment.filename.endsWith(".xlsx") ||
+            attachment.filename.endsWith(".xls") ||
+            attachment.filename.endsWith(".csv")) {
           
           try {
+            console.log(`Invoking parse-purchase-order for ${attachment.filename}`);
             const parseResponse = await supabase.functions.invoke("parse-purchase-order", {
               body: {
                 file_base64: base64,
                 file_type: attachment.mime_type,
-                file_name: attachment.file_name,
+                file_name: attachment.filename,
               },
             });
 
             if (parseResponse.data) {
+              console.log(`Successfully parsed attachment ${attachment.filename}`);
               attachmentContents.push(`\n--- Attachment: ${attachment.file_name} ---\n${JSON.stringify(parseResponse.data, null, 2)}`);
             }
           } catch (parseError) {
