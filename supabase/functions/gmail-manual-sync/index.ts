@@ -44,6 +44,43 @@ serve(async (req) => {
       const refreshResponse = await supabase.functions.invoke("gmail-refresh-token", {
         body: { credentialId: credentials.id },
       });
+      
+      // Check for auth errors
+      if (refreshResponse.error) {
+        const errorMessage = refreshResponse.error.message || '';
+        console.error("Token refresh error:", errorMessage);
+        
+        // Check for invalid_grant or other auth failures
+        if (errorMessage.includes('invalid_grant') || 
+            errorMessage.includes('invalid_rapt') ||
+            errorMessage.includes('Token refresh failed')) {
+          // Mark credential as needing reauth
+          await supabase
+            .from("gmail_credentials")
+            .update({
+              needs_reauth: true,
+              last_error: "Authentication expired - re-authorization required",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", credentials.id);
+          
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: "REAUTH_REQUIRED",
+              message: "Gmail session expired. Please reconnect your Gmail account in Settings → Integrations.",
+              newEmailCount: 0 
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+          );
+        }
+        
+        return new Response(
+          JSON.stringify({ success: false, error: errorMessage, newEmailCount: 0 }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+        );
+      }
+      
       if (refreshResponse.data?.accessToken) {
         accessToken = refreshResponse.data.accessToken;
       }
@@ -218,6 +255,16 @@ serve(async (req) => {
     }
 
     console.log(`Manual sync complete: ${newEmailCount} new emails processed`);
+
+    // Update last_sync_at timestamp and clear any previous errors
+    await supabase
+      .from("gmail_credentials")
+      .update({
+        last_sync_at: new Date().toISOString(),
+        last_error: null,
+        needs_reauth: false,
+      })
+      .eq("id", credentials.id);
 
     return new Response(
       JSON.stringify({ success: true, newEmailCount, message: `Synced ${newEmailCount} new email(s)` }),

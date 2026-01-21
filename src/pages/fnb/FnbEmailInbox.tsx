@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Mail,
   Search,
@@ -21,9 +22,11 @@ import {
   Loader2,
   ArrowLeft,
   Bell,
+  ShieldAlert,
+  Settings,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { EmailDetailDialog } from '@/components/fnb/EmailDetailDialog';
@@ -73,12 +76,48 @@ const statusConfig: Record<EmailStatus, { label: string; color: string; icon: an
 };
 
 export default function FnbEmailInbox() {
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedEmail, setSelectedEmail] = useState<EmailInboxItem | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const queryClient = useQueryClient();
+
+  // Query for Gmail credential status (needs_reauth check)
+  const { data: gmailStatus } = useQuery({
+    queryKey: ['gmail-credential-status'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('gmail_credentials')
+        .select('is_active, needs_reauth, last_error, token_expiry, watch_expiration')
+        .limit(1)
+        .maybeSingle();
+      
+      if (error) {
+        console.error('Error fetching Gmail status:', error);
+        return null;
+      }
+      
+      if (!data) return { connected: false };
+      
+      const isTokenExpired = data.token_expiry 
+        ? new Date(data.token_expiry) < new Date() 
+        : false;
+      const isWatchExpired = data.watch_expiration
+        ? new Date(data.watch_expiration) < new Date()
+        : false;
+      
+      return { 
+        connected: data.is_active, 
+        needsReauth: data.needs_reauth || isTokenExpired,
+        isWatchExpired,
+        lastError: data.last_error,
+      };
+    },
+    staleTime: 30000,
+    refetchInterval: 60000,
+  });
 
   // Use realtime hook
   useEmailInboxRealtime({
@@ -190,6 +229,7 @@ export default function FnbEmailInbox() {
             description: 'Please reconnect Gmail in Settings → Integrations → Gmail',
             duration: 8000,
           });
+          queryClient.invalidateQueries({ queryKey: ['gmail-credential-status'] });
         } else if (errorMessage.includes('No Gmail connected')) {
           toast.error('Gmail not connected', {
             description: 'Connect Gmail in Settings → Integrations',
@@ -201,15 +241,24 @@ export default function FnbEmailInbox() {
         return;
       }
 
+      // Check for REAUTH_REQUIRED error code
+      if (data?.error === 'REAUTH_REQUIRED') {
+        toast.error('Gmail session expired', {
+          description: 'Your Workspace security policy requires re-authentication.',
+          action: {
+            label: 'Reconnect',
+            onClick: () => navigate('/settings/integrations/gmail'),
+          },
+          duration: 10000,
+        });
+        queryClient.invalidateQueries({ queryKey: ['gmail-credential-status'] });
+        return;
+      }
+
       // Check for error in response body
       if (data?.success === false) {
         const errorMsg = data.error || '';
-        if (errorMsg.includes('authentication') || errorMsg.includes('OAuth') || errorMsg.includes('credential')) {
-          toast.error('Gmail connection expired', {
-            description: 'Please reconnect Gmail in Settings → Integrations → Gmail',
-            duration: 8000,
-          });
-        } else if (errorMsg.includes('No Gmail connected')) {
+        if (errorMsg.includes('No Gmail connected')) {
           toast.error('Gmail not connected', {
             description: 'Connect Gmail in Settings → Integrations',
             duration: 5000,
@@ -228,6 +277,7 @@ export default function FnbEmailInbox() {
       
       refetch();
       queryClient.invalidateQueries({ queryKey: ['email-inbox-counts'] });
+      queryClient.invalidateQueries({ queryKey: ['gmail-credential-status'] });
     } catch (err) {
       console.error('Sync error:', err);
       toast.error('Failed to sync emails');
@@ -238,6 +288,44 @@ export default function FnbEmailInbox() {
 
   return (
     <div className="px-4 md:container py-6 space-y-6 max-w-6xl w-full overflow-x-hidden">
+      {/* Gmail Auth Warning Banner */}
+      {gmailStatus?.needsReauth && (
+        <Alert variant="destructive">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>Gmail connection expired. Re-authentication required to continue syncing emails.</span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigate('/settings/integrations/gmail')}
+              className="ml-4 shrink-0"
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Reconnect Gmail
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Watch Expired Warning */}
+      {gmailStatus?.connected && !gmailStatus?.needsReauth && gmailStatus?.isWatchExpired && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>Email push notifications have expired. Click Sync to fetch new emails manually, or renew the watch in settings.</span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigate('/settings/integrations/gmail')}
+              className="ml-4 shrink-0"
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link to="/distribution">
@@ -252,7 +340,7 @@ export default function FnbEmailInbox() {
             <p className="text-muted-foreground">Incoming order emails from customers</p>
           </div>
         </div>
-        <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isSyncing}>
+        <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isSyncing || gmailStatus?.needsReauth}>
           <RefreshCw className={cn("h-4 w-4 mr-2", isSyncing && "animate-spin")} />
           {isSyncing ? 'Syncing...' : 'Sync Emails'}
         </Button>

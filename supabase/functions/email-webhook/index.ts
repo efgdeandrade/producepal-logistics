@@ -67,6 +67,33 @@ serve(async (req) => {
       const refreshResponse = await supabase.functions.invoke("gmail-refresh-token", {
         body: { credentialId: credentials.id },
       });
+      
+      // Check for auth errors - mark credential and continue to acknowledge Pub/Sub
+      if (refreshResponse.error) {
+        const errorMessage = refreshResponse.error.message || '';
+        console.error("Token refresh error in webhook:", errorMessage);
+        
+        if (errorMessage.includes('invalid_grant') || 
+            errorMessage.includes('invalid_rapt') ||
+            errorMessage.includes('Token refresh failed')) {
+          // Mark credential as needing reauth
+          await supabase
+            .from("gmail_credentials")
+            .update({
+              needs_reauth: true,
+              last_error: "Authentication expired - re-authorization required",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", credentials.id);
+          
+          console.error("Gmail auth failed, marked for reauth");
+          // Still return 200 to acknowledge Pub/Sub
+          return new Response(JSON.stringify({ success: true, error: "REAUTH_REQUIRED" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+      
       if (refreshResponse.data?.accessToken) {
         accessToken = refreshResponse.data.accessToken;
       }
@@ -231,10 +258,14 @@ serve(async (req) => {
       }
     }
 
-    // Update history ID
+    // Update history ID and last sync timestamp
     await supabase
       .from("gmail_credentials")
-      .update({ history_id: historyId })
+      .update({ 
+        history_id: historyId,
+        last_sync_at: new Date().toISOString(),
+        last_error: null,
+      })
       .eq("id", credentials.id);
 
     return new Response(JSON.stringify({ success: true }), {

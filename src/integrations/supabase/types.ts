@@ -3237,6 +3237,9 @@ export type Database = {
           history_id: string | null
           id: string
           is_active: boolean | null
+          last_error: string | null
+          last_sync_at: string | null
+          needs_reauth: boolean | null
           refresh_token: string
           token_expiry: string
           updated_at: string
@@ -3249,6 +3252,9 @@ export type Database = {
           history_id?: string | null
           id?: string
           is_active?: boolean | null
+          last_error?: string | null
+          last_sync_at?: string | null
+          needs_reauth?: boolean | null
           refresh_token: string
           token_expiry: string
           updated_at?: string
@@ -3261,6 +3267,9 @@ export type Database = {
           history_id?: string | null
           id?: string
           is_active?: boolean | null
+          last_error?: string | null
+          last_sync_at?: string | null
+          needs_reauth?: boolean | null
           refresh_token?: string
           token_expiry?: string
           updated_at?: string

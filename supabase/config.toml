@@ -118,10 +118,13 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.gmail-watch-checker]
-verify_jwt = true
+verify_jwt = false
 
 [functions.send-gmail-reply]
 verify_jwt = true
 
 [functions.gmail-manual-sync]
 verify_jwt = true
+
+[functions.gmail-health-monitor]
+verify_jwt = false
