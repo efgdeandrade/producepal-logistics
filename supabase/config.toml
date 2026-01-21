@@ -40,7 +40,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.parse-purchase-order]
-verify_jwt = true
+verify_jwt = false
 
 [functions.optimize-routes]
 verify_jwt = true

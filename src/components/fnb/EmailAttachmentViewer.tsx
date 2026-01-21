@@ -71,6 +71,12 @@ export function EmailAttachmentViewer({ attachments }: EmailAttachmentViewerProp
     const url = await getSignedUrl(attachment.storage_path);
     if (!url) return;
 
+    // PDFs work better in a new tab due to browser iframe restrictions
+    if (attachment.content_type === 'application/pdf') {
+      window.open(url, '_blank');
+      return;
+    }
+
     setPreviewUrl(url);
     setPreviewType(attachment.content_type);
     setPreviewName(attachment.filename);
