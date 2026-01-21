@@ -222,16 +222,23 @@ serve(async (req) => {
 
       // Store attachments in separate table
       if (attachments.length > 0 && emailRecord) {
+        console.log(`Storing ${attachments.length} attachment records for email ${emailRecord.id}`);
         for (const attachment of attachments) {
-          await supabase
+          const { error: attachError } = await supabase
             .from("email_inbox_attachments")
             .insert({
               email_id: emailRecord.id,
-              file_name: attachment.name,
+              filename: attachment.name,           // CORRECT column name
               mime_type: attachment.mimeType,
               storage_path: attachment.storagePath,
-              file_size: 0,
+              size_bytes: 0,                       // CORRECT column name
             });
+          
+          if (attachError) {
+            console.error(`Failed to insert attachment record for ${attachment.name}: ${attachError.message}`);
+          } else {
+            console.log(`Attachment record created for: ${attachment.name}`);
+          }
         }
       }
 
