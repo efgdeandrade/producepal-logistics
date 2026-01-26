@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Package, Users, ShoppingCart, ClipboardList, MessageSquare, TrendingUp, Plus, Truck, Banknote, BarChart3, MapPin, Calendar, Camera, CalendarCheck, DollarSign } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { FnbAlertsCard } from '@/components/fnb/FnbAlertsCard';
+import { DreSalesPerformance } from '@/components/fnb/DreSalesPerformance';
 
 export default function FnbDashboard() {
   const { data: stats, isLoading } = useQuery({
@@ -200,6 +201,11 @@ export default function FnbDashboard() {
         {/* Alerts Card */}
         <div className="mb-6">
           <FnbAlertsCard showAudioAlerts />
+        </div>
+
+        {/* Dre Sales Performance */}
+        <div className="mb-6">
+          <DreSalesPerformance />
         </div>
 
         {/* Recent Orders */}

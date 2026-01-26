@@ -878,6 +878,43 @@ Deno.serve(async (req) => {
             console.error('Error creating order items:', itemsError);
           }
           
+          // Check if this order is a response to Dre's proactive outreach
+          let dreOutreachId: string | null = null;
+          if (customer_id) {
+            const today = new Date().toISOString().split('T')[0];
+            const { data: recentOutreach } = await supabase
+              .from('dre_outreach_log')
+              .select('id, outreach_type')
+              .eq('customer_id', customer_id)
+              .eq('status', 'sent')
+              .gte('sent_at', `${today}T00:00:00`)
+              .order('sent_at', { ascending: false })
+              .limit(1);
+            
+            if (recentOutreach && recentOutreach.length > 0) {
+              dreOutreachId = recentOutreach[0].id;
+              console.log('Order attributed to Dre outreach:', dreOutreachId);
+              
+              // Update outreach log with conversion
+              await supabase
+                .from('dre_outreach_log')
+                .update({
+                  customer_responded: true,
+                  response_at: new Date().toISOString(),
+                  order_generated_id: order.id,
+                  order_revenue: totalAmount,
+                  status: 'converted'
+                })
+                .eq('id', dreOutreachId);
+              
+              // Link order to outreach
+              await supabase
+                .from('distribution_orders')
+                .update({ dre_outreach_id: dreOutreachId })
+                .eq('id', order.id);
+            }
+          }
+          
           // Send confirmation
           const template = isAdditionConfirmation ? RESPONSE_TEMPLATES.addition_confirmed : RESPONSE_TEMPLATES.order_confirmed;
           const confirmMsg = template[language as keyof typeof template];
@@ -910,7 +947,8 @@ Deno.serve(async (req) => {
             order_number: orderNumber,
             parent_order_id: parentOrderId,
             customer_id: customer_id || null,
-            is_new_customer: isNewCustomer
+            is_new_customer: isNewCustomer,
+            dre_attributed: !!dreOutreachId
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });

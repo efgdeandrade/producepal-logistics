@@ -1269,7 +1269,10 @@ export type Database = {
           expected_order_days: number[] | null
           id: string
           last_analyzed_at: string | null
+          order_time_consistency: number | null
           total_orders_analyzed: number | null
+          typical_delivery_type: string | null
+          typical_order_hour: number | null
           typical_order_time: string | null
           updated_at: string | null
         }
@@ -1280,7 +1283,10 @@ export type Database = {
           expected_order_days?: number[] | null
           id?: string
           last_analyzed_at?: string | null
+          order_time_consistency?: number | null
           total_orders_analyzed?: number | null
+          typical_delivery_type?: string | null
+          typical_order_hour?: number | null
           typical_order_time?: string | null
           updated_at?: string | null
         }
@@ -1291,7 +1297,10 @@ export type Database = {
           expected_order_days?: number[] | null
           id?: string
           last_analyzed_at?: string | null
+          order_time_consistency?: number | null
           total_orders_analyzed?: number | null
+          typical_delivery_type?: string | null
+          typical_order_hour?: number | null
           typical_order_time?: string | null
           updated_at?: string | null
         }
@@ -1311,7 +1320,9 @@ export type Database = {
           created_at: string | null
           customer_type: Database["public"]["Enums"]["customer_type"]
           delivery_zone: string | null
+          distance_to_dc_meters: number | null
           id: string
+          is_close_proximity: boolean | null
           latitude: number | null
           longitude: number | null
           major_zone_id: string | null
@@ -1331,7 +1342,9 @@ export type Database = {
           created_at?: string | null
           customer_type?: Database["public"]["Enums"]["customer_type"]
           delivery_zone?: string | null
+          distance_to_dc_meters?: number | null
           id?: string
+          is_close_proximity?: boolean | null
           latitude?: number | null
           longitude?: number | null
           major_zone_id?: string | null
@@ -1351,7 +1364,9 @@ export type Database = {
           created_at?: string | null
           customer_type?: Database["public"]["Enums"]["customer_type"]
           delivery_zone?: string | null
+          distance_to_dc_meters?: number | null
           id?: string
+          is_close_proximity?: boolean | null
           latitude?: number | null
           longitude?: number | null
           major_zone_id?: string | null
@@ -1943,6 +1958,7 @@ export type Database = {
           delivered_at: string | null
           delivery_date: string | null
           delivery_station: string | null
+          dre_outreach_id: string | null
           driver_id: string | null
           driver_name: string | null
           id: string
@@ -1991,6 +2007,7 @@ export type Database = {
           delivered_at?: string | null
           delivery_date?: string | null
           delivery_station?: string | null
+          dre_outreach_id?: string | null
           driver_id?: string | null
           driver_name?: string | null
           id?: string
@@ -2039,6 +2056,7 @@ export type Database = {
           delivered_at?: string | null
           delivery_date?: string | null
           delivery_station?: string | null
+          dre_outreach_id?: string | null
           driver_id?: string | null
           driver_name?: string | null
           id?: string
@@ -2073,6 +2091,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "distribution_orders_dre_outreach_id_fkey"
+            columns: ["dre_outreach_id"]
+            isOneToOne: false
+            referencedRelation: "dre_outreach_log"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "distribution_orders_parent_order_id_fkey"
             columns: ["parent_order_id"]
@@ -2695,6 +2720,82 @@ export type Database = {
           week_start_date?: string
         }
         Relationships: []
+      }
+      dre_outreach_log: {
+        Row: {
+          anomaly_id: string | null
+          created_at: string | null
+          customer_id: string | null
+          customer_responded: boolean | null
+          id: string
+          language: string | null
+          message_sent: string
+          order_generated_id: string | null
+          order_revenue: number | null
+          outreach_timing: string | null
+          outreach_type: string
+          response_at: string | null
+          sent_at: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          anomaly_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          customer_responded?: boolean | null
+          id?: string
+          language?: string | null
+          message_sent: string
+          order_generated_id?: string | null
+          order_revenue?: number | null
+          outreach_timing?: string | null
+          outreach_type: string
+          response_at?: string | null
+          sent_at?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          anomaly_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          customer_responded?: boolean | null
+          id?: string
+          language?: string | null
+          message_sent?: string
+          order_generated_id?: string | null
+          order_revenue?: number | null
+          outreach_timing?: string | null
+          outreach_type?: string
+          response_at?: string | null
+          sent_at?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dre_outreach_log_anomaly_id_fkey"
+            columns: ["anomaly_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_order_anomalies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dre_outreach_log_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_order_generated"
+            columns: ["order_generated_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       driver_availability: {
         Row: {

@@ -134,3 +134,6 @@ verify_jwt = false
 
 [functions.order-session-reminder]
 verify_jwt = false
+
+[functions.dre-proactive-outreach]
+verify_jwt = false
