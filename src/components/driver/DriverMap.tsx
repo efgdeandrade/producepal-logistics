@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
+import { MapLoadingState, WebGLError } from '@/components/maps/MapLoadingState';
+import { isWebGLSupported, escapeHtml, MAP_LOAD_TIMEOUT } from '@/lib/mapUtils';
 
 interface Order {
   id: string;
@@ -12,13 +14,6 @@ interface Order {
     latitude: number | null;
     longitude: number | null;
   } | null;
-}
-
-// Helper to escape HTML to prevent XSS
-function escapeHtml(text: string): string {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
 }
 
 interface DriverMapProps {
@@ -38,47 +33,109 @@ export default function DriverMap({
   const map = useRef<mapboxgl.Map | null>(null);
   const driverMarker = useRef<mapboxgl.Marker | null>(null);
   const orderMarkers = useRef<Map<string, mapboxgl.Marker>>(new Map());
+  
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [webGLSupported, setWebGLSupported] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
+  
   const { token: mapToken } = useMapboxToken();
+
+  // Check WebGL support once on mount
+  useEffect(() => {
+    if (!isWebGLSupported()) {
+      setWebGLSupported(false);
+      setIsLoading(false);
+    }
+  }, []);
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || !mapToken) return;
+    if (!mapContainer.current || !mapToken || !webGLSupported) return;
 
-    mapboxgl.accessToken = mapToken;
+    // Clean up existing map
+    if (map.current) {
+      map.current.remove();
+      map.current = null;
+    }
 
-    // Center on Curaçao
-    const curacaoCenter: [number, number] = [-68.99, 12.17];
+    setIsLoading(true);
+    setError(null);
+    setMapLoaded(false);
 
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: curacaoCenter,
-      zoom: 11,
-      attributionControl: false,
-    });
+    try {
+      mapboxgl.accessToken = mapToken;
 
-    // Add navigation control
-    map.current.addControl(
-      new mapboxgl.NavigationControl({ visualizePitch: false }),
-      'top-right'
-    );
+      // Center on Curaçao
+      const curacaoCenter: [number, number] = [-68.99, 12.17];
 
-    // Add geolocate control
-    const geolocate = new mapboxgl.GeolocateControl({
-      positionOptions: { enableHighAccuracy: true },
-      trackUserLocation: true,
-      showUserHeading: true,
-    });
-    map.current.addControl(geolocate, 'top-right');
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: curacaoCenter,
+        zoom: 11,
+        attributionControl: false,
+      });
+
+      // Set up loading timeout
+      const timeoutId = setTimeout(() => {
+        if (!mapLoaded && map.current) {
+          console.error('[DriverMap] Map load timeout');
+          setError('Map is taking too long to load. Please check your connection.');
+          setIsLoading(false);
+        }
+      }, MAP_LOAD_TIMEOUT);
+
+      // Add navigation control
+      map.current.addControl(
+        new mapboxgl.NavigationControl({ visualizePitch: false }),
+        'top-right'
+      );
+
+      // Add geolocate control
+      const geolocate = new mapboxgl.GeolocateControl({
+        positionOptions: { enableHighAccuracy: true },
+        trackUserLocation: true,
+        showUserHeading: true,
+      });
+      map.current.addControl(geolocate, 'top-right');
+
+      map.current.on('load', () => {
+        clearTimeout(timeoutId);
+        console.log('[DriverMap] Map loaded successfully');
+        setMapLoaded(true);
+        setIsLoading(false);
+        setError(null);
+      });
+
+      map.current.on('error', (e) => {
+        console.error('[DriverMap] Mapbox error:', e);
+        clearTimeout(timeoutId);
+        setError('Map failed to load. Please try again.');
+        setIsLoading(false);
+      });
+    } catch (err) {
+      console.error('[DriverMap] Initialization error:', err);
+      setError('Failed to initialize map. Please refresh the page.');
+      setIsLoading(false);
+    }
 
     return () => {
       map.current?.remove();
+      map.current = null;
     };
-  }, [mapToken]);
+  }, [mapToken, webGLSupported, retryCount]);
+
+  // Retry handler
+  const handleRetry = useCallback(() => {
+    console.log('[DriverMap] Retrying map initialization...');
+    setRetryCount((prev) => prev + 1);
+  }, []);
 
   // Update driver marker
   useEffect(() => {
-    if (!map.current || !driverLocation) return;
+    if (!map.current || !mapLoaded || !driverLocation) return;
 
     if (!driverMarker.current) {
       // Create driver marker with pulsing dot
@@ -101,11 +158,11 @@ export default function DriverMap({
     } else {
       driverMarker.current.setLngLat([driverLocation.lng, driverLocation.lat]);
     }
-  }, [driverLocation]);
+  }, [driverLocation, mapLoaded]);
 
   // Update order markers
   useEffect(() => {
-    if (!map.current) return;
+    if (!map.current || !mapLoaded) return;
 
     // Clear existing markers
     orderMarkers.current.forEach(marker => marker.remove());
@@ -176,11 +233,11 @@ export default function DriverMap({
         });
       }
     }
-  }, [orders, selectedOrder, driverLocation, onSelectOrder]);
+  }, [orders, selectedOrder, driverLocation, onSelectOrder, mapLoaded]);
 
   // Center on selected order
   useEffect(() => {
-    if (!map.current || !selectedOrder) return;
+    if (!map.current || !mapLoaded || !selectedOrder) return;
 
     const order = orders.find(o => o.id === selectedOrder);
     const customer = order?.distribution_customers;
@@ -198,11 +255,25 @@ export default function DriverMap({
         marker.togglePopup();
       }
     }
-  }, [selectedOrder, orders]);
+  }, [selectedOrder, orders, mapLoaded]);
 
-  // Map will initialize with fallback token immediately - no loading state needed
+  // Show WebGL error if not supported
+  if (!webGLSupported) {
+    return (
+      <div className="relative h-full w-full">
+        <WebGLError />
+      </div>
+    );
+  }
 
   return (
-    <div ref={mapContainer} className="h-full w-full" />
+    <div className="relative h-full w-full">
+      <div ref={mapContainer} className="h-full w-full" />
+      <MapLoadingState 
+        isLoading={isLoading} 
+        error={error} 
+        onRetry={handleRetry}
+      />
+    </div>
   );
 }

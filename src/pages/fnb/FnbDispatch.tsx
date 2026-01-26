@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useMapboxToken } from "@/hooks/useMapboxToken";
+import { MapLoadingState, WebGLError } from "@/components/maps/MapLoadingState";
+import { isWebGLSupported, escapeHtml, MAP_LOAD_TIMEOUT } from "@/lib/mapUtils";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -58,13 +60,6 @@ const DRIVER_COLORS = [
   "#8B5CF6", "#EC4899", "#06B6D4", "#F97316"
 ];
 
-// Helper to escape HTML to prevent XSS
-function escapeHtml(text: string): string {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
 const FnbDispatch = () => {
   const queryClient = useQueryClient();
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -77,6 +72,19 @@ const FnbDispatch = () => {
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState<string | null>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
+  const [mapLoading, setMapLoading] = useState(true);
+  const [webGLSupported, setWebGLSupported] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
+
+  // Check WebGL support once on mount
+  useEffect(() => {
+    if (!isWebGLSupported()) {
+      setWebGLSupported(false);
+      setMapLoading(false);
+    }
+  }, []);
 
   // Fetch ready orders
   const { data: readyOrders = [], isLoading: ordersLoading } = useQuery({
@@ -142,21 +150,55 @@ const FnbDispatch = () => {
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || map.current || !mapToken) return;
+    if (!mapContainer.current || map.current || !mapToken || !webGLSupported) return;
 
-    mapboxgl.accessToken = mapToken;
-    
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: "mapbox://styles/mapbox/light-v11",
-      center: [-68.9900, 12.1696],
-      zoom: 11
-    });
+    setMapLoading(true);
+    setMapError(null);
 
-    map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
+    try {
+      mapboxgl.accessToken = mapToken;
+      
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: "mapbox://styles/mapbox/light-v11",
+        center: [-68.9900, 12.1696],
+        zoom: 11
+      });
 
-    return () => { map.current?.remove(); map.current = null; };
-  }, [mapToken]);
+      const timeoutId = setTimeout(() => {
+        if (!mapLoaded && map.current) {
+          setMapError('Map is taking too long to load.');
+          setMapLoading(false);
+        }
+      }, MAP_LOAD_TIMEOUT);
+
+      map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
+
+      map.current.on('load', () => {
+        clearTimeout(timeoutId);
+        setMapLoaded(true);
+        setMapLoading(false);
+      });
+
+      map.current.on('error', () => {
+        clearTimeout(timeoutId);
+        setMapError('Map failed to load. Please try again.');
+        setMapLoading(false);
+      });
+    } catch {
+      setMapError('Failed to initialize map.');
+      setMapLoading(false);
+    }
+
+    return () => { map.current?.remove(); map.current = null; setMapLoaded(false); };
+  }, [mapToken, webGLSupported, retryCount]);
+
+  const handleMapRetry = useCallback(() => {
+    map.current?.remove();
+    map.current = null;
+    setMapLoaded(false);
+    setRetryCount(prev => prev + 1);
+  }, []);
 
   // Update map markers
   useEffect(() => {

@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useMapboxToken } from "@/hooks/useMapboxToken";
+import { MapLoadingState, WebGLError } from "@/components/maps/MapLoadingState";
+import { isWebGLSupported, escapeHtml, MAP_LOAD_TIMEOUT } from "@/lib/mapUtils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -11,17 +13,10 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { format, startOfDay, endOfDay } from "date-fns";
-import { CalendarIcon, MapPin, Loader2 } from "lucide-react";
+import { CalendarIcon, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-
-// Helper to escape HTML to prevent XSS
-function escapeHtml(text: string): string {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
 
 interface AttendanceLocation {
   id: string;
@@ -39,9 +34,15 @@ export function AttendanceMap() {
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [webGLSupported, setWebGLSupported] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
+  
   const { token: mapToken } = useMapboxToken();
 
-  const { data: locations, isLoading } = useQuery({
+  const { data: locations, isLoading: dataLoading } = useQuery({
     queryKey: ["attendance-locations", selectedDate.toISOString()],
     queryFn: async () => {
       const dayStart = startOfDay(selectedDate).toISOString();
@@ -69,30 +70,81 @@ export function AttendanceMap() {
     enabled: !!mapToken,
   });
 
+  // Check WebGL support once on mount
+  useEffect(() => {
+    if (!isWebGLSupported()) {
+      setWebGLSupported(false);
+      setIsLoading(false);
+    }
+  }, []);
+
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || !mapToken || map.current) return;
+    if (!mapContainer.current || !mapToken || !webGLSupported || map.current) return;
 
-    mapboxgl.accessToken = mapToken;
+    setIsLoading(true);
+    setError(null);
 
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: "mapbox://styles/mapbox/light-v11",
-      center: [-61.5, 10.5], // Default to Trinidad
-      zoom: 10,
-    });
+    try {
+      mapboxgl.accessToken = mapToken;
 
-    map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: "mapbox://styles/mapbox/light-v11",
+        center: [-61.5, 10.5], // Default to Trinidad
+        zoom: 10,
+      });
+
+      // Set up loading timeout
+      const timeoutId = setTimeout(() => {
+        if (!mapLoaded && map.current) {
+          console.error('[AttendanceMap] Map load timeout');
+          setError('Map is taking too long to load. Please check your connection.');
+          setIsLoading(false);
+        }
+      }, MAP_LOAD_TIMEOUT);
+
+      map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
+
+      map.current.on('load', () => {
+        clearTimeout(timeoutId);
+        console.log('[AttendanceMap] Map loaded successfully');
+        setMapLoaded(true);
+        setIsLoading(false);
+        setError(null);
+      });
+
+      map.current.on('error', (e) => {
+        console.error('[AttendanceMap] Mapbox error:', e);
+        clearTimeout(timeoutId);
+        setError('Map failed to load. Please try again.');
+        setIsLoading(false);
+      });
+    } catch (err) {
+      console.error('[AttendanceMap] Initialization error:', err);
+      setError('Failed to initialize map. Please refresh the page.');
+      setIsLoading(false);
+    }
 
     return () => {
       map.current?.remove();
       map.current = null;
+      setMapLoaded(false);
     };
-  }, [mapToken]);
+  }, [mapToken, webGLSupported, retryCount]);
+
+  // Retry handler
+  const handleRetry = useCallback(() => {
+    console.log('[AttendanceMap] Retrying map initialization...');
+    map.current?.remove();
+    map.current = null;
+    setMapLoaded(false);
+    setRetryCount((prev) => prev + 1);
+  }, []);
 
   // Update markers when locations change
   useEffect(() => {
-    if (!map.current || !locations) return;
+    if (!map.current || !mapLoaded || !locations) return;
 
     // Clear existing markers
     markersRef.current.forEach((marker) => marker.remove());
@@ -139,9 +191,7 @@ export function AttendanceMap() {
         maxZoom: 15,
       });
     }
-  }, [locations]);
-
-  // Map initializes immediately with fallback token - no loading needed
+  }, [locations, mapLoaded]);
 
   return (
     <Card>
@@ -169,15 +219,21 @@ export function AttendanceMap() {
         </Popover>
       </CardHeader>
       <CardContent>
-        <div className="relative">
-          {isLoading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
+        <div className="relative h-[400px] rounded-lg overflow-hidden">
+          {!webGLSupported ? (
+            <WebGLError />
+          ) : (
+            <>
+              <div ref={mapContainer} className="h-full w-full" />
+              <MapLoadingState 
+                isLoading={isLoading || dataLoading} 
+                error={error} 
+                onRetry={handleRetry}
+              />
+            </>
           )}
-          <div ref={mapContainer} className="h-[400px] rounded-lg" />
-          {locations && locations.length === 0 && !isLoading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/80">
+          {mapLoaded && locations && locations.length === 0 && !dataLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/80 pointer-events-none">
               <p className="text-muted-foreground">
                 No GPS entries for this date
               </p>
