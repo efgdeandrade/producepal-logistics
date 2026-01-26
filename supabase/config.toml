@@ -137,3 +137,6 @@ verify_jwt = false
 
 [functions.dre-proactive-outreach]
 verify_jwt = false
+
+[functions.whatsapp-health-monitor]
+verify_jwt = false
