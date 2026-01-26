@@ -38,8 +38,57 @@ const RESPONSE_TEMPLATES = {
     nl: (name: string) => `Goedendag ${name}! 👋\n\nHoe kan ik u helpen? U kunt uw bestelling sturen of vragen over onze producten.`,
     es: (name: string) => `Buen día ${name}! 👋\n\nCómo puedo ayudarte hoy? Puedes enviar tu pedido o preguntarme sobre nuestros productos.`,
     mixed: (name: string) => `Hello ${name}! 👋\n\nHow can I help you today? You can send your order or ask about our products.`
+  },
+  ask_business_name: {
+    pap: () => `Bon dia! 👋\n\nMi no tin bo negoshi registra ainda. Por fabor, bisa mi: Ki nomber di bo negoshi ta?`,
+    en: () => `Hello! 👋\n\nI don't have your business registered yet. Please tell me: What is your business name?`,
+    nl: () => `Hallo! 👋\n\nIk heb uw bedrijf nog niet geregistreerd. Vertel me alstublieft: Wat is uw bedrijfsnaam?`,
+    es: () => `Hola! 👋\n\nNo tengo tu negocio registrado aún. Por favor dime: ¿Cuál es el nombre de tu negocio?`,
+    mixed: () => `Hello! 👋\n\nI don't have your business registered yet. Please tell me: What is your business name?`
   }
 };
+
+// Simple language detection based on common words
+function detectLanguageSimple(text: string): string {
+  const lowerText = text.toLowerCase();
+  
+  // Papiamento indicators
+  if (/\b(bon dia|bon tardi|bon nochi|danki|por fabor|mi ta|mi ke|bo tin|esaki|negoshi)\b/.test(lowerText)) {
+    return 'pap';
+  }
+  // Dutch indicators
+  if (/\b(bedankt|alstublieft|goedemorgen|goedendag|bedrijf|hallo)\b/.test(lowerText)) {
+    return 'nl';
+  }
+  // Spanish indicators
+  if (/\b(gracias|por favor|buenos días|hola|negocio|quiero)\b/.test(lowerText)) {
+    return 'es';
+  }
+  // Default to English
+  return 'en';
+}
+
+// Get confirmation message when matching existing customer
+function getBusinessNameConfirmation(lang: string, customerName: string): string {
+  const messages: Record<string, string> = {
+    pap: `Perfecto! 🎉\n\nMi a haña bo: ${customerName}\n\nBon bini bek! Ki bo ke pidi awe?`,
+    en: `Perfect! 🎉\n\nI found you: ${customerName}\n\nWelcome back! What would you like to order today?`,
+    nl: `Perfect! 🎉\n\nIk heb u gevonden: ${customerName}\n\nWelkom terug! Wat wilt u vandaag bestellen?`,
+    es: `Perfecto! 🎉\n\nTe encontré: ${customerName}\n\n¡Bienvenido de vuelta! ¿Qué deseas pedir hoy?`
+  };
+  return messages[lang] || messages.en;
+}
+
+// Get welcome message for new customers
+function getNewCustomerWelcome(lang: string, businessName: string): string {
+  const messages: Record<string, string> = {
+    pap: `Bon bini ${businessName}! 🎉\n\nMi a registra bo negoshi. Awo bo por manda bo order. Ki bo ke pidi?`,
+    en: `Welcome ${businessName}! 🎉\n\nI've registered your business. You can now place orders. What would you like?`,
+    nl: `Welkom ${businessName}! 🎉\n\nIk heb uw bedrijf geregistreerd. U kunt nu bestellingen plaatsen. Wat wilt u bestellen?`,
+    es: `¡Bienvenido ${businessName}! 🎉\n\nHe registrado tu negocio. Ahora puedes hacer pedidos. ¿Qué deseas?`
+  };
+  return messages[lang] || messages.en;
+}
 
 // Send WhatsApp message via Meta API
 async function sendWhatsAppMessage(to: string, text: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
@@ -101,7 +150,8 @@ Deno.serve(async (req) => {
       customer_phone,
       message_text, 
       message_id,
-      preferred_language 
+      preferred_language,
+      awaiting_business_name
     } = await req.json();
 
     if (!customer_phone || !message_text) {
@@ -123,6 +173,98 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    // HANDLE UNKNOWN CUSTOMER: If no customer_id and we're awaiting business name
+    if (!customer_id && awaiting_business_name) {
+      // The user is responding with their business name
+      const businessName = message_text.trim();
+      
+      // Try to find existing customer by name (fuzzy match)
+      const { data: existingCustomers } = await supabase
+        .from('distribution_customers')
+        .select('id, name, whatsapp_phone')
+        .ilike('name', `%${businessName}%`)
+        .limit(5);
+      
+      let matchedCustomer = null;
+      let responseText = '';
+      const detectedLang = detectLanguageSimple(businessName);
+      
+      if (existingCustomers && existingCustomers.length > 0) {
+        // Found potential matches - use the best one and update their phone
+        matchedCustomer = existingCustomers[0];
+        
+        // Update the customer's phone number
+        await supabase
+          .from('distribution_customers')
+          .update({ whatsapp_phone: customer_phone })
+          .eq('id', matchedCustomer.id);
+        
+        responseText = getBusinessNameConfirmation(detectedLang, matchedCustomer.name);
+        console.log(`Matched existing customer: ${matchedCustomer.name} (${matchedCustomer.id})`);
+      } else {
+        // Create new customer
+        const { data: newCustomer, error: createError } = await supabase
+          .from('distribution_customers')
+          .insert({
+            name: businessName,
+            whatsapp_phone: customer_phone,
+          })
+          .select('id, name')
+          .single();
+        
+        if (!createError && newCustomer) {
+          matchedCustomer = newCustomer;
+          responseText = getNewCustomerWelcome(detectedLang, businessName);
+          console.log(`Created new customer: ${businessName} (${newCustomer.id})`);
+        } else {
+          console.error('Error creating customer:', createError);
+          responseText = 'Sorry, there was an issue registering your business. Please try again.';
+        }
+      }
+      
+      // Send response
+      const sendResult = await sendWhatsAppMessage(customer_phone, responseText);
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          detected_language: detectedLang,
+          intent: 'business_name_provided',
+          response_sent: sendResult.success,
+          response_text: responseText,
+          customer_created: !!matchedCustomer,
+          customer_id: matchedCustomer?.id,
+          customer_name: matchedCustomer?.name
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // HANDLE UNKNOWN CUSTOMER: First contact - ask for business name
+    if (!customer_id) {
+      const detectedLang = detectLanguageSimple(message_text);
+      const askTemplate = RESPONSE_TEMPLATES.ask_business_name[detectedLang as keyof typeof RESPONSE_TEMPLATES.ask_business_name] 
+        || RESPONSE_TEMPLATES.ask_business_name.mixed;
+      const responseText = askTemplate();
+      
+      // Send the "what is your business name" message
+      const sendResult = await sendWhatsAppMessage(customer_phone, responseText);
+      
+      console.log(`Asked for business name from unknown phone: ${customer_phone}`);
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          detected_language: detectedLang,
+          intent: 'ask_business_name',
+          response_sent: sendResult.success,
+          response_text: responseText,
+          awaiting_business_name: true
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Fetch products for AI context
     const { data: products } = await supabase
