@@ -84,14 +84,15 @@ export function MobileProductCard({
   return (
     <Card className={cn(
       "relative overflow-hidden transition-colors w-full",
+      "max-w-full",
       !matchedProductId && "border-amber-300 bg-amber-50/30 dark:bg-amber-950/20",
       className
     )}>
-      <CardContent className="p-4 space-y-4 w-full">
+      <CardContent className="p-4 space-y-4">
         {/* Header: Raw text + Remove button, Badge below */}
         <div className="space-y-2">
           {/* First row: Raw text + Delete button */}
-          <div className="flex items-start justify-between gap-2 w-full">
+          <div className="flex items-start justify-between gap-2">
             <p className="text-sm text-muted-foreground italic line-clamp-2 flex-1 min-w-0 break-words">
               "{rawText}"
             </p>
@@ -112,7 +113,7 @@ export function MobileProductCard({
         </div>
 
         {/* Quantity - Full width stepper */}
-        <div className="space-y-2 w-full">
+        <div className="space-y-2">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Quantity
           </label>
@@ -126,7 +127,7 @@ export function MobileProductCard({
         </div>
 
         {/* Product Selector - Full width */}
-        <div className="space-y-2 w-full min-w-0">
+        <div className="space-y-2 min-w-0">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Product
           </label>
@@ -152,7 +153,7 @@ export function MobileProductCard({
 
         {/* Price footer */}
         {selectedProduct && suggestedPrice !== null && (
-          <div className="flex items-center justify-between pt-2 border-t text-sm w-full">
+          <div className="flex items-center justify-between pt-2 border-t text-sm">
             <span className="text-muted-foreground">
               ƒ{suggestedPrice.toFixed(2)}/{unit}
             </span>
