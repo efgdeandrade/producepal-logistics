@@ -1,77 +1,100 @@
 
-# Fix Mobile Header Layout - Cramped Spacing Issue
+# Fix Mobile Toast Notifications Blocking UI
 
-## Problem Analysis
-Looking at your screenshot, there are two issues:
-1. **Visual crowding**: "Dashboard" in the header and "Executive Dashboard" title in the page content appear too close together
-2. **Insufficient spacing**: The header border/line sits too close to the page content
+## Problem
+On mobile devices, notification banners (toasts) appear at the top of the screen, blocking the header and menu. Users must swipe away each notification before they can interact with any menu items - this disrupts workflow significantly.
 
 ## Root Cause
-- The mobile header (`AppLayout.tsx`) shows the page title "Dashboard" from breadcrumbs
-- The Executive Dashboard page also renders its own large "Executive Dashboard" heading
-- This creates redundant information with cramped vertical spacing
+In `src/components/ui/toast.tsx`, the `ToastViewport` has these classes:
+```
+fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 
+sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]
+```
+
+This means:
+- **Mobile (default)**: Toasts appear at the TOP (`top-0`) with full width (`w-full`)
+- **Desktop (sm+)**: Toasts appear at the BOTTOM-RIGHT (`sm:bottom-0 sm:right-0`)
+
+The mobile header has `z-40`, while toasts have `z-[100]`, so toasts cover everything.
 
 ## Solution
+Move toasts to the **bottom** of the screen on mobile, keeping them out of the way of the header and navigation. This matches the expected mobile UX pattern where notifications appear at the bottom.
 
-### Approach A: Hide Page Title on Mobile (Recommended)
-Since the mobile header already shows the current page name, we can hide the page-level h1 on mobile devices to avoid duplication and improve spacing.
+## Changes Required
 
-**Files to modify:**
+### File: `src/components/ui/toast.tsx`
 
-1. **`src/pages/ExecutiveDashboard.tsx`**
-   - Add `hidden md:block` to the page header section on mobile
-   - Keep the date subtitle visible but with adjusted styling
+**Current code (line 17):**
+```tsx
+"fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]"
+```
 
-   ```tsx
-   {/* Header */}
-   <div className="flex flex-col gap-2">
-     <div className="flex items-center justify-between">
-       <h1 className="hidden md:block text-3xl font-bold tracking-tight">
-         Executive Dashboard
-       </h1>
-       {lastUpdate && (
-         <Badge variant="outline" className="gap-1 text-xs">
-           <Zap className="h-3 w-3 text-green-500" />
-           Live • {format(lastUpdate, "h:mm:ss a")}
-         </Badge>
-       )}
-     </div>
-     <p className="text-muted-foreground text-sm md:text-base">
-       Overview of all business operations • {format(new Date(), "EEEE, MMMM d, yyyy")}
-     </p>
-   </div>
-   ```
+**Updated code:**
+```tsx
+"fixed bottom-20 left-0 right-0 z-[100] flex max-h-screen w-full flex-col p-4 pointer-events-none sm:bottom-0 sm:right-0 sm:left-auto sm:flex-col md:max-w-[420px] [&>*]:pointer-events-auto"
+```
 
-2. **`src/components/layout/AppLayout.tsx`**
-   - Increase main content top padding on mobile for better breathing room
-   - Add subtle visual separation after header
+**Key changes:**
+| Change | Before | After | Why |
+|--------|--------|-------|-----|
+| Position | `top-0` | `bottom-20` | Places toasts above bottom nav (which has `pb-24`) |
+| Direction | `flex-col-reverse` | `flex-col` | Stack toasts naturally from bottom up |
+| Horizontal | (full width) | `left-0 right-0` | Centered on mobile |
+| Pointer events | (blocks all) | `pointer-events-none` + `[&>*]:pointer-events-auto` | Container doesn't block clicks, only toasts do |
 
-   ```tsx
-   {/* Main content with improved mobile spacing */}
-   <main className="flex-1 p-4 pt-2 pb-24">
-   ```
+### File: `src/components/ui/sonner.tsx` (if using Sonner toasts)
 
-### Visual Result
-| Before | After |
-|--------|-------|
-| Dashboard (header) | Dashboard (header) |
-| Executive Dashboard (h1) | |
-| Overview of all... | Overview of all... (with better spacing) |
-| [cramped cards] | [well-spaced cards] |
+Add `position="bottom-center"` prop to ensure Sonner toasts also appear at the bottom on mobile:
+
+```tsx
+<Sonner
+  theme={theme}
+  position="bottom-center"
+  className="toaster group"
+  // ... rest of config
+/>
+```
+
+## Visual Result
+
+**Before:**
+```text
+┌─────────────────────┐
+│ [TOAST BLOCKS HERE] │  ← Can't tap menu!
+├─────────────────────┤
+│     Header          │
+├─────────────────────┤
+│                     │
+│     Content         │
+│                     │
+├─────────────────────┤
+│   Bottom Nav        │
+└─────────────────────┘
+```
+
+**After:**
+```text
+┌─────────────────────┐
+│     Header          │  ← Fully accessible!
+├─────────────────────┤
+│                     │
+│     Content         │
+│                     │
+├─────────────────────┤
+│  [TOAST APPEARS]    │  ← Above bottom nav
+├─────────────────────┤
+│   Bottom Nav        │
+└─────────────────────┘
+```
 
 ## Technical Details
 
-### Change 1: ExecutiveDashboard.tsx (lines 369-382)
-Hide the h1 title on mobile since it's redundant with the header:
-- Add `hidden md:block` to the main title
-- Adjust the Live badge positioning for mobile
-- Make subtitle text slightly smaller on mobile with `text-sm md:text-base`
+1. **`bottom-20` (80px)**: This positions toasts just above the bottom navigation area (which has `pb-24` = 96px padding), ensuring they don't overlap with nav buttons
 
-### Change 2: AppLayout.tsx (line 108)
-Adjust mobile main content padding:
-- Change from `p-4 pb-24` to `p-4 pt-2 pb-24` for slightly tighter top padding
-- This works because we're removing the duplicate h1
+2. **`pointer-events-none` + `[&>*]:pointer-events-auto`**: The viewport container won't block clicks on content behind it, but individual toast elements will still be interactive
+
+3. **Keeping desktop behavior**: The `sm:` prefixed classes maintain the existing bottom-right positioning on larger screens
 
 ## Files to Modify
-1. `src/pages/ExecutiveDashboard.tsx` - Hide redundant title on mobile
-2. `src/components/layout/AppLayout.tsx` - Adjust mobile content padding
+1. `src/components/ui/toast.tsx` - Change ToastViewport positioning for mobile
+2. `src/components/ui/sonner.tsx` - Add position prop for consistency
