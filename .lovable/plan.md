@@ -1,65 +1,56 @@
 
+# Implementing "Dre" - Your AI Order Assistant Personality
 
-# Phase 1: WhatsApp Business API Connection
+## Overview
+We'll give the WhatsApp AI chatbot a friendly personality named "Dre", making interactions more personal and ice-breaking. Dre will introduce himself in greetings and maintain a warm, helpful tone throughout conversations.
 
-## Step 1: Add WhatsApp Secrets
+## What Will Change
 
-Add these 4 secrets to your project:
+### 1. First-Time Greetings
+When a new customer messages, Dre will introduce himself:
+- **English**: "Hey! I'm Dre, your FUIK order buddy! 🐟 What can I get for you today?"
+- **Papiamento**: "Kon ta! Mi ta Dre, bo kompañero di order di FUIK! 🐟 Ki kos bo ke pidi awe?"
+- **Dutch**: "Hoi! Ik ben Dre, je FUIK bestelmaatje! 🐟 Wat kan ik voor je regelen?"
+- **Spanish**: "¡Hola! Soy Dre, tu amigo de pedidos de FUIK! 🐟 ¿Qué puedo conseguirte hoy?"
 
-| Secret Name | Value | Purpose |
-|-------------|-------|---------|
-| `WHATSAPP_PHONE_NUMBER_ID` | `946073451923499` | Your WhatsApp Business phone number ID |
-| `WHATSAPP_ACCESS_TOKEN` | `EAAPjXYl...` (your token) | API authentication |
-| `WHATSAPP_APP_SECRET` | `d6eb5e78c59286c6f6b8fd480f459e78` | Webhook signature verification |
-| `WHATSAPP_VERIFY_TOKEN` | `fuik_whatsapp_2024` | Webhook handshake verification |
+### 2. Regular Greetings
+Returning customers get a friendly check-in:
+- **English**: "Hey there! Dre here 👋 What would you like to order today?"
+- **Papiamento**: "Kon ta! Dre aki 👋 Ki kos bo ke pidi awe?"
+- Similar for Dutch/Spanish
 
-## Step 2: Update whatsapp-webhook Edge Function
+### 3. Order Confirmations
+Dre confirms with personality:
+- "Awesome! Got it all noted down ✅" (instead of just "Thank you!")
 
-The current webhook already has verification logic, but we need to ensure it uses the correct secret name. Updates needed:
+### 4. Session Reminders
+When following up on incomplete orders, Dre checks in warmly:
+- "Hey, it's Dre! 👋 Just checking in on your order..."
 
-**File: `supabase/functions/whatsapp-webhook/index.ts`**
+---
 
-Current code already handles:
-- GET requests for webhook verification (Meta's challenge)
-- POST requests for incoming messages
-- Signature verification with `WHATSAPP_APP_SECRET`
+## Technical Details
 
-Minor update needed:
-- Ensure `WHATSAPP_VERIFY_TOKEN` is used (currently uses `WHATSAPP_VERIFY_TOKEN` - correct!)
-- The webhook is already well-structured
+### Files to Modify
 
-## Step 3: Configure Webhook in Meta Dashboard
+**1. `supabase/functions/whatsapp-ai-agent/index.ts`**
+- Update `RESPONSE_TEMPLATES` to include Dre's name and personality in greetings, confirmations, and other responses
+- Replace generic "order assistant" references with "Dre"
 
-After secrets are added and webhook is deployed, you'll configure in Meta:
+**2. `supabase/functions/order-session-reminder/index.ts`**
+- Update `REMINDER_TEMPLATES` to include Dre's name in follow-up messages
+- Make the reminder tone more personal ("Hey, it's Dre!" instead of "Just checking in")
 
-1. Go to **WhatsApp → Configuration** in Meta dashboard
-2. Click **Edit** on the Webhook section
-3. Enter:
-   - **Callback URL**: `https://dnxzpkbobzwjcuyfgdnh.supabase.co/functions/v1/whatsapp-webhook`
-   - **Verify token**: `fuik_whatsapp_2024`
-4. Click **Verify and Save**
-5. Subscribe to webhook fields:
-   - `messages` (required - for incoming messages)
-   - `message_status` (optional - for delivery receipts)
+### Template Changes Summary
 
-## Step 4: Test the Connection
+| Template | Current | With Dre |
+|----------|---------|----------|
+| Welcome (new) | "I'm the order assistant" | "I'm Dre, your order buddy!" |
+| Greeting | "Good day! 🐟" | "Hey! Dre here 👋" |
+| Order confirmed | "Thank you!" | "Awesome! Dre's got you covered! ✅" |
+| Reminders | "Just checking in!" | "Hey, it's Dre! 👋" |
 
-After webhook is verified:
-1. Send a test message from your personal WhatsApp to your Business number
-2. Check edge function logs to confirm message received
-3. Verify message stored in `whatsapp_messages` table
+---
 
-## What I'll Implement
-
-1. **Add the 4 secrets** using the secrets tool
-2. **Review and update** the whatsapp-webhook if any changes needed
-3. **Deploy** the edge function
-4. **Guide you** through the Meta dashboard webhook configuration
-
-## Expected Outcome
-
-After this phase:
-- Your webhook will respond to Meta's verification challenge
-- Incoming WhatsApp messages will be received and stored
-- Foundation ready for Phase 2 (AI agent implementation)
-
+## Result
+Customers will feel like they're chatting with a friendly helper named Dre rather than a generic bot, making the ordering experience more personal and memorable.
