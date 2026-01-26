@@ -15,10 +15,10 @@ const RESPONSE_TEMPLATES = {
     es: "¡Hola! 👋 Soy Dre, tu amigo de pedidos de FUIK! 🐟 ¿Qué puedo conseguirte hoy?"
   },
   order_recap: {
-    pap: "📋 Bo orden:\n{items}\n\n💰 Total: {total} XCG\n\nTur kos ta bon? Bisa 'Si' pa konfirmá.",
-    en: "📋 Your order:\n{items}\n\n💰 Total: {total} XCG\n\nEverything correct? Say 'Yes' to confirm.",
-    nl: "📋 Uw bestelling:\n{items}\n\n💰 Totaal: {total} XCG\n\nKlopt alles? Zeg 'Ja' om te bevestigen.",
-    es: "📋 Tu pedido:\n{items}\n\n💰 Total: {total} XCG\n\n¿Todo correcto? Di 'Sí' para confirmar."
+    pap: "📋 Bo orden:\n{items}\n\nTur kos ta bon? Bisa 'Si' pa konfirmá.",
+    en: "📋 Your order:\n{items}\n\nEverything correct? Say 'Yes' to confirm.",
+    nl: "📋 Je bestelling:\n{items}\n\nKlopt alles? Zeg 'Ja' om te bevestigen.",
+    es: "📋 Tu pedido:\n{items}\n\n¿Todo correcto? Di 'Sí' para confirmar."
   },
   order_confirmed: {
     pap: "✅ Mashá bon! Dre tin bo cubrí! Bo orden ta registrá. Nos lo entregá esaki pronto. 🚚",
@@ -702,13 +702,11 @@ Deno.serve(async (req) => {
         // Send confirmation request
         const parsedItems = recentConvo[0].parsed_items as Array<{ product_name: string; quantity: number; unit_price: number }>;
         const itemsList = parsedItems.map(item => 
-          `• ${item.quantity}x ${item.product_name} - ${(item.quantity * item.unit_price).toFixed(2)} XCG`
+          `• ${item.quantity}x ${item.product_name}`
         ).join('\n');
-        const total = parsedItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
         
         const recapMsg = RESPONSE_TEMPLATES.order_recap[language as keyof typeof RESPONSE_TEMPLATES.order_recap]
-          .replace('{items}', itemsList)
-          .replace('{total}', total.toFixed(2)) + 
+          .replace('{items}', itemsList) + 
           (language === 'pap' ? '\n\n📦 Esaki lo wordo agregá na bo orden di awe.' :
            language === 'nl' ? '\n\n📦 Dit wordt toegevoegd aan uw bestelling van vandaag.' :
            language === 'es' ? '\n\n📦 Esto se agregará a tu pedido de hoy.' :
@@ -753,13 +751,11 @@ Deno.serve(async (req) => {
         // Send confirmation request
         const parsedItems = recentConvo[0].parsed_items as Array<{ product_name: string; quantity: number; unit_price: number }>;
         const itemsList = parsedItems.map(item => 
-          `• ${item.quantity}x ${item.product_name} - ${(item.quantity * item.unit_price).toFixed(2)} XCG`
+          `• ${item.quantity}x ${item.product_name}`
         ).join('\n');
-        const total = parsedItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
         
         const recapMsg = RESPONSE_TEMPLATES.order_recap[language as keyof typeof RESPONSE_TEMPLATES.order_recap]
-          .replace('{items}', itemsList)
-          .replace('{total}', total.toFixed(2)) + 
+          .replace('{items}', itemsList) + 
           (language === 'pap' ? '\n\n📅 Esaki ta pa mañan.' :
            language === 'nl' ? '\n\n📅 Dit is voor morgen.' :
            language === 'es' ? '\n\n📅 Esto es para mañana.' :
@@ -1245,14 +1241,11 @@ Deno.serve(async (req) => {
     if (matchedItems.length > 0) {
       // Build order recap
       const itemsList = matchedItems.map(item => 
-        `• ${item.quantity}x ${item.product_name} - ${(item.quantity * item.unit_price).toFixed(2)} XCG`
+        `• ${item.quantity}x ${item.product_name}`
       ).join('\n');
       
-      const total = matchedItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
-      
       responseMessage = RESPONSE_TEMPLATES.order_recap[language as keyof typeof RESPONSE_TEMPLATES.order_recap]
-        .replace('{items}', itemsList)
-        .replace('{total}', total.toFixed(2));
+        .replace('{items}', itemsList);
       
       // Add note if this is an addition
       if (isAddition && recentOrder) {
