@@ -5249,6 +5249,42 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_health_checks: {
+        Row: {
+          check_type: string
+          created_at: string
+          error_code: string | null
+          error_message: string | null
+          id: string
+          phone_number_status: string | null
+          response_time_ms: number | null
+          status: string
+          token_valid: boolean | null
+        }
+        Insert: {
+          check_type?: string
+          created_at?: string
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          phone_number_status?: string | null
+          response_time_ms?: number | null
+          status: string
+          token_valid?: boolean | null
+        }
+        Update: {
+          check_type?: string
+          created_at?: string
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          phone_number_status?: string | null
+          response_time_ms?: number | null
+          status?: string
+          token_valid?: boolean | null
+        }
+        Relationships: []
+      }
       whatsapp_messages: {
         Row: {
           created_at: string
