@@ -25,6 +25,12 @@ const RESPONSE_TEMPLATES = {
     nl: "✅ Bedankt! Uw bestelling is geplaatst. We bezorgen het snel. 🚚",
     es: "✅ ¡Gracias! Tu pedido ha sido registrado. Lo entregaremos pronto. 🚚"
   },
+  addition_confirmed: {
+    pap: "✅ Danki! Bo adishon a wordo agregá na bo orden. 🚚",
+    en: "✅ Thank you! Your addition has been added to your order. 🚚",
+    nl: "✅ Bedankt! Uw toevoeging is aan uw bestelling toegevoegd. 🚚",
+    es: "✅ ¡Gracias! Tu adición ha sido agregada a tu pedido. 🚚"
+  },
   suggestions: {
     pap: "💡 Bo tabata order tambe: {products}. Bo ke agrega un di nan?",
     en: "💡 You've also ordered before: {products}. Would you like to add any?",
@@ -42,16 +48,49 @@ const RESPONSE_TEMPLATES = {
     en: "Good day! 🐟 What would you like to order today?",
     nl: "Goedendag! 🐟 Wat wilt u vandaag bestellen?",
     es: "¡Buen día! 🐟 ¿Qué te gustaría pedir hoy?"
+  },
+  cancel_item_success: {
+    pap: "🚫 '{item}' a wordo kansela for di bo orden.",
+    en: "🚫 '{item}' has been cancelled from your order.",
+    nl: "🚫 '{item}' is geannuleerd van uw bestelling.",
+    es: "🚫 '{item}' ha sido cancelado de tu pedido."
+  },
+  cancel_order_success: {
+    pap: "🚫 Bo orden kompletu a wordo kansela.",
+    en: "🚫 Your entire order has been cancelled.",
+    nl: "🚫 Uw volledige bestelling is geannuleerd.",
+    es: "🚫 Tu pedido completo ha sido cancelado."
+  },
+  cancel_too_late: {
+    pap: "⚠️ Despensa, bo orden a pasa mas ku {hours} ora kaba. Por fabor yama nos pa kansela.",
+    en: "⚠️ Sorry, your order was placed more than {hours} hours ago. Please call us to cancel.",
+    nl: "⚠️ Sorry, uw bestelling is meer dan {hours} uur geleden geplaatst. Bel ons om te annuleren.",
+    es: "⚠️ Lo siento, tu pedido fue realizado hace más de {hours} horas. Por favor llámanos para cancelar."
+  },
+  no_recent_order: {
+    pap: "🤔 Mi no por haña ningun orden resien pa bo. Kier bo pidi algo nobo?",
+    en: "🤔 I couldn't find any recent order for you. Would you like to place a new order?",
+    nl: "🤔 Ik kon geen recente bestelling voor u vinden. Wilt u een nieuwe bestelling plaatsen?",
+    es: "🤔 No pude encontrar ningún pedido reciente tuyo. ¿Te gustaría hacer un nuevo pedido?"
   }
 };
 
 // Language detection patterns
 const LANGUAGE_PATTERNS = {
-  pap: ['bon', 'dia', 'tardi', 'nochi', 'danki', 'por', 'fabor', 'mi', 'ke', 'pidi', 'awe', 'kico', 'tur', 'si', 'no', 'mas', 'awa', 'piska', 'karni', 'e', 'ta', 'un', 'dos', 'tres'],
-  nl: ['goedemorgen', 'goedemiddag', 'goedenavond', 'bedankt', 'alstublieft', 'graag', 'bestellen', 'wil', 'hebben', 'ja', 'nee', 'meer', 'water', 'vis', 'vlees', 'de', 'het', 'een', 'twee', 'drie'],
-  es: ['buenos', 'dias', 'tardes', 'noches', 'gracias', 'favor', 'quiero', 'pedir', 'hoy', 'sí', 'no', 'más', 'agua', 'pescado', 'carne', 'el', 'la', 'uno', 'dos', 'tres'],
-  en: ['good', 'morning', 'afternoon', 'evening', 'thanks', 'please', 'want', 'order', 'today', 'yes', 'no', 'more', 'water', 'fish', 'meat', 'the', 'a', 'one', 'two', 'three']
+  pap: ['bon', 'dia', 'tardi', 'nochi', 'danki', 'por', 'fabor', 'mi', 'ke', 'pidi', 'awe', 'kico', 'tur', 'si', 'no', 'mas', 'awa', 'piska', 'karni', 'e', 'ta', 'un', 'dos', 'tres', 'kansela', 'kita', 'agrega'],
+  nl: ['goedemorgen', 'goedemiddag', 'goedenavond', 'bedankt', 'alstublieft', 'graag', 'bestellen', 'wil', 'hebben', 'ja', 'nee', 'meer', 'water', 'vis', 'vlees', 'de', 'het', 'een', 'twee', 'drie', 'annuleren', 'verwijderen', 'toevoegen'],
+  es: ['buenos', 'dias', 'tardes', 'noches', 'gracias', 'favor', 'quiero', 'pedir', 'hoy', 'sí', 'no', 'más', 'agua', 'pescado', 'carne', 'el', 'la', 'uno', 'dos', 'tres', 'cancelar', 'quitar', 'agregar'],
+  en: ['good', 'morning', 'afternoon', 'evening', 'thanks', 'please', 'want', 'order', 'today', 'yes', 'no', 'more', 'water', 'fish', 'meat', 'the', 'a', 'one', 'two', 'three', 'cancel', 'remove', 'add']
 };
+
+// Cancellation patterns
+const CANCEL_PATTERNS = {
+  order: ['cancel order', 'cancel my order', 'kansela orden', 'kansela mi orden', 'annuleer bestelling', 'cancelar pedido', 'cancelar mi pedido', 'no kier mas', 'niet meer', 'no quiero'],
+  item: ['cancel', 'remove', 'kansela', 'kita', 'annuleer', 'verwijder', 'cancelar', 'quitar', 'no kier', 'niet', 'sin']
+};
+
+// Addition patterns
+const ADDITION_PATTERNS = ['add', 'also', 'more', 'extra', 'agrega', 'mas', 'tambe', 'toevoegen', 'ook', 'nog', 'agregar', 'también', 'además'];
 
 // Detect language from text
 function detectLanguage(text: string, customerPreference?: string | null): string {
@@ -80,8 +119,40 @@ function detectLanguage(text: string, customerPreference?: string | null): strin
 }
 
 // Detect intent from message
-function detectIntent(text: string): { intent: string; isConfirmation: boolean; isGreeting: boolean } {
+function detectIntent(text: string): { 
+  intent: string; 
+  isConfirmation: boolean; 
+  isGreeting: boolean;
+  isCancelOrder: boolean;
+  isCancelItem: boolean;
+  isAddition: boolean;
+  cancelItemName: string | null;
+} {
   const lowerText = text.toLowerCase().trim();
+  
+  // Check for order cancellation
+  const isCancelOrder = CANCEL_PATTERNS.order.some(p => lowerText.includes(p));
+  
+  // Check for item cancellation (e.g., "cancel the salmon", "kita e salmon")
+  let isCancelItem = false;
+  let cancelItemName: string | null = null;
+  if (!isCancelOrder) {
+    for (const pattern of CANCEL_PATTERNS.item) {
+      if (lowerText.includes(pattern)) {
+        // Extract item name after cancel keyword
+        const regex = new RegExp(`${pattern}\\s+(?:the\\s+|e\\s+|de\\s+|el\\s+|la\\s+)?(.+)`, 'i');
+        const match = lowerText.match(regex);
+        if (match && match[1]) {
+          isCancelItem = true;
+          cancelItemName = match[1].trim();
+          break;
+        }
+      }
+    }
+  }
+  
+  // Check for addition
+  const isAddition = ADDITION_PATTERNS.some(p => lowerText.includes(p));
   
   // Check for confirmation
   const confirmPatterns = ['si', 'sí', 'yes', 'ja', 'ok', 'okay', 'confirma', 'confirm', 'bevestig', 'ta bon', 'correcto', 'correct'];
@@ -93,10 +164,13 @@ function detectIntent(text: string): { intent: string; isConfirmation: boolean; 
   
   // Determine primary intent
   let intent = 'order';
-  if (isConfirmation) intent = 'confirm';
+  if (isCancelOrder) intent = 'cancel_order';
+  else if (isCancelItem) intent = 'cancel_item';
+  else if (isConfirmation) intent = 'confirm';
+  else if (isAddition) intent = 'addition';
   else if (isGreeting && lowerText.length < 30) intent = 'greeting';
   
-  return { intent, isConfirmation, isGreeting };
+  return { intent, isConfirmation, isGreeting, isCancelOrder, isCancelItem, isAddition, cancelItemName };
 }
 
 // Parse order items from text
@@ -197,6 +271,15 @@ function fuzzyMatchProduct(
   return { product: bestMatch, confidence: bestScore };
 }
 
+// Build conversation snapshot for order
+function buildConversationSnapshot(messages: Array<{ direction: string; message_text: string; created_at: string }>): string {
+  return messages.map(m => {
+    const prefix = m.direction === 'inbound' ? '👤 Customer' : '🤖 FUIK';
+    const time = new Date(m.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    return `[${time}] ${prefix}: ${m.message_text}`;
+  }).join('\n');
+}
+
 // Send WhatsApp message via Meta API
 async function sendWhatsAppMessage(phoneNumber: string, message: string): Promise<boolean> {
   const accessToken = Deno.env.get('WHATSAPP_ACCESS_TOKEN');
@@ -266,8 +349,8 @@ Deno.serve(async (req) => {
     console.log('Detected language:', language);
 
     // Detect intent
-    const { intent, isConfirmation, isGreeting } = detectIntent(message_text);
-    console.log('Detected intent:', intent, { isConfirmation, isGreeting });
+    const { intent, isConfirmation, isGreeting, isCancelOrder, isCancelItem, isAddition, cancelItemName } = detectIntent(message_text);
+    console.log('Detected intent:', intent, { isConfirmation, isGreeting, isCancelOrder, isCancelItem, isAddition, cancelItemName });
 
     // Get products for matching
     const { data: products } = await supabase
@@ -285,54 +368,232 @@ Deno.serve(async (req) => {
 
     // Check if this is a NEW customer (no customer_id)
     const isNewCustomer = !customer_id;
+    
+    // Get recent orders for this customer/phone for modifications
+    const { data: recentOrders } = await supabase
+      .from('distribution_orders')
+      .select('id, order_number, status, created_at, cancellation_cutoff_hours, total_xcg')
+      .or(customer_id ? `customer_id.eq.${customer_id},customer_phone.eq.${customer_phone}` : `customer_phone.eq.${customer_phone}`)
+      .in('status', ['pending', 'confirmed', 'picking'])
+      .order('created_at', { ascending: false })
+      .limit(1);
+    
+    const recentOrder = recentOrders?.[0] || null;
+    const cutoffHours = recentOrder?.cancellation_cutoff_hours || 2;
+
+    // Handle ORDER CANCELLATION
+    if (isCancelOrder && recentOrder) {
+      console.log('Processing order cancellation');
+      
+      const orderAge = (Date.now() - new Date(recentOrder.created_at).getTime()) / (1000 * 60 * 60);
+      
+      if (orderAge > cutoffHours) {
+        // Too late to cancel automatically
+        const msg = RESPONSE_TEMPLATES.cancel_too_late[language as keyof typeof RESPONSE_TEMPLATES.cancel_too_late]
+          .replace('{hours}', cutoffHours.toString());
+        await sendWhatsAppMessage(customer_phone, msg);
+        
+        return new Response(JSON.stringify({ 
+          success: true, 
+          action: 'cancel_rejected_time',
+          order_id: recentOrder.id
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      // Cancel all items (mark as cancelled, don't delete)
+      await supabase
+        .from('distribution_order_items')
+        .update({ 
+          is_cancelled: true, 
+          cancelled_at: new Date().toISOString(),
+          cancelled_by: 'whatsapp_customer',
+          cancellation_reason: 'Customer requested via WhatsApp'
+        })
+        .eq('order_id', recentOrder.id);
+      
+      // Update order status
+      await supabase
+        .from('distribution_orders')
+        .update({ 
+          status: 'cancelled',
+          notes: `Cancelled by customer via WhatsApp at ${new Date().toISOString()}`
+        })
+        .eq('id', recentOrder.id);
+      
+      const msg = RESPONSE_TEMPLATES.cancel_order_success[language as keyof typeof RESPONSE_TEMPLATES.cancel_order_success];
+      await sendWhatsAppMessage(customer_phone, msg);
+      
+      await supabase.from('whatsapp_messages').insert({
+        direction: 'outbound',
+        phone_number: customer_phone,
+        message_text: msg,
+        customer_id: customer_id || null,
+        status: 'sent'
+      });
+      
+      return new Response(JSON.stringify({ 
+        success: true, 
+        action: 'order_cancelled',
+        order_id: recentOrder.id
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Handle ITEM CANCELLATION
+    if (isCancelItem && cancelItemName && recentOrder) {
+      console.log('Processing item cancellation:', cancelItemName);
+      
+      const orderAge = (Date.now() - new Date(recentOrder.created_at).getTime()) / (1000 * 60 * 60);
+      
+      if (orderAge > cutoffHours) {
+        const msg = RESPONSE_TEMPLATES.cancel_too_late[language as keyof typeof RESPONSE_TEMPLATES.cancel_too_late]
+          .replace('{hours}', cutoffHours.toString());
+        await sendWhatsAppMessage(customer_phone, msg);
+        
+        return new Response(JSON.stringify({ 
+          success: true, 
+          action: 'cancel_item_rejected_time'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      // Find matching product
+      const { product: matchedProduct } = fuzzyMatchProduct(cancelItemName, products);
+      
+      if (matchedProduct) {
+        // Mark item as cancelled
+        const { data: cancelledItems } = await supabase
+          .from('distribution_order_items')
+          .update({ 
+            is_cancelled: true, 
+            cancelled_at: new Date().toISOString(),
+            cancelled_by: 'whatsapp_customer',
+            cancellation_reason: 'Customer requested via WhatsApp'
+          })
+          .eq('order_id', recentOrder.id)
+          .eq('product_id', matchedProduct.id)
+          .eq('is_cancelled', false)
+          .select();
+        
+        if (cancelledItems && cancelledItems.length > 0) {
+          // Recalculate order total (excluding cancelled items)
+          const { data: remainingItems } = await supabase
+            .from('distribution_order_items')
+            .select('total_xcg')
+            .eq('order_id', recentOrder.id)
+            .eq('is_cancelled', false);
+          
+          const newTotal = remainingItems?.reduce((sum, item) => sum + (item.total_xcg || 0), 0) || 0;
+          
+          await supabase
+            .from('distribution_orders')
+            .update({ total_xcg: newTotal })
+            .eq('id', recentOrder.id);
+          
+          const msg = RESPONSE_TEMPLATES.cancel_item_success[language as keyof typeof RESPONSE_TEMPLATES.cancel_item_success]
+            .replace('{item}', matchedProduct.name);
+          await sendWhatsAppMessage(customer_phone, msg);
+          
+          await supabase.from('whatsapp_messages').insert({
+            direction: 'outbound',
+            phone_number: customer_phone,
+            message_text: msg,
+            customer_id: customer_id || null,
+            status: 'sent'
+          });
+          
+          return new Response(JSON.stringify({ 
+            success: true, 
+            action: 'item_cancelled',
+            product_name: matchedProduct.name,
+            order_id: recentOrder.id
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+      
+      // Product not found in order
+      const msg = RESPONSE_TEMPLATES.no_match[language as keyof typeof RESPONSE_TEMPLATES.no_match]
+        .replace('{item}', cancelItemName);
+      await sendWhatsAppMessage(customer_phone, msg);
+      
+      return new Response(JSON.stringify({ 
+        success: true, 
+        action: 'cancel_item_not_found'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Handle confirmation - create order from previous conversation
     if (isConfirmation) {
       console.log('Processing order confirmation');
       
-      // Get recent conversation to find parsed items - filter by phone number
-      const { data: recentMessages } = await supabase
-        .from('whatsapp_messages')
-        .select('id')
-        .eq('phone_number', customer_phone)
-        .eq('direction', 'outbound')
-        .order('created_at', { ascending: false })
-        .limit(1);
-      
-      // Get conversations linked to this phone's messages
+      // Get recent conversation to find parsed items
       const { data: recentConvo } = await supabase
         .from('distribution_conversations')
-        .select('parsed_items')
+        .select('parsed_items, parsed_intent')
+        .or(customer_id ? `customer_id.eq.${customer_id}` : `message_text.ilike.%${customer_phone}%`)
         .eq('direction', 'outbound')
-        .eq('parsed_intent', 'order_recap')
+        .in('parsed_intent', ['order_recap', 'addition_recap'])
         .order('created_at', { ascending: false })
         .limit(5);
       
       // Find the most recent recap with parsed items
       let parsedItems: Array<{ product_id: string; product_name: string; quantity: number; unit_price: number }> = [];
+      let isAdditionConfirmation = false;
+      
       for (const convo of recentConvo || []) {
         if (convo.parsed_items && Array.isArray(convo.parsed_items) && convo.parsed_items.length > 0) {
           parsedItems = convo.parsed_items as Array<{ product_id: string; product_name: string; quantity: number; unit_price: number }>;
+          isAdditionConfirmation = convo.parsed_intent === 'addition_recap';
           break;
         }
       }
       
       if (parsedItems.length > 0) {
-        // Create the order
+        // Get conversation snapshot for order
+        const { data: conversationMessages } = await supabase
+          .from('whatsapp_messages')
+          .select('direction, message_text, created_at')
+          .eq('phone_number', customer_phone)
+          .order('created_at', { ascending: false })
+          .limit(20);
+        
+        const conversationSnapshot = buildConversationSnapshot(
+          (conversationMessages || []).reverse()
+        );
+        
+        // Create the order (or linked sub-order for additions)
         const orderNumber = `WA-${Date.now().toString(36).toUpperCase()}`;
         const totalAmount = parsedItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
         
+        const orderData: Record<string, unknown> = {
+          order_number: orderNumber,
+          customer_id: customer_id || null,
+          customer_phone: customer_phone,
+          status: 'pending',
+          source: 'whatsapp',
+          total_xcg: totalAmount,
+          source_conversation: conversationSnapshot,
+          notes: isNewCustomer ? `New WhatsApp customer - needs customer assignment. Phone: ${customer_phone}` : null
+        };
+        
+        // If this is an addition to existing order, link it
+        if (isAdditionConfirmation && recentOrder) {
+          orderData.parent_order_id = recentOrder.id;
+          orderData.modification_type = 'addition';
+          orderData.notes = `Addition to order ${recentOrder.order_number}`;
+        }
+        
         const { data: order, error: orderError } = await supabase
           .from('distribution_orders')
-          .insert({
-            order_number: orderNumber,
-            customer_id: customer_id || null, // null for new customers - manager assigns later
-            customer_phone: customer_phone,
-            status: 'pending',
-            source: 'whatsapp',
-            total_xcg: totalAmount,
-            notes: isNewCustomer ? `New WhatsApp customer - needs customer assignment. Phone: ${customer_phone}` : null
-          })
+          .insert(orderData)
           .select()
           .single();
 
@@ -359,7 +620,8 @@ Deno.serve(async (req) => {
           }
           
           // Send confirmation
-          const confirmMsg = RESPONSE_TEMPLATES.order_confirmed[language as keyof typeof RESPONSE_TEMPLATES.order_confirmed];
+          const template = isAdditionConfirmation ? RESPONSE_TEMPLATES.addition_confirmed : RESPONSE_TEMPLATES.order_confirmed;
+          const confirmMsg = template[language as keyof typeof template];
           await sendWhatsAppMessage(customer_phone, confirmMsg);
           
           // Store outbound message
@@ -371,11 +633,23 @@ Deno.serve(async (req) => {
             status: 'sent'
           });
           
+          // Clear parsed items from recent conversations to prevent duplicate orders
+          // We do this by storing a marker
+          await supabase.from('distribution_conversations').insert({
+            customer_id: customer_id || null,
+            direction: 'outbound',
+            message_text: confirmMsg,
+            detected_language: language,
+            parsed_intent: 'order_confirmed',
+            order_id: order.id
+          });
+          
           return new Response(JSON.stringify({ 
             success: true, 
-            action: 'order_confirmed',
+            action: isAdditionConfirmation ? 'addition_confirmed' : 'order_confirmed',
             order_id: order.id,
             order_number: orderNumber,
+            parent_order_id: isAdditionConfirmation ? recentOrder?.id : null,
             customer_id: customer_id || null,
             is_new_customer: isNewCustomer
           }), {
@@ -429,6 +703,19 @@ Deno.serve(async (req) => {
     console.log('Parsed items:', parsedItems);
 
     if (parsedItems.length === 0) {
+      // Check if they're trying to cancel but no order found
+      if ((isCancelOrder || isCancelItem) && !recentOrder) {
+        const msg = RESPONSE_TEMPLATES.no_recent_order[language as keyof typeof RESPONSE_TEMPLATES.no_recent_order];
+        await sendWhatsAppMessage(customer_phone, msg);
+        
+        return new Response(JSON.stringify({ 
+          success: true, 
+          action: 'no_order_to_cancel'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
       // No items found, send welcome/help message
       let response: string;
       if (isNewCustomer) {
@@ -487,6 +774,7 @@ Deno.serve(async (req) => {
 
     // Build response
     let responseMessage = '';
+    const intentType = isAddition && recentOrder ? 'addition_recap' : 'order_recap';
     
     if (matchedItems.length > 0) {
       // Build order recap
@@ -499,6 +787,15 @@ Deno.serve(async (req) => {
       responseMessage = RESPONSE_TEMPLATES.order_recap[language as keyof typeof RESPONSE_TEMPLATES.order_recap]
         .replace('{items}', itemsList)
         .replace('{total}', total.toFixed(2));
+      
+      // Add note if this is an addition
+      if (isAddition && recentOrder) {
+        const additionNote = language === 'pap' ? '\n\n📦 Esaki ta un adishon na bo orden existente.' :
+                           language === 'nl' ? '\n\n📦 Dit is een toevoeging aan uw bestaande bestelling.' :
+                           language === 'es' ? '\n\n📦 Esta es una adición a tu pedido existente.' :
+                           '\n\n📦 This is an addition to your existing order.';
+        responseMessage += additionNote;
+      }
       
       // Add unmatched items warning
       if (unmatchedItems.length > 0) {
@@ -532,16 +829,18 @@ Deno.serve(async (req) => {
       direction: 'outbound',
       message_text: responseMessage,
       detected_language: language,
-      parsed_intent: 'order_recap',
+      parsed_intent: intentType,
       parsed_items: matchedItems
     });
 
     return new Response(JSON.stringify({ 
       success: true, 
-      action: 'order_recap',
+      action: intentType,
       matched_items: matchedItems.length,
       unmatched_items: unmatchedItems.length,
       is_new_customer: isNewCustomer,
+      is_addition: isAddition && !!recentOrder,
+      parent_order_id: isAddition ? recentOrder?.id : null,
       customer_id: customer_id || null
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

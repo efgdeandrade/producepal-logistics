@@ -1722,8 +1722,12 @@ export type Database = {
       distribution_order_items: {
         Row: {
           actual_weight_kg: number | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           created_at: string | null
           id: string
+          is_cancelled: boolean | null
           is_over_picked: boolean | null
           order_id: string | null
           order_unit: string | null
@@ -1748,8 +1752,12 @@ export type Database = {
         }
         Insert: {
           actual_weight_kg?: number | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string | null
           id?: string
+          is_cancelled?: boolean | null
           is_over_picked?: boolean | null
           order_id?: string | null
           order_unit?: string | null
@@ -1774,8 +1782,12 @@ export type Database = {
         }
         Update: {
           actual_weight_kg?: number | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string | null
           id?: string
+          is_cancelled?: boolean | null
           is_over_picked?: boolean | null
           order_id?: string | null
           order_unit?: string | null
@@ -1863,6 +1875,7 @@ export type Database = {
         Row: {
           assigned_at: string | null
           assignment_locked: boolean
+          cancellation_cutoff_hours: number | null
           cod_amount_collected: number | null
           cod_amount_due: number | null
           cod_collected_at: string | null
@@ -1882,9 +1895,11 @@ export type Database = {
           language_used: string | null
           manual_override_at: string | null
           manual_override_by: string | null
+          modification_type: string | null
           notes: string | null
           order_date: string
           order_number: string
+          parent_order_id: string | null
           payment_method: string | null
           payment_method_used:
             | Database["public"]["Enums"]["payment_method_type"]
@@ -1898,6 +1913,7 @@ export type Database = {
           receipt_photo_url: string | null
           receipt_verified_at: string | null
           receipt_verified_by: string | null
+          source_conversation: string | null
           source_email_id: string | null
           standing_order_template_id: string | null
           status: string | null
@@ -1907,6 +1923,7 @@ export type Database = {
         Insert: {
           assigned_at?: string | null
           assignment_locked?: boolean
+          cancellation_cutoff_hours?: number | null
           cod_amount_collected?: number | null
           cod_amount_due?: number | null
           cod_collected_at?: string | null
@@ -1926,9 +1943,11 @@ export type Database = {
           language_used?: string | null
           manual_override_at?: string | null
           manual_override_by?: string | null
+          modification_type?: string | null
           notes?: string | null
           order_date?: string
           order_number: string
+          parent_order_id?: string | null
           payment_method?: string | null
           payment_method_used?:
             | Database["public"]["Enums"]["payment_method_type"]
@@ -1942,6 +1961,7 @@ export type Database = {
           receipt_photo_url?: string | null
           receipt_verified_at?: string | null
           receipt_verified_by?: string | null
+          source_conversation?: string | null
           source_email_id?: string | null
           standing_order_template_id?: string | null
           status?: string | null
@@ -1951,6 +1971,7 @@ export type Database = {
         Update: {
           assigned_at?: string | null
           assignment_locked?: boolean
+          cancellation_cutoff_hours?: number | null
           cod_amount_collected?: number | null
           cod_amount_due?: number | null
           cod_collected_at?: string | null
@@ -1970,9 +1991,11 @@ export type Database = {
           language_used?: string | null
           manual_override_at?: string | null
           manual_override_by?: string | null
+          modification_type?: string | null
           notes?: string | null
           order_date?: string
           order_number?: string
+          parent_order_id?: string | null
           payment_method?: string | null
           payment_method_used?:
             | Database["public"]["Enums"]["payment_method_type"]
@@ -1986,6 +2009,7 @@ export type Database = {
           receipt_photo_url?: string | null
           receipt_verified_at?: string | null
           receipt_verified_by?: string | null
+          source_conversation?: string | null
           source_email_id?: string | null
           standing_order_template_id?: string | null
           status?: string | null
@@ -1993,6 +2017,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "distribution_orders_parent_order_id_fkey"
+            columns: ["parent_order_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_orders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "distribution_orders_source_email_id_fkey"
             columns: ["source_email_id"]
