@@ -1,202 +1,65 @@
 
-# Fix Unreliable Map Loading
 
-## Problem Summary
-Maps intermittently fail to load, showing infinite spinner with no error feedback. Users cannot interact with map-based features like Driver Mobile, Dispatch, Zone Management, and Customer Location Picker.
+# Phase 1: WhatsApp Business API Connection
 
-## Root Causes Identified
+## Step 1: Add WhatsApp Secrets
 
-1. **No Error Handling**: Map components don't listen for Mapbox `error` events
-2. **No Loading Timeout**: If map hangs, users wait forever with no feedback
-3. **No WebGL Check**: Devices without WebGL support see blank maps
-4. **Silent Failures**: Token/network errors don't show user-friendly messages
-5. **No Retry Mechanism**: Single failure = permanent broken state
+Add these 4 secrets to your project:
 
-## Solution: Create a Robust Map Wrapper Component
+| Secret Name | Value | Purpose |
+|-------------|-------|---------|
+| `WHATSAPP_PHONE_NUMBER_ID` | `946073451923499` | Your WhatsApp Business phone number ID |
+| `WHATSAPP_ACCESS_TOKEN` | `EAAPjXYl...` (your token) | API authentication |
+| `WHATSAPP_APP_SECRET` | `d6eb5e78c59286c6f6b8fd480f459e78` | Webhook signature verification |
+| `WHATSAPP_VERIFY_TOKEN` | `fuik_whatsapp_2024` | Webhook handshake verification |
 
-Create a centralized `MapContainer` component that handles all loading/error states consistently across the app.
+## Step 2: Update whatsapp-webhook Edge Function
 
-## Files to Create/Modify
+The current webhook already has verification logic, but we need to ensure it uses the correct secret name. Updates needed:
 
-### 1. NEW: `src/components/maps/MapContainer.tsx`
-A reusable wrapper that provides:
-- WebGL support detection before loading
-- Loading spinner with timeout (15 seconds)
-- Error state with retry button
-- Proper Mapbox error event handling
-- Consistent UI across all map components
+**File: `supabase/functions/whatsapp-webhook/index.ts`**
 
-```text
-┌─────────────────────────────────┐
-│ Loading State:                  │
-│   ┌─────────────────────────┐   │
-│   │  [Spinner]              │   │
-│   │  Loading map...         │   │
-│   │  (Shows for max 15s)    │   │
-│   └─────────────────────────┘   │
-│                                 │
-│ Error State:                    │
-│   ┌─────────────────────────┐   │
-│   │  ⚠️ Map failed to load   │   │
-│   │  [Retry] [Continue w/o]  │   │
-│   └─────────────────────────┘   │
-│                                 │
-│ Success State:                  │
-│   ┌─────────────────────────┐   │
-│   │  [Actual Mapbox Map]    │   │
-│   └─────────────────────────┘   │
-└─────────────────────────────────┘
-```
+Current code already handles:
+- GET requests for webhook verification (Meta's challenge)
+- POST requests for incoming messages
+- Signature verification with `WHATSAPP_APP_SECRET`
 
-### 2. NEW: `src/hooks/useMapboxInit.ts`
-A hook that handles:
-- Token retrieval with better error handling
-- WebGL capability detection
-- Map initialization with timeout
-- Error state management
-- Automatic retry logic (max 3 attempts)
+Minor update needed:
+- Ensure `WHATSAPP_VERIFY_TOKEN` is used (currently uses `WHATSAPP_VERIFY_TOKEN` - correct!)
+- The webhook is already well-structured
 
-Key features:
-```typescript
-interface UseMapboxInitResult {
-  mapRef: React.RefObject<mapboxgl.Map | null>;
-  isLoading: boolean;
-  error: string | null;
-  isReady: boolean;
-  retry: () => void;
-}
+## Step 3: Configure Webhook in Meta Dashboard
 
-export function useMapboxInit(
-  containerRef: React.RefObject<HTMLDivElement>,
-  options: MapInitOptions
-): UseMapboxInitResult
-```
+After secrets are added and webhook is deployed, you'll configure in Meta:
 
-### 3. MODIFY: `src/components/driver/DriverMap.tsx`
-- Add Mapbox error event listener
-- Add loading timeout (15 seconds)
-- Show loading spinner during initialization
-- Show error message with retry button if load fails
-- Add WebGL check before initialization
+1. Go to **WhatsApp → Configuration** in Meta dashboard
+2. Click **Edit** on the Webhook section
+3. Enter:
+   - **Callback URL**: `https://dnxzpkbobzwjcuyfgdnh.supabase.co/functions/v1/whatsapp-webhook`
+   - **Verify token**: `fuik_whatsapp_2024`
+4. Click **Verify and Save**
+5. Subscribe to webhook fields:
+   - `messages` (required - for incoming messages)
+   - `message_status` (optional - for delivery receipts)
 
-Changes:
-```typescript
-// Add error handling
-map.current.on("error", (e) => {
-  console.error("[DriverMap] Mapbox error:", e);
-  setError("Map failed to load. Please check your connection.");
-});
+## Step 4: Test the Connection
 
-// Add timeout
-const timeout = setTimeout(() => {
-  if (!mapLoaded) {
-    setError("Map is taking too long to load.");
-  }
-}, 15000);
-```
+After webhook is verified:
+1. Send a test message from your personal WhatsApp to your Business number
+2. Check edge function logs to confirm message received
+3. Verify message stored in `whatsapp_messages` table
 
-### 4. MODIFY: `src/components/fnb/ZoneMapView.tsx`
-Same changes as DriverMap:
-- Error event listener
-- Loading timeout
-- Error UI with retry
+## What I'll Implement
 
-### 5. MODIFY: `src/pages/fnb/FnbDispatch.tsx`
-Same pattern:
-- Error handling
-- Loading states
-- Retry mechanism
-
-### 6. MODIFY: `src/components/fnb/CustomerLocationPicker.tsx`
-Same pattern for consistency
-
-### 7. MODIFY: `src/hooks/useMapboxToken.ts`
-Improve reliability:
-- Add token validation (check if token format is valid)
-- Better error logging
-- Expose `hasError` state for components to react to
-
-## Implementation Details
-
-### WebGL Detection Utility
-```typescript
-function isWebGLSupported(): boolean {
-  try {
-    const canvas = document.createElement('canvas');
-    return !!(
-      window.WebGLRenderingContext &&
-      (canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
-    );
-  } catch (e) {
-    return false;
-  }
-}
-```
-
-### Loading Timeout Pattern
-```typescript
-useEffect(() => {
-  const timeoutId = setTimeout(() => {
-    if (!mapLoaded && !error) {
-      setError('Map is taking too long to load. Please check your internet connection.');
-    }
-  }, 15000);
-  
-  return () => clearTimeout(timeoutId);
-}, [mapLoaded, error]);
-```
-
-### Error UI Component
-```tsx
-{error && (
-  <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/80 backdrop-blur-sm">
-    <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
-    <p className="text-sm text-muted-foreground mb-4 text-center px-4">{error}</p>
-    <Button onClick={handleRetry} variant="outline" size="sm">
-      <RefreshCw className="h-4 w-4 mr-2" />
-      Retry
-    </Button>
-  </div>
-)}
-```
-
-### Loading UI Component
-```tsx
-{!mapLoaded && !error && (
-  <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/50">
-    <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
-    <p className="text-sm text-muted-foreground">Loading map...</p>
-  </div>
-)}
-```
-
-## Files to Modify Summary
-
-| File | Changes |
-|------|---------|
-| `src/hooks/useMapboxToken.ts` | Add token validation, expose error state |
-| `src/hooks/useMapboxInit.ts` | NEW - Centralized map initialization hook |
-| `src/components/maps/MapContainer.tsx` | NEW - Reusable map wrapper with loading/error states |
-| `src/components/driver/DriverMap.tsx` | Add error handling, loading timeout, retry |
-| `src/components/fnb/ZoneMapView.tsx` | Add error handling, loading timeout, retry |
-| `src/pages/fnb/FnbDispatch.tsx` | Add error handling, loading timeout, retry |
-| `src/components/fnb/CustomerLocationPicker.tsx` | Add error handling, loading timeout, retry |
-| `src/components/fnb/ZoneHierarchyMapView.tsx` | Add error handling, loading timeout, retry |
-| `src/components/fnb/PolygonDrawingMap.tsx` | Add error handling, loading timeout, retry |
-| `src/components/hr/AttendanceMap.tsx` | Add error handling, loading timeout, retry |
+1. **Add the 4 secrets** using the secrets tool
+2. **Review and update** the whatsapp-webhook if any changes needed
+3. **Deploy** the edge function
+4. **Guide you** through the Meta dashboard webhook configuration
 
 ## Expected Outcome
 
-After implementation:
-- Users see clear loading indicator when map initializes
-- If map fails, users see friendly error message with retry option
-- WebGL-unsupported devices get informative message
-- Network failures don't leave users stuck on spinner
-- Automatic retry after transient failures
-- Consistent experience across all 7 map components
+After this phase:
+- Your webhook will respond to Meta's verification challenge
+- Incoming WhatsApp messages will be received and stored
+- Foundation ready for Phase 2 (AI agent implementation)
 
-## Additional Recommendations
-
-1. **Verify Mapbox Token**: Log into Mapbox dashboard and verify the public token `pk.eyJ1I...` is still active and hasn't hit rate limits
-2. **Check Domain Restrictions**: Ensure token allows requests from your production domain
-3. **Add Monitoring**: Consider adding error logging to track map failures in production
