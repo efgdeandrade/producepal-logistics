@@ -305,12 +305,12 @@ Supports: Papiamento, English, Dutch, Spanish`}
                         </Button>
                       </div>
                       
-                      {/* Quantity - Full width with larger controls */}
+                      {/* Quantity + Unit - Side by side */}
                       <div className="space-y-2">
                         <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                          Quantity
+                          Quantity & Unit
                         </label>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
                           <Input
                             type="number"
                             value={item.quantity}
@@ -319,36 +319,61 @@ Supports: Papiamento, English, Dutch, Spanish`}
                             min={0.1}
                             step={0.1}
                           />
-                          <span className="text-sm font-medium text-muted-foreground min-w-[40px]">
-                            {item.unit}
-                          </span>
+                          <Input
+                            type="text"
+                            value={item.unit}
+                            onChange={(e) => updateMatchedItem(index, { unit: e.target.value })}
+                            className="w-20 h-12 text-center"
+                            placeholder="unit"
+                          />
                         </div>
                       </div>
 
-                      {/* Product selector - Full width */}
-                      <div className="space-y-2">
-                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                          Product
-                        </label>
-                        <SearchableSelect
-                          options={products.map(p => ({
-                            value: p.id,
-                            label: `${p.name} (${p.code})`,
-                            searchTerms: `${p.name} ${p.code} ${p.name_pap || ''} ${p.name_nl || ''} ${p.name_es || ''}`
-                          }))}
-                          value={item.matched_product_id || ''}
-                          onValueChange={(value) => {
-                            const product = products.find(p => p.id === value);
-                            updateMatchedItem(index, {
-                              matched_product_id: value,
-                              matched_product_name: product?.name || null,
-                              suggested_price: product?.price_xcg || null
-                            });
-                          }}
-                          placeholder="Select product..."
-                          emptyMessage="No products found"
-                          className="w-full"
-                        />
+                      {/* Product + Price - Side by side on larger screens */}
+                      <div className="grid grid-cols-1 sm:grid-cols-[1fr,auto] gap-3">
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            Product
+                          </label>
+                          <SearchableSelect
+                            options={products.map(p => ({
+                              value: p.id,
+                              label: `${p.name} (${p.code})`,
+                              searchTerms: `${p.name} ${p.code} ${p.name_pap || ''} ${p.name_nl || ''} ${p.name_es || ''}`
+                            }))}
+                            value={item.matched_product_id || ''}
+                            onValueChange={(value) => {
+                              const product = products.find(p => p.id === value);
+                              updateMatchedItem(index, {
+                                matched_product_id: value,
+                                matched_product_name: product?.name || null,
+                                suggested_price: product?.price_xcg || null
+                              });
+                            }}
+                            placeholder="Select product..."
+                            emptyMessage="No products found"
+                            className="w-full"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            Price/Unit
+                          </label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">ƒ</span>
+                            <Input
+                              type="number"
+                              value={item.suggested_price ?? ''}
+                              onChange={(e) => updateMatchedItem(index, { 
+                                suggested_price: e.target.value ? Number(e.target.value) : null 
+                              })}
+                              className="pl-7 h-10 w-24"
+                              min={0}
+                              step={0.01}
+                              placeholder="0.00"
+                            />
+                          </div>
+                        </div>
                       </div>
 
                       {/* Footer: Badge + Price */}
