@@ -26,6 +26,9 @@ interface CustomerSchedule {
   customer_id: string;
   expected_order_days: number[];
   typical_order_time: string | null;
+  typical_order_hour: number | null;
+  typical_delivery_type: string | null;
+  order_time_consistency: number | null;
   confidence_score: number;
   total_orders_analyzed: number;
 }
@@ -36,6 +39,23 @@ interface CustomerPattern {
   avg_quantity: number;
   order_count: number;
   product_name?: string;
+}
+
+// Mahaai Distribution Center coordinates
+const DC_LATITUDE = 12.126232;
+const DC_LONGITUDE = -68.897127;
+const CLOSE_PROXIMITY_METERS = 2000; // 2km radius
+
+// Calculate distance between two points using Haversine formula
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000; // Earth's radius in meters
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }
 
 serve(async (req) => {
@@ -122,14 +142,31 @@ serve(async (req) => {
 
       // Count orders by day of week
       const dayOfWeekCounts: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+      const orderHours: number[] = [];
+      let sameDayCount = 0;
+      let nextDayCount = 0;
       
       for (const order of orders) {
-        const orderDate = new Date(order.delivery_date || order.order_date);
-        const dayOfWeek = orderDate.getDay();
+        const orderDate = new Date(order.order_date);
+        const deliveryDate = new Date(order.delivery_date || order.order_date);
+        const dayOfWeek = deliveryDate.getDay();
         dayOfWeekCounts[dayOfWeek]++;
+        
+        // Track order hour (in local time)
+        const orderHour = orderDate.getHours();
+        orderHours.push(orderHour);
+        
+        // Determine if order was for same-day or next-day delivery
+        const orderDateStr = orderDate.toISOString().split('T')[0];
+        const deliveryDateStr = deliveryDate.toISOString().split('T')[0];
+        if (orderDateStr === deliveryDateStr) {
+          sameDayCount++;
+        } else {
+          nextDayCount++;
+        }
       }
 
-      // Find days where customer orders at least 30% of the time
+      // Find days where customer orders at least 25% of the time
       const totalOrderDays = orders.length;
       const expectedDays: number[] = [];
       
@@ -140,6 +177,22 @@ serve(async (req) => {
         }
       }
 
+      // Calculate typical order hour
+      let typicalOrderHour: number | null = null;
+      let orderTimeConsistency: number | null = null;
+      if (orderHours.length > 0) {
+        const avgHour = orderHours.reduce((a, b) => a + b, 0) / orderHours.length;
+        typicalOrderHour = Math.round(avgHour);
+        
+        // Calculate consistency (standard deviation)
+        const variance = orderHours.reduce((sum, h) => sum + Math.pow(h - avgHour, 2), 0) / orderHours.length;
+        const stdDev = Math.sqrt(variance);
+        orderTimeConsistency = Math.max(0, 1 - (stdDev / 12)); // Normalize to 0-1, where 12 hours = 0 consistency
+      }
+
+      // Determine typical delivery type
+      const typicalDeliveryType = sameDayCount > nextDayCount ? 'same_day' : 'next_day';
+
       // Calculate confidence based on sample size and consistency
       const confidence = Math.min(1, orders.length / 20) * 
         (expectedDays.length > 0 ? 0.8 : 0.3);
@@ -147,7 +200,10 @@ serve(async (req) => {
       scheduleUpdates.push({
         customer_id: customerId,
         expected_order_days: expectedDays,
-        typical_order_time: null,
+        typical_order_time: typicalOrderHour !== null ? `${typicalOrderHour.toString().padStart(2, '0')}:00` : null,
+        typical_order_hour: typicalOrderHour,
+        typical_delivery_type: typicalDeliveryType,
+        order_time_consistency: orderTimeConsistency,
         confidence_score: confidence,
         total_orders_analyzed: orders.length,
       });
@@ -161,6 +217,9 @@ serve(async (req) => {
           customer_id: schedule.customer_id,
           expected_order_days: schedule.expected_order_days,
           typical_order_time: schedule.typical_order_time,
+          typical_order_hour: schedule.typical_order_hour,
+          typical_delivery_type: schedule.typical_delivery_type,
+          order_time_consistency: schedule.order_time_consistency,
           confidence_score: schedule.confidence_score,
           total_orders_analyzed: schedule.total_orders_analyzed,
           last_analyzed_at: new Date().toISOString(),
