@@ -131,3 +131,6 @@ verify_jwt = true
 
 [functions.gmail-health-monitor]
 verify_jwt = false
+
+[functions.order-session-reminder]
+verify_jwt = false
