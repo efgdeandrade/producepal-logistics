@@ -1,100 +1,102 @@
 
-# Fix Mobile Toast Notifications Blocking UI
+
+# Collapsible Day Sections for Mobile Orders Page
 
 ## Problem
-On mobile devices, notification banners (toasts) appear at the top of the screen, blocking the header and menu. Users must swipe away each notification before they can interact with any menu items - this disrupts workflow significantly.
-
-## Root Cause
-In `src/components/ui/toast.tsx`, the `ToastViewport` has these classes:
-```
-fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 
-sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]
-```
-
-This means:
-- **Mobile (default)**: Toasts appear at the TOP (`top-0`) with full width (`w-full`)
-- **Desktop (sm+)**: Toasts appear at the BOTTOM-RIGHT (`sm:bottom-0 sm:right-0`)
-
-The mobile header has `z-40`, while toasts have `z-[100]`, so toasts cover everything.
+Looking at your screenshot, the mobile orders page shows all days stacked vertically (Mon Jan 26, Tue Jan 27, etc.). When you have many orders per day, you must scroll through all of them to get to another day. This makes it hard to focus on just the day you're currently working on.
 
 ## Solution
-Move toasts to the **bottom** of the screen on mobile, keeping them out of the way of the header and navigation. This matches the expected mobile UX pattern where notifications appear at the bottom.
+Make each day section collapsible on mobile, with the following behavior:
+- **Today's date** starts expanded by default
+- **Other days** start collapsed by default
+- Tapping the day header expands/collapses that day's orders
+- Add a clear visual indicator (chevron) showing collapse state
+- Keep the day summary stats visible even when collapsed
 
-## Changes Required
+## Visual Design
 
-### File: `src/components/ui/toast.tsx`
-
-**Current code (line 17):**
-```tsx
-"fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]"
-```
-
-**Updated code:**
-```tsx
-"fixed bottom-20 left-0 right-0 z-[100] flex max-h-screen w-full flex-col p-4 pointer-events-none sm:bottom-0 sm:right-0 sm:left-auto sm:flex-col md:max-w-[420px] [&>*]:pointer-events-auto"
-```
-
-**Key changes:**
-| Change | Before | After | Why |
-|--------|--------|-------|-----|
-| Position | `top-0` | `bottom-20` | Places toasts above bottom nav (which has `pb-24`) |
-| Direction | `flex-col-reverse` | `flex-col` | Stack toasts naturally from bottom up |
-| Horizontal | (full width) | `left-0 right-0` | Centered on mobile |
-| Pointer events | (blocks all) | `pointer-events-none` + `[&>*]:pointer-events-auto` | Container doesn't block clicks, only toasts do |
-
-### File: `src/components/ui/sonner.tsx` (if using Sonner toasts)
-
-Add `position="bottom-center"` prop to ensure Sonner toasts also appear at the bottom on mobile:
-
-```tsx
-<Sonner
-  theme={theme}
-  position="bottom-center"
-  className="toaster group"
-  // ... rest of config
-/>
-```
-
-## Visual Result
-
-**Before:**
 ```text
-┌─────────────────────┐
-│ [TOAST BLOCKS HERE] │  ← Can't tap menu!
-├─────────────────────┤
-│     Header          │
-├─────────────────────┤
-│                     │
-│     Content         │
-│                     │
-├─────────────────────┤
-│   Bottom Nav        │
-└─────────────────────┘
+Before (current):                    After (proposed):
+┌─────────────────────┐              ┌─────────────────────┐
+│ Mon Jan 26 [25] ⟩   │              │ Mon Jan 26 [25] ▼   │  ← Collapsed (shows chevron)
+│ ┌─────────────────┐ │              │   (25 orders hidden)│
+│ │ Order Card 1    │ │              └─────────────────────┘
+│ │ Order Card 2    │ │              ┌─────────────────────┐
+│ │ ...25 cards...  │ │              │ TODAY Tue Jan 27 ▲  │  ← Expanded (today)
+│ └─────────────────┘ │              │ ┌─────────────────┐ │
+├─────────────────────┤              │ │ Order Card 1    │ │
+│ Tue Jan 27 [3]      │              │ │ Order Card 2    │ │
+│ ┌─────────────────┐ │              │ │ Order Card 3    │ │
+│ │ Order Card 1    │ │              │ └─────────────────┘ │
+│ │ Order Card 2    │ │              └─────────────────────┘
+│ │ Order Card 3    │ │              ┌─────────────────────┐
+│ └─────────────────┘ │              │ Wed Jan 28 [0] ▼    │  ← Collapsed
+...must scroll...                    │   No orders         │
+                                     └─────────────────────┘
 ```
 
-**After:**
-```text
-┌─────────────────────┐
-│     Header          │  ← Fully accessible!
-├─────────────────────┤
-│                     │
-│     Content         │
-│                     │
-├─────────────────────┤
-│  [TOAST APPEARS]    │  ← Above bottom nav
-├─────────────────────┤
-│   Bottom Nav        │
-└─────────────────────┘
-```
+## Implementation Details
 
-## Technical Details
+### File: `src/pages/fnb/FnbOrders.tsx`
 
-1. **`bottom-20` (80px)**: This positions toasts just above the bottom navigation area (which has `pb-24` = 96px padding), ensuring they don't overlap with nav buttons
+1. **Add state to track collapsed days** (mobile only):
+   ```tsx
+   const [collapsedDays, setCollapsedDays] = useState<Set<string>>(() => {
+     // Start with all days collapsed except today
+     const todayStr = format(todayCuracao(), 'yyyy-MM-dd');
+     const allDays = new Set(
+       Array.from({ length: 6 }, (_, i) => 
+         format(addDays(startOfWeekCuracao(), i), 'yyyy-MM-dd')
+       )
+     );
+     allDays.delete(todayStr); // Today starts expanded
+     return allDays;
+   });
+   ```
 
-2. **`pointer-events-none` + `[&>*]:pointer-events-auto`**: The viewport container won't block clicks on content behind it, but individual toast elements will still be interactive
+2. **Add toggle function**:
+   ```tsx
+   const toggleDayCollapsed = (dateStr: string) => {
+     setCollapsedDays(prev => {
+       const newSet = new Set(prev);
+       if (newSet.has(dateStr)) {
+         newSet.delete(dateStr);
+       } else {
+         newSet.add(dateStr);
+       }
+       return newSet;
+     });
+   };
+   ```
 
-3. **Keeping desktop behavior**: The `sm:` prefixed classes maintain the existing bottom-right positioning on larger screens
+3. **Update day card rendering** (wrap content in Collapsible):
+   - On mobile (`md:hidden`), use the Collapsible component
+   - On desktop, keep the current grid layout unchanged
+   - The day header becomes the collapsible trigger
+   - Show a chevron icon that rotates based on state
+   - When collapsed, show a summary line like "25 orders" or "No orders"
+
+4. **Reset collapsed state when week changes**:
+   - When navigating to a new week, reset the collapsed days based on the new week's "today"
+
+### Mobile-Specific Behavior
+- This collapsible behavior only applies on mobile (screens smaller than `md`)
+- Desktop keeps the existing grid layout with all days visible
+- Uses the existing `Collapsible` component from Radix UI
 
 ## Files to Modify
-1. `src/components/ui/toast.tsx` - Change ToastViewport positioning for mobile
-2. `src/components/ui/sonner.tsx` - Add position prop for consistency
+
+1. **`src/pages/fnb/FnbOrders.tsx`**
+   - Add `collapsedDays` state with today expanded by default
+   - Add `toggleDayCollapsed` function
+   - Reset collapsed state when `weekStart` changes
+   - Wrap mobile day cards with `Collapsible` component
+   - Add chevron indicator to day headers on mobile
+   - Show collapsed summary when day is collapsed
+
+## User Experience Improvements
+- Quickly focus on today's orders without scrolling past other days
+- Expand only the days you need to review
+- Still see summary stats (order count, XCG total) for collapsed days
+- Chevron provides clear visual feedback on expand/collapse state
+
