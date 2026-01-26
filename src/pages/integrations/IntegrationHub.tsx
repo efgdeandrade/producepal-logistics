@@ -6,6 +6,7 @@ import { useGmailCredentials } from '@/hooks/useGmailCredentials';
 import { MessageSquare, RefreshCw, Webhook, Plug, ArrowRight, Settings, Mail } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import { WhatsAppHealthCard } from '@/components/integrations/WhatsAppHealthCard';
 
 const IntegrationHub = () => {
   const navigate = useNavigate();
@@ -130,6 +131,9 @@ const IntegrationHub = () => {
           </Card>
         ))}
       </div>
+
+      {/* WhatsApp Health Monitoring */}
+      <WhatsAppHealthCard />
 
       {/* Quick Stats */}
       <Card>
