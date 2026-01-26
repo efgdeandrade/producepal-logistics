@@ -105,7 +105,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         </header>
 
         {/* Main content with bottom nav padding */}
-        <main className="flex-1 p-4 pb-24">
+        <main className="flex-1 p-4 pt-2 pb-24">
           {children}
         </main>
       </div>

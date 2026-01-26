@@ -368,7 +368,7 @@ export default function ExecutiveDashboard() {
       {/* Header */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold tracking-tight">Executive Dashboard</h1>
+          <h1 className="hidden md:block text-3xl font-bold tracking-tight">Executive Dashboard</h1>
           {lastUpdate && (
             <Badge variant="outline" className="gap-1 text-xs">
               <Zap className="h-3 w-3 text-green-500" />
@@ -376,7 +376,7 @@ export default function ExecutiveDashboard() {
             </Badge>
           )}
         </div>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground text-sm md:text-base">
           Overview of all business operations • {format(new Date(), "EEEE, MMMM d, yyyy")}
         </p>
       </div>
