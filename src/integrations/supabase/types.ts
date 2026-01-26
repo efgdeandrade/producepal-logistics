@@ -4039,8 +4039,12 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          is_fuik_team: boolean | null
           must_change_password: boolean | null
+          notification_preferences: Json | null
+          team_role: string | null
           updated_at: string
+          whatsapp_phone: string | null
         }
         Insert: {
           created_at?: string
@@ -4048,8 +4052,12 @@ export type Database = {
           email: string
           full_name?: string | null
           id: string
+          is_fuik_team?: boolean | null
           must_change_password?: boolean | null
+          notification_preferences?: Json | null
+          team_role?: string | null
           updated_at?: string
+          whatsapp_phone?: string | null
         }
         Update: {
           created_at?: string
@@ -4057,8 +4065,12 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          is_fuik_team?: boolean | null
           must_change_password?: boolean | null
+          notification_preferences?: Json | null
+          team_role?: string | null
           updated_at?: string
+          whatsapp_phone?: string | null
         }
         Relationships: []
       }
