@@ -179,16 +179,24 @@ serve(async (req) => {
     for (let i = 0; i < words.length; i += batchSize) {
       const batch = words.slice(i, i + batchSize);
       
-      const entries = batch.map((entry: any) => {
+      // IMPORTANT: Postgres upsert with ON CONFLICT cannot update the same target row
+      // more than once per statement. If the incoming batch contains duplicate `word`
+      // values, Supabase will throw:
+      // "ON CONFLICT DO UPDATE command cannot affect row a second time"
+      //
+      // So we de-dupe by `word` within each batch before upserting.
+      const uniqueByWord = new Map<string, any>();
+      for (const entry of batch) {
         const word = (entry.word || '').toString().toLowerCase().trim();
         const dictType = (entry.type || '').toString().trim();
         const meaning = (entry.meaning || '').toString().trim();
         const usage = (entry.usage || '').toString().trim();
         const extra = (entry.extra || '').toString().trim();
-        
-        if (!word || !meaning) return null;
-        
-        return {
+
+        if (!word || !meaning) continue;
+
+        // Last write wins within the batch.
+        uniqueByWord.set(word, {
           word,
           word_type: mapWordType(dictType, word, meaning),
           meaning: meaning.length > 500 ? meaning.substring(0, 500) : meaning,
@@ -196,8 +204,10 @@ serve(async (req) => {
           is_verified: markAsVerified,
           usage_count: 0,
           examples: parseExamples(usage, extra),
-        };
-      }).filter(Boolean);
+        });
+      }
+
+      const entries = Array.from(uniqueByWord.values());
       
       if (entries.length === 0) continue;
       
