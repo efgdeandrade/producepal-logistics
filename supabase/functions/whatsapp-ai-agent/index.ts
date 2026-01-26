@@ -133,6 +133,19 @@ const RESPONSE_TEMPLATES = {
     en: "🆘 Customer {customer_name} ({phone}) requested to speak with a person. Original message: \"{message}\"\n\nPlease contact them.",
     nl: "🆘 Klant {customer_name} ({phone}) wil met een persoon praten. Origineel bericht: \"{message}\"\n\nNeem contact op.",
     es: "🆘 Cliente {customer_name} ({phone}) solicitó hablar con una persona. Mensaje original: \"{message}\"\n\nPor favor contáctale."
+  },
+  // Complaint escalation (direct message to management)
+  complaint_customer: {
+    pap: "Mi ta sinti esaki, {customer_name}. Mi ta notifiká maneho awor mesora. Nan lo kontaktá bo pronto pa resolve esaki. 🙏",
+    en: "I hear you, {customer_name}. I'm notifying management right now. They'll reach out to you shortly to resolve this. 🙏",
+    nl: "Ik begrijp het, {customer_name}. Ik breng nu management op de hoogte. Ze nemen snel contact met je op. 🙏",
+    es: "Te escucho, {customer_name}. Estoy notificando a gerencia ahora. Te contactarán pronto para resolverlo. 🙏"
+  },
+  complaint_team: {
+    pap: "⚠️ *Kliente kla* - {customer_name}\n📱 {phone}\n\n*Mensahe:*\n\"{message}\"\n\n*Orden:* {order_info}\n\nPor fabor kontakta kliente lo mas lihe posibel.",
+    en: "⚠️ *Customer Complaint* - {customer_name}\n📱 {phone}\n\n*Message:*\n\"{message}\"\n\n*Order:* {order_info}\n\nPlease contact customer ASAP.",
+    nl: "⚠️ *Klacht klant* - {customer_name}\n📱 {phone}\n\n*Bericht:*\n\"{message}\"\n\n*Bestelling:* {order_info}\n\nNeem zsm contact op met klant.",
+    es: "⚠️ *Queja de cliente* - {customer_name}\n📱 {phone}\n\n*Mensaje:*\n\"{message}\"\n\n*Pedido:* {order_info}\n\nContactar al cliente lo antes posible."
   }
 };
 
@@ -172,6 +185,27 @@ const HUMAN_ESCALATION_PATTERNS = [
   // Spanish
   'hablar con alguien', 'persona real', 'una persona', 'servicio al cliente',
   'representante', 'llámame', 'no un robot', 'atención humana'
+];
+
+// Complaint patterns - critical escalation to management
+const COMPLAINT_PATTERNS = [
+  // Papiamento
+  'no ta bon', 'malu', 'problema', 'reklama', 'kla', 'no ta korekto', 'fòut', 'frustrado',
+  'dañá', 'podri', 'ta keda tardi', 'mi ta braba', 'mi no ta kontento', 'ken ta maneha',
+  'mi ke papia ku maneho', 'esaki no por', 'basta',
+  // English
+  'complaint', 'problem', 'issue', 'wrong', 'bad', 'terrible', 'upset', 'angry', 'frustrated',
+  'damaged', 'rotten', 'late delivery', 'poor quality', 'disappointed', 'unacceptable',
+  'refund', 'compensation', 'not happy', 'speak to manager', 'this is ridiculous',
+  'worst', 'never again', 'disgusting',
+  // Dutch
+  'klacht', 'probleem', 'fout', 'verkeerd', 'slecht', 'boos', 'gefrustreerd', 'kapot',
+  'rot', 'te laat', 'slechte kwaliteit', 'teleurgesteld', 'onacceptabel', 'manager spreken',
+  'terugbetaling', 'compensatie', 'niet tevreden', 'dit kan niet',
+  // Spanish
+  'queja', 'problema', 'mal', 'error', 'terrible', 'enojado', 'frustrado', 'dañado',
+  'podrido', 'entrega tardía', 'mala calidad', 'decepcionado', 'inaceptable', 'reembolso',
+  'compensación', 'no estoy feliz', 'hablar con gerente', 'ridiculo'
 ];
 
 // Team role escalation mapping
@@ -227,12 +261,16 @@ function detectIntent(text: string): {
   isSameOrderResponse: boolean;
   isTomorrowResponse: boolean;
   isHumanEscalation: boolean;
+  isComplaint: boolean;
   cancelItemName: string | null;
 } {
   const lowerText = text.toLowerCase().trim();
   
   // Check for human escalation FIRST (highest priority)
   const isHumanEscalation = HUMAN_ESCALATION_PATTERNS.some(p => lowerText.includes(p));
+  
+  // Check for complaints (critical escalation)
+  const isComplaint = COMPLAINT_PATTERNS.some(p => lowerText.includes(p)) && lowerText.length > 15;
   
   // Check for same order / tomorrow response
   const isSameOrderResponse = SAME_ORDER_PATTERNS.some(p => lowerText.includes(p));
@@ -283,6 +321,7 @@ function detectIntent(text: string): {
   // Determine primary intent (order of priority matters!)
   let intent = 'order';
   if (isHumanEscalation) intent = 'human_escalation';
+  else if (isComplaint) intent = 'complaint';
   else if (isSameOrderResponse) intent = 'same_order_today';
   else if (isTomorrowResponse) intent = 'for_tomorrow';
   else if (isCancelOrder) intent = 'cancel_order';
@@ -291,7 +330,7 @@ function detectIntent(text: string): {
   else if (isAddition) intent = 'addition';
   else if (isGreeting && lowerText.length < 30) intent = 'greeting';
   
-  return { intent, isConfirmation, isGreeting, isCancelOrder, isCancelItem, isAddition, isSameOrderResponse, isTomorrowResponse, isHumanEscalation, cancelItemName };
+  return { intent, isConfirmation, isGreeting, isCancelOrder, isCancelItem, isAddition, isSameOrderResponse, isTomorrowResponse, isHumanEscalation, isComplaint, cancelItemName };
 }
 
 // Detect which team role should be escalated to
@@ -561,8 +600,8 @@ Deno.serve(async (req) => {
     console.log('Detected language:', language);
 
     // Detect intent
-    const { intent, isConfirmation, isGreeting, isCancelOrder, isCancelItem, isAddition, isSameOrderResponse, isTomorrowResponse, isHumanEscalation, cancelItemName } = detectIntent(message_text);
-    console.log('Detected intent:', intent, { isConfirmation, isGreeting, isCancelOrder, isCancelItem, isAddition, isSameOrderResponse, isTomorrowResponse, isHumanEscalation, cancelItemName });
+    const { intent, isConfirmation, isGreeting, isCancelOrder, isCancelItem, isAddition, isSameOrderResponse, isTomorrowResponse, isHumanEscalation, isComplaint, cancelItemName } = detectIntent(message_text);
+    console.log('Detected intent:', intent, { isConfirmation, isGreeting, isCancelOrder, isCancelItem, isAddition, isSameOrderResponse, isTomorrowResponse, isHumanEscalation, isComplaint, cancelItemName });
 
     // Handle HUMAN ESCALATION request first (highest priority)
     if (isHumanEscalation) {
@@ -635,6 +674,109 @@ Deno.serve(async (req) => {
         action: 'human_escalation',
         customer_phone,
         notified_team: !!teamMember
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Handle COMPLAINT escalation (critical - direct message to management)
+    if (isComplaint) {
+      console.log('Customer complaint detected - escalating to management');
+      
+      // Get recent order info for context
+      const { data: recentOrderForComplaint } = await supabase
+        .from('distribution_orders')
+        .select('id, order_number, status, created_at')
+        .or(customer_id ? `customer_id.eq.${customer_id},customer_phone.eq.${customer_phone}` : `customer_phone.eq.${customer_phone}`)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      const orderInfo = recentOrderForComplaint?.[0] 
+        ? `${recentOrderForComplaint[0].order_number} (${recentOrderForComplaint[0].status})`
+        : 'No recent order';
+      
+      // Send acknowledgment to customer
+      const customerMsgTemplate = RESPONSE_TEMPLATES.complaint_customer[language as keyof typeof RESPONSE_TEMPLATES.complaint_customer];
+      const customerMsg = customerMsgTemplate.replace('{customer_name}', customer_name?.split(' ')[0] || 'friend');
+      await sendWhatsAppMessage(customer_phone, customerMsg);
+      
+      // Get management team member to notify
+      const teamMember = await getTeamMemberByRole(supabase, 'management');
+      
+      if (teamMember) {
+        // Send detailed complaint to management
+        const teamMsgTemplate = RESPONSE_TEMPLATES.complaint_team[language as keyof typeof RESPONSE_TEMPLATES.complaint_team];
+        const teamMsg = teamMsgTemplate
+          .replace('{customer_name}', customer_name || 'Unknown Customer')
+          .replace('{phone}', customer_phone)
+          .replace('{message}', message_text.substring(0, 300))
+          .replace('{order_info}', orderInfo);
+        
+        await sendWhatsAppMessage(teamMember.phone, teamMsg);
+        console.log('Complaint notification sent to management:', teamMember.name);
+        
+        // Log both messages
+        await supabase.from('whatsapp_messages').insert([
+          {
+            direction: 'outbound',
+            phone_number: customer_phone,
+            message_text: customerMsg,
+            customer_id: customer_id || null,
+            status: 'sent'
+          },
+          {
+            direction: 'outbound',
+            phone_number: teamMember.phone,
+            message_text: teamMsg,
+            customer_id: null,
+            status: 'sent'
+          }
+        ]);
+      } else {
+        // No team member configured, just log customer message
+        console.warn('No management team member configured for complaint escalation');
+        await supabase.from('whatsapp_messages').insert({
+          direction: 'outbound',
+          phone_number: customer_phone,
+          message_text: customerMsg,
+          customer_id: customer_id || null,
+          status: 'sent'
+        });
+      }
+      
+      // Create in-app notification for admins/management
+      const { data: admins } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .in('role', ['admin', 'management']);
+      
+      if (admins && admins.length > 0) {
+        const notifications = admins.map((admin: { user_id: string }) => ({
+          user_id: admin.user_id,
+          type: 'complaint',
+          title: '⚠️ Customer Complaint',
+          message: `${customer_name || customer_phone}: "${message_text.substring(0, 150)}..." - Order: ${orderInfo}`,
+          is_read: false
+        }));
+        
+        await supabase.from('notifications').insert(notifications);
+      }
+      
+      // Store conversation
+      await supabase.from('distribution_conversations').insert({
+        customer_id: customer_id || null,
+        direction: 'outbound',
+        message_text: customerMsg,
+        detected_language: language,
+        parsed_intent: 'complaint_escalation'
+      });
+      
+      return new Response(JSON.stringify({ 
+        success: true, 
+        action: 'complaint_escalation',
+        customer_phone,
+        notified_team: !!teamMember,
+        order_info: orderInfo
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
