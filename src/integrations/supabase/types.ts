@@ -1871,6 +1871,62 @@ export type Database = {
           },
         ]
       }
+      distribution_order_sessions: {
+        Row: {
+          conversation_snapshot: Json | null
+          created_at: string
+          customer_id: string | null
+          customer_name: string | null
+          customer_phone: string
+          detected_language: string | null
+          expires_at: string
+          id: string
+          parsed_items: Json
+          reminder_count: number | null
+          reminder_sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          conversation_snapshot?: Json | null
+          created_at?: string
+          customer_id?: string | null
+          customer_name?: string | null
+          customer_phone: string
+          detected_language?: string | null
+          expires_at?: string
+          id?: string
+          parsed_items?: Json
+          reminder_count?: number | null
+          reminder_sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          conversation_snapshot?: Json | null
+          created_at?: string
+          customer_id?: string | null
+          customer_name?: string | null
+          customer_phone?: string
+          detected_language?: string | null
+          expires_at?: string
+          id?: string
+          parsed_items?: Json
+          reminder_count?: number | null
+          reminder_sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "distribution_order_sessions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       distribution_orders: {
         Row: {
           assigned_at: string | null

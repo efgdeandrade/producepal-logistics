@@ -960,6 +960,107 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Check for pending order session (incomplete order from earlier)
+    const { data: pendingSession } = await supabase
+      .from('distribution_order_sessions')
+      .select('*')
+      .eq('customer_phone', customer_phone)
+      .eq('status', 'pending_confirmation')
+      .order('created_at', { ascending: false })
+      .limit(1);
+    
+    // If customer is responding to a reminder, treat confirmation properly
+    if (pendingSession?.[0] && isConfirmation) {
+      console.log('Customer confirming pending session from reminder');
+      
+      const session = pendingSession[0];
+      const sessionItems = (session.parsed_items || []) as Array<{ product_id: string; product_name: string; quantity: number; unit_price: number }>;
+      
+      if (sessionItems.length > 0) {
+        // Mark session as confirmed
+        await supabase
+          .from('distribution_order_sessions')
+          .update({ status: 'confirmed', updated_at: new Date().toISOString() })
+          .eq('id', session.id);
+        
+        // Create order from session
+        const orderNumber = `WA-${Date.now().toString(36).toUpperCase()}`;
+        const totalAmount = sessionItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+        
+        const { data: order, error: orderError } = await supabase
+          .from('distribution_orders')
+          .insert({
+            order_number: orderNumber,
+            customer_id: session.customer_id || null,
+            customer_phone: customer_phone,
+            status: 'pending',
+            source: 'whatsapp',
+            total_xcg: totalAmount,
+            source_conversation: JSON.stringify(session.conversation_snapshot),
+            notes: !session.customer_id ? `New WhatsApp customer - needs customer assignment. Phone: ${customer_phone}` : null
+          })
+          .select()
+          .single();
+        
+        if (!orderError && order) {
+          const orderItems = sessionItems.map(item => ({
+            order_id: order.id,
+            product_id: item.product_id,
+            quantity: item.quantity,
+            unit_price_xcg: item.unit_price,
+            total_xcg: item.quantity * item.unit_price
+          }));
+          
+          await supabase.from('distribution_order_items').insert(orderItems);
+          
+          const confirmMsg = RESPONSE_TEMPLATES.order_confirmed[language as keyof typeof RESPONSE_TEMPLATES.order_confirmed];
+          await sendWhatsAppMessage(customer_phone, confirmMsg);
+          
+          await supabase.from('whatsapp_messages').insert({
+            direction: 'outbound',
+            phone_number: customer_phone,
+            message_text: confirmMsg,
+            customer_id: session.customer_id || null,
+            status: 'sent'
+          });
+          
+          return new Response(JSON.stringify({ 
+            success: true, 
+            action: 'session_order_confirmed',
+            order_id: order.id,
+            order_number: orderNumber,
+            session_id: session.id
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+    }
+    
+    // If customer says "No" to reminder, abandon the session
+    const noPatterns = ['no', 'nee', 'nein', 'cancel', 'kansela', 'annuleer', 'cancelar'];
+    if (pendingSession?.[0] && noPatterns.some(p => message_text.toLowerCase().trim() === p)) {
+      await supabase
+        .from('distribution_order_sessions')
+        .update({ status: 'abandoned', updated_at: new Date().toISOString() })
+        .eq('id', pendingSession[0].id);
+      
+      const abandonMsg = language === 'pap' ? "👍 Ok, bo orden a wordo kanselá. Avisami ora bo ke pidi algo nobo!" :
+                        language === 'nl' ? "👍 Oké, uw bestelling is geannuleerd. Laat me weten als u iets nieuws wilt bestellen!" :
+                        language === 'es' ? "👍 Ok, tu pedido ha sido cancelado. ¡Avísame cuando quieras pedir algo nuevo!" :
+                        "👍 Ok, your order has been cancelled. Let me know when you'd like to order something new!";
+      
+      await sendWhatsAppMessage(customer_phone, abandonMsg);
+      
+      return new Response(JSON.stringify({ 
+        success: true, 
+        action: 'session_abandoned',
+        session_id: pendingSession[0].id
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Parse order items
     const parsedItems = parseOrderItems(message_text);
     console.log('Parsed items:', parsedItems);
@@ -1168,6 +1269,42 @@ Deno.serve(async (req) => {
         ).join('\n');
         responseMessage += '\n\n' + noMatchMsg;
       }
+      
+      // Create/update draft session for incomplete orders
+      // Get recent messages for conversation snapshot
+      const { data: recentMsgs } = await supabase
+        .from('whatsapp_messages')
+        .select('direction, message_text, created_at')
+        .eq('phone_number', customer_phone)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      const conversationSnapshot = (recentMsgs || []).reverse().map(m => ({
+        direction: m.direction,
+        message_text: m.message_text,
+        created_at: m.created_at
+      }));
+      
+      // Upsert session (update if exists, create if not)
+      await supabase
+        .from('distribution_order_sessions')
+        .upsert({
+          customer_id: customer_id || null,
+          customer_phone: customer_phone,
+          customer_name: customer_name || null,
+          parsed_items: matchedItems,
+          detected_language: language,
+          conversation_snapshot: conversationSnapshot,
+          status: 'pending_confirmation',
+          expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 min from now
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'customer_phone',
+          ignoreDuplicates: false
+        });
+      
+      console.log('Draft order session created/updated for', customer_phone);
+      
     } else {
       // No products matched
       responseMessage = unmatchedItems.map(item => 
