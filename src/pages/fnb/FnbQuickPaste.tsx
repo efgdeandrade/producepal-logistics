@@ -532,10 +532,10 @@ export default function FnbQuickPaste() {
 
         {/* STEP 1: Paste */}
         {step === 'paste' && !isAutoParsingRef && (
-          <div className="p-4 space-y-4">
+          <div className="p-4 space-y-4 w-full max-w-full overflow-x-hidden">
             {/* Customer Selection - Full width, stacked */}
-            <Card>
-              <CardContent className="p-4 space-y-3">
+            <Card className="w-full">
+              <CardContent className="p-4 space-y-3 w-full">
                 <label className="text-sm font-medium flex items-center gap-2">
                   <User className="h-4 w-4 text-muted-foreground" />
                   Customer
@@ -548,12 +548,11 @@ export default function FnbQuickPaste() {
                     setCustomerId(val);
                   }}
                   placeholder="Select customer..."
-                  className="w-full"
                 />
                 
                 {/* Recent customers - horizontal scroll chips */}
                 {recentCustomers.length > 0 && !customerId && (
-                  <div className="space-y-2 overflow-hidden">
+                  <div className="space-y-2 w-full overflow-x-hidden">
                     <p className="text-xs text-muted-foreground">Recent:</p>
                     <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                       {recentCustomers.map(c => (
@@ -579,7 +578,7 @@ export default function FnbQuickPaste() {
             {/* Clipboard Ready Card - One-tap paste & parse */}
             {clipboardChecked && clipboardContent && (
               <Card 
-                className="border-primary/50 bg-primary/5 cursor-pointer active:scale-[0.98] transition-transform touch-manipulation"
+                className="border-primary/50 bg-primary/5 cursor-pointer active:scale-[0.98] transition-transform touch-manipulation w-full"
                 onClick={async () => {
                   if (!customerId) {
                     toast.error('Please select a customer first');
@@ -591,15 +590,15 @@ export default function FnbQuickPaste() {
                   setStep('review');
                 }}
               >
-                <CardContent className="p-4 space-y-3">
+                <CardContent className="p-4 space-y-3 w-full">
                   <div className="flex items-center gap-2">
                     <ClipboardPaste className="h-5 w-5 text-primary shrink-0" />
                     <span className="font-medium text-primary">Clipboard Ready</span>
                   </div>
-                  <p className="text-sm text-muted-foreground line-clamp-2">
+                  <p className="text-sm text-muted-foreground line-clamp-2 break-words">
                     {clipboardContent.substring(0, 100)}...
                   </p>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
                     <span className="text-xs text-muted-foreground">
                       {clipboardContent.split('\n').filter(l => l.trim()).length} lines detected
                     </span>
@@ -684,12 +683,12 @@ export default function FnbQuickPaste() {
           <div className="flex flex-col h-full">
             {/* Order Summary - Sticky */}
             <div className="sticky top-0 z-10 bg-background border-b p-4 space-y-2">
-              <Card className="overflow-hidden">
-                <CardContent className="p-3 overflow-hidden">
-                  <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
+              <Card className="overflow-hidden w-full">
+                <CardContent className="p-3 overflow-hidden w-full">
+                  <div className="flex items-center justify-between gap-2 mb-1 flex-wrap w-full">
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Badge variant="outline" className="cursor-pointer hover:bg-accent transition-colors max-w-[45%] min-w-0">
+                        <Badge variant="outline" className="cursor-pointer hover:bg-accent transition-colors max-w-[calc(50%-0.5rem)] min-w-0">
                           <User className="h-3 w-3 mr-1 shrink-0" />
                           <span className="truncate">{selectedCustomer?.name || 'Select customer'}</span>
                           <ChevronDown className="h-3 w-3 ml-1 shrink-0" />
@@ -781,8 +780,8 @@ export default function FnbQuickPaste() {
             </div>
 
             {/* Items List - Scrollable, vertical only */}
-            <ScrollArea className="flex-1 px-4 w-full max-w-full">
-              <div className="space-y-4 py-4">
+            <ScrollArea className="flex-1 w-full">
+              <div className="space-y-4 py-4 px-4 w-full max-w-full overflow-x-hidden">
                 {matchedItems.map((item, index) => (
                   <MobileProductCard
                     key={index}
@@ -800,6 +799,7 @@ export default function FnbQuickPaste() {
                       suggested_price: price
                     })}
                     onRemove={() => removeMatchedItem(index)}
+                    className="w-full"
                   />
                 ))}
                 
@@ -807,7 +807,7 @@ export default function FnbQuickPaste() {
                 {conversationText.trim() && (
                   <Collapsible className="mt-6">
                     <CollapsibleTrigger asChild>
-                      <Button variant="ghost" className="w-full justify-between text-muted-foreground hover:text-foreground">
+                      <Button variant="ghost" className="w-full justify-between text-muted-foreground hover:text-foreground max-w-full">
                         <span className="flex items-center gap-2">
                           <FileText className="h-4 w-4" />
                           Original Message
@@ -816,9 +816,9 @@ export default function FnbQuickPaste() {
                       </Button>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                      <Card className="mt-2 bg-muted/30">
-                        <CardContent className="p-3">
-                          <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono max-h-40 overflow-y-auto">
+                      <Card className="mt-2 bg-muted/30 w-full max-w-full">
+                        <CardContent className="p-3 w-full overflow-x-hidden">
+                          <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono max-h-40 overflow-y-auto break-words w-full">
                             {conversationText}
                           </pre>
                         </CardContent>
@@ -865,12 +865,12 @@ export default function FnbQuickPaste() {
 
         {/* STEP 3: Success */}
         {step === 'success' && (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-4">
-            <div className="w-20 h-20 rounded-full bg-green-500/10 flex items-center justify-center mb-6">
-              <Check className="h-10 w-10 text-green-500" />
+          <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-4 w-full max-w-full overflow-x-hidden">
+            <div className="w-20 h-20 rounded-full bg-success/10 flex items-center justify-center mb-6">
+              <Check className="h-10 w-10 text-success" />
             </div>
-            <h2 className="text-2xl font-bold mb-2">Order Created!</h2>
-            <p className="text-muted-foreground mb-1">#{createdOrderNumber}</p>
+            <h2 className="text-2xl font-bold mb-2 break-words max-w-full px-2">Order Created!</h2>
+            <p className="text-muted-foreground mb-1 break-words max-w-full px-2">#{createdOrderNumber}</p>
             <p className="text-muted-foreground mb-4">
               {selectedCustomer?.name} • {validItemsCount} items
             </p>
@@ -886,7 +886,7 @@ export default function FnbQuickPaste() {
             <div className="space-y-3 w-full max-w-xs">
               <Button
                 onClick={handleReplyWhatsApp}
-                className="w-full h-14 text-lg gap-2 bg-green-600 hover:bg-green-700"
+                className="w-full h-14 text-lg gap-2 bg-success hover:bg-success/90"
                 size="lg"
               >
                 <MessageCircle className="h-5 w-5" />
