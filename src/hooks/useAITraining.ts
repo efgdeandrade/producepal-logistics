@@ -47,21 +47,49 @@ export function useAITraining() {
   const { data: reviewQueue, isLoading: isLoadingQueue } = useQuery({
     queryKey: ['ai-training-queue'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // First get the logs that need review
+      const { data: logs, error } = await supabase
         .from('distribution_ai_match_logs')
-        .select(`
-          *,
-          customer:distribution_customers(id, name),
-          matched_product:distribution_products!distribution_ai_match_logs_matched_product_id_fkey(id, name, code),
-          corrected_product:distribution_products!distribution_ai_match_logs_corrected_product_id_fkey(id, name, code),
-          order:distribution_orders(id, order_number)
-        `)
+        .select('*')
         .eq('needs_review', true)
         .order('created_at', { ascending: false })
         .limit(100);
 
       if (error) throw error;
-      return data as unknown as MatchLog[];
+      if (!logs || logs.length === 0) return [];
+
+      // Then enrich with related data - using separate queries to avoid join failures
+      const customerIds = [...new Set(logs.map(l => l.customer_id).filter(Boolean))];
+      const productIds = [...new Set([
+        ...logs.map(l => l.matched_product_id).filter(Boolean),
+        ...logs.map(l => l.corrected_product_id).filter(Boolean)
+      ])];
+      const orderIds = [...new Set(logs.map(l => l.order_id).filter(Boolean))];
+
+      const [customersRes, productsRes, ordersRes] = await Promise.all([
+        customerIds.length > 0
+          ? supabase.from('distribution_customers').select('id, name').in('id', customerIds)
+          : { data: [] },
+        productIds.length > 0
+          ? supabase.from('distribution_products').select('id, name, code').in('id', productIds)
+          : { data: [] },
+        orderIds.length > 0
+          ? supabase.from('distribution_orders').select('id, order_number').in('id', orderIds)
+          : { data: [] },
+      ]);
+
+      const customersMap = new Map((customersRes.data || []).map(c => [c.id, c]));
+      const productsMap = new Map((productsRes.data || []).map(p => [p.id, p]));
+      const ordersMap = new Map((ordersRes.data || []).map(o => [o.id, o]));
+
+      // Enrich logs with related data
+      return logs.map(log => ({
+        ...log,
+        customer: log.customer_id ? customersMap.get(log.customer_id) || null : null,
+        matched_product: log.matched_product_id ? productsMap.get(log.matched_product_id) || null : null,
+        corrected_product: log.corrected_product_id ? productsMap.get(log.corrected_product_id) || null : null,
+        order: log.order_id ? ordersMap.get(log.order_id) || null : null,
+      })) as unknown as MatchLog[];
     },
   });
 
