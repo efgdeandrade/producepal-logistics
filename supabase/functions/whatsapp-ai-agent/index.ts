@@ -38,11 +38,28 @@ const RESPONSE_TEMPLATES = {
     nl: "💡 Je hebt eerder ook besteld: {products}. Wil je iets toevoegen?",
     es: "💡 También has pedido antes: {products}. ¿Te gustaría agregar alguno?"
   },
+  // Multiple no_match variations to avoid repetition
   no_match: {
-    pap: "🤔 Hmm, Dre no por haña e produkto '{item}'. Por fabor purba otro nomber òf mira nos lista di produktonan.",
-    en: "🤔 Hmm, Dre couldn't find '{item}'. Please try another name or check our product list.",
-    nl: "🤔 Hmm, Dre kon '{item}' niet vinden. Probeer een andere naam of bekijk onze productlijst.",
-    es: "🤔 Hmm, Dre no pudo encontrar '{item}'. Por favor intenta con otro nombre o revisa nuestra lista."
+    pap: [
+      "🤔 Hmm, Dre no por haña '{item}'. Purba otro nomber?",
+      "🤔 '{item}' no ta den nos lista. Tin otro kos bo ke pidi?",
+      "🤔 Mi no ta ripará '{item}'. Por fabor deskribí esaki diferente?"
+    ],
+    en: [
+      "🤔 Hmm, Dre couldn't find '{item}'. Try another name?",
+      "🤔 '{item}' isn't in our list. Anything else you'd like?",
+      "🤔 I don't recognize '{item}'. Could you describe it differently?"
+    ],
+    nl: [
+      "🤔 Hmm, Dre kon '{item}' niet vinden. Probeer een andere naam?",
+      "🤔 '{item}' staat niet in onze lijst. Iets anders?",
+      "🤔 Ik herken '{item}' niet. Kun je het anders beschrijven?"
+    ],
+    es: [
+      "🤔 Hmm, Dre no encontró '{item}'. ¿Otro nombre?",
+      "🤔 '{item}' no está en nuestra lista. ¿Algo más?",
+      "🤔 No reconozco '{item}'. ¿Puedes describirlo diferente?"
+    ]
   },
   greeting_response: {
     pap: "Kon ta! Dre aki 👋 Ki kos bo ke pidi awe?",
@@ -103,6 +120,19 @@ const RESPONSE_TEMPLATES = {
     en: "🔔 @{team_member} - Customer {customer_name} is requesting: {request}\n\nOrder: {order_number}\nStatus: {status}\n\nPlease respond if we can still do this.",
     nl: "🔔 @{team_member} - Klant {customer_name} vraagt: {request}\n\nBestelling: {order_number}\nStatus: {status}\n\nGelieve te reageren of we dit nog kunnen doen.",
     es: "🔔 @{team_member} - El cliente {customer_name} solicita: {request}\n\nPedido: {order_number}\nEstado: {status}\n\nPor favor responde si aún podemos hacer esto."
+  },
+  // Human escalation request responses
+  human_escalation: {
+    pap: "👤 Sin problema! Mi ta pasa bo na un di nos ekipo. Un momento por fabor, nan lo kontaktá bo pronto.",
+    en: "👤 No problem! I'm connecting you with our team. One moment please, they'll reach out shortly.",
+    nl: "👤 Geen probleem! Ik verbind je met ons team. Even geduld, ze nemen snel contact op.",
+    es: "👤 ¡Sin problema! Te estoy conectando con nuestro equipo. Un momento, te contactarán pronto."
+  },
+  human_escalation_team: {
+    pap: "🆘 Kliente {customer_name} ({phone}) ta pidi pa papia ku un hende. Mensahe original: \"{message}\"\n\nPor fabor kontakta nan.",
+    en: "🆘 Customer {customer_name} ({phone}) requested to speak with a person. Original message: \"{message}\"\n\nPlease contact them.",
+    nl: "🆘 Klant {customer_name} ({phone}) wil met een persoon praten. Origineel bericht: \"{message}\"\n\nNeem contact op.",
+    es: "🆘 Cliente {customer_name} ({phone}) solicitó hablar con una persona. Mensaje original: \"{message}\"\n\nPor favor contáctale."
   }
 };
 
@@ -125,7 +155,24 @@ const ADDITION_PATTERNS = ['add', 'also', 'more', 'extra', 'agrega', 'mas', 'tam
 
 // Same order / tomorrow detection patterns
 const SAME_ORDER_PATTERNS = ['same order', 'same', 'mesun', 'mesun orden', 'zelfde', 'zelfde bestelling', 'mismo', 'mismo pedido', 'awe', 'today', 'vandaag', 'hoy'];
-const TOMORROW_PATTERNS = ['tomorrow', 'mañan', 'morgen', 'mañana', 'next', 'otro dia', 'another day'];
+const TOMORROW_PATTERNS = ['tomorrow', 'mañan', 'mayan', 'majan', 'manyan', 'morgen', 'mañana', 'next', 'otro dia', 'another day'];
+
+// Human escalation patterns - when customer wants to talk to a real person
+const HUMAN_ESCALATION_PATTERNS = [
+  // Papiamento
+  'papia ku un hende', 'papia ku hende', 'un hende', 'yama mi', 'por yama', 'habla ku alguien',
+  'mi ke papia', 'no bo, un hende', 'persona real', 'hende real',
+  // English
+  'speak to someone', 'talk to someone', 'real person', 'human', 'speak to a person', 
+  'talk to a person', 'customer service', 'representative', 'agent', 'call me', 'phone call',
+  'speak with someone', 'not a bot', 'actual person',
+  // Dutch
+  'met iemand praten', 'echt persoon', 'echte persoon', 'menselijke', 'met een mens',
+  'bel me', 'klantenservice', 'medewerker',
+  // Spanish
+  'hablar con alguien', 'persona real', 'una persona', 'servicio al cliente',
+  'representante', 'llámame', 'no un robot', 'atención humana'
+];
 
 // Team role escalation mapping
 const ESCALATION_TRIGGERS = {
@@ -133,6 +180,15 @@ const ESCALATION_TRIGGERS = {
   management: ['discount', 'descuento', 'korting', 'price', 'precio', 'prijs', 'special', 'exception', 'problema', 'problem'],
   accounting: ['invoice', 'factura', 'factuur', 'payment', 'pago', 'betaling', 'credit', 'credito']
 };
+
+// Get a varied no_match response to avoid repetition
+let noMatchCounter = 0;
+function getNoMatchResponse(language: string, item: string): string {
+  const responses = RESPONSE_TEMPLATES.no_match[language as keyof typeof RESPONSE_TEMPLATES.no_match] || RESPONSE_TEMPLATES.no_match.pap;
+  const response = responses[noMatchCounter % responses.length];
+  noMatchCounter++;
+  return response.replace('{item}', item);
+}
 
 // Detect language from text
 function detectLanguage(text: string, customerPreference?: string | null): string {
@@ -170,9 +226,13 @@ function detectIntent(text: string): {
   isAddition: boolean;
   isSameOrderResponse: boolean;
   isTomorrowResponse: boolean;
+  isHumanEscalation: boolean;
   cancelItemName: string | null;
 } {
   const lowerText = text.toLowerCase().trim();
+  
+  // Check for human escalation FIRST (highest priority)
+  const isHumanEscalation = HUMAN_ESCALATION_PATTERNS.some(p => lowerText.includes(p));
   
   // Check for same order / tomorrow response
   const isSameOrderResponse = SAME_ORDER_PATTERNS.some(p => lowerText.includes(p));
@@ -206,13 +266,24 @@ function detectIntent(text: string): {
   const confirmPatterns = ['si', 'sí', 'yes', 'ja', 'ok', 'okay', 'confirma', 'confirm', 'bevestig', 'ta bon', 'correcto', 'correct'];
   const isConfirmation = confirmPatterns.some(p => lowerText === p || lowerText.startsWith(p + ' ') || lowerText.endsWith(' ' + p));
   
-  // Check for greeting
-  const greetingPatterns = ['bon dia', 'bon tardi', 'bon nochi', 'hola', 'hello', 'hi', 'hallo', 'buenos', 'good morning', 'good afternoon', 'goedemorgen', 'goedemiddag'];
-  const isGreeting = greetingPatterns.some(p => lowerText.includes(p));
+  // Check for greeting with fuzzy matching (handles typos like bontardi, bonnochi)
+  const greetingPatterns = [
+    'bon dia', 'bondia', 'bon tardi', 'bontardi', 'bon nochi', 'bonnochi',
+    'hola', 'hello', 'hi', 'hallo', 'buenos', 'good morning', 'good afternoon', 
+    'goedemorgen', 'goedemiddag', 'goedenavond', 'kon ta', 'konta'
+  ];
+  const isGreeting = greetingPatterns.some(p => {
+    // Exact match or fuzzy match (allow 1-2 character difference)
+    if (lowerText.includes(p)) return true;
+    // Simple fuzzy: check if pattern words appear in text
+    const patternWords = p.split(' ');
+    return patternWords.every(word => lowerText.includes(word.slice(0, 3)));
+  });
   
-  // Determine primary intent
+  // Determine primary intent (order of priority matters!)
   let intent = 'order';
-  if (isSameOrderResponse) intent = 'same_order_today';
+  if (isHumanEscalation) intent = 'human_escalation';
+  else if (isSameOrderResponse) intent = 'same_order_today';
   else if (isTomorrowResponse) intent = 'for_tomorrow';
   else if (isCancelOrder) intent = 'cancel_order';
   else if (isCancelItem) intent = 'cancel_item';
@@ -220,7 +291,7 @@ function detectIntent(text: string): {
   else if (isAddition) intent = 'addition';
   else if (isGreeting && lowerText.length < 30) intent = 'greeting';
   
-  return { intent, isConfirmation, isGreeting, isCancelOrder, isCancelItem, isAddition, isSameOrderResponse, isTomorrowResponse, cancelItemName };
+  return { intent, isConfirmation, isGreeting, isCancelOrder, isCancelItem, isAddition, isSameOrderResponse, isTomorrowResponse, isHumanEscalation, cancelItemName };
 }
 
 // Detect which team role should be escalated to
@@ -490,8 +561,84 @@ Deno.serve(async (req) => {
     console.log('Detected language:', language);
 
     // Detect intent
-    const { intent, isConfirmation, isGreeting, isCancelOrder, isCancelItem, isAddition, isSameOrderResponse, isTomorrowResponse, cancelItemName } = detectIntent(message_text);
-    console.log('Detected intent:', intent, { isConfirmation, isGreeting, isCancelOrder, isCancelItem, isAddition, isSameOrderResponse, isTomorrowResponse, cancelItemName });
+    const { intent, isConfirmation, isGreeting, isCancelOrder, isCancelItem, isAddition, isSameOrderResponse, isTomorrowResponse, isHumanEscalation, cancelItemName } = detectIntent(message_text);
+    console.log('Detected intent:', intent, { isConfirmation, isGreeting, isCancelOrder, isCancelItem, isAddition, isSameOrderResponse, isTomorrowResponse, isHumanEscalation, cancelItemName });
+
+    // Handle HUMAN ESCALATION request first (highest priority)
+    if (isHumanEscalation) {
+      console.log('Customer requesting human escalation');
+      
+      // Send acknowledgment to customer
+      const customerMsg = RESPONSE_TEMPLATES.human_escalation[language as keyof typeof RESPONSE_TEMPLATES.human_escalation];
+      await sendWhatsAppMessage(customer_phone, customerMsg);
+      
+      // Get management team member to notify
+      const teamMember = await getTeamMemberByRole(supabase, 'management');
+      
+      if (teamMember) {
+        // Send notification to team
+        const teamMsg = RESPONSE_TEMPLATES.human_escalation_team[language as keyof typeof RESPONSE_TEMPLATES.human_escalation_team]
+          .replace('{customer_name}', customer_name || 'Unknown')
+          .replace('{phone}', customer_phone)
+          .replace('{message}', message_text.substring(0, 200));
+        
+        await sendWhatsAppMessage(teamMember.phone, teamMsg);
+        
+        // Log both messages
+        await supabase.from('whatsapp_messages').insert([
+          {
+            direction: 'outbound',
+            phone_number: customer_phone,
+            message_text: customerMsg,
+            customer_id: customer_id || null,
+            status: 'sent'
+          },
+          {
+            direction: 'outbound',
+            phone_number: teamMember.phone,
+            message_text: teamMsg,
+            customer_id: null,
+            status: 'sent'
+          }
+        ]);
+      } else {
+        // No team member configured, just log customer message
+        await supabase.from('whatsapp_messages').insert({
+          direction: 'outbound',
+          phone_number: customer_phone,
+          message_text: customerMsg,
+          customer_id: customer_id || null,
+          status: 'sent'
+        });
+      }
+      
+      // Create notification for management in-app
+      const { data: admins } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .in('role', ['admin', 'management']);
+      
+      if (admins && admins.length > 0) {
+        const notifications = admins.map((admin: { user_id: string }) => ({
+          user_id: admin.user_id,
+          type: 'escalation',
+          title: 'Human Escalation Request',
+          message: `Customer ${customer_name || customer_phone} requested to speak with a person. Original message: "${message_text.substring(0, 100)}..."`,
+          is_read: false
+        }));
+        
+        await supabase.from('notifications').insert(notifications);
+      }
+      
+      return new Response(JSON.stringify({ 
+        success: true, 
+        action: 'human_escalation',
+        customer_phone,
+        notified_team: !!teamMember
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Get products for matching
     const { data: products } = await supabase
@@ -662,8 +809,7 @@ Deno.serve(async (req) => {
       }
       
       // Product not found in order
-      const msg = RESPONSE_TEMPLATES.no_match[language as keyof typeof RESPONSE_TEMPLATES.no_match]
-        .replace('{item}', cancelItemName);
+      const msg = getNoMatchResponse(language, cancelItemName);
       await sendWhatsAppMessage(customer_phone, msg);
       
       return new Response(JSON.stringify({ 
@@ -1294,10 +1440,10 @@ Deno.serve(async (req) => {
         responseMessage += additionNote;
       }
       
-      // Add unmatched items warning
+      // Add unmatched items warning with varied responses
       if (unmatchedItems.length > 0) {
         const noMatchMsg = unmatchedItems.map(item => 
-          RESPONSE_TEMPLATES.no_match[language as keyof typeof RESPONSE_TEMPLATES.no_match].replace('{item}', item)
+          getNoMatchResponse(language, item)
         ).join('\n');
         responseMessage += '\n\n' + noMatchMsg;
       }
@@ -1338,9 +1484,9 @@ Deno.serve(async (req) => {
       console.log('Draft order session created/updated for', customer_phone);
       
     } else {
-      // No products matched
+      // No products matched - use varied responses
       responseMessage = unmatchedItems.map(item => 
-        RESPONSE_TEMPLATES.no_match[language as keyof typeof RESPONSE_TEMPLATES.no_match].replace('{item}', item)
+        getNoMatchResponse(language, item)
       ).join('\n');
     }
 
