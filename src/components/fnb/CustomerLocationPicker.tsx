@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
+import { MapLoadingState, WebGLError } from '@/components/maps/MapLoadingState';
+import { isWebGLSupported, escapeHtml, MAP_LOAD_TIMEOUT } from '@/lib/mapUtils';
 import {
   Dialog,
   DialogContent,
@@ -12,7 +14,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { MapPin, Loader2 } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 
 interface DeliveryZone {
   id: string;
@@ -84,6 +86,10 @@ export function CustomerLocationPicker({
   const map = useRef<mapboxgl.Map | null>(null);
   const marker = useRef<mapboxgl.Marker | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [webGLSupported, setWebGLSupported] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [detectedZone, setDetectedZone] = useState<{
     name: string;
@@ -106,12 +112,22 @@ export function CustomerLocationPicker({
     },
   });
 
+  // Check WebGL support once on mount
+  useEffect(() => {
+    if (!isWebGLSupported()) {
+      setWebGLSupported(false);
+      setIsLoading(false);
+    }
+  }, []);
+
   // Reset state when dialog opens
   useEffect(() => {
     if (open) {
       // Reset all state when opening
       setDetectedZone(null);
       setMapLoaded(false);
+      setError(null);
+      setIsLoading(true);
       
       // Set initial location if provided
       if (initialLocation) {
@@ -132,60 +148,99 @@ export function CustomerLocationPicker({
 
   // Initialize map when dialog opens and token is available
   useEffect(() => {
-    if (!open || !mapContainer.current || map.current || !mapToken) return;
+    if (!open || !mapContainer.current || map.current || !mapToken || !webGLSupported) return;
 
-    console.log('[Map] Initializing map...');
-    mapboxgl.accessToken = mapToken;
+    console.log('[CustomerLocationPicker] Initializing map...');
+    setIsLoading(true);
+    setError(null);
 
-    // Use initialLocation if available, otherwise default to Curaçao center
-    const startCenter: [number, number] = initialLocation 
-      ? [initialLocation.lng, initialLocation.lat] 
-      : CURACAO_CENTER;
-    const startZoom = initialLocation ? 15 : 11;
+    try {
+      mapboxgl.accessToken = mapToken;
 
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: startCenter,
-      zoom: startZoom,
-      maxBounds: CURACAO_BOUNDS,
-    });
+      // Use initialLocation if available, otherwise default to Curaçao center
+      const startCenter: [number, number] = initialLocation 
+        ? [initialLocation.lng, initialLocation.lat] 
+        : CURACAO_CENTER;
+      const startZoom = initialLocation ? 15 : 11;
 
-    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: startCenter,
+        zoom: startZoom,
+        maxBounds: CURACAO_BOUNDS,
+      });
 
-    map.current.on('load', () => {
-      console.log('[Map] Map loaded successfully');
-      setMapLoaded(true);
-      
-      // Force resize after dialog animation settles
-      setTimeout(() => {
-        map.current?.resize();
-        
-        // Place initial marker if we have a location
-        if (initialLocation) {
-          console.log('[Map] Placing initial marker at:', initialLocation);
-          updateMarker(initialLocation.lat, initialLocation.lng);
-          setSelectedLocation({ lat: initialLocation.lat, lng: initialLocation.lng });
+      // Set up loading timeout
+      const timeoutId = setTimeout(() => {
+        if (!mapLoaded && map.current) {
+          console.error('[CustomerLocationPicker] Map load timeout');
+          setError('Map is taking too long to load. Please check your connection.');
+          setIsLoading(false);
         }
-      }, 100);
-    });
+      }, MAP_LOAD_TIMEOUT);
 
-    // Click to place marker
-    map.current.on('click', (e) => {
-      const { lng, lat } = e.lngLat;
-      setSelectedLocation({ lat, lng });
-      updateMarker(lat, lng);
-    });
+      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+      map.current.on('load', () => {
+        clearTimeout(timeoutId);
+        console.log('[CustomerLocationPicker] Map loaded successfully');
+        setMapLoaded(true);
+        setIsLoading(false);
+        setError(null);
+        
+        // Force resize after dialog animation settles
+        setTimeout(() => {
+          map.current?.resize();
+          
+          // Place initial marker if we have a location
+          if (initialLocation) {
+            console.log('[CustomerLocationPicker] Placing initial marker at:', initialLocation);
+            updateMarker(initialLocation.lat, initialLocation.lng);
+            setSelectedLocation({ lat: initialLocation.lat, lng: initialLocation.lng });
+          }
+        }, 100);
+      });
+
+      // Click to place marker
+      map.current.on('click', (e) => {
+        const { lng, lat } = e.lngLat;
+        setSelectedLocation({ lat, lng });
+        updateMarker(lat, lng);
+      });
+
+      map.current.on('error', (e) => {
+        console.error('[CustomerLocationPicker] Mapbox error:', e);
+        clearTimeout(timeoutId);
+        setError('Map failed to load. Please try again.');
+        setIsLoading(false);
+      });
+    } catch (err) {
+      console.error('[CustomerLocationPicker] Initialization error:', err);
+      setError('Failed to initialize map. Please refresh the page.');
+      setIsLoading(false);
+    }
 
     return () => {
-      console.log('[Map] Cleaning up map...');
+      console.log('[CustomerLocationPicker] Cleaning up map...');
       marker.current?.remove();
       marker.current = null;
       map.current?.remove();
       map.current = null;
       setMapLoaded(false);
     };
-  }, [open, mapToken]);
+  }, [open, mapToken, webGLSupported, retryCount]);
+
+  // Retry handler
+  const handleRetry = useCallback(() => {
+    console.log('[CustomerLocationPicker] Retrying map initialization...');
+    marker.current?.remove();
+    marker.current = null;
+    map.current?.remove();
+    map.current = null;
+    setMapLoaded(false);
+    setRetryCount((prev) => prev + 1);
+  }, []);
 
   // Update marker position
   const updateMarker = (lat: number, lng: number) => {
@@ -373,18 +428,17 @@ export function CustomerLocationPicker({
         </DialogHeader>
 
         <div className="flex-1 min-h-[400px] relative rounded-lg overflow-hidden border">
-          <div ref={mapContainer} className="absolute inset-0" />
-          
-          {/* Loading state */}
-          {!mapLoaded && mapToken && (
-            <div className="absolute inset-0 flex items-center justify-center bg-muted">
-              <div className="flex flex-col items-center gap-2">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">
-                  Initializing map...
-                </span>
-              </div>
-            </div>
+          {!webGLSupported ? (
+            <WebGLError />
+          ) : (
+            <>
+              <div ref={mapContainer} className="absolute inset-0" />
+              <MapLoadingState 
+                isLoading={isLoading} 
+                error={error} 
+                onRetry={handleRetry}
+              />
+            </>
           )}
 
           {/* Instructions overlay - only show when map is loaded */}

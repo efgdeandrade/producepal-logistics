@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Users, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMapboxToken } from "@/hooks/useMapboxToken";
+import { MapLoadingState, WebGLError } from "@/components/maps/MapLoadingState";
+import { isWebGLSupported, escapeHtml, MAP_LOAD_TIMEOUT } from "@/lib/mapUtils";
 
 // Curaçao coordinates
 const CURACAO_CENTER: [number, number] = [-68.9900, 12.1696];
@@ -12,13 +14,6 @@ const CURACAO_BOUNDS: [[number, number], [number, number]] = [
   [-69.2, 12.0],
   [-68.7, 12.4],
 ];
-
-// Helper to escape HTML to prevent XSS
-function escapeHtml(text: string): string {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
 
 interface Zone {
   id: string;
@@ -85,43 +80,95 @@ export default function ZoneHierarchyMapView({
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [webGLSupported, setWebGLSupported] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
   const [expandedMajorZones, setExpandedMajorZones] = useState<Set<string>>(new Set());
+  
   const { token } = useMapboxToken();
 
   const majorZones = zones.filter((z) => z.zone_type === "major");
   const subZones = zones.filter((z) => z.zone_type === "sub");
 
+  // Check WebGL support once on mount
+  useEffect(() => {
+    if (!isWebGLSupported()) {
+      setWebGLSupported(false);
+      setIsLoading(false);
+    }
+  }, []);
+
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || map.current || !token) return;
+    if (!mapContainer.current || map.current || !token || !webGLSupported) return;
 
-    mapboxgl.accessToken = token;
+    setIsLoading(true);
+    setError(null);
 
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: "mapbox://styles/mapbox/streets-v12",
-      center: CURACAO_CENTER,
-      zoom: 11,
-      maxBounds: CURACAO_BOUNDS,
-    });
+    try {
+      mapboxgl.accessToken = token;
 
-    map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: "mapbox://styles/mapbox/streets-v12",
+        center: CURACAO_CENTER,
+        zoom: 11,
+        maxBounds: CURACAO_BOUNDS,
+      });
 
-    map.current.on("load", () => {
-      setMapLoaded(true);
-    });
+      // Set up loading timeout
+      const timeoutId = setTimeout(() => {
+        if (!mapLoaded && map.current) {
+          console.error('[ZoneHierarchyMapView] Map load timeout');
+          setError('Map is taking too long to load. Please check your connection.');
+          setIsLoading(false);
+        }
+      }, MAP_LOAD_TIMEOUT);
 
-    map.current.on("click", (e) => {
-      if (onMapClick) {
-        onMapClick(e.lngLat.lng, e.lngLat.lat);
-      }
-    });
+      map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
+
+      map.current.on("load", () => {
+        clearTimeout(timeoutId);
+        console.log('[ZoneHierarchyMapView] Map loaded successfully');
+        setMapLoaded(true);
+        setIsLoading(false);
+        setError(null);
+      });
+
+      map.current.on("click", (e) => {
+        if (onMapClick) {
+          onMapClick(e.lngLat.lng, e.lngLat.lat);
+        }
+      });
+
+      map.current.on('error', (e) => {
+        console.error('[ZoneHierarchyMapView] Mapbox error:', e);
+        clearTimeout(timeoutId);
+        setError('Map failed to load. Please try again.');
+        setIsLoading(false);
+      });
+    } catch (err) {
+      console.error('[ZoneHierarchyMapView] Initialization error:', err);
+      setError('Failed to initialize map. Please refresh the page.');
+      setIsLoading(false);
+    }
 
     return () => {
       map.current?.remove();
       map.current = null;
+      setMapLoaded(false);
     };
-  }, [token]);
+  }, [token, webGLSupported, retryCount]);
+
+  // Retry handler
+  const handleRetry = useCallback(() => {
+    console.log('[ZoneHierarchyMapView] Retrying map initialization...');
+    map.current?.remove();
+    map.current = null;
+    setMapLoaded(false);
+    setRetryCount((prev) => prev + 1);
+  }, []);
 
   // Draw zones
   useEffect(() => {
@@ -266,111 +313,130 @@ export default function ZoneHierarchyMapView({
 
   const unassignedSubZones = subZones.filter((z) => !z.parent_zone_id);
 
+  // Show WebGL error if not supported
+  if (!webGLSupported) {
+    return (
+      <div className="relative w-full h-full min-h-[500px]">
+        <WebGLError />
+      </div>
+    );
+  }
+
   return (
     <div className="relative w-full h-full min-h-[500px]">
       <div ref={mapContainer} className="absolute inset-0 rounded-lg" />
 
-      {/* Hierarchical Zone Legend */}
-      <div className="absolute top-4 left-4 bg-background/95 backdrop-blur-sm p-3 rounded-lg shadow-lg border max-w-[280px] max-h-[400px] overflow-y-auto">
-        <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
-          <MapPin className="h-4 w-4" />
-          Delivery Zones
-        </h4>
+      <MapLoadingState 
+        isLoading={isLoading} 
+        error={error} 
+        onRetry={handleRetry}
+      />
 
-        <div className="space-y-1">
-          {/* Major Zones */}
-          {majorZones.map((major) => {
-            const isExpanded = expandedMajorZones.has(major.id);
-            const children = getSubZonesForMajor(major.id);
-            const color = getZoneColor(major, zones);
+      {/* Hierarchical Zone Legend - only show when map is loaded */}
+      {mapLoaded && (
+        <div className="absolute top-4 left-4 bg-background/95 backdrop-blur-sm p-3 rounded-lg shadow-lg border max-w-[280px] max-h-[400px] overflow-y-auto">
+          <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+            <MapPin className="h-4 w-4" />
+            Delivery Zones
+          </h4>
 
-            return (
-              <div key={major.id}>
-                <button
-                  onClick={() => {
-                    onZoneSelect(selectedZone?.id === major.id ? null : major);
-                    if (children.length > 0) {
-                      toggleMajorZone(major.id);
-                    }
-                  }}
-                  className={cn(
-                    "w-full flex items-center gap-2 p-2 rounded text-left text-sm transition-colors",
-                    selectedZone?.id === major.id ? "bg-primary/10" : "hover:bg-muted"
+          <div className="space-y-1">
+            {/* Major Zones */}
+            {majorZones.map((major) => {
+              const isExpanded = expandedMajorZones.has(major.id);
+              const children = getSubZonesForMajor(major.id);
+              const color = getZoneColor(major, zones);
+
+              return (
+                <div key={major.id}>
+                  <button
+                    onClick={() => {
+                      onZoneSelect(selectedZone?.id === major.id ? null : major);
+                      if (children.length > 0) {
+                        toggleMajorZone(major.id);
+                      }
+                    }}
+                    className={cn(
+                      "w-full flex items-center gap-2 p-2 rounded text-left text-sm transition-colors",
+                      selectedZone?.id === major.id ? "bg-primary/10" : "hover:bg-muted"
+                    )}
+                  >
+                    {children.length > 0 && (
+                      isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />
+                    )}
+                    <div
+                      className="w-4 h-4 rounded shrink-0 border-2"
+                      style={{ backgroundColor: color, borderColor: color }}
+                    />
+                    <span className="font-medium truncate flex-1">{major.name}</span>
+                    <Badge variant="outline" className="text-xs px-1.5">
+                      {major.customer_count || 0}
+                    </Badge>
+                  </button>
+
+                  {/* Sub-zones */}
+                  {isExpanded && children.length > 0 && (
+                    <div className="ml-6 border-l pl-2 space-y-1 mt-1">
+                      {children.map((sub) => (
+                        <button
+                          key={sub.id}
+                          onClick={() => onZoneSelect(selectedZone?.id === sub.id ? null : sub)}
+                          className={cn(
+                            "w-full flex items-center gap-2 p-1.5 rounded text-left text-xs transition-colors",
+                            selectedZone?.id === sub.id ? "bg-primary/10" : "hover:bg-muted"
+                          )}
+                        >
+                          <div
+                            className="w-3 h-3 rounded-full shrink-0"
+                            style={{ backgroundColor: color }}
+                          />
+                          <span className="truncate flex-1">{sub.name}</span>
+                          <span className="text-muted-foreground">{sub.customer_count || 0}</span>
+                        </button>
+                      ))}
+                    </div>
                   )}
-                >
-                  {children.length > 0 && (
-                    isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />
-                  )}
-                  <div
-                    className="w-4 h-4 rounded shrink-0 border-2"
-                    style={{ backgroundColor: color, borderColor: color }}
-                  />
-                  <span className="font-medium truncate flex-1">{major.name}</span>
-                  <Badge variant="outline" className="text-xs px-1.5">
-                    {major.customer_count || 0}
-                  </Badge>
-                </button>
+                </div>
+              );
+            })}
 
-                {/* Sub-zones */}
-                {isExpanded && children.length > 0 && (
-                  <div className="ml-6 border-l pl-2 space-y-1 mt-1">
-                    {children.map((sub) => (
-                      <button
-                        key={sub.id}
-                        onClick={() => onZoneSelect(selectedZone?.id === sub.id ? null : sub)}
-                        className={cn(
-                          "w-full flex items-center gap-2 p-1.5 rounded text-left text-xs transition-colors",
-                          selectedZone?.id === sub.id ? "bg-primary/10" : "hover:bg-muted"
-                        )}
-                      >
-                        <div
-                          className="w-3 h-3 rounded-full shrink-0"
-                          style={{ backgroundColor: color }}
-                        />
-                        <span className="truncate flex-1">{sub.name}</span>
-                        <span className="text-muted-foreground">{sub.customer_count || 0}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+            {/* Unassigned Sub-zones */}
+            {unassignedSubZones.length > 0 && (
+              <div className="border-t pt-2 mt-2">
+                <p className="text-xs text-muted-foreground mb-1">Unassigned:</p>
+                {unassignedSubZones.map((zone) => (
+                  <button
+                    key={zone.id}
+                    onClick={() => onZoneSelect(selectedZone?.id === zone.id ? null : zone)}
+                    className={cn(
+                      "w-full flex items-center gap-2 p-1.5 rounded text-left text-xs transition-colors",
+                      selectedZone?.id === zone.id ? "bg-primary/10" : "hover:bg-muted"
+                    )}
+                  >
+                    <div className="w-3 h-3 rounded-full shrink-0 bg-muted-foreground" />
+                    <span className="truncate flex-1">{zone.name}</span>
+                    <span className="text-muted-foreground">{zone.customer_count || 0}</span>
+                  </button>
+                ))}
               </div>
-            );
-          })}
+            )}
 
-          {/* Unassigned Sub-zones */}
-          {unassignedSubZones.length > 0 && (
-            <div className="border-t pt-2 mt-2">
-              <p className="text-xs text-muted-foreground mb-1">Unassigned:</p>
-              {unassignedSubZones.map((zone) => (
-                <button
-                  key={zone.id}
-                  onClick={() => onZoneSelect(selectedZone?.id === zone.id ? null : zone)}
-                  className={cn(
-                    "w-full flex items-center gap-2 p-1.5 rounded text-left text-xs transition-colors",
-                    selectedZone?.id === zone.id ? "bg-primary/10" : "hover:bg-muted"
-                  )}
-                >
-                  <div className="w-3 h-3 rounded-full shrink-0 bg-muted-foreground" />
-                  <span className="truncate flex-1">{zone.name}</span>
-                  <span className="text-muted-foreground">{zone.customer_count || 0}</span>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {zones.length === 0 && (
-            <p className="text-xs text-muted-foreground">No zones configured</p>
-          )}
+            {zones.length === 0 && (
+              <p className="text-xs text-muted-foreground">No zones configured</p>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Customer count */}
-      <div className="absolute bottom-4 right-4 bg-background/95 backdrop-blur-sm px-3 py-2 rounded-lg shadow-lg border">
-        <div className="flex items-center gap-2 text-sm">
-          <Users className="h-4 w-4" />
-          <span>{customers.filter((c) => c.latitude && c.longitude).length} customers on map</span>
+      {mapLoaded && (
+        <div className="absolute bottom-4 right-4 bg-background/95 backdrop-blur-sm px-3 py-2 rounded-lg shadow-lg border">
+          <div className="flex items-center gap-2 text-sm">
+            <Users className="h-4 w-4" />
+            <span>{customers.filter((c) => c.latitude && c.longitude).length} customers on map</span>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

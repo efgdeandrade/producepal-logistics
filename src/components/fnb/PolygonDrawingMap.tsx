@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Undo2, Trash2, Check, MousePointer2 } from "lucide-react";
 import { useMapboxToken } from "@/hooks/useMapboxToken";
+import { MapLoadingState, WebGLError } from "@/components/maps/MapLoadingState";
+import { isWebGLSupported, escapeHtml, MAP_LOAD_TIMEOUT } from "@/lib/mapUtils";
 
 // Curaçao coordinates
 const CURACAO_CENTER: [number, number] = [-68.9900, 12.1696];
@@ -12,13 +14,6 @@ const CURACAO_BOUNDS: [[number, number], [number, number]] = [
   [-69.2, 12.0],
   [-68.7, 12.4],
 ];
-
-// Helper to escape HTML to prevent XSS
-function escapeHtml(text: string): string {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
 
 interface Customer {
   id: string;
@@ -60,10 +55,22 @@ export default function PolygonDrawingMap({
   const existingZoneLabelMarkersRef = useRef<mapboxgl.Marker[]>([]);
   
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [webGLSupported, setWebGLSupported] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
   const [vertices, setVertices] = useState<[number, number][]>(initialPolygon || []);
   const [isDrawing, setIsDrawing] = useState(!initialPolygon || initialPolygon.length === 0);
   
   const { token } = useMapboxToken();
+
+  // Check WebGL support once on mount
+  useEffect(() => {
+    if (!isWebGLSupported()) {
+      setWebGLSupported(false);
+      setIsLoading(false);
+    }
+  }, []);
 
   // Sync vertices state with initialPolygon prop changes
   useEffect(() => {
@@ -78,29 +85,68 @@ export default function PolygonDrawingMap({
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || map.current || !token) return;
+    if (!mapContainer.current || map.current || !token || !webGLSupported) return;
 
-    mapboxgl.accessToken = token;
+    setIsLoading(true);
+    setError(null);
 
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: "mapbox://styles/mapbox/streets-v12",
-      center: CURACAO_CENTER,
-      zoom: 11,
-      maxBounds: CURACAO_BOUNDS,
-    });
+    try {
+      mapboxgl.accessToken = token;
 
-    map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: "mapbox://styles/mapbox/streets-v12",
+        center: CURACAO_CENTER,
+        zoom: 11,
+        maxBounds: CURACAO_BOUNDS,
+      });
 
-    map.current.on("load", () => {
-      setMapLoaded(true);
-    });
+      // Set up loading timeout
+      const timeoutId = setTimeout(() => {
+        if (!mapLoaded && map.current) {
+          console.error('[PolygonDrawingMap] Map load timeout');
+          setError('Map is taking too long to load. Please check your connection.');
+          setIsLoading(false);
+        }
+      }, MAP_LOAD_TIMEOUT);
+
+      map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
+
+      map.current.on("load", () => {
+        clearTimeout(timeoutId);
+        console.log('[PolygonDrawingMap] Map loaded successfully');
+        setMapLoaded(true);
+        setIsLoading(false);
+        setError(null);
+      });
+
+      map.current.on('error', (e) => {
+        console.error('[PolygonDrawingMap] Mapbox error:', e);
+        clearTimeout(timeoutId);
+        setError('Map failed to load. Please try again.');
+        setIsLoading(false);
+      });
+    } catch (err) {
+      console.error('[PolygonDrawingMap] Initialization error:', err);
+      setError('Failed to initialize map. Please refresh the page.');
+      setIsLoading(false);
+    }
 
     return () => {
       map.current?.remove();
       map.current = null;
+      setMapLoaded(false);
     };
-  }, [token]);
+  }, [token, webGLSupported, retryCount]);
+
+  // Retry handler
+  const handleRetry = useCallback(() => {
+    console.log('[PolygonDrawingMap] Retrying map initialization...');
+    map.current?.remove();
+    map.current = null;
+    setMapLoaded(false);
+    setRetryCount((prev) => prev + 1);
+  }, []);
 
   // Render existing zones as reference layers (reactive effect)
   useEffect(() => {
@@ -423,72 +469,91 @@ export default function PolygonDrawingMap({
       )
     : [];
 
+  // Show WebGL error if not supported
+  if (!webGLSupported) {
+    return (
+      <div className="relative w-full h-full min-h-[400px]">
+        <WebGLError />
+      </div>
+    );
+  }
+
   return (
     <div className="relative w-full h-full min-h-[400px]">
       <div ref={mapContainer} className="absolute inset-0 rounded-lg" />
 
-      {/* Drawing Controls */}
-      <div className="absolute top-4 left-4 bg-background/95 backdrop-blur-sm p-3 rounded-lg shadow-lg border space-y-2">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <MousePointer2 className="h-4 w-4" />
-          {isDrawing ? "Drawing Mode" : "Edit Mode"}
-        </div>
-        
-        <div className="flex gap-1">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={undoLastVertex}
-            disabled={vertices.length === 0}
-          >
-            <Undo2 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={clearPolygon}
-            disabled={vertices.length === 0}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-          {isDrawing && vertices.length >= 3 && (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={finishDrawing}
-            >
-              <Check className="h-4 w-4 mr-1" />
-              Done
-            </Button>
-          )}
-          {!isDrawing && (
+      <MapLoadingState 
+        isLoading={isLoading} 
+        error={error} 
+        onRetry={handleRetry}
+      />
+
+      {/* Drawing Controls - only show when map is loaded */}
+      {mapLoaded && (
+        <div className="absolute top-4 left-4 bg-background/95 backdrop-blur-sm p-3 rounded-lg shadow-lg border space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <MousePointer2 className="h-4 w-4" />
+            {isDrawing ? "Drawing Mode" : "Edit Mode"}
+          </div>
+          
+          <div className="flex gap-1">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setIsDrawing(true)}
+              onClick={undoLastVertex}
+              disabled={vertices.length === 0}
             >
-              Edit
+              <Undo2 className="h-4 w-4" />
             </Button>
-          )}
-        </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={clearPolygon}
+              disabled={vertices.length === 0}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+            {isDrawing && vertices.length >= 3 && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={finishDrawing}
+              >
+                <Check className="h-4 w-4 mr-1" />
+                Done
+              </Button>
+            )}
+            {!isDrawing && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsDrawing(true)}
+              >
+                Edit
+              </Button>
+            )}
+          </div>
 
-        <div className="text-xs text-muted-foreground">
-          {vertices.length} vertices
-          {vertices.length < 3 && isDrawing && (
-            <span> • Click {3 - vertices.length} more to close</span>
-          )}
+          <div className="text-xs text-muted-foreground">
+            {vertices.length} vertices
+            {vertices.length < 3 && isDrawing && (
+              <span> • Click {3 - vertices.length} more to close</span>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Customers in zone */}
-      <div className="absolute bottom-4 right-4 bg-background/95 backdrop-blur-sm px-3 py-2 rounded-lg shadow-lg border">
-        <Badge variant={customersInZone.length > 0 ? "default" : "secondary"}>
-          {customersInZone.length} customers in zone
-        </Badge>
-      </div>
+      {mapLoaded && (
+        <div className="absolute bottom-4 right-4 bg-background/95 backdrop-blur-sm px-3 py-2 rounded-lg shadow-lg border">
+          <Badge variant={customersInZone.length > 0 ? "default" : "secondary"}>
+            {customersInZone.length} customers in zone
+          </Badge>
+        </div>
+      )}
 
       {/* Drawing instructions */}
-      {isDrawing && vertices.length < 3 && (
+      {isDrawing && vertices.length < 3 && mapLoaded && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg text-sm">
           Click on the map to add polygon vertices
         </div>
@@ -506,23 +571,20 @@ function isPointInPolygon(point: [number, number], polygon: [number, number][]):
     const [xi, yi] = polygon[i];
     const [xj, yj] = polygon[j];
 
-    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) {
-      inside = !inside;
-    }
+    const intersect = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+    if (intersect) inside = !inside;
   }
 
   return inside;
 }
 
-// Calculate centroid of a polygon
+// Calculate centroid of polygon
 function calculateCentroid(polygon: [number, number][]): [number, number] {
-  let x = 0, y = 0;
-  polygon.forEach(([lng, lat]) => {
-    x += lng;
-    y += lat;
-  });
+  let x = 0;
+  let y = 0;
+  for (const [px, py] of polygon) {
+    x += px;
+    y += py;
+  }
   return [x / polygon.length, y / polygon.length];
 }
-
-// Export for use in other components
-export { isPointInPolygon };

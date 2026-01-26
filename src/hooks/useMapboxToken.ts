@@ -12,6 +12,7 @@ export function useMapboxToken() {
   const [token, setToken] = useState<string>(cachedToken || FALLBACK_TOKEN);
   const [isLoading, setIsLoading] = useState(!cachedToken);
   const [error, setError] = useState<string | null>(null);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     // If we have a cached token from edge function, use it immediately
@@ -29,8 +30,12 @@ export function useMapboxToken() {
     const fetchToken = async () => {
       // Reuse existing promise if already fetching
       if (tokenPromise) {
-        const fetchedToken = await tokenPromise;
-        setToken(fetchedToken);
+        try {
+          const fetchedToken = await tokenPromise;
+          setToken(fetchedToken);
+        } catch {
+          // Already handled in the promise
+        }
         return;
       }
       
@@ -48,13 +53,14 @@ export function useMapboxToken() {
             cachedToken = data.token;
             resolve(data.token);
           } else {
-            console.log('[useMapboxToken] Using fallback token');
+            console.log('[useMapboxToken] Using fallback token, edge function returned:', error?.message || 'no token');
             cachedToken = FALLBACK_TOKEN;
             resolve(FALLBACK_TOKEN);
           }
         } catch (err) {
-          console.log('[useMapboxToken] Fetch failed, using fallback');
+          console.log('[useMapboxToken] Fetch failed, using fallback:', err);
           cachedToken = FALLBACK_TOKEN;
+          setHasError(true);
           resolve(FALLBACK_TOKEN);
         } finally {
           // Reset promise after completion so future calls can retry
@@ -71,5 +77,5 @@ export function useMapboxToken() {
     fetchToken();
   }, []);
 
-  return { token, isLoading, error };
+  return { token, isLoading, error, hasError };
 }
