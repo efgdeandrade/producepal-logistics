@@ -157,7 +157,110 @@ Deno.serve(async (req) => {
 
     console.log('WhatsApp webhook received:', JSON.stringify(body));
 
-    // Validate input
+    // Handle Meta's webhook format - extract message from nested structure
+    // Meta sends: { object: 'whatsapp_business_account', entry: [{ changes: [{ value: { messages: [...] } }] }] }
+    if (body.object === 'whatsapp_business_account' && Array.isArray(body.entry)) {
+      const entry = body.entry[0];
+      const changes = entry?.changes?.[0];
+      const value = changes?.value;
+      
+      // Handle message status updates (delivery receipts)
+      if (value?.statuses) {
+        console.log('Received status update:', JSON.stringify(value.statuses));
+        return new Response(JSON.stringify({ success: true, type: 'status_update' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      // Handle incoming messages
+      const messages = value?.messages;
+      if (!messages || messages.length === 0) {
+        console.log('No messages in webhook payload');
+        return new Response(JSON.stringify({ success: true, type: 'no_messages' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      const msg = messages[0];
+      const contact = value?.contacts?.[0];
+      
+      // Extract message details from Meta format
+      const phone_number = msg.from;
+      const message_id = msg.id;
+      const message_type = msg.type || 'text';
+      const message_text = msg.text?.body || msg.caption || '';
+      const customer_name = contact?.profile?.name || null;
+      
+      console.log(`Processing message from ${phone_number}: "${message_text}" (type: ${message_type})`);
+      
+      const supabase = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      );
+
+      // Find or create customer by phone
+      let { data: customer } = await supabase
+        .from('distribution_customers')
+        .select('id, name')
+        .eq('whatsapp_phone', phone_number)
+        .single();
+      
+      // If customer not found and we have a name, create them
+      if (!customer && customer_name) {
+        const { data: newCustomer, error: createError } = await supabase
+          .from('distribution_customers')
+          .insert({
+            whatsapp_phone: phone_number,
+            name: customer_name,
+          })
+          .select('id, name')
+          .single();
+        
+        if (!createError) {
+          customer = newCustomer;
+          console.log(`Created new customer: ${customer_name} (${phone_number})`);
+        }
+      }
+
+      // Store message
+      const { data: message, error: msgError } = await supabase
+        .from('whatsapp_messages')
+        .insert({
+          direction: 'inbound',
+          phone_number,
+          message_id,
+          message_text,
+          message_type,
+          customer_id: customer?.id || null,
+          status: 'delivered',
+        })
+        .select()
+        .single();
+
+      if (msgError) {
+        console.error('Error storing message:', msgError);
+        throw msgError;
+      }
+
+      console.log(`Message stored with ID: ${message.id}`);
+
+      // Try to parse as order if it's a text message
+      if (message_type === 'text' && customer) {
+        try {
+          await supabase.functions.invoke('parse-whatsapp-order', {
+            body: { message_text, customer_id: customer.id },
+          });
+        } catch (e) {
+          console.log('Order parsing skipped:', e);
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true, message_id: message.id }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Fallback for legacy/custom format - validate input
     const validation = validateWebhookPayload(body);
     if (!validation.valid || !validation.data) {
       return new Response(JSON.stringify({ error: validation.error || 'Invalid payload' }), {
