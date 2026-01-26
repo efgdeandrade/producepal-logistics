@@ -11,7 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { UserPlus, Trash2, Mail, Edit, RefreshCw, Copy, ArrowLeft } from 'lucide-react';
+import { UserPlus, Trash2, Mail, Edit, RefreshCw, Copy, ArrowLeft, Phone, MessageSquare } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
@@ -28,6 +29,9 @@ interface Profile {
   full_name: string;
   created_at: string;
   roles: string[];
+  whatsapp_phone?: string | null;
+  team_role?: string | null;
+  is_fuik_team?: boolean | null;
 }
 
 export default function UserManagement() {
@@ -41,6 +45,11 @@ export default function UserManagement() {
   const [editRolesOpen, setEditRolesOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [teamSettings, setTeamSettings] = useState({
+    whatsapp_phone: '',
+    team_role: '',
+    is_fuik_team: false,
+  });
   const [inviteForm, setInviteForm] = useState({
     email: '',
     fullName: '',
@@ -62,7 +71,7 @@ export default function UserManagement() {
     setLoading(true);
     const { data: profiles, error: profileError } = await supabase
       .from('profiles')
-      .select('id, email, full_name, created_at')
+      .select('id, email, full_name, created_at, whatsapp_phone, team_role, is_fuik_team')
       .order('created_at', { ascending: false });
 
     if (profileError) {
@@ -288,23 +297,46 @@ export default function UserManagement() {
   const handleEditRoles = (user: Profile) => {
     setSelectedUser(user);
     setSelectedRoles(user.roles);
+    setTeamSettings({
+      whatsapp_phone: user.whatsapp_phone || '',
+      team_role: user.team_role || '',
+      is_fuik_team: user.is_fuik_team || false,
+    });
     setEditRolesOpen(true);
   };
 
   const handleSaveRoles = async () => {
     if (!selectedUser) return;
 
-    // Use security definer function to update roles safely
-    // This prevents RLS issues when admin edits their own roles
-    const { error } = await supabase.rpc('update_user_roles', {
+    // Update roles using security definer function
+    const { error: rolesError } = await supabase.rpc('update_user_roles', {
       target_user_id: selectedUser.id,
       new_roles: selectedRoles as any,
     });
 
-    if (error) {
+    if (rolesError) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to update roles',
+        description: rolesError.message || 'Failed to update roles',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Update team settings in profiles table
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({
+        whatsapp_phone: teamSettings.whatsapp_phone || null,
+        team_role: teamSettings.team_role || null,
+        is_fuik_team: teamSettings.is_fuik_team,
+      })
+      .eq('id', selectedUser.id);
+
+    if (profileError) {
+      toast({
+        title: 'Error',
+        description: profileError.message || 'Failed to update team settings',
         variant: 'destructive',
       });
       return;
@@ -312,12 +344,13 @@ export default function UserManagement() {
 
     toast({
       title: 'Success',
-      description: 'User roles updated successfully',
+      description: 'User settings updated successfully',
     });
 
     setEditRolesOpen(false);
     setSelectedUser(null);
     setSelectedRoles([]);
+    setTeamSettings({ whatsapp_phone: '', team_role: '', is_fuik_team: false });
     fetchUsers();
   };
 
@@ -586,7 +619,17 @@ export default function UserManagement() {
                 ) : (
                   users.map((user) => (
                     <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.full_name}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {user.full_name}
+                          {user.is_fuik_team && (
+                            <Badge variant="outline" className="text-green-600 border-green-600">
+                              <MessageSquare className="h-3 w-3 mr-1" />
+                              {user.team_role || 'Team'}
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>
                         <div className="flex gap-1 flex-wrap">
@@ -645,24 +688,88 @@ export default function UserManagement() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 py-4">
+            <div className="space-y-6 py-4 max-h-[60vh] overflow-y-auto">
               <div className="space-y-3">
                 <Label>Assign Roles</Label>
-                {availableRoles.map((role) => (
-                  <div key={role} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={role}
-                      checked={selectedRoles.includes(role)}
-                      onCheckedChange={() => toggleRole(role)}
-                    />
-                    <label
-                      htmlFor={role}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 capitalize"
-                    >
-                      {role}
-                    </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {availableRoles.map((role) => (
+                    <div key={role} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={role}
+                        checked={selectedRoles.includes(role)}
+                        onCheckedChange={() => toggleRole(role)}
+                      />
+                      <label
+                        htmlFor={role}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 capitalize"
+                      >
+                        {role}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t pt-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-green-600" />
+                  <Label className="text-base font-semibold">FUIK Team Settings</Label>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Configure this user for WhatsApp escalations. Dre will tag them in group chats when needed.
+                </p>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="is_fuik_team">FUIK Team Member</Label>
+                    <p className="text-xs text-muted-foreground">Enable to allow Dre to tag this person</p>
                   </div>
-                ))}
+                  <Switch
+                    id="is_fuik_team"
+                    checked={teamSettings.is_fuik_team}
+                    onCheckedChange={(checked) => setTeamSettings({ ...teamSettings, is_fuik_team: checked })}
+                  />
+                </div>
+
+                {teamSettings.is_fuik_team && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="whatsapp_phone">
+                        <Phone className="h-3 w-3 inline mr-1" />
+                        WhatsApp Phone Number
+                      </Label>
+                      <Input
+                        id="whatsapp_phone"
+                        placeholder="+5999XXXXXXX"
+                        value={teamSettings.whatsapp_phone}
+                        onChange={(e) => setTeamSettings({ ...teamSettings, whatsapp_phone: e.target.value })}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Include country code (e.g., +5999 for Curaçao)
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="team_role">Team Responsibility</Label>
+                      <Select
+                        value={teamSettings.team_role}
+                        onValueChange={(value) => setTeamSettings({ ...teamSettings, team_role: value })}
+                      >
+                        <SelectTrigger id="team_role">
+                          <SelectValue placeholder="Select responsibility" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Logistics">Logistics (order changes, picking issues)</SelectItem>
+                          <SelectItem value="Management">Management (escalations, complaints)</SelectItem>
+                          <SelectItem value="Accounting">Accounting (pricing, payments)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Dre will tag this person based on their responsibility
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
