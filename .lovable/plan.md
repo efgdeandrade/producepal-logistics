@@ -1,102 +1,141 @@
 
 
-# Collapsible Day Sections for Mobile Orders Page
+# Add Editable Unit and Price to Quick Paste Order Review
 
 ## Problem
-Looking at your screenshot, the mobile orders page shows all days stacked vertically (Mon Jan 26, Tue Jan 27, etc.). When you have many orders per day, you must scroll through all of them to get to another day. This makes it hard to focus on just the day you're currently working on.
+When AI parses a WhatsApp order in Quick Paste, users can review and edit quantity and select different products, but they **cannot edit the unit or price**. The unit is shown as read-only text and the price is auto-calculated from the product default.
 
 ## Solution
-Make each day section collapsible on mobile, with the following behavior:
-- **Today's date** starts expanded by default
-- **Other days** start collapsed by default
-- Tapping the day header expands/collapses that day's orders
-- Add a clear visual indicator (chevron) showing collapse state
-- Keep the day summary stats visible even when collapsed
+Add editable input fields for both unit and price in the review step, allowing users to:
+- Change the unit (e.g., from "kg" to "pcs" or custom units)
+- Override the price per unit for special deals or discounts
 
-## Visual Design
+## Visual Changes
 
 ```text
-Before (current):                    After (proposed):
-┌─────────────────────┐              ┌─────────────────────┐
-│ Mon Jan 26 [25] ⟩   │              │ Mon Jan 26 [25] ▼   │  ← Collapsed (shows chevron)
-│ ┌─────────────────┐ │              │   (25 orders hidden)│
-│ │ Order Card 1    │ │              └─────────────────────┘
-│ │ Order Card 2    │ │              ┌─────────────────────┐
-│ │ ...25 cards...  │ │              │ TODAY Tue Jan 27 ▲  │  ← Expanded (today)
-│ └─────────────────┘ │              │ ┌─────────────────┐ │
-├─────────────────────┤              │ │ Order Card 1    │ │
-│ Tue Jan 27 [3]      │              │ │ Order Card 2    │ │
-│ ┌─────────────────┐ │              │ │ Order Card 3    │ │
-│ │ Order Card 1    │ │              │ └─────────────────┘ │
-│ │ Order Card 2    │ │              └─────────────────────┘
-│ │ Order Card 3    │ │              ┌─────────────────────┐
-│ └─────────────────┘ │              │ Wed Jan 28 [0] ▼    │  ← Collapsed
-...must scroll...                    │   No orders         │
-                                     └─────────────────────┘
+Current UI:                          New UI:
+┌─────────────────────────────┐      ┌─────────────────────────────┐
+│ "5 kilo tomato"             │      │ "5 kilo tomato"             │
+│                             │      │                             │
+│ Quantity        Unit        │      │ Quantity        Unit        │
+│ ┌──────────┐   kg (text)    │      │ ┌──────────┐   ┌─────────┐  │
+│ │    5     │                │      │ │    5     │   │   kg    │  │
+│ └──────────┘                │      │ └──────────┘   └─────────┘  │
+│                             │      │                             │
+│ Product                     │      │ Product          Price/Unit │
+│ ┌────────────────────────┐  │      │ ┌─────────────┐ ┌─────────┐ │
+│ │ Select product...      │  │      │ │ Tomato Red  │ │  2.50   │ │
+│ └────────────────────────┘  │      │ └─────────────┘ └─────────┘ │
+│                             │      │                             │
+│ [AI Match]     ƒ12.50 total │      │ [AI Match]     ƒ12.50 total │
+└─────────────────────────────┘      └─────────────────────────────┘
 ```
 
-## Implementation Details
+## Technical Implementation
 
-### File: `src/pages/fnb/FnbOrders.tsx`
+### File: `src/components/fnb/QuickPasteOrder.tsx`
 
-1. **Add state to track collapsed days** (mobile only):
-   ```tsx
-   const [collapsedDays, setCollapsedDays] = useState<Set<string>>(() => {
-     // Start with all days collapsed except today
-     const todayStr = format(todayCuracao(), 'yyyy-MM-dd');
-     const allDays = new Set(
-       Array.from({ length: 6 }, (_, i) => 
-         format(addDays(startOfWeekCuracao(), i), 'yyyy-MM-dd')
-       )
-     );
-     allDays.delete(todayStr); // Today starts expanded
-     return allDays;
-   });
-   ```
+**Change 1: Make Unit Editable (lines 308-326)**
+Replace the read-only unit text span with an editable Input field:
 
-2. **Add toggle function**:
-   ```tsx
-   const toggleDayCollapsed = (dateStr: string) => {
-     setCollapsedDays(prev => {
-       const newSet = new Set(prev);
-       if (newSet.has(dateStr)) {
-         newSet.delete(dateStr);
-       } else {
-         newSet.add(dateStr);
-       }
-       return newSet;
-     });
-   };
-   ```
+```tsx
+{/* Quantity + Unit - Side by side */}
+<div className="space-y-2">
+  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+    Quantity & Unit
+  </label>
+  <div className="flex items-center gap-2">
+    <Input
+      type="number"
+      value={item.quantity}
+      onChange={(e) => updateMatchedItem(index, { quantity: Number(e.target.value) })}
+      className="flex-1 h-12 text-center text-lg"
+      min={0.1}
+      step={0.1}
+    />
+    <Input
+      type="text"
+      value={item.unit}
+      onChange={(e) => updateMatchedItem(index, { unit: e.target.value })}
+      className="w-20 h-12 text-center"
+      placeholder="unit"
+    />
+  </div>
+</div>
+```
 
-3. **Update day card rendering** (wrap content in Collapsible):
-   - On mobile (`md:hidden`), use the Collapsible component
-   - On desktop, keep the current grid layout unchanged
-   - The day header becomes the collapsible trigger
-   - Show a chevron icon that rotates based on state
-   - When collapsed, show a summary line like "25 orders" or "No orders"
+**Change 2: Add Editable Price Field (lines 328-352)**
+Add a price input next to the product selector, updating the layout to a 2-column approach:
 
-4. **Reset collapsed state when week changes**:
-   - When navigating to a new week, reset the collapsed days based on the new week's "today"
+```tsx
+{/* Product + Price - Side by side on larger screens */}
+<div className="grid grid-cols-1 sm:grid-cols-[1fr,auto] gap-3">
+  <div className="space-y-2">
+    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+      Product
+    </label>
+    <SearchableSelect ... />
+  </div>
+  <div className="space-y-2">
+    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+      Price/Unit
+    </label>
+    <div className="relative">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">ƒ</span>
+      <Input
+        type="number"
+        value={item.suggested_price || ''}
+        onChange={(e) => updateMatchedItem(index, { 
+          suggested_price: e.target.value ? Number(e.target.value) : null 
+        })}
+        className="pl-7 h-10 w-24"
+        min={0}
+        step={0.01}
+        placeholder="0.00"
+      />
+    </div>
+  </div>
+</div>
+```
 
-### Mobile-Specific Behavior
-- This collapsible behavior only applies on mobile (screens smaller than `md`)
-- Desktop keeps the existing grid layout with all days visible
-- Uses the existing `Collapsible` component from Radix UI
+### File: `src/hooks/useConversationImport.ts`
+
+**Update `updateMatchedItem` function** to support changing `unit` field:
+
+The existing `updateMatchedItem` function already uses a generic update pattern, but we need to ensure it properly handles the `unit` field updates without marking them as "manually changed" for product purposes.
+
+```tsx
+const updateMatchedItem = useCallback((index: number, updates: Partial<MatchedConversationItem>) => {
+  setMatchedItems(prev => {
+    const newItems = [...prev];
+    newItems[index] = {
+      ...newItems[index],
+      ...updates,
+      // Only mark as manually changed if product was changed
+      was_manually_changed: updates.matched_product_id !== undefined 
+        ? true 
+        : newItems[index].was_manually_changed
+    };
+    return newItems;
+  });
+}, []);
+```
 
 ## Files to Modify
 
-1. **`src/pages/fnb/FnbOrders.tsx`**
-   - Add `collapsedDays` state with today expanded by default
-   - Add `toggleDayCollapsed` function
-   - Reset collapsed state when `weekStart` changes
-   - Wrap mobile day cards with `Collapsible` component
-   - Add chevron indicator to day headers on mobile
-   - Show collapsed summary when day is collapsed
+1. **`src/components/fnb/QuickPasteOrder.tsx`**
+   - Convert unit display from text to editable Input
+   - Add price per unit Input field
+   - Adjust layout to accommodate new fields in a mobile-friendly way
 
-## User Experience Improvements
-- Quickly focus on today's orders without scrolling past other days
-- Expand only the days you need to review
-- Still see summary stats (order count, XCG total) for collapsed days
-- Chevron provides clear visual feedback on expand/collapse state
+2. **`src/hooks/useConversationImport.ts`**
+   - Verify `updateMatchedItem` supports unit updates (already supports partial updates)
+   - Ensure type interface allows unit to be updated
+
+## User Experience Benefits
+
+- **Flexible pricing**: Override AI-suggested price for special deals or bulk discounts
+- **Correct units**: Fix misinterpreted units (e.g., AI parsed "kg" but customer meant "pcs")
+- **Complete control**: Full editing capability before creating the order
+- **Consistent with existing pattern**: Matches the editable price behavior in FnbNewOrder form
 
