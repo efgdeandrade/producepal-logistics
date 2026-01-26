@@ -72,15 +72,45 @@ const RESPONSE_TEMPLATES = {
     en: "🤔 I couldn't find any recent order for you. Would you like to place a new order?",
     nl: "🤔 Ik kon geen recente bestelling voor u vinden. Wilt u een nieuwe bestelling plaatsen?",
     es: "🤔 No pude encontrar ningún pedido reciente tuyo. ¿Te gustaría hacer un nuevo pedido?"
+  },
+  existing_order_today: {
+    pap: "📦 Bo tin un orden pa awe kaba ({order_number}). E produktonan nobo ta pa e mesun orden, òf pa mañan?",
+    en: "📦 You already have an order for today ({order_number}). Are these new items for the same order, or for tomorrow?",
+    nl: "📦 U heeft al een bestelling voor vandaag ({order_number}). Zijn deze nieuwe items voor dezelfde bestelling, of voor morgen?",
+    es: "📦 Ya tienes un pedido para hoy ({order_number}). ¿Estos nuevos items son para el mismo pedido, o para mañana?"
+  },
+  same_order_today: {
+    pap: "mesun orden",
+    en: "same order",
+    nl: "zelfde bestelling",
+    es: "mismo pedido"
+  },
+  for_tomorrow: {
+    pap: "mañan",
+    en: "tomorrow",
+    nl: "morgen",
+    es: "mañana"
+  },
+  escalation_picking: {
+    pap: "⚠️ Bo orden ta wordo preparé awor. Mi ta kontaktá @{team_member} ({role}) pa mira si nos por ainda {action}.",
+    en: "⚠️ Your order is currently being prepared. I'm contacting @{team_member} ({role}) to see if we can still {action}.",
+    nl: "⚠️ Uw bestelling wordt nu voorbereid. Ik neem contact op met @{team_member} ({role}) om te kijken of we nog {action} kunnen.",
+    es: "⚠️ Tu pedido se está preparando ahora. Estoy contactando a @{team_member} ({role}) para ver si aún podemos {action}."
+  },
+  escalation_team_notification: {
+    pap: "🔔 @{team_member} - Kliente {customer_name} ta pidi: {request}\n\nOrden: {order_number}\nStatus: {status}\n\nPor fabor respondé si nos por ainda hasi esaki.",
+    en: "🔔 @{team_member} - Customer {customer_name} is requesting: {request}\n\nOrder: {order_number}\nStatus: {status}\n\nPlease respond if we can still do this.",
+    nl: "🔔 @{team_member} - Klant {customer_name} vraagt: {request}\n\nBestelling: {order_number}\nStatus: {status}\n\nGelieve te reageren of we dit nog kunnen doen.",
+    es: "🔔 @{team_member} - El cliente {customer_name} solicita: {request}\n\nPedido: {order_number}\nEstado: {status}\n\nPor favor responde si aún podemos hacer esto."
   }
 };
 
 // Language detection patterns
 const LANGUAGE_PATTERNS = {
-  pap: ['bon', 'dia', 'tardi', 'nochi', 'danki', 'por', 'fabor', 'mi', 'ke', 'pidi', 'awe', 'kico', 'tur', 'si', 'no', 'mas', 'awa', 'piska', 'karni', 'e', 'ta', 'un', 'dos', 'tres', 'kansela', 'kita', 'agrega'],
-  nl: ['goedemorgen', 'goedemiddag', 'goedenavond', 'bedankt', 'alstublieft', 'graag', 'bestellen', 'wil', 'hebben', 'ja', 'nee', 'meer', 'water', 'vis', 'vlees', 'de', 'het', 'een', 'twee', 'drie', 'annuleren', 'verwijderen', 'toevoegen'],
-  es: ['buenos', 'dias', 'tardes', 'noches', 'gracias', 'favor', 'quiero', 'pedir', 'hoy', 'sí', 'no', 'más', 'agua', 'pescado', 'carne', 'el', 'la', 'uno', 'dos', 'tres', 'cancelar', 'quitar', 'agregar'],
-  en: ['good', 'morning', 'afternoon', 'evening', 'thanks', 'please', 'want', 'order', 'today', 'yes', 'no', 'more', 'water', 'fish', 'meat', 'the', 'a', 'one', 'two', 'three', 'cancel', 'remove', 'add']
+  pap: ['bon', 'dia', 'tardi', 'nochi', 'danki', 'por', 'fabor', 'mi', 'ke', 'pidi', 'awe', 'kico', 'tur', 'si', 'no', 'mas', 'awa', 'piska', 'karni', 'e', 'ta', 'un', 'dos', 'tres', 'kansela', 'kita', 'agrega', 'mesun', 'mañan'],
+  nl: ['goedemorgen', 'goedemiddag', 'goedenavond', 'bedankt', 'alstublieft', 'graag', 'bestellen', 'wil', 'hebben', 'ja', 'nee', 'meer', 'water', 'vis', 'vlees', 'de', 'het', 'een', 'twee', 'drie', 'annuleren', 'verwijderen', 'toevoegen', 'zelfde', 'morgen'],
+  es: ['buenos', 'dias', 'tardes', 'noches', 'gracias', 'favor', 'quiero', 'pedir', 'hoy', 'sí', 'no', 'más', 'agua', 'pescado', 'carne', 'el', 'la', 'uno', 'dos', 'tres', 'cancelar', 'quitar', 'agregar', 'mismo', 'mañana'],
+  en: ['good', 'morning', 'afternoon', 'evening', 'thanks', 'please', 'want', 'order', 'today', 'yes', 'no', 'more', 'water', 'fish', 'meat', 'the', 'a', 'one', 'two', 'three', 'cancel', 'remove', 'add', 'same', 'tomorrow']
 };
 
 // Cancellation patterns
@@ -91,6 +121,17 @@ const CANCEL_PATTERNS = {
 
 // Addition patterns
 const ADDITION_PATTERNS = ['add', 'also', 'more', 'extra', 'agrega', 'mas', 'tambe', 'toevoegen', 'ook', 'nog', 'agregar', 'también', 'además'];
+
+// Same order / tomorrow detection patterns
+const SAME_ORDER_PATTERNS = ['same order', 'same', 'mesun', 'mesun orden', 'zelfde', 'zelfde bestelling', 'mismo', 'mismo pedido', 'awe', 'today', 'vandaag', 'hoy'];
+const TOMORROW_PATTERNS = ['tomorrow', 'mañan', 'morgen', 'mañana', 'next', 'otro dia', 'another day'];
+
+// Team role escalation mapping
+const ESCALATION_TRIGGERS = {
+  logistics: ['add', 'agrega', 'change', 'cambia', 'toevoegen', 'wijzig', 'more', 'extra', 'modificar'],
+  management: ['discount', 'descuento', 'korting', 'price', 'precio', 'prijs', 'special', 'exception', 'problema', 'problem'],
+  accounting: ['invoice', 'factura', 'factuur', 'payment', 'pago', 'betaling', 'credit', 'credito']
+};
 
 // Detect language from text
 function detectLanguage(text: string, customerPreference?: string | null): string {
@@ -126,9 +167,15 @@ function detectIntent(text: string): {
   isCancelOrder: boolean;
   isCancelItem: boolean;
   isAddition: boolean;
+  isSameOrderResponse: boolean;
+  isTomorrowResponse: boolean;
   cancelItemName: string | null;
 } {
   const lowerText = text.toLowerCase().trim();
+  
+  // Check for same order / tomorrow response
+  const isSameOrderResponse = SAME_ORDER_PATTERNS.some(p => lowerText.includes(p));
+  const isTomorrowResponse = TOMORROW_PATTERNS.some(p => lowerText.includes(p));
   
   // Check for order cancellation
   const isCancelOrder = CANCEL_PATTERNS.order.some(p => lowerText.includes(p));
@@ -164,13 +211,28 @@ function detectIntent(text: string): {
   
   // Determine primary intent
   let intent = 'order';
-  if (isCancelOrder) intent = 'cancel_order';
+  if (isSameOrderResponse) intent = 'same_order_today';
+  else if (isTomorrowResponse) intent = 'for_tomorrow';
+  else if (isCancelOrder) intent = 'cancel_order';
   else if (isCancelItem) intent = 'cancel_item';
   else if (isConfirmation) intent = 'confirm';
   else if (isAddition) intent = 'addition';
   else if (isGreeting && lowerText.length < 30) intent = 'greeting';
   
-  return { intent, isConfirmation, isGreeting, isCancelOrder, isCancelItem, isAddition, cancelItemName };
+  return { intent, isConfirmation, isGreeting, isCancelOrder, isCancelItem, isAddition, isSameOrderResponse, isTomorrowResponse, cancelItemName };
+}
+
+// Detect which team role should be escalated to
+function detectEscalationRole(text: string): string | null {
+  const lowerText = text.toLowerCase();
+  
+  for (const [role, triggers] of Object.entries(ESCALATION_TRIGGERS)) {
+    if (triggers.some(t => lowerText.includes(t))) {
+      return role;
+    }
+  }
+  
+  return 'logistics'; // Default to logistics for order modifications
 }
 
 // Parse order items from text
@@ -280,6 +342,84 @@ function buildConversationSnapshot(messages: Array<{ direction: string; message_
   }).join('\n');
 }
 
+// Get team member by role from profiles
+// deno-lint-ignore no-explicit-any
+async function getTeamMemberByRole(supabase: any, role: string): Promise<{ name: string; phone: string } | null> {
+  const { data: teamMember } = await supabase
+    .from('profiles')
+    .select('full_name, whatsapp_phone')
+    .eq('is_fuik_team', true)
+    .eq('team_role', role)
+    .limit(1)
+    .single();
+  
+  if (teamMember && (teamMember as { whatsapp_phone?: string }).whatsapp_phone) {
+    const tm = teamMember as { full_name?: string; whatsapp_phone: string };
+    return { name: tm.full_name || role, phone: tm.whatsapp_phone };
+  }
+  
+  return null;
+}
+
+// Check if order has items being picked
+// deno-lint-ignore no-explicit-any
+async function checkOrderPickingStatus(supabase: any, orderId: string): Promise<boolean> {
+  const { data: items } = await supabase
+    .from('distribution_order_items')
+    .select('picked_quantity')
+    .eq('order_id', orderId)
+    .eq('is_cancelled', false);
+  
+  // Order is in picking if any item has been picked
+  if (!items) return false;
+  return (items as Array<{ picked_quantity?: number }>).some(item => (item.picked_quantity || 0) > 0);
+}
+
+// Get unpicked orders for today
+// deno-lint-ignore no-explicit-any
+async function getUnpickedOrdersToday(
+  supabase: any, 
+  customerId: string | null, 
+  customerPhone: string
+): Promise<Array<{ id: string; order_number: string; status: string; created_at: string; total_xcg: number }>> {
+  // Get today's date in Curaçao timezone
+  const today = new Date();
+  const curacaoOffset = -4 * 60; // UTC-4
+  const localOffset = today.getTimezoneOffset();
+  const curacaoTime = new Date(today.getTime() + (localOffset - curacaoOffset) * 60000);
+  const startOfDay = new Date(curacaoTime);
+  startOfDay.setHours(0, 0, 0, 0);
+  
+  let query = supabase
+    .from('distribution_orders')
+    .select('id, order_number, status, created_at, total_xcg')
+    .in('status', ['pending', 'confirmed'])
+    .gte('created_at', startOfDay.toISOString())
+    .order('created_at', { ascending: true });
+  
+  if (customerId) {
+    query = query.eq('customer_id', customerId);
+  } else {
+    query = query.eq('customer_phone', customerPhone);
+  }
+  
+  const { data: orders } = await query;
+  
+  if (!orders) return [];
+  
+  // Filter out orders that have items already picked
+  const unpickedOrders: Array<{ id: string; order_number: string; status: string; created_at: string; total_xcg: number }> = [];
+  
+  for (const order of orders as Array<{ id: string; order_number: string; status: string; created_at: string; total_xcg: number }>) {
+    const isPicking = await checkOrderPickingStatus(supabase, order.id);
+    if (!isPicking) {
+      unpickedOrders.push(order);
+    }
+  }
+  
+  return unpickedOrders;
+}
+
 // Send WhatsApp message via Meta API
 async function sendWhatsAppMessage(phoneNumber: string, message: string): Promise<boolean> {
   const accessToken = Deno.env.get('WHATSAPP_ACCESS_TOKEN');
@@ -349,8 +489,8 @@ Deno.serve(async (req) => {
     console.log('Detected language:', language);
 
     // Detect intent
-    const { intent, isConfirmation, isGreeting, isCancelOrder, isCancelItem, isAddition, cancelItemName } = detectIntent(message_text);
-    console.log('Detected intent:', intent, { isConfirmation, isGreeting, isCancelOrder, isCancelItem, isAddition, cancelItemName });
+    const { intent, isConfirmation, isGreeting, isCancelOrder, isCancelItem, isAddition, isSameOrderResponse, isTomorrowResponse, cancelItemName } = detectIntent(message_text);
+    console.log('Detected intent:', intent, { isConfirmation, isGreeting, isCancelOrder, isCancelItem, isAddition, isSameOrderResponse, isTomorrowResponse, cancelItemName });
 
     // Get products for matching
     const { data: products } = await supabase
@@ -380,6 +520,9 @@ Deno.serve(async (req) => {
     
     const recentOrder = recentOrders?.[0] || null;
     const cutoffHours = recentOrder?.cancellation_cutoff_hours || 2;
+
+    // Check if order is in picking phase (items being picked)
+    const isOrderInPicking = recentOrder ? await checkOrderPickingStatus(supabase, recentOrder.id) : false;
 
     // Handle ORDER CANCELLATION
     if (isCancelOrder && recentOrder) {
@@ -530,6 +673,108 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Handle SAME ORDER TODAY response - link to existing order
+    if (isSameOrderResponse) {
+      console.log('Customer confirmed same order for today');
+      
+      // Get the pending items from recent conversation
+      const { data: recentConvo } = await supabase
+        .from('distribution_conversations')
+        .select('parsed_items')
+        .or(customer_id ? `customer_id.eq.${customer_id}` : `message_text.ilike.%${customer_phone}%`)
+        .eq('direction', 'outbound')
+        .eq('parsed_intent', 'pending_same_day_question')
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (recentConvo?.[0]?.parsed_items) {
+        // Store as addition recap so confirmation creates linked order
+        await supabase.from('distribution_conversations').insert({
+          customer_id: customer_id || null,
+          direction: 'outbound',
+          message_text: 'Same order today confirmed',
+          detected_language: language,
+          parsed_intent: 'addition_recap',
+          parsed_items: recentConvo[0].parsed_items
+        });
+        
+        // Send confirmation request
+        const parsedItems = recentConvo[0].parsed_items as Array<{ product_name: string; quantity: number; unit_price: number }>;
+        const itemsList = parsedItems.map(item => 
+          `• ${item.quantity}x ${item.product_name} - ${(item.quantity * item.unit_price).toFixed(2)} XCG`
+        ).join('\n');
+        const total = parsedItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+        
+        const recapMsg = RESPONSE_TEMPLATES.order_recap[language as keyof typeof RESPONSE_TEMPLATES.order_recap]
+          .replace('{items}', itemsList)
+          .replace('{total}', total.toFixed(2)) + 
+          (language === 'pap' ? '\n\n📦 Esaki lo wordo agregá na bo orden di awe.' :
+           language === 'nl' ? '\n\n📦 Dit wordt toegevoegd aan uw bestelling van vandaag.' :
+           language === 'es' ? '\n\n📦 Esto se agregará a tu pedido de hoy.' :
+           '\n\n📦 This will be added to your order for today.');
+        
+        await sendWhatsAppMessage(customer_phone, recapMsg);
+        
+        return new Response(JSON.stringify({ 
+          success: true, 
+          action: 'same_order_confirmed_pending_final_confirmation'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // Handle TOMORROW response - create new order for tomorrow
+    if (isTomorrowResponse) {
+      console.log('Customer wants order for tomorrow');
+      
+      // Get the pending items from recent conversation
+      const { data: recentConvo } = await supabase
+        .from('distribution_conversations')
+        .select('parsed_items')
+        .or(customer_id ? `customer_id.eq.${customer_id}` : `message_text.ilike.%${customer_phone}%`)
+        .eq('direction', 'outbound')
+        .eq('parsed_intent', 'pending_same_day_question')
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (recentConvo?.[0]?.parsed_items) {
+        // Store as order recap (not addition) so it creates new order
+        await supabase.from('distribution_conversations').insert({
+          customer_id: customer_id || null,
+          direction: 'outbound',
+          message_text: 'Order for tomorrow confirmed',
+          detected_language: language,
+          parsed_intent: 'order_recap',
+          parsed_items: recentConvo[0].parsed_items
+        });
+        
+        // Send confirmation request
+        const parsedItems = recentConvo[0].parsed_items as Array<{ product_name: string; quantity: number; unit_price: number }>;
+        const itemsList = parsedItems.map(item => 
+          `• ${item.quantity}x ${item.product_name} - ${(item.quantity * item.unit_price).toFixed(2)} XCG`
+        ).join('\n');
+        const total = parsedItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+        
+        const recapMsg = RESPONSE_TEMPLATES.order_recap[language as keyof typeof RESPONSE_TEMPLATES.order_recap]
+          .replace('{items}', itemsList)
+          .replace('{total}', total.toFixed(2)) + 
+          (language === 'pap' ? '\n\n📅 Esaki ta pa mañan.' :
+           language === 'nl' ? '\n\n📅 Dit is voor morgen.' :
+           language === 'es' ? '\n\n📅 Esto es para mañana.' :
+           '\n\n📅 This is for tomorrow.');
+        
+        await sendWhatsAppMessage(customer_phone, recapMsg);
+        
+        return new Response(JSON.stringify({ 
+          success: true, 
+          action: 'tomorrow_order_pending_confirmation'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     // Handle confirmation - create order from previous conversation
     if (isConfirmation) {
       console.log('Processing order confirmation');
@@ -569,6 +814,15 @@ Deno.serve(async (req) => {
           (conversationMessages || []).reverse()
         );
         
+        // Get the oldest unpicked order for today if this is an addition
+        let parentOrderId: string | null = null;
+        if (isAdditionConfirmation) {
+          const unpickedOrders = await getUnpickedOrdersToday(supabase, customer_id, customer_phone);
+          if (unpickedOrders.length > 0) {
+            parentOrderId = unpickedOrders[0].id;
+          }
+        }
+        
         // Create the order (or linked sub-order for additions)
         const orderNumber = `WA-${Date.now().toString(36).toUpperCase()}`;
         const totalAmount = parsedItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
@@ -585,10 +839,18 @@ Deno.serve(async (req) => {
         };
         
         // If this is an addition to existing order, link it
-        if (isAdditionConfirmation && recentOrder) {
-          orderData.parent_order_id = recentOrder.id;
+        if (isAdditionConfirmation && parentOrderId) {
+          orderData.parent_order_id = parentOrderId;
           orderData.modification_type = 'addition';
-          orderData.notes = `Addition to order ${recentOrder.order_number}`;
+          
+          // Get parent order number for note
+          const { data: parentOrder } = await supabase
+            .from('distribution_orders')
+            .select('order_number')
+            .eq('id', parentOrderId)
+            .single();
+          
+          orderData.notes = `Addition to order ${parentOrder?.order_number || parentOrderId}`;
         }
         
         const { data: order, error: orderError } = await supabase
@@ -649,7 +911,7 @@ Deno.serve(async (req) => {
             action: isAdditionConfirmation ? 'addition_confirmed' : 'order_confirmed',
             order_id: order.id,
             order_number: orderNumber,
-            parent_order_id: isAdditionConfirmation ? recentOrder?.id : null,
+            parent_order_id: parentOrderId,
             customer_id: customer_id || null,
             is_new_customer: isNewCustomer
           }), {
@@ -769,6 +1031,108 @@ Deno.serve(async (req) => {
         });
       } else {
         unmatchedItems.push(item.rawText);
+      }
+    }
+
+    // Check for existing unpicked orders today (same-day duplicate detection)
+    const unpickedOrdersToday = await getUnpickedOrdersToday(supabase, customer_id, customer_phone);
+    
+    // If customer has unpicked order today and this isn't explicitly an addition, ask
+    if (unpickedOrdersToday.length > 0 && !isAddition && matchedItems.length > 0) {
+      const existingOrder = unpickedOrdersToday[0];
+      
+      // Store parsed items for later use
+      await supabase.from('distribution_conversations').insert({
+        customer_id: customer_id || null,
+        direction: 'outbound',
+        message_text: 'Pending same day question',
+        detected_language: language,
+        parsed_intent: 'pending_same_day_question',
+        parsed_items: matchedItems
+      });
+      
+      // Ask if this is for the same order or tomorrow
+      const askMsg = RESPONSE_TEMPLATES.existing_order_today[language as keyof typeof RESPONSE_TEMPLATES.existing_order_today]
+        .replace('{order_number}', existingOrder.order_number);
+      
+      await sendWhatsAppMessage(customer_phone, askMsg);
+      
+      await supabase.from('whatsapp_messages').insert({
+        direction: 'outbound',
+        phone_number: customer_phone,
+        message_text: askMsg,
+        customer_id: customer_id || null,
+        status: 'sent'
+      });
+      
+      return new Response(JSON.stringify({ 
+        success: true, 
+        action: 'asked_same_day_or_tomorrow',
+        existing_order_id: existingOrder.id,
+        existing_order_number: existingOrder.order_number,
+        matched_items: matchedItems.length
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Check if order is in picking and customer wants modifications - ESCALATE
+    if (isOrderInPicking && (isAddition || isCancelItem) && recentOrder) {
+      console.log('Order is in picking, escalating to team');
+      
+      const escalationRole = detectEscalationRole(message_text);
+      const teamMember = await getTeamMemberByRole(supabase, escalationRole || 'logistics');
+      
+      if (teamMember) {
+        const actionText = isAddition ? 
+          (language === 'pap' ? 'agrega produkto' : language === 'nl' ? 'product toevoegen' : language === 'es' ? 'agregar producto' : 'add product') :
+          (language === 'pap' ? 'kansela produkto' : language === 'nl' ? 'product annuleren' : language === 'es' ? 'cancelar producto' : 'cancel product');
+        
+        // Send message to customer about escalation
+        const customerMsg = RESPONSE_TEMPLATES.escalation_picking[language as keyof typeof RESPONSE_TEMPLATES.escalation_picking]
+          .replace('{team_member}', teamMember.name)
+          .replace('{role}', escalationRole || 'Logistics')
+          .replace('{action}', actionText);
+        
+        await sendWhatsAppMessage(customer_phone, customerMsg);
+        
+        // Send notification to team member
+        const teamMsg = RESPONSE_TEMPLATES.escalation_team_notification[language as keyof typeof RESPONSE_TEMPLATES.escalation_team_notification]
+          .replace('{team_member}', teamMember.name)
+          .replace('{customer_name}', customer_name || customer_phone)
+          .replace('{request}', message_text)
+          .replace('{order_number}', recentOrder.order_number)
+          .replace('{status}', recentOrder.status);
+        
+        await sendWhatsAppMessage(teamMember.phone, teamMsg);
+        
+        // Log the escalation
+        await supabase.from('whatsapp_messages').insert([
+          {
+            direction: 'outbound',
+            phone_number: customer_phone,
+            message_text: customerMsg,
+            customer_id: customer_id || null,
+            status: 'sent'
+          },
+          {
+            direction: 'outbound',
+            phone_number: teamMember.phone,
+            message_text: teamMsg,
+            customer_id: null,
+            status: 'sent'
+          }
+        ]);
+        
+        return new Response(JSON.stringify({ 
+          success: true, 
+          action: 'escalated_to_team',
+          team_member: teamMember.name,
+          team_role: escalationRole,
+          order_id: recentOrder.id
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
     }
 
