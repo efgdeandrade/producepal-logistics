@@ -6,12 +6,13 @@ const corsHeaders = {
 };
 
 // Multi-language response templates
+// Dre - Your friendly FUIK order buddy
 const RESPONSE_TEMPLATES = {
   welcome_new: {
-    pap: "Bon bini na FUIK! 🐟 Mi ta e asistente di bestellings. Ki kos bo ke pidi awe?",
-    en: "Welcome to FUIK! 🐟 I'm the order assistant. What would you like to order today?",
-    nl: "Welkom bij FUIK! 🐟 Ik ben de bestelassistent. Wat wilt u vandaag bestellen?",
-    es: "¡Bienvenido a FUIK! 🐟 Soy el asistente de pedidos. ¿Qué te gustaría pedir hoy?"
+    pap: "Kon ta! 👋 Mi ta Dre, bo kompañero di order di FUIK! 🐟 Ki kos bo ke pidi awe?",
+    en: "Hey! 👋 I'm Dre, your FUIK order buddy! 🐟 What can I get for you today?",
+    nl: "Hoi! 👋 Ik ben Dre, je FUIK bestelmaatje! 🐟 Wat kan ik voor je regelen?",
+    es: "¡Hola! 👋 Soy Dre, tu amigo de pedidos de FUIK! 🐟 ¿Qué puedo conseguirte hoy?"
   },
   order_recap: {
     pap: "📋 Bo orden:\n{items}\n\n💰 Total: {total} XCG\n\nTur kos ta bon? Bisa 'Si' pa konfirmá.",
@@ -20,63 +21,63 @@ const RESPONSE_TEMPLATES = {
     es: "📋 Tu pedido:\n{items}\n\n💰 Total: {total} XCG\n\n¿Todo correcto? Di 'Sí' para confirmar."
   },
   order_confirmed: {
-    pap: "✅ Danki! Bo orden a wordo plasá. Nos lo entregá esaki pronto. 🚚",
-    en: "✅ Thank you! Your order has been placed. We'll deliver it soon. 🚚",
-    nl: "✅ Bedankt! Uw bestelling is geplaatst. We bezorgen het snel. 🚚",
-    es: "✅ ¡Gracias! Tu pedido ha sido registrado. Lo entregaremos pronto. 🚚"
+    pap: "✅ Mashá bon! Dre tin bo cubrí! Bo orden ta registrá. Nos lo entregá esaki pronto. 🚚",
+    en: "✅ Awesome! Dre's got you covered! Your order is placed. We'll deliver it soon. 🚚",
+    nl: "✅ Top! Dre regelt het! Je bestelling is geplaatst. We bezorgen het snel. 🚚",
+    es: "✅ ¡Genial! ¡Dre te tiene cubierto! Tu pedido está registrado. Lo entregaremos pronto. 🚚"
   },
   addition_confirmed: {
-    pap: "✅ Danki! Bo adishon a wordo agregá na bo orden. 🚚",
-    en: "✅ Thank you! Your addition has been added to your order. 🚚",
-    nl: "✅ Bedankt! Uw toevoeging is aan uw bestelling toegevoegd. 🚚",
-    es: "✅ ¡Gracias! Tu adición ha sido agregada a tu pedido. 🚚"
+    pap: "✅ Klaar! Dre a agregá e produktonan na bo orden. 🚚",
+    en: "✅ Done! Dre added the items to your order. 🚚",
+    nl: "✅ Geregeld! Dre heeft de items aan je bestelling toegevoegd. 🚚",
+    es: "✅ ¡Listo! Dre agregó los productos a tu pedido. 🚚"
   },
   suggestions: {
     pap: "💡 Bo tabata order tambe: {products}. Bo ke agrega un di nan?",
     en: "💡 You've also ordered before: {products}. Would you like to add any?",
-    nl: "💡 U heeft eerder ook besteld: {products}. Wilt u iets toevoegen?",
+    nl: "💡 Je hebt eerder ook besteld: {products}. Wil je iets toevoegen?",
     es: "💡 También has pedido antes: {products}. ¿Te gustaría agregar alguno?"
   },
   no_match: {
-    pap: "🤔 Mi no por haña e produkto '{item}'. Por fabor purba otro nomber òf mira nos lista di produktonan.",
-    en: "🤔 I couldn't find the product '{item}'. Please try another name or check our product list.",
-    nl: "🤔 Ik kon het product '{item}' niet vinden. Probeer een andere naam of bekijk onze productlijst.",
-    es: "🤔 No pude encontrar el producto '{item}'. Por favor intenta con otro nombre o revisa nuestra lista de productos."
+    pap: "🤔 Hmm, Dre no por haña e produkto '{item}'. Por fabor purba otro nomber òf mira nos lista di produktonan.",
+    en: "🤔 Hmm, Dre couldn't find '{item}'. Please try another name or check our product list.",
+    nl: "🤔 Hmm, Dre kon '{item}' niet vinden. Probeer een andere naam of bekijk onze productlijst.",
+    es: "🤔 Hmm, Dre no pudo encontrar '{item}'. Por favor intenta con otro nombre o revisa nuestra lista."
   },
   greeting_response: {
-    pap: "Bon dia! 🐟 Ki kos bo ke pidi awe?",
-    en: "Good day! 🐟 What would you like to order today?",
-    nl: "Goedendag! 🐟 Wat wilt u vandaag bestellen?",
-    es: "¡Buen día! 🐟 ¿Qué te gustaría pedir hoy?"
+    pap: "Kon ta! Dre aki 👋 Ki kos bo ke pidi awe?",
+    en: "Hey there! Dre here 👋 What would you like to order today?",
+    nl: "Hoi! Dre hier 👋 Wat wil je vandaag bestellen?",
+    es: "¡Hola! Dre aquí 👋 ¿Qué te gustaría pedir hoy?"
   },
   cancel_item_success: {
-    pap: "🚫 '{item}' a wordo kansela for di bo orden.",
-    en: "🚫 '{item}' has been cancelled from your order.",
-    nl: "🚫 '{item}' is geannuleerd van uw bestelling.",
-    es: "🚫 '{item}' ha sido cancelado de tu pedido."
+    pap: "🚫 Oke, Dre a kita '{item}' for di bo orden.",
+    en: "🚫 Got it! Dre removed '{item}' from your order.",
+    nl: "🚫 Begrepen! Dre heeft '{item}' uit je bestelling gehaald.",
+    es: "🚫 ¡Entendido! Dre quitó '{item}' de tu pedido."
   },
   cancel_order_success: {
-    pap: "🚫 Bo orden kompletu a wordo kansela.",
-    en: "🚫 Your entire order has been cancelled.",
-    nl: "🚫 Uw volledige bestelling is geannuleerd.",
-    es: "🚫 Tu pedido completo ha sido cancelado."
+    pap: "🚫 Oke, Dre a kansela bo orden kompletu. Te próksimo biaha!",
+    en: "🚫 Alright, Dre cancelled your entire order. See you next time!",
+    nl: "🚫 Oké, Dre heeft je hele bestelling geannuleerd. Tot de volgende keer!",
+    es: "🚫 Listo, Dre canceló tu pedido completo. ¡Hasta la próxima!"
   },
   cancel_too_late: {
-    pap: "⚠️ Despensa, bo orden a pasa mas ku {hours} ora kaba. Por fabor yama nos pa kansela.",
-    en: "⚠️ Sorry, your order was placed more than {hours} hours ago. Please call us to cancel.",
-    nl: "⚠️ Sorry, uw bestelling is meer dan {hours} uur geleden geplaatst. Bel ons om te annuleren.",
-    es: "⚠️ Lo siento, tu pedido fue realizado hace más de {hours} horas. Por favor llámanos para cancelar."
+    pap: "⚠️ Ai, bo orden a pasa mas ku {hours} ora kaba. Por fabor yama nos pa kansela.",
+    en: "⚠️ Oops, your order was placed more than {hours} hours ago. Please call us to cancel.",
+    nl: "⚠️ Oeps, je bestelling is meer dan {hours} uur geleden geplaatst. Bel ons om te annuleren.",
+    es: "⚠️ Ups, tu pedido fue realizado hace más de {hours} horas. Por favor llámanos para cancelar."
   },
   no_recent_order: {
-    pap: "🤔 Mi no por haña ningun orden resien pa bo. Kier bo pidi algo nobo?",
-    en: "🤔 I couldn't find any recent order for you. Would you like to place a new order?",
-    nl: "🤔 Ik kon geen recente bestelling voor u vinden. Wilt u een nieuwe bestelling plaatsen?",
-    es: "🤔 No pude encontrar ningún pedido reciente tuyo. ¿Te gustaría hacer un nuevo pedido?"
+    pap: "🤔 Dre no por haña ningun orden resien pa bo. Bo ke pidi algo nobo?",
+    en: "🤔 Dre couldn't find any recent order for you. Would you like to place a new order?",
+    nl: "🤔 Dre kon geen recente bestelling voor je vinden. Wil je een nieuwe bestelling plaatsen?",
+    es: "🤔 Dre no pudo encontrar ningún pedido reciente tuyo. ¿Te gustaría hacer uno nuevo?"
   },
   existing_order_today: {
     pap: "📦 Bo tin un orden pa awe kaba ({order_number}). E produktonan nobo ta pa e mesun orden, òf pa mañan?",
     en: "📦 You already have an order for today ({order_number}). Are these new items for the same order, or for tomorrow?",
-    nl: "📦 U heeft al een bestelling voor vandaag ({order_number}). Zijn deze nieuwe items voor dezelfde bestelling, of voor morgen?",
+    nl: "📦 Je hebt al een bestelling voor vandaag ({order_number}). Zijn deze nieuwe items voor dezelfde bestelling, of voor morgen?",
     es: "📦 Ya tienes un pedido para hoy ({order_number}). ¿Estos nuevos items son para el mismo pedido, o para mañana?"
   },
   same_order_today: {
@@ -92,10 +93,10 @@ const RESPONSE_TEMPLATES = {
     es: "mañana"
   },
   escalation_picking: {
-    pap: "⚠️ Bo orden ta wordo preparé awor. Mi ta kontaktá @{team_member} ({role}) pa mira si nos por ainda {action}.",
-    en: "⚠️ Your order is currently being prepared. I'm contacting @{team_member} ({role}) to see if we can still {action}.",
-    nl: "⚠️ Uw bestelling wordt nu voorbereid. Ik neem contact op met @{team_member} ({role}) om te kijken of we nog {action} kunnen.",
-    es: "⚠️ Tu pedido se está preparando ahora. Estoy contactando a @{team_member} ({role}) para ver si aún podemos {action}."
+    pap: "⚠️ Bo orden ta wordo preparé awor. Dre ta kontaktá @{team_member} ({role}) pa mira si nos por ainda {action}.",
+    en: "⚠️ Your order is currently being prepared. Dre is contacting @{team_member} ({role}) to see if we can still {action}.",
+    nl: "⚠️ Je bestelling wordt nu voorbereid. Dre neemt contact op met @{team_member} ({role}) om te kijken of we nog {action} kunnen.",
+    es: "⚠️ Tu pedido se está preparando ahora. Dre está contactando a @{team_member} ({role}) para ver si aún podemos {action}."
   },
   escalation_team_notification: {
     pap: "🔔 @{team_member} - Kliente {customer_name} ta pidi: {request}\n\nOrden: {order_number}\nStatus: {status}\n\nPor fabor respondé si nos por ainda hasi esaki.",
