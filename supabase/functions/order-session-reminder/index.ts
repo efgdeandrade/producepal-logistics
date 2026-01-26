@@ -5,39 +5,43 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Multi-language reminder templates
+// Dre - Multi-language reminder templates
 const REMINDER_TEMPLATES = {
   en: {
-    greeting: "Hi",
-    reminder: "Just checking in! 📋 You were placing an order earlier:",
+    greeting: "Hey",
+    intro: "it's Dre!",
+    reminder: "👋 Just checking in on your order from earlier:",
     summary_header: "Your order so far:",
-    confirm_prompt: "Would you still like to proceed with this order?",
+    confirm_prompt: "Would you still like to proceed?",
     confirm_instruction: "Reply **Yes** to confirm or **No** to cancel.",
-    expire_warning: "This order will expire soon if we don't hear back.",
+    expire_warning: "This order will expire soon if I don't hear back.",
   },
   es: {
-    greeting: "Hola",
-    reminder: "¡Solo verificando! 📋 Estabas haciendo un pedido antes:",
+    greeting: "¡Hola",
+    intro: "soy Dre!",
+    reminder: "👋 Solo revisando tu pedido de antes:",
     summary_header: "Tu pedido hasta ahora:",
-    confirm_prompt: "¿Todavía quieres continuar con este pedido?",
+    confirm_prompt: "¿Todavía quieres continuar?",
     confirm_instruction: "Responde **Sí** para confirmar o **No** para cancelar.",
-    expire_warning: "Este pedido expirará pronto si no recibimos respuesta.",
+    expire_warning: "Este pedido expirará pronto si no escucho de ti.",
   },
   nl: {
-    greeting: "Hallo",
-    reminder: "Even checken! 📋 Je was eerder een bestelling aan het plaatsen:",
+    greeting: "Hoi",
+    intro: "Dre hier!",
+    reminder: "👋 Even checken over je bestelling van eerder:",
     summary_header: "Je bestelling tot nu toe:",
-    confirm_prompt: "Wil je nog steeds doorgaan met deze bestelling?",
+    confirm_prompt: "Wil je nog steeds doorgaan?",
     confirm_instruction: "Antwoord **Ja** om te bevestigen of **Nee** om te annuleren.",
-    expire_warning: "Deze bestelling verloopt binnenkort als we niets horen.",
+    expire_warning: "Deze bestelling verloopt binnenkort als ik niets hoor.",
   },
   pap: {
-    greeting: "Bon dia",
-    reminder: "Ta check! 📋 Bo tabata hasiendo un order mas trempan:",
+    greeting: "Kon ta",
+    intro: "Dre aki!",
+    reminder: "👋 Ta check riba bo order di mas trempan:",
     summary_header: "Bo order te awor:",
-    confirm_prompt: "Bo ke sigui ku e order aki ainda?",
+    confirm_prompt: "Bo ke sigui ku esaki ainda?",
     confirm_instruction: "Kontesta **Si** pa konfirmá òf **No** pa kanselá.",
-    expire_warning: "E order aki lo expirá pronto si nos no tende bèk.",
+    expire_warning: "E order aki lo expirá pronto si mi no tende bèk.",
   },
 };
 
@@ -65,7 +69,9 @@ function buildReminderMessage(session: OrderSession): string {
   const templates = REMINDER_TEMPLATES[lang as keyof typeof REMINDER_TEMPLATES] || REMINDER_TEMPLATES.en;
   
   const customerName = session.customer_name || '';
-  const greeting = customerName ? `${templates.greeting} ${customerName}!` : `${templates.greeting}!`;
+  const greeting = customerName 
+    ? `${templates.greeting} ${customerName}, ${templates.intro}` 
+    : `${templates.greeting}, ${templates.intro}`;
   
   const orderSummary = formatOrderSummary(session.parsed_items, lang);
   
