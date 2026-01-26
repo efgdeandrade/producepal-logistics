@@ -83,16 +83,16 @@ export function MobileProductCard({
 
   return (
     <Card className={cn(
-      "relative overflow-hidden transition-colors w-full max-w-full",
+      "relative overflow-hidden transition-colors w-full",
       !matchedProductId && "border-amber-300 bg-amber-50/30 dark:bg-amber-950/20",
       className
     )}>
-      <CardContent className="p-4 space-y-4">
+      <CardContent className="p-4 space-y-4 w-full">
         {/* Header: Raw text + Remove button, Badge below */}
         <div className="space-y-2">
           {/* First row: Raw text + Delete button */}
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-sm text-muted-foreground italic line-clamp-2 flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2 w-full">
+            <p className="text-sm text-muted-foreground italic line-clamp-2 flex-1 min-w-0 break-words">
               "{rawText}"
             </p>
             <Button
@@ -112,7 +112,7 @@ export function MobileProductCard({
         </div>
 
         {/* Quantity - Full width stepper */}
-        <div className="space-y-2">
+        <div className="space-y-2 w-full">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Quantity
           </label>
@@ -126,7 +126,7 @@ export function MobileProductCard({
         </div>
 
         {/* Product Selector - Full width */}
-        <div className="space-y-2 w-full overflow-hidden">
+        <div className="space-y-2 w-full min-w-0">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Product
           </label>
@@ -147,13 +147,12 @@ export function MobileProductCard({
             }}
             placeholder="Select product..."
             emptyMessage="No products found"
-            className="w-full"
           />
         </div>
 
         {/* Price footer */}
         {selectedProduct && suggestedPrice !== null && (
-          <div className="flex items-center justify-between pt-2 border-t text-sm">
+          <div className="flex items-center justify-between pt-2 border-t text-sm w-full">
             <span className="text-muted-foreground">
               ƒ{suggestedPrice.toFixed(2)}/{unit}
             </span>
