@@ -127,9 +127,9 @@ Deno.serve(async (req) => {
     // Fetch products for AI context
     const { data: products } = await supabase
       .from('distribution_products')
-      .select('id, code, name, name_pap, name_nl, name_es, default_unit, price_per_unit')
+      .select('id, code, name, name_pap, name_nl, name_es, unit, price_xcg')
       .eq('is_active', true)
-      .limit(100);
+      .limit(200);
 
     // Fetch customer patterns for personalized suggestions
     const { data: patterns } = customer_id ? await supabase
@@ -159,14 +159,19 @@ Deno.serve(async (req) => {
     // Fetch recent conversation history for context
     const { data: recentMessages } = customer_id ? await supabase
       .from('whatsapp_messages')
-      .select('message_text, direction, created_at')
+      .select('message_text, direction, created_at, parsed_items')
       .eq('customer_id', customer_id)
       .order('created_at', { ascending: false })
       .limit(10) : { data: null };
+    
+    // Check for pending order items from previous messages (for confirmations)
+    const pendingOrderItems = recentMessages?.find(m => 
+      m.direction === 'outbound' && m.parsed_items
+    )?.parsed_items;
 
     // Build product context
     const productList = products?.map(p => 
-      `${p.code}: ${p.name}${p.name_pap ? ` (${p.name_pap})` : ''} - ${p.default_unit} @ ${p.price_per_unit} XCG`
+      `${p.code}: ${p.name}${p.name_pap ? ` (${p.name_pap})` : ''} - ${p.unit || 'unit'} @ ${p.price_xcg || 0} XCG`
     ).join('\n') || 'No products available';
 
     // Build pattern context
@@ -347,31 +352,73 @@ Always confirm understanding of orders before final confirmation.`;
         .eq('id', customer_id);
     }
 
-    // Create draft order if AI suggests it
+    // Create order when:
+    // 1. AI says create_order=true, OR
+    // 2. Intent is "confirmation" and we have order items from AI response or recent conversation
     let orderId = null;
-    if (result.create_order && result.order_items?.length > 0 && customer_id) {
-      const highConfidenceItems = result.order_items.filter((item: any) => 
-        item.confidence === 'high' && item.product_code
-      );
+    const shouldCreateOrder = customer_id && (
+      (result.create_order && result.order_items?.length > 0) ||
+      (result.intent === 'confirmation' && result.order_items?.length > 0)
+    );
 
-      if (highConfidenceItems.length > 0) {
-        // Find product IDs and prices
-        const productCodes = highConfidenceItems.map((i: any) => i.product_code);
-        const { data: productDetails } = await supabase
-          .from('distribution_products')
-          .select('id, code, price_per_unit')
-          .in('code', productCodes);
+    if (shouldCreateOrder) {
+      const itemsToProcess = result.order_items || [];
+      
+      if (itemsToProcess.length > 0) {
+        // Fuzzy match products by name (not just code)
+        const matchedItems: Array<{product_id: string, quantity: number, price: number, name: string}> = [];
+        
+        for (const item of itemsToProcess) {
+          const searchName = (item.product_name || '').toLowerCase().trim();
+          const searchCode = (item.product_code || '').toLowerCase().trim();
+          
+          // Find product by code, name, or fuzzy match
+          let matchedProduct = products?.find(p => 
+            p.code?.toLowerCase() === searchCode ||
+            p.name?.toLowerCase() === searchName ||
+            p.name_pap?.toLowerCase() === searchName ||
+            p.name_nl?.toLowerCase() === searchName ||
+            p.name_es?.toLowerCase() === searchName ||
+            p.name?.toLowerCase().includes(searchName) ||
+            searchName.includes(p.name?.toLowerCase() || '')
+          );
+          
+          // If still no match, try partial matching
+          if (!matchedProduct && searchName.length >= 3) {
+            matchedProduct = products?.find(p => 
+              p.name?.toLowerCase().includes(searchName.substring(0, 4)) ||
+              p.code?.toLowerCase().includes(searchName.substring(0, 4))
+            );
+          }
+          
+          if (matchedProduct) {
+            matchedItems.push({
+              product_id: matchedProduct.id,
+              quantity: item.quantity || 1,
+              price: matchedProduct.price_xcg || 0,
+              name: matchedProduct.name
+            });
+          } else {
+            console.log(`Could not match product: "${searchName}"`);
+          }
+        }
 
-        if (productDetails && productDetails.length > 0) {
+        if (matchedItems.length > 0) {
+          // Generate order number
+          const orderNumber = `WA-${Date.now()}`;
+          
           // Create order
           const { data: order, error: orderError } = await supabase
             .from('distribution_orders')
             .insert({
               customer_id,
+              order_number: orderNumber,
               status: 'pending',
-              source: 'whatsapp',
-              notes: `Auto-created from WhatsApp. Original: "${message_text}"`,
-              total_xcg: 0
+              language_used: result.detected_language,
+              notes: `WhatsApp order. Original: "${message_text}"`,
+              total_xcg: 0,
+              order_date: new Date().toISOString().split('T')[0],
+              delivery_date: new Date().toISOString().split('T')[0]
             })
             .select()
             .single();
@@ -380,30 +427,35 @@ Always confirm understanding of orders before final confirmation.`;
             orderId = order.id;
 
             // Create order items
-            const orderItems = highConfidenceItems.map((item: any) => {
-              const product = productDetails.find((p: any) => p.code === item.product_code);
-              return {
-                order_id: order.id,
-                product_id: product?.id,
-                quantity: item.quantity,
-                unit_price_xcg: product?.price_per_unit || 0,
-                total_xcg: (product?.price_per_unit || 0) * item.quantity
-              };
-            }).filter((item: any) => item.product_id);
+            const orderItems = matchedItems.map(item => ({
+              order_id: order.id,
+              product_id: item.product_id,
+              quantity: item.quantity,
+              unit_price_xcg: item.price,
+              total_xcg: item.price * item.quantity
+            }));
 
-            if (orderItems.length > 0) {
-              await supabase.from('distribution_order_items').insert(orderItems);
+            const { error: itemsError } = await supabase
+              .from('distribution_order_items')
+              .insert(orderItems);
 
+            if (!itemsError) {
               // Update order total
-              const total = orderItems.reduce((sum: number, item: any) => sum + item.total_xcg, 0);
+              const total = orderItems.reduce((sum, item) => sum + item.total_xcg, 0);
               await supabase
                 .from('distribution_orders')
                 .update({ total_xcg: total })
                 .eq('id', order.id);
-            }
 
-            console.log(`Created draft order ${order.id} with ${orderItems.length} items`);
+              console.log(`✅ Created order ${orderNumber} with ${orderItems.length} items, total: ${total} XCG`);
+            } else {
+              console.error('Failed to create order items:', itemsError);
+            }
+          } else {
+            console.error('Failed to create order:', orderError);
           }
+        } else {
+          console.log('No products could be matched from order items');
         }
       }
     }
