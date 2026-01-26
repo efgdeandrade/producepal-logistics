@@ -198,41 +198,12 @@ Deno.serve(async (req) => {
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
       );
 
-      // Find or create customer by phone
-      let { data: customer } = await supabase
+      // Find customer by phone (if exists)
+      const { data: customer } = await supabase
         .from('distribution_customers')
         .select('id, name, preferred_language')
         .eq('whatsapp_phone', phone_number)
         .single();
-      
-      // Check if we're awaiting a business name response from this phone
-      let awaitingBusinessName = false;
-      if (!customer) {
-        // Check the last outbound message to this phone to see if we asked for business name
-        const { data: lastOutbound } = await supabase
-          .from('whatsapp_messages')
-          .select('message_text, created_at')
-          .eq('phone_number', phone_number)
-          .eq('direction', 'outbound')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-        
-        // If the last message asked for business name (within last hour), we're awaiting response
-        if (lastOutbound) {
-          const messageAge = Date.now() - new Date(lastOutbound.created_at).getTime();
-          const oneHour = 60 * 60 * 1000;
-          const askedForName = lastOutbound.message_text.includes('business name') || 
-                               lastOutbound.message_text.includes('negoshi') ||
-                               lastOutbound.message_text.includes('bedrijfsnaam') ||
-                               lastOutbound.message_text.includes('nombre de tu negocio');
-          
-          if (askedForName && messageAge < oneHour) {
-            awaitingBusinessName = true;
-            console.log(`Awaiting business name response from ${phone_number}`);
-          }
-        }
-      }
 
       // Store message
       const { data: message, error: msgError } = await supabase
@@ -257,9 +228,10 @@ Deno.serve(async (req) => {
       console.log(`Message stored with ID: ${message.id}`);
 
       // Invoke AI agent for full conversation handling with auto-reply
+      // For unknown customers, orders are created without customer_id - manager assigns later
       if (message_type === 'text') {
         try {
-          console.log('Invoking AI agent for customer:', customer?.id || 'unknown (awaiting name: ' + awaitingBusinessName + ')');
+          console.log('Invoking AI agent for customer:', customer?.id || 'new/unknown');
           const { data: agentResult, error: agentError } = await supabase.functions.invoke('whatsapp-ai-agent', {
             body: { 
               customer_id: customer?.id || null,
@@ -267,8 +239,7 @@ Deno.serve(async (req) => {
               customer_phone: phone_number,
               message_text,
               message_id: message.id,
-              preferred_language: customer?.preferred_language || null,
-              awaiting_business_name: awaitingBusinessName
+              preferred_language: customer?.preferred_language || null
             },
           });
           
@@ -276,14 +247,6 @@ Deno.serve(async (req) => {
             console.error('AI agent error:', agentError);
           } else {
             console.log('AI agent result:', JSON.stringify(agentResult));
-            
-            // If a new customer was created, update the message with the customer_id
-            if (agentResult?.customer_id && !customer) {
-              await supabase
-                .from('whatsapp_messages')
-                .update({ customer_id: agentResult.customer_id })
-                .eq('id', message.id);
-            }
           }
         } catch (e) {
           console.error('AI agent invocation failed:', e);
