@@ -244,14 +244,27 @@ Deno.serve(async (req) => {
 
       console.log(`Message stored with ID: ${message.id}`);
 
-      // Try to parse as order if it's a text message
-      if (message_type === 'text' && customer) {
+      // Invoke AI agent for full conversation handling with auto-reply
+      if (message_type === 'text') {
         try {
-          await supabase.functions.invoke('parse-whatsapp-order', {
-            body: { message_text, customer_id: customer.id },
+          console.log('Invoking AI agent for customer:', customer?.id || 'unknown');
+          const { data: agentResult, error: agentError } = await supabase.functions.invoke('whatsapp-ai-agent', {
+            body: { 
+              customer_id: customer?.id,
+              customer_name: customer?.name || customer_name || 'Customer',
+              customer_phone: phone_number,
+              message_text,
+              message_id: message.id
+            },
           });
+          
+          if (agentError) {
+            console.error('AI agent error:', agentError);
+          } else {
+            console.log('AI agent result:', JSON.stringify(agentResult));
+          }
         } catch (e) {
-          console.log('Order parsing skipped:', e);
+          console.error('AI agent invocation failed:', e);
         }
       }
 
