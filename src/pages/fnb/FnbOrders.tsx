@@ -261,6 +261,49 @@ export default function FnbOrders() {
   const [cancelOrderData, setCancelOrderData] = useState<{ id: string; orderNumber: string; status: string } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [activeDropTarget, setActiveDropTarget] = useState<string | null>(null);
+  
+  // Mobile collapsible day sections - today expanded, others collapsed by default
+  const [collapsedDays, setCollapsedDays] = useState<Set<string>>(() => {
+    const todayStr = format(todayCuracao(), 'yyyy-MM-dd');
+    const weekStartDate = startOfWeekCuracao();
+    const allDays = new Set(
+      Array.from({ length: 6 }, (_, i) => 
+        format(addDays(weekStartDate, i), 'yyyy-MM-dd')
+      )
+    );
+    allDays.delete(todayStr); // Today starts expanded
+    return allDays;
+  });
+
+  const toggleDayCollapsed = (dateStr: string) => {
+    setCollapsedDays(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(dateStr)) {
+        newSet.delete(dateStr);
+      } else {
+        newSet.add(dateStr);
+      }
+      return newSet;
+    });
+  };
+
+  // Reset collapsed state when week changes
+  useEffect(() => {
+    const todayStr = format(todayCuracao(), 'yyyy-MM-dd');
+    const allDays = new Set(
+      Array.from({ length: 6 }, (_, i) => 
+        format(addDays(weekStart, i), 'yyyy-MM-dd')
+      )
+    );
+    // Check if today is in this week
+    if (allDays.has(todayStr)) {
+      allDays.delete(todayStr); // Today starts expanded
+    } else {
+      // If today is not in this week, expand the first day of the week
+      allDays.delete(format(weekStart, 'yyyy-MM-dd'));
+    }
+    setCollapsedDays(allDays);
+  }, [weekStart]);
 
   // Real-time updates for distribution_orders - auto-refresh when orders are created/updated/deleted
   const { lastUpdate } = useRealtimeUpdates(['distribution_orders'], [['fnb-orders-weekly']]);
@@ -1055,7 +1098,138 @@ export default function FnbOrders() {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Mobile: Collapsible day sections */}
+            <div className="md:hidden space-y-3">
+              {weekDays.map((day) => {
+                const dayOrders = getOrdersForDay(day);
+                const stats = getDayStats(dayOrders);
+                const isToday = isSameDayCuracao(day, todayCuracao());
+                const dateStr = format(day, 'yyyy-MM-dd');
+                const isCollapsed = collapsedDays.has(dateStr);
+
+                return (
+                  <Collapsible
+                    key={day.toISOString()}
+                    open={!isCollapsed}
+                    onOpenChange={() => toggleDayCollapsed(dateStr)}
+                  >
+                    <Card className={cn(
+                      'transition-shadow',
+                      isToday && 'ring-2 ring-primary'
+                    )}>
+                      <CollapsibleTrigger asChild>
+                        <CardHeader className="pb-2 cursor-pointer hover:bg-muted/50 transition-colors">
+                          <CardTitle className="text-sm flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              {isToday && (
+                                <Badge className="bg-primary text-primary-foreground text-xs font-bold">
+                                  TODAY
+                                </Badge>
+                              )}
+                              <span className={cn('font-bold', isToday && 'text-primary')}>
+                                {format(day, 'EEE')}
+                              </span>
+                              <span className="text-muted-foreground">
+                                {format(day, 'MMM d')}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={stats.total > 0 ? 'default' : 'secondary'}>
+                                {stats.total}
+                              </Badge>
+                              {stats.totalXCG > 0 && (
+                                <span className="text-xs text-muted-foreground font-medium">
+                                  {stats.totalXCG.toFixed(0)} XCG
+                                </span>
+                              )}
+                              {isCollapsed ? (
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </div>
+                          </CardTitle>
+                          {/* Day Stats - always visible */}
+                          {stats.total > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {stats.delivered > 0 && (
+                                <Badge variant="outline" className="text-xs text-green-600">
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  {stats.delivered}
+                                </Badge>
+                              )}
+                              {stats.pending > 0 && (
+                                <Badge variant="outline" className="text-xs text-yellow-600">
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  {stats.pending}
+                                </Badge>
+                              )}
+                              {stats.pendingReceipts > 0 && (
+                                <Badge variant="outline" className="text-xs text-orange-600">
+                                  <Camera className="h-3 w-3 mr-1" />
+                                  {stats.pendingReceipts}
+                                </Badge>
+                              )}
+                              {stats.codTotal > 0 && (
+                                <Badge variant="outline" className="text-xs">
+                                  <Banknote className="h-3 w-3 mr-1" />
+                                  {stats.codTotal.toFixed(0)}
+                                </Badge>
+                              )}
+                              {stats.totalItems > 0 && (
+                                <Badge variant="outline" className="text-xs">
+                                  <Package className="h-3 w-3 mr-1" />
+                                  {stats.totalItems}
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+                          {/* Collapsed summary */}
+                          {isCollapsed && stats.total > 0 && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Tap to show {stats.total} order{stats.total !== 1 ? 's' : ''}
+                            </p>
+                          )}
+                        </CardHeader>
+                      </CollapsibleTrigger>
+
+                      <CollapsibleContent>
+                        <CardContent className="space-y-2 pt-0">
+                          {/* Confirm All Pending button */}
+                          {stats.pending > 0 && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full text-xs h-8 text-green-600 border-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 mb-2"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                confirmAllPendingMutation.mutate(day);
+                              }}
+                              disabled={confirmAllPendingMutation.isPending}
+                            >
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Confirm All Pending ({stats.pending})
+                            </Button>
+                          )}
+                          {dayOrders.length === 0 ? (
+                            <p className="text-center py-4 text-muted-foreground text-sm">
+                              No orders
+                            </p>
+                          ) : (
+                            <div className="space-y-2">
+                              {dayOrders.map((order) => renderOrderCard(order))}
+                            </div>
+                          )}
+                        </CardContent>
+                      </CollapsibleContent>
+                    </Card>
+                  </Collapsible>
+                );
+              })}
+            </div>
+
+            {/* Desktop: Original grid layout */}
+            <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {weekDays.map((day) => {
                 const dayOrders = getOrdersForDay(day);
                 const stats = getDayStats(dayOrders);
