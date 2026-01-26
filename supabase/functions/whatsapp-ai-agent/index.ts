@@ -1,0 +1,481 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+const WHATSAPP_ACCESS_TOKEN = Deno.env.get('WHATSAPP_ACCESS_TOKEN');
+const WHATSAPP_PHONE_NUMBER_ID = Deno.env.get('WHATSAPP_PHONE_NUMBER_ID');
+
+// Language-specific response templates
+const RESPONSE_TEMPLATES = {
+  order_confirmed: {
+    pap: (name: string, items: string) => `Bon dia ${name}! ✅\n\nMi a risibi bo order:\n${items}\n\nDanki pa bo preferensia! Nos ta entrega pronto.`,
+    en: (name: string, items: string) => `Good day ${name}! ✅\n\nI received your order:\n${items}\n\nThank you for your business! We'll deliver soon.`,
+    nl: (name: string, items: string) => `Goedendag ${name}! ✅\n\nIk heb uw bestelling ontvangen:\n${items}\n\nBedankt voor uw bestelling! We leveren snel.`,
+    es: (name: string, items: string) => `Buen día ${name}! ✅\n\nRecibí tu pedido:\n${items}\n\nGracias por tu preferencia! Entregaremos pronto.`,
+    mixed: (name: string, items: string) => `Hello ${name}! ✅\n\nOrder received:\n${items}\n\nThank you! We'll deliver soon.`
+  },
+  clarification_needed: {
+    pap: (name: string, unclear: string) => `Bon dia ${name}! 🤔\n\nMi no ta segur tocante: "${unclear}"\n\nPor fabor, splika un poco mas?`,
+    en: (name: string, unclear: string) => `Hi ${name}! 🤔\n\nI'm not sure about: "${unclear}"\n\nCould you please clarify?`,
+    nl: (name: string, unclear: string) => `Hallo ${name}! 🤔\n\nIk weet niet zeker wat u bedoelt met: "${unclear}"\n\nKunt u dit verduidelijken?`,
+    es: (name: string, unclear: string) => `Hola ${name}! 🤔\n\nNo estoy seguro sobre: "${unclear}"\n\n¿Podrías aclarar?`,
+    mixed: (name: string, unclear: string) => `Hi ${name}! 🤔\n\nI'm not sure about: "${unclear}"\n\nCould you please clarify?`
+  },
+  suggestion: {
+    pap: (name: string, products: string) => `Bon dia ${name}! 💡\n\nSegun bo orders anterior, kizas bo ke:\n${products}\n\nBisa si bo ke agrega algo!`,
+    en: (name: string, products: string) => `Hi ${name}! 💡\n\nBased on your previous orders, would you like:\n${products}\n\nLet me know if you'd like to add anything!`,
+    nl: (name: string, products: string) => `Hallo ${name}! 💡\n\nOp basis van uw eerdere bestellingen, wilt u misschien:\n${products}\n\nLaat me weten als u iets wilt toevoegen!`,
+    es: (name: string, products: string) => `Hola ${name}! 💡\n\nBasado en tus pedidos anteriores, ¿quieres:\n${products}\n\nDime si quieres agregar algo!`,
+    mixed: (name: string, products: string) => `Hi ${name}! 💡\n\nBased on your orders, would you like:\n${products}\n\nLet me know!`
+  },
+  greeting: {
+    pap: (name: string) => `Bon dia ${name}! 👋\n\nKon mi por yuda bo awe? Bo por manda bo order of puntra mi tocante nos produktonan.`,
+    en: (name: string) => `Good day ${name}! 👋\n\nHow can I help you today? You can send your order or ask me about our products.`,
+    nl: (name: string) => `Goedendag ${name}! 👋\n\nHoe kan ik u helpen? U kunt uw bestelling sturen of vragen over onze producten.`,
+    es: (name: string) => `Buen día ${name}! 👋\n\nCómo puedo ayudarte hoy? Puedes enviar tu pedido o preguntarme sobre nuestros productos.`,
+    mixed: (name: string) => `Hello ${name}! 👋\n\nHow can I help you today? You can send your order or ask about our products.`
+  }
+};
+
+// Send WhatsApp message via Meta API
+async function sendWhatsAppMessage(to: string, text: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  if (!WHATSAPP_ACCESS_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
+    console.error('WhatsApp credentials not configured');
+    return { success: false, error: 'WhatsApp not configured' };
+  }
+
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/v18.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: to,
+          type: 'text',
+          text: { body: text }
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('WhatsApp API error:', data);
+      return { success: false, error: data.error?.message || 'Failed to send message' };
+    }
+
+    const messageId = data.messages?.[0]?.id;
+    console.log(`WhatsApp message sent successfully: ${messageId}`);
+    return { success: true, messageId };
+  } catch (error) {
+    console.error('Error sending WhatsApp message:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+// Get response template based on language
+function getTemplate(type: keyof typeof RESPONSE_TEMPLATES, lang: string): Function {
+  const templates = RESPONSE_TEMPLATES[type];
+  return templates[lang as keyof typeof templates] || templates.mixed;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { 
+      customer_id, 
+      customer_name,
+      customer_phone,
+      message_text, 
+      message_id,
+      preferred_language 
+    } = await req.json();
+
+    if (!customer_phone || !message_text) {
+      return new Response(
+        JSON.stringify({ error: 'customer_phone and message_text are required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!LOVABLE_API_KEY) {
+      console.error('LOVABLE_API_KEY not configured');
+      return new Response(
+        JSON.stringify({ error: 'AI service not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Fetch products for AI context
+    const { data: products } = await supabase
+      .from('distribution_products')
+      .select('id, code, name, name_pap, name_nl, name_es, default_unit, price_per_unit')
+      .eq('is_active', true)
+      .limit(100);
+
+    // Fetch customer patterns for personalized suggestions
+    const { data: patterns } = customer_id ? await supabase
+      .from('distribution_customer_patterns')
+      .select(`
+        product_id,
+        avg_quantity,
+        order_count,
+        distribution_products (code, name)
+      `)
+      .eq('customer_id', customer_id)
+      .order('order_count', { ascending: false })
+      .limit(10) : { data: null };
+
+    // Fetch customer mappings (custom product names)
+    const { data: mappings } = customer_id ? await supabase
+      .from('distribution_customer_product_mappings')
+      .select(`
+        customer_product_name,
+        customer_sku,
+        distribution_products (code, name)
+      `)
+      .eq('customer_id', customer_id)
+      .eq('is_verified', true)
+      .limit(20) : { data: null };
+
+    // Fetch recent conversation history for context
+    const { data: recentMessages } = customer_id ? await supabase
+      .from('whatsapp_messages')
+      .select('message_text, direction, created_at')
+      .eq('customer_id', customer_id)
+      .order('created_at', { ascending: false })
+      .limit(10) : { data: null };
+
+    // Build product context
+    const productList = products?.map(p => 
+      `${p.code}: ${p.name}${p.name_pap ? ` (${p.name_pap})` : ''} - ${p.default_unit} @ ${p.price_per_unit} XCG`
+    ).join('\n') || 'No products available';
+
+    // Build pattern context
+    const frequentItems = patterns?.map((p: any) => 
+      `${p.distribution_products?.name} (~${Math.round(p.avg_quantity)} ${p.distribution_products?.code})`
+    ).join(', ') || '';
+
+    // Build mapping context  
+    const customNames = mappings?.map((m: any) => 
+      `"${m.customer_product_name}" = ${m.distribution_products?.name}`
+    ).join(', ') || '';
+
+    // Build conversation context
+    const conversationHistory = recentMessages?.reverse().map(m => 
+      `${m.direction === 'inbound' ? 'Customer' : 'AI'}: ${m.message_text}`
+    ).join('\n') || '';
+
+    // System prompt for the AI agent
+    const systemPrompt = `You are a friendly WhatsApp order assistant for a produce distribution company in Curaçao.
+
+LANGUAGE DETECTION:
+- Detect the customer's language from their message
+- ALWAYS respond in the SAME language they used
+- Common languages: Papiamentu (pap), English (en), Dutch (nl), Spanish (es)
+- Papiamentu greetings: "bon dia", "bon tardi", "bon nochi", "kon ta bai"
+
+CUSTOMER CONTEXT:
+- Name: ${customer_name || 'Customer'}
+- Preferred language: ${preferred_language || 'unknown'}
+${frequentItems ? `- Frequently ordered: ${frequentItems}` : ''}
+${customNames ? `- Custom product names: ${customNames}` : ''}
+
+AVAILABLE PRODUCTS:
+${productList}
+
+RECENT CONVERSATION:
+${conversationHistory}
+
+YOUR TASKS:
+1. Parse order items from natural language (handle typos, slang, abbreviations)
+2. Suggest products based on customer's ordering patterns
+3. Confirm orders clearly with quantities and prices
+4. Ask for clarification when unsure (be specific about what's unclear)
+5. Handle greetings, questions about products, delivery times, etc.
+6. Be warm, friendly, and professional
+
+RESPONSE FORMAT:
+Keep responses concise and mobile-friendly (short paragraphs, use emojis sparingly).
+Always confirm understanding of orders before final confirmation.`;
+
+    // AI request
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: message_text }
+        ],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "process_message",
+              description: "Process the customer's WhatsApp message and determine the appropriate response",
+              parameters: {
+                type: "object",
+                properties: {
+                  detected_language: {
+                    type: "string",
+                    enum: ["pap", "en", "nl", "es", "mixed"],
+                    description: "The language detected in the customer's message"
+                  },
+                  intent: {
+                    type: "string",
+                    enum: ["order", "greeting", "question", "confirmation", "modification", "cancellation", "unclear"],
+                    description: "The customer's primary intent"
+                  },
+                  response_text: {
+                    type: "string",
+                    description: "The response to send to the customer in their detected language"
+                  },
+                  order_items: {
+                    type: "array",
+                    description: "Extracted order items (if intent is 'order')",
+                    items: {
+                      type: "object",
+                      properties: {
+                        product_code: { type: "string" },
+                        product_name: { type: "string" },
+                        quantity: { type: "number" },
+                        unit: { type: "string" },
+                        confidence: { type: "string", enum: ["high", "medium", "low"] },
+                        raw_text: { type: "string" }
+                      },
+                      required: ["product_name", "quantity", "unit", "confidence", "raw_text"]
+                    }
+                  },
+                  suggestions: {
+                    type: "array",
+                    description: "Product suggestions based on customer patterns",
+                    items: {
+                      type: "object",
+                      properties: {
+                        product_code: { type: "string" },
+                        product_name: { type: "string" },
+                        typical_quantity: { type: "number" }
+                      }
+                    }
+                  },
+                  needs_clarification: {
+                    type: "boolean",
+                    description: "Whether clarification is needed from the customer"
+                  },
+                  unclear_items: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "List of items or phrases that need clarification"
+                  },
+                  create_order: {
+                    type: "boolean",
+                    description: "Whether to create a draft order from high-confidence items"
+                  }
+                },
+                required: ["detected_language", "intent", "response_text"]
+              }
+            }
+          }
+        ],
+        tool_choice: { type: "function", function: { name: "process_message" } }
+      }),
+    });
+
+    if (!aiResponse.ok) {
+      if (aiResponse.status === 429) {
+        return new Response(
+          JSON.stringify({ error: 'Rate limited. Please try again later.' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (aiResponse.status === 402) {
+        return new Response(
+          JSON.stringify({ error: 'AI credits required. Please add funds.' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const errorText = await aiResponse.text();
+      console.error('AI error:', aiResponse.status, errorText);
+      return new Response(
+        JSON.stringify({ error: 'AI processing failed' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const aiData = await aiResponse.json();
+    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    
+    if (!toolCall) {
+      console.error('No tool call in AI response');
+      return new Response(
+        JSON.stringify({ error: 'AI response format error' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const result = JSON.parse(toolCall.function.arguments);
+    console.log('AI processed message:', JSON.stringify(result));
+
+    // Update customer's preferred language if detected
+    if (customer_id && result.detected_language && result.detected_language !== 'mixed') {
+      await supabase
+        .from('distribution_customers')
+        .update({ preferred_language: result.detected_language })
+        .eq('id', customer_id);
+    }
+
+    // Create draft order if AI suggests it
+    let orderId = null;
+    if (result.create_order && result.order_items?.length > 0 && customer_id) {
+      const highConfidenceItems = result.order_items.filter((item: any) => 
+        item.confidence === 'high' && item.product_code
+      );
+
+      if (highConfidenceItems.length > 0) {
+        // Find product IDs and prices
+        const productCodes = highConfidenceItems.map((i: any) => i.product_code);
+        const { data: productDetails } = await supabase
+          .from('distribution_products')
+          .select('id, code, price_per_unit')
+          .in('code', productCodes);
+
+        if (productDetails && productDetails.length > 0) {
+          // Create order
+          const { data: order, error: orderError } = await supabase
+            .from('distribution_orders')
+            .insert({
+              customer_id,
+              status: 'pending',
+              source: 'whatsapp',
+              notes: `Auto-created from WhatsApp. Original: "${message_text}"`,
+              total_xcg: 0
+            })
+            .select()
+            .single();
+
+          if (!orderError && order) {
+            orderId = order.id;
+
+            // Create order items
+            const orderItems = highConfidenceItems.map((item: any) => {
+              const product = productDetails.find((p: any) => p.code === item.product_code);
+              return {
+                order_id: order.id,
+                product_id: product?.id,
+                quantity: item.quantity,
+                unit_price_xcg: product?.price_per_unit || 0,
+                total_xcg: (product?.price_per_unit || 0) * item.quantity
+              };
+            }).filter((item: any) => item.product_id);
+
+            if (orderItems.length > 0) {
+              await supabase.from('distribution_order_items').insert(orderItems);
+
+              // Update order total
+              const total = orderItems.reduce((sum: number, item: any) => sum + item.total_xcg, 0);
+              await supabase
+                .from('distribution_orders')
+                .update({ total_xcg: total })
+                .eq('id', order.id);
+            }
+
+            console.log(`Created draft order ${order.id} with ${orderItems.length} items`);
+          }
+        }
+      }
+    }
+
+    // Log AI match results for training
+    if (result.order_items?.length > 0 && customer_id) {
+      for (const item of result.order_items) {
+        await supabase.from('distribution_ai_match_logs').insert({
+          customer_id,
+          order_id: orderId,
+          raw_text: item.raw_text,
+          interpreted_text: item.product_name,
+          matched_product_id: item.product_code ? 
+            products?.find(p => p.code === item.product_code)?.id : null,
+          detected_quantity: item.quantity,
+          detected_unit: item.unit,
+          confidence: item.confidence,
+          detected_language: result.detected_language,
+          needs_review: item.confidence !== 'high',
+          match_source: 'ai_agent'
+        });
+      }
+    }
+
+    // Send WhatsApp reply
+    const sendResult = await sendWhatsAppMessage(customer_phone, result.response_text);
+
+    // Store outbound message
+    if (sendResult.success) {
+      await supabase.from('whatsapp_messages').insert({
+        direction: 'outbound',
+        phone_number: customer_phone,
+        message_id: sendResult.messageId,
+        message_text: result.response_text,
+        customer_id: customer_id || null,
+        status: 'sent'
+      });
+    }
+
+    // Store conversation record
+    await supabase.from('distribution_conversations').insert({
+      customer_id: customer_id || null,
+      message_id,
+      direction: 'inbound',
+      message_text,
+      detected_language: result.detected_language,
+      parsed_intent: result.intent,
+      parsed_items: result.order_items || null,
+      order_id: orderId
+    });
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        detected_language: result.detected_language,
+        intent: result.intent,
+        response_sent: sendResult.success,
+        response_text: result.response_text,
+        order_created: !!orderId,
+        order_id: orderId,
+        items_parsed: result.order_items?.length || 0,
+        needs_clarification: result.needs_clarification,
+        suggestions: result.suggestions
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('WhatsApp AI agent error:', error);
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});
