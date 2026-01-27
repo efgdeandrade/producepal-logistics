@@ -393,8 +393,58 @@ function parseOrderItems(text: string): Array<{ rawText: string; quantity: numbe
   return items;
 }
 
-// Fuzzy match product name
-function fuzzyMatchProduct(
+// Enhanced fuzzy match with aliases and dictionary support
+function fuzzyMatchProductWithAliases(
+  searchText: string, 
+  products: Array<{ id: string; code: string; name: string; name_pap?: string; name_nl?: string; name_es?: string; price_xcg: number; unit?: string }>,
+  aliases: Array<{ alias: string; product_id: string; language?: string }>,
+  dictionary: Array<{ word: string; meaning: string; word_type: string }>
+): { product: typeof products[0] | null; confidence: number; matchSource: string } {
+  const search = searchText.toLowerCase().trim();
+  
+  // 1. FIRST CHECK: Exact alias match (highest priority - staff-trained mappings)
+  for (const aliasEntry of aliases) {
+    const alias = aliasEntry.alias.toLowerCase();
+    if (alias === search || search.includes(alias) || alias.includes(search)) {
+      const product = products.find(p => p.id === aliasEntry.product_id);
+      if (product) {
+        console.log(`Alias match: "${search}" → "${product.name}" via alias "${alias}"`);
+        return { product, confidence: 1.0, matchSource: 'alias' };
+      }
+    }
+  }
+  
+  // 2. SECOND CHECK: Dictionary translation (translate Dutch/Spanish/Papiamento to English)
+  let translatedSearch = search;
+  for (const entry of dictionary) {
+    const word = entry.word.toLowerCase();
+    // Only use product-related translations (nouns, not verbs/adjectives)
+    if (entry.word_type === 'noun' || entry.word_type === 'product' || entry.word_type === 'phrase') {
+      if (search === word || search.includes(word)) {
+        // Use the meaning as the translation
+        const translatedMeaning = entry.meaning.toLowerCase();
+        translatedSearch = translatedSearch.replace(word, translatedMeaning);
+        console.log(`Dictionary translation: "${word}" → "${translatedMeaning}"`);
+      }
+    }
+  }
+  
+  // Try to match translated text
+  if (translatedSearch !== search) {
+    const translatedMatch = fuzzyMatchProductCore(translatedSearch, products);
+    if (translatedMatch.product && translatedMatch.confidence >= 0.7) {
+      console.log(`Dictionary-assisted match: "${search}" → "${translatedMatch.product.name}" (via translation)`);
+      return { ...translatedMatch, matchSource: 'dictionary' };
+    }
+  }
+  
+  // 3. THIRD CHECK: Standard fuzzy matching
+  const directMatch = fuzzyMatchProductCore(search, products);
+  return { ...directMatch, matchSource: directMatch.product ? 'fuzzy' : 'none' };
+}
+
+// Core fuzzy matching logic (separated for reuse)
+function fuzzyMatchProductCore(
   searchText: string, 
   products: Array<{ id: string; code: string; name: string; name_pap?: string; name_nl?: string; name_es?: string; price_xcg: number; unit?: string }>
 ): { product: typeof products[0] | null; confidence: number } {
@@ -445,6 +495,14 @@ function fuzzyMatchProduct(
   }
   
   return { product: bestMatch, confidence: bestScore };
+}
+
+// Legacy wrapper for backward compatibility
+function fuzzyMatchProduct(
+  searchText: string, 
+  products: Array<{ id: string; code: string; name: string; name_pap?: string; name_nl?: string; name_es?: string; price_xcg: number; unit?: string }>
+): { product: typeof products[0] | null; confidence: number } {
+  return fuzzyMatchProductCore(searchText, products);
 }
 
 // Build conversation snapshot for order
@@ -785,13 +843,29 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get products for matching
-    const { data: products } = await supabase
-      .from('distribution_products')
-      .select('id, code, name, name_pap, name_nl, name_es, price_xcg, unit')
-      .eq('is_active', true);
+    // Get products, aliases, and dictionary for intelligent matching
+    const [productsResult, aliasesResult, dictionaryResult] = await Promise.all([
+      supabase
+        .from('distribution_products')
+        .select('id, code, name, name_pap, name_nl, name_es, price_xcg, unit')
+        .eq('is_active', true),
+      supabase
+        .from('distribution_product_aliases')
+        .select('alias, product_id, language'),
+      supabase
+        .from('distribution_context_words')
+        .select('word, meaning, word_type')
+        .in('word_type', ['noun', 'product', 'phrase'])
+        .limit(500)
+    ]);
+    
+    const products = productsResult.data || [];
+    const aliases = aliasesResult.data || [];
+    const dictionary = dictionaryResult.data || [];
+    
+    console.log(`Loaded ${products.length} products, ${aliases.length} aliases, ${dictionary.length} dictionary words`);
 
-    if (!products || products.length === 0) {
+    if (products.length === 0) {
       console.error('No products found in database');
       return new Response(JSON.stringify({ error: 'No products available' }), {
         status: 500,
@@ -1424,18 +1498,25 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Match products
+    // Match products using enhanced matching with aliases and dictionary
     const matchedItems: Array<{ 
       product_id: string; 
       product_name: string; 
       quantity: number; 
       unit_price: number;
       confidence: number;
+      matchSource: string;
     }> = [];
     const unmatchedItems: string[] = [];
 
     for (const item of parsedItems) {
-      const { product, confidence } = fuzzyMatchProduct(item.rawText, products);
+      // Use enhanced matching with aliases and dictionary
+      const { product, confidence, matchSource } = fuzzyMatchProductWithAliases(
+        item.rawText, 
+        products, 
+        aliases, 
+        dictionary
+      );
       
       if (product && confidence >= 0.5) {
         matchedItems.push({
@@ -1443,10 +1524,11 @@ Deno.serve(async (req) => {
           product_name: product.name,
           quantity: item.quantity,
           unit_price: product.price_xcg || 0,
-          confidence
+          confidence,
+          matchSource
         });
         
-        // Log AI match
+        // Log AI match with source tracking
         await supabase.from('distribution_ai_match_logs').insert({
           raw_text: item.rawText,
           matched_product_id: product.id,
@@ -1454,10 +1536,14 @@ Deno.serve(async (req) => {
           confidence: confidence >= 0.8 ? 'high' : confidence >= 0.6 ? 'medium' : 'low',
           detected_quantity: item.quantity,
           detected_language: language,
-          needs_review: confidence < 0.7
+          needs_review: confidence < 0.7 && matchSource !== 'alias', // Alias matches don't need review
+          match_source: matchSource
         });
+        
+        console.log(`Matched "${item.rawText}" → "${product.name}" (${matchSource}, confidence: ${confidence})`);
       } else {
         unmatchedItems.push(item.rawText);
+        console.log(`No match for "${item.rawText}"`);
       }
     }
 
