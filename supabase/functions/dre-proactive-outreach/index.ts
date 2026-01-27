@@ -151,33 +151,46 @@ Deno.serve(async (req) => {
     const todayDow = curacaoTime.getDay();
     const todayStr = curacaoTime.toISOString().split('T')[0];
 
-    console.log(`Dre Proactive Outreach - Curaçao time: ${curacaoTime.toISOString()}, Window: ${outreachWindow}`);
+    // Parse request body for immediate trigger mode
+    const body = await req.json().catch(() => ({}));
+    const isImmediateTrigger = body.trigger === 'immediate';
+    const specificAnomalyIds = body.anomaly_ids as string[] | undefined;
+
+    console.log(`Dre Proactive Outreach - Curaçao time: ${curacaoTime.toISOString()}, Window: ${outreachWindow}, Immediate: ${isImmediateTrigger}`);
 
     const results = {
-      window: outreachWindow,
+      window: isImmediateTrigger ? 'immediate' : outreachWindow,
       anomalies_processed: 0,
       messages_sent: 0,
       errors: 0,
       details: [] as Array<{ customer_id: string; type: string; status: string; message?: string }>
     };
 
-    // Get pending anomalies that haven't been reached out to
-    const { data: pendingAnomalies, error: anomaliesError } = await supabase
+    // Build query for anomalies
+    let anomalyQuery = supabase
       .from('distribution_order_anomalies')
       .select(`
         *,
         distribution_customers(id, name, whatsapp_phone, preferred_language, latitude, longitude, is_close_proximity, distance_to_dc_meters)
       `)
       .eq('status', 'pending')
-      .eq('expected_date', todayStr)
       .in('anomaly_type', ['missing_order', 'missing_item', 'inactive_customer']);
+
+    // For immediate triggers, target specific anomalies
+    if (isImmediateTrigger && specificAnomalyIds?.length) {
+      anomalyQuery = anomalyQuery.in('id', specificAnomalyIds);
+    } else {
+      anomalyQuery = anomalyQuery.eq('expected_date', todayStr);
+    }
+
+    const { data: pendingAnomalies, error: anomaliesError } = await anomalyQuery;
 
     if (anomaliesError) {
       console.error('Error fetching anomalies:', anomaliesError);
       throw anomaliesError;
     }
 
-    console.log(`Found ${pendingAnomalies?.length || 0} pending anomalies for today`);
+    console.log(`Found ${pendingAnomalies?.length || 0} pending anomalies ${isImmediateTrigger ? '(immediate trigger)' : 'for today'}`);
 
     // Also check customer schedules for missing orders (if no anomaly was created yet)
     const { data: schedules } = await supabase
@@ -218,7 +231,12 @@ Deno.serve(async (req) => {
       let outreachTiming = '';
       let templateKey = '';
 
-      if (outreachWindow === 'same_day_early') {
+      // Immediate triggers bypass window checks - send right away
+      if (isImmediateTrigger) {
+        shouldSend = true;
+        outreachTiming = 'immediate_order_intelligence';
+        templateKey = anomaly.anomaly_type;
+      } else if (outreachWindow === 'same_day_early') {
         // Only send to customers who typically order for same-day
         shouldSend = true;
         outreachTiming = 'same_day_reminder';
