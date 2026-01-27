@@ -15,6 +15,10 @@ export interface WhatsAppMessage {
   metadata: Record<string, any> | null;
   error_message: string | null;
   created_at: string;
+  sent_by_user_id?: string | null;
+  is_human_response?: boolean;
+  detected_mood?: string | null;
+  detected_intent?: string | null;
   customer?: {
     id: string;
     name: string;
