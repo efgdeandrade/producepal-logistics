@@ -38,6 +38,7 @@ import {
 import { format, subDays, startOfDay, endOfDay, startOfWeek, endOfWeek } from "date-fns";
 import { useExecutiveDashboardRealtime } from "@/hooks/useRealtimeUpdates";
 import { FnbAlertsCard } from "@/components/fnb/FnbAlertsCard";
+import { IntegrationHealthBadges, IntegrationHealthIndicator } from "@/components/IntegrationHealthIndicator";
 
 // Fetch dashboard stats
 const useDashboardStats = () => {
@@ -369,12 +370,15 @@ export default function ExecutiveDashboard() {
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <h1 className="hidden md:block text-3xl font-bold tracking-tight">Executive Dashboard</h1>
-          {lastUpdate && (
-            <Badge variant="outline" className="gap-1 text-xs">
-              <Zap className="h-3 w-3 text-green-500" />
-              Live • {format(lastUpdate, "h:mm:ss a")}
-            </Badge>
-          )}
+          <div className="flex items-center gap-3">
+            <IntegrationHealthBadges />
+            {lastUpdate && (
+              <Badge variant="outline" className="gap-1 text-xs">
+                <Zap className="h-3 w-3 text-green-500" />
+                Live • {format(lastUpdate, "h:mm:ss a")}
+              </Badge>
+            )}
+          </div>
         </div>
         <p className="text-muted-foreground text-sm md:text-base">
           Overview of all business operations • {format(new Date(), "EEEE, MMMM d, yyyy")}
@@ -578,9 +582,12 @@ export default function ExecutiveDashboard() {
       </div>
 
       {/* Quick Actions / Alerts */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-3">
         {/* Distribution Alerts - Live from picker station */}
         <FnbAlertsCard compact={true} />
+
+        {/* Integration Health */}
+        <IntegrationHealthIndicator />
 
         <Card>
           <CardHeader>
