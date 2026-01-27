@@ -2797,6 +2797,60 @@ export type Database = {
           },
         ]
       }
+      dre_response_feedback: {
+        Row: {
+          conversation_id: string | null
+          corrected_by: string
+          corrected_response: string | null
+          created_at: string
+          feedback_notes: string | null
+          feedback_type: string | null
+          id: string
+          message_id: string
+          original_response: string
+          rating: string
+        }
+        Insert: {
+          conversation_id?: string | null
+          corrected_by: string
+          corrected_response?: string | null
+          created_at?: string
+          feedback_notes?: string | null
+          feedback_type?: string | null
+          id?: string
+          message_id: string
+          original_response: string
+          rating: string
+        }
+        Update: {
+          conversation_id?: string | null
+          corrected_by?: string
+          corrected_response?: string | null
+          created_at?: string
+          feedback_notes?: string | null
+          feedback_type?: string | null
+          id?: string
+          message_id?: string
+          original_response?: string
+          rating?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dre_response_feedback_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dre_response_feedback_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       driver_availability: {
         Row: {
           created_at: string | null
@@ -5249,6 +5303,112 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_conversation_notes: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          id: string
+          is_pinned: boolean
+          note_text: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          id?: string
+          is_pinned?: boolean
+          note_text: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          is_pinned?: boolean
+          note_text?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversation_notes_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_conversations: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          customer_id: string | null
+          customer_name: string | null
+          detected_language: string | null
+          detected_mood: string | null
+          id: string
+          is_taken_over: boolean
+          last_activity_at: string | null
+          last_message_direction: string | null
+          last_message_text: string | null
+          phone_number: string
+          priority: string
+          status: string
+          taken_over_at: string | null
+          takeover_reason: string | null
+          unread_count: number
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          customer_id?: string | null
+          customer_name?: string | null
+          detected_language?: string | null
+          detected_mood?: string | null
+          id?: string
+          is_taken_over?: boolean
+          last_activity_at?: string | null
+          last_message_direction?: string | null
+          last_message_text?: string | null
+          phone_number: string
+          priority?: string
+          status?: string
+          taken_over_at?: string | null
+          takeover_reason?: string | null
+          unread_count?: number
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          customer_id?: string | null
+          customer_name?: string | null
+          detected_language?: string | null
+          detected_mood?: string | null
+          id?: string
+          is_taken_over?: boolean
+          last_activity_at?: string | null
+          last_message_direction?: string | null
+          last_message_text?: string | null
+          phone_number?: string
+          priority?: string
+          status?: string
+          taken_over_at?: string | null
+          takeover_reason?: string | null
+          unread_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_health_checks: {
         Row: {
           check_type: string
@@ -5289,43 +5449,55 @@ export type Database = {
         Row: {
           created_at: string
           customer_id: string | null
+          detected_intent: string | null
+          detected_mood: string | null
           direction: string
           error_message: string | null
           id: string
+          is_human_response: boolean | null
           message_id: string | null
           message_text: string | null
           message_type: string
           metadata: Json | null
           order_id: string | null
           phone_number: string
+          sent_by_user_id: string | null
           status: string
         }
         Insert: {
           created_at?: string
           customer_id?: string | null
+          detected_intent?: string | null
+          detected_mood?: string | null
           direction: string
           error_message?: string | null
           id?: string
+          is_human_response?: boolean | null
           message_id?: string | null
           message_text?: string | null
           message_type?: string
           metadata?: Json | null
           order_id?: string | null
           phone_number: string
+          sent_by_user_id?: string | null
           status?: string
         }
         Update: {
           created_at?: string
           customer_id?: string | null
+          detected_intent?: string | null
+          detected_mood?: string | null
           direction?: string
           error_message?: string | null
           id?: string
+          is_human_response?: boolean | null
           message_id?: string | null
           message_text?: string | null
           message_type?: string
           metadata?: Json | null
           order_id?: string | null
           phone_number?: string
+          sent_by_user_id?: string | null
           status?: string
         }
         Relationships: [

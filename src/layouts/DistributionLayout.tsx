@@ -26,7 +26,8 @@ import {
   GraduationCap,
   FileText,
   Mail,
-  MessageSquare
+  MessageSquare,
+  Bot
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -39,6 +40,7 @@ const distributionNavItems: PortalNavItem[] = [
   { path: '/distribution/orders/new', label: 'New Order', icon: ShoppingCart },
   { path: '/distribution/orders', label: 'All Orders', icon: ClipboardPaste },
   { path: '/distribution/whatsapp-inbox', label: 'Dre Inbox', icon: MessageSquare, showBadge: true },
+  { path: '/distribution/dre-command-center', label: 'Dre Command Center', icon: Bot },
   { path: '/distribution/email-inbox', label: 'Email Inbox', icon: Mail, showBadge: true },
   { path: '/distribution/weekly', label: 'Weekly Board', icon: Calendar },
   { path: '/distribution/standing-orders', label: 'Standing Orders', icon: Repeat },
