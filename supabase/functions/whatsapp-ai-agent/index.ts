@@ -1606,7 +1606,7 @@ Deno.serve(async (req) => {
       }));
       
       // Upsert session (update if exists, create if not)
-      await supabase
+      const { error: sessionError } = await supabase
         .from('distribution_order_sessions')
         .upsert({
           customer_id: customer_id || null,
@@ -1623,7 +1623,11 @@ Deno.serve(async (req) => {
           ignoreDuplicates: false
         });
       
-      console.log('Draft order session created/updated for', customer_phone);
+      if (sessionError) {
+        console.error('Failed to create/update order session:', sessionError);
+      } else {
+        console.log('Draft order session created/updated for', customer_phone, '- reminder will be sent if not confirmed within 30 min');
+      }
       
     } else {
       // No products matched - use varied responses
