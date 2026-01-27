@@ -287,25 +287,68 @@ export function DreConversationDetail({ conversation }: DreConversationDetailPro
             </div>
           </ScrollArea>
 
-          {/* Message input */}
-          {conversation.is_taken_over && (
-            <div className="p-4 border-t">
-              <div className="flex gap-2">
-                <Input
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  placeholder="Type a message..."
-                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-                />
-                <Button onClick={handleSendMessage} disabled={!messageInput.trim() || sendMessage.isPending}>
-                  <Send className="h-4 w-4" />
-                </Button>
+          {/* Message input area - always visible but with different states */}
+          <div className={cn(
+            "border-t transition-all",
+            conversation.is_taken_over ? "bg-blue-50 dark:bg-blue-950/20" : "bg-muted/30"
+          )}>
+            {conversation.is_taken_over ? (
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                    <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                      You are responding as FUIK Team
+                    </span>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleReturnToDre}
+                    className="border-green-500 text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950"
+                  >
+                    <Bot className="h-4 w-4 mr-1" />
+                    Return to Dre
+                  </Button>
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    value={messageInput}
+                    onChange={(e) => setMessageInput(e.target.value)}
+                    placeholder="Type a message to send as FUIK Team..."
+                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                    className="bg-white dark:bg-background"
+                  />
+                  <Button 
+                    onClick={handleSendMessage} 
+                    disabled={!messageInput.trim() || sendMessage.isPending}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Messages will be sent as "FUIK Team" (not Dre)
-              </p>
-            </div>
-          )}
+            ) : (
+              <div className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Bot className="h-4 w-4 text-green-600" />
+                    <span className="text-sm text-muted-foreground">
+                      Dre is handling this conversation
+                    </span>
+                  </div>
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    onClick={handleTakeOver}
+                  >
+                    <UserCheck className="h-4 w-4 mr-1" />
+                    Take Over & Chat
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Side panel - Notes & Context */}
