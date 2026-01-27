@@ -2,38 +2,59 @@ import * as React from "react";
 import { Moon, Sun } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
-const getIsDark = () => {
-  if (typeof document === "undefined") return false;
-  return document.documentElement.classList.contains("dark");
-};
+const STORAGE_KEY = "theme";
 
-const setIsDark = (dark: boolean) => {
+function applyTheme(dark: boolean) {
   const root = document.documentElement;
-  root.classList.toggle("dark", dark);
-  root.classList.toggle("light", !dark);
+  // Remove both classes first to ensure clean state
+  root.classList.remove("dark", "light");
+  // Add the correct class
+  root.classList.add(dark ? "dark" : "light");
+  
   try {
-    localStorage.setItem("theme", dark ? "dark" : "light");
+    localStorage.setItem(STORAGE_KEY, dark ? "dark" : "light");
+  } catch {
+    // localStorage might be unavailable
+  }
+}
+
+function getStoredTheme(): boolean | null {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === "dark") return true;
+    if (stored === "light") return false;
   } catch {
     // ignore
   }
-};
+  return null;
+}
+
+function getCurrentTheme(): boolean {
+  // First check localStorage
+  const stored = getStoredTheme();
+  if (stored !== null) return stored;
+  
+  // Then check DOM
+  if (typeof document !== "undefined") {
+    return document.documentElement.classList.contains("dark");
+  }
+  
+  return false; // default to light
+}
 
 export function ThemeToggle() {
-  const [isDark, setIsDarkState] = React.useState(getIsDark);
+  const [isDark, setIsDark] = React.useState(getCurrentTheme);
 
+  // Sync with DOM on mount and ensure correct initial state
   React.useEffect(() => {
-    // Initialize from storage if present
-    try {
-      const stored = localStorage.getItem("theme");
-      if (stored === "dark" || stored === "light") {
-        setIsDark(stored === "dark");
-        setIsDarkState(stored === "dark");
-        return;
-      }
-    } catch {
-      // ignore
-    }
-    setIsDarkState(getIsDark());
+    const currentTheme = getCurrentTheme();
+    setIsDark(currentTheme);
+    applyTheme(currentTheme);
+  }, []);
+
+  const handleToggle = React.useCallback((checked: boolean) => {
+    setIsDark(checked);
+    applyTheme(checked);
   }, []);
 
   return (
@@ -44,10 +65,7 @@ export function ThemeToggle() {
       </div>
       <Switch
         checked={isDark}
-        onCheckedChange={(checked) => {
-          setIsDark(checked);
-          setIsDarkState(checked);
-        }}
+        onCheckedChange={handleToggle}
       />
     </div>
   );
