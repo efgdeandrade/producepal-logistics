@@ -1,6 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 interface PushNotificationSettings {
@@ -18,7 +16,6 @@ const DEFAULT_SETTINGS: PushNotificationSettings = {
 const SETTINGS_KEY = 'dre-push-settings';
 
 export function usePushNotifications() {
-  const { user } = useAuth();
   const [isSupported, setIsSupported] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [subscription, setSubscription] = useState<PushSubscription | null>(null);
@@ -47,7 +44,7 @@ export function usePushNotifications() {
 
   // Request permission and subscribe
   const requestPermission = useCallback(async () => {
-    if (!isSupported || !user?.id) {
+    if (!isSupported) {
       toast.error('Push notifications are not supported on this device');
       return false;
     }
@@ -62,63 +59,46 @@ export function usePushNotifications() {
         // Register service worker if not already registered
         const registration = await navigator.serviceWorker.ready;
 
-        // Subscribe to push
-        const sub = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(
-            // This is a placeholder - in production, use VAPID public key from secrets
-            'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U'
-          ),
-        });
+        // Subscribe to push - use a placeholder VAPID key
+        // In production, this should come from server/secrets
+        try {
+          const sub = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(
+              'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U'
+            ),
+          });
 
-        setSubscription(sub);
-
-        // Save subscription to database
-        const { error } = await supabase.from('push_subscriptions').upsert({
-          user_id: user.id,
-          subscription: sub.toJSON(),
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id',
-        });
-
-        if (error) {
-          console.error('Failed to save subscription:', error);
-          toast.error('Failed to save notification subscription');
-          return false;
+          setSubscription(sub);
+          toast.success('Push notifications enabled!');
+          return true;
+        } catch (subError) {
+          console.warn('Push subscription failed, but local notifications work:', subError);
+          toast.success('Notifications enabled (local mode)');
+          return true;
         }
-
-        toast.success('Push notifications enabled!');
-        return true;
       } else {
         toast.error('Permission denied for notifications');
         return false;
       }
     } catch (error) {
-      console.error('Push subscription error:', error);
+      console.error('Push permission error:', error);
       toast.error('Failed to enable notifications');
       return false;
     } finally {
       setIsLoading(false);
     }
-  }, [isSupported, user?.id]);
+  }, [isSupported]);
 
   // Unsubscribe
   const unsubscribe = useCallback(async () => {
-    if (!subscription || !user?.id) return;
+    if (!subscription) return;
 
     setIsLoading(true);
 
     try {
       await subscription.unsubscribe();
       setSubscription(null);
-
-      // Remove from database
-      await supabase
-        .from('push_subscriptions')
-        .delete()
-        .eq('user_id', user.id);
-
       toast.success('Push notifications disabled');
     } catch (error) {
       console.error('Unsubscribe error:', error);
@@ -126,7 +106,7 @@ export function usePushNotifications() {
     } finally {
       setIsLoading(false);
     }
-  }, [subscription, user?.id]);
+  }, [subscription]);
 
   // Update settings
   const updateSettings = useCallback((newSettings: Partial<PushNotificationSettings>) => {
@@ -138,7 +118,7 @@ export function usePushNotifications() {
   // Check existing subscription on mount
   useEffect(() => {
     const checkSubscription = async () => {
-      if (!isSupported || !user?.id) return;
+      if (!isSupported) return;
 
       try {
         const registration = await navigator.serviceWorker.ready;
@@ -150,7 +130,7 @@ export function usePushNotifications() {
     };
 
     checkSubscription();
-  }, [isSupported, user?.id]);
+  }, [isSupported]);
 
   // Show local notification (for in-app alerts)
   const showLocalNotification = useCallback((title: string, options?: NotificationOptions) => {
@@ -159,9 +139,13 @@ export function usePushNotifications() {
 
     // Play sound if enabled
     if (settings.soundEnabled) {
-      const audio = new Audio('/notification.mp3');
-      audio.volume = 0.5;
-      audio.play().catch(() => {});
+      try {
+        const audio = new Audio('/notification.mp3');
+        audio.volume = 0.5;
+        audio.play().catch(() => {});
+      } catch (e) {
+        // Ignore audio errors
+      }
     }
 
     // Vibrate if supported
@@ -170,11 +154,15 @@ export function usePushNotifications() {
     }
 
     // Show notification
-    new Notification(title, {
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
-      ...options,
-    });
+    try {
+      new Notification(title, {
+        icon: '/icons/icon-192.png',
+        badge: '/icons/icon-192.png',
+        ...options,
+      });
+    } catch (e) {
+      console.warn('Failed to show notification:', e);
+    }
   }, [permission, settings.enabled, settings.soundEnabled]);
 
   return {

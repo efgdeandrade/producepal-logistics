@@ -5,7 +5,6 @@ import {
   Clock, 
   UserCheck, 
   Bot, 
-  MessageCircle,
   ChevronRight,
   Eye
 } from 'lucide-react';
@@ -29,20 +28,20 @@ export function DreMobileConversationCard({
 }: DreMobileConversationCardProps) {
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'urgent': return 'bg-red-500';
-      case 'high': return 'bg-orange-500';
-      default: return 'bg-green-500';
+      case 'urgent': return 'bg-destructive';
+      case 'high': return 'bg-amber-500';
+      default: return 'bg-primary';
     }
   };
 
   const getStatusIcon = () => {
     if (conversation.is_taken_over) {
-      return <UserCheck className="h-4 w-4 text-blue-500" />;
+      return <UserCheck className="h-4 w-4 text-primary" />;
     }
     if (conversation.status === 'waiting' || conversation.status === 'escalated') {
       return <Clock className="h-4 w-4 text-amber-500" />;
     }
-    return <Bot className="h-4 w-4 text-green-500" />;
+    return <Bot className="h-4 w-4 text-primary" />;
   };
 
   const getInitials = (name: string | null) => {
@@ -63,8 +62,8 @@ export function DreMobileConversationCard({
       className={cn(
         'relative flex items-center gap-3 p-4 border-b active:bg-muted/50 transition-colors cursor-pointer',
         isSelected && 'bg-primary/5 border-l-4 border-l-primary',
-        conversation.priority === 'urgent' && 'bg-red-50 dark:bg-red-950/20',
-        conversation.priority === 'high' && 'bg-orange-50 dark:bg-orange-950/20'
+        conversation.priority === 'urgent' && 'bg-destructive/5',
+        conversation.priority === 'high' && 'bg-amber-50 dark:bg-amber-950/20'
       )}
     >
       {/* Priority indicator */}
@@ -128,7 +127,7 @@ export function DreMobileConversationCard({
             <div className="flex -space-x-1">
               {viewers.slice(0, 2).map((viewer) => (
                 <Avatar key={viewer.userId} className="h-5 w-5 border-2 border-background">
-                  <AvatarFallback className="text-[8px] bg-blue-100 text-blue-700">
+                  <AvatarFallback className="text-[8px] bg-primary/10 text-primary">
                     {getInitials(viewer.fullName)}
                   </AvatarFallback>
                 </Avatar>

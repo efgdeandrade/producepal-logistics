@@ -2851,6 +2851,38 @@ export type Database = {
           },
         ]
       }
+      dre_team_chat: {
+        Row: {
+          conversation_id: string | null
+          created_at: string
+          id: string
+          message_text: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          message_text: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          message_text?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dre_team_chat_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       driver_availability: {
         Row: {
           created_at: string | null

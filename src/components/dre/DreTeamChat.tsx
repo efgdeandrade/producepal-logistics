@@ -32,34 +32,39 @@ export function DreTeamChat({ conversationId, minimal = false }: DreTeamChatProp
   const [messageInput, setMessageInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Fetch team messages
+  // Fetch team messages using notes table (serves as team chat)
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ['dre-team-chat', conversationId],
-    queryFn: async () => {
-      let query = supabase
-        .from('dre_team_chat')
-        .select('*')
+    queryFn: async (): Promise<TeamMessage[]> => {
+      // Query conversation notes which serves as team chat
+      const query = supabase
+        .from('whatsapp_conversation_notes')
+        .select('id, user_id, note_text, conversation_id, created_at')
         .order('created_at', { ascending: true })
         .limit(100);
 
-      if (conversationId) {
-        query = query.eq('conversation_id', conversationId);
-      } else {
-        query = query.is('conversation_id', null);
-      }
+      const { data, error } = conversationId
+        ? await query.eq('conversation_id', conversationId)
+        : await query.is('conversation_id', null);
 
-      const { data, error } = await query;
       if (error) throw error;
 
-      // Fetch user names
-      const messagesWithUsers = await Promise.all(
-        (data || []).map(async (msg) => {
+      // Map notes to chat format and fetch user names
+      const messagesWithUsers: TeamMessage[] = await Promise.all(
+        (data || []).map(async (note) => {
           const { data: profile } = await supabase
             .from('profiles')
             .select('full_name')
-            .eq('id', msg.user_id)
-            .single();
-          return { ...msg, user: profile } as TeamMessage;
+            .eq('id', note.user_id)
+            .maybeSingle();
+          return {
+            id: note.id,
+            user_id: note.user_id,
+            message_text: note.note_text,
+            conversation_id: note.conversation_id,
+            created_at: note.created_at,
+            user: profile,
+          };
         })
       );
 
@@ -76,7 +81,7 @@ export function DreTeamChat({ conversationId, minimal = false }: DreTeamChatProp
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'dre_team_chat',
+          table: 'whatsapp_conversation_notes',
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ['dre-team-chat', conversationId] });
@@ -96,15 +101,17 @@ export function DreTeamChat({ conversationId, minimal = false }: DreTeamChatProp
     }
   }, [messages]);
 
-  // Send message mutation
+  // Send message mutation - uses notes table for compatibility
   const sendMessage = useMutation({
     mutationFn: async (text: string) => {
       if (!user?.id) throw new Error('Not authenticated');
 
-      const { error } = await supabase.from('dre_team_chat').insert({
+      // Insert as a note (team chat equivalent)
+      const { error } = await supabase.from('whatsapp_conversation_notes').insert({
         user_id: user.id,
-        message_text: text,
+        note_text: text,
         conversation_id: conversationId || null,
+        is_pinned: false,
       });
 
       if (error) throw error;
