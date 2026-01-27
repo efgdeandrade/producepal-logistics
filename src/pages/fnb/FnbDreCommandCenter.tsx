@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,8 @@ import {
   UserCheck,
   Bot,
   Volume2,
-  VolumeX
+  VolumeX,
+  Smartphone
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDreConversations, type DreConversation } from '@/hooks/useDreConversations';
@@ -160,6 +162,12 @@ export default function FnbDreCommandCenter() {
             ) : (
               <VolumeX className="h-4 w-4 text-muted-foreground" />
             )}
+          </Button>
+          <Button variant="outline" asChild>
+            <Link to="/distribution/dre-mobile">
+              <Smartphone className="h-4 w-4 mr-2" />
+              Mobile App
+            </Link>
           </Button>
           <Button variant="outline" onClick={handleRefresh}>
             <RefreshCw className="h-4 w-4 mr-2" />
