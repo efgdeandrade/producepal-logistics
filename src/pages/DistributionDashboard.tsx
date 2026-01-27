@@ -17,6 +17,7 @@ import {
 import { format, startOfDay, endOfDay } from "date-fns";
 import { FnbAlertsCard } from "@/components/fnb/FnbAlertsCard";
 import { MissingOrdersCard } from "@/components/fnb/MissingOrdersCard";
+import { WhatsAppLiveFeed } from "@/components/fnb/WhatsAppLiveFeed";
 
 export default function DistributionDashboard() {
   const navigate = useNavigate();
@@ -209,6 +210,9 @@ export default function DistributionDashboard() {
 
       {/* Order Intelligence - Missing Orders Detection */}
       <MissingOrdersCard />
+
+      {/* Dre WhatsApp Live Feed */}
+      <WhatsAppLiveFeed />
 
       {/* Alerts and Order Status */}
       <div className="grid gap-4 lg:grid-cols-2">
