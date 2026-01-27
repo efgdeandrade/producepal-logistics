@@ -437,14 +437,39 @@ serve(async (req) => {
         .maybeSingle();
 
       if (!existing) {
-        const { error: insertError } = await supabase
+        const { data: insertedAnomaly, error: insertError } = await supabase
           .from('distribution_order_anomalies')
-          .insert(anomaly);
+          .insert(anomaly)
+          .select()
+          .single();
 
         if (insertError) {
           console.error('Error inserting anomaly:', insertError);
         } else {
           insertedCount++;
+          
+          // Trigger immediate Dre outreach for high-priority anomalies
+          if (anomaly.severity === 'high' || anomaly.anomaly_type === 'missing_order') {
+            try {
+              const dreResponse = await fetch(`${supabaseUrl}/functions/v1/dre-proactive-outreach`, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${supabaseServiceKey}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                  trigger: 'immediate',
+                  anomaly_ids: [insertedAnomaly?.id]
+                })
+              });
+              
+              if (dreResponse.ok) {
+                console.log(`Triggered immediate Dre outreach for anomaly ${insertedAnomaly?.id}`);
+              }
+            } catch (dreError) {
+              console.error('Error triggering Dre outreach:', dreError);
+            }
+          }
         }
       }
     }
