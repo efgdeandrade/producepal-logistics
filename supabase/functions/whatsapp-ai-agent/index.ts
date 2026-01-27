@@ -7,65 +7,67 @@ const corsHeaders = {
 
 // Multi-language response templates
 // Dre - Your friendly FUIK order buddy
+// IMPORTANT: FUIK sells FRESH PRODUCE ONLY - fruits, vegetables, herbs, and fresh juices
+// NO fish, meat, or seafood - despite the company name, we specialize in fresh produce!
 const RESPONSE_TEMPLATES = {
   welcome_new: {
-    pap: "Kon ta! 👋 Mi ta Dre, bo kompañero di order di FUIK! 🐟 Ki kos bo ke pidi awe?",
-    en: "Hey! 👋 I'm Dre, your FUIK order buddy! 🐟 What can I get for you today?",
-    nl: "Hoi! 👋 Ik ben Dre, je FUIK bestelmaatje! 🐟 Wat kan ik voor je regelen?",
-    es: "¡Hola! 👋 Soy Dre, tu amigo de pedidos de FUIK! 🐟 ¿Qué puedo conseguirte hoy?"
+    pap: "Kon ta! 👋 Mi ta Dre, bo kompañero di order di FUIK! 🥬🍎 Ki fruta òf bèrdura bo ke pidi awe?",
+    en: "Hey! 👋 I'm Dre, your FUIK order buddy! 🥬🍎 What fresh fruits or veggies can I get for you today?",
+    nl: "Hoi! 👋 Ik ben Dre, je FUIK bestelmaatje! 🥬🍎 Welk vers fruit of groente kan ik voor je regelen?",
+    es: "¡Hola! 👋 Soy Dre, tu amigo de pedidos de FUIK! 🥬🍎 ¿Qué frutas o verduras frescas puedo conseguirte hoy?"
   },
   order_recap: {
-    pap: "📋 Bo orden:\n{items}\n\nTur kos ta bon? Bisa 'Si' pa konfirmá.",
-    en: "📋 Your order:\n{items}\n\nEverything correct? Say 'Yes' to confirm.",
-    nl: "📋 Je bestelling:\n{items}\n\nKlopt alles? Zeg 'Ja' om te bevestigen.",
-    es: "📋 Tu pedido:\n{items}\n\n¿Todo correcto? Di 'Sí' para confirmar."
+    pap: "📋 Bo orden:\n{items}\n\nTur kos ta bon? Bisa 'Si' pa konfirmá. 🥕",
+    en: "📋 Your order:\n{items}\n\nEverything correct? Say 'Yes' to confirm. 🥕",
+    nl: "📋 Je bestelling:\n{items}\n\nKlopt alles? Zeg 'Ja' om te bevestigen. 🥕",
+    es: "📋 Tu pedido:\n{items}\n\n¿Todo correcto? Di 'Sí' para confirmar. 🥕"
   },
   order_confirmed: {
-    pap: "✅ Mashá bon! Dre tin bo cubrí! Bo orden ta registrá. Nos lo entregá esaki pronto. 🚚",
-    en: "✅ Awesome! Dre's got you covered! Your order is placed. We'll deliver it soon. 🚚",
-    nl: "✅ Top! Dre regelt het! Je bestelling is geplaatst. We bezorgen het snel. 🚚",
-    es: "✅ ¡Genial! ¡Dre te tiene cubierto! Tu pedido está registrado. Lo entregaremos pronto. 🚚"
+    pap: "✅ Mashá bon! Dre tin bo cubrí! Bo orden ta registrá. Nos lo entregá bo fruta i bèrdura pronto. 🚚🥬",
+    en: "✅ Awesome! Dre's got you covered! Your order is placed. We'll deliver your fresh produce soon. 🚚🥬",
+    nl: "✅ Top! Dre regelt het! Je bestelling is geplaatst. We bezorgen je verse producten snel. 🚚🥬",
+    es: "✅ ¡Genial! ¡Dre te tiene cubierto! Tu pedido está registrado. Entregaremos tus productos frescos pronto. 🚚🥬"
   },
   addition_confirmed: {
-    pap: "✅ Klaar! Dre a agregá e produktonan na bo orden. 🚚",
-    en: "✅ Done! Dre added the items to your order. 🚚",
-    nl: "✅ Geregeld! Dre heeft de items aan je bestelling toegevoegd. 🚚",
-    es: "✅ ¡Listo! Dre agregó los productos a tu pedido. 🚚"
+    pap: "✅ Klaar! Dre a agregá e produktonan na bo orden. 🚚🍎",
+    en: "✅ Done! Dre added the items to your order. 🚚🍎",
+    nl: "✅ Geregeld! Dre heeft de items aan je bestelling toegevoegd. 🚚🍎",
+    es: "✅ ¡Listo! Dre agregó los productos a tu pedido. 🚚🍎"
   },
   suggestions: {
-    pap: "💡 Bo tabata order tambe: {products}. Bo ke agrega un di nan?",
-    en: "💡 You've also ordered before: {products}. Would you like to add any?",
-    nl: "💡 Je hebt eerder ook besteld: {products}. Wil je iets toevoegen?",
-    es: "💡 También has pedido antes: {products}. ¿Te gustaría agregar alguno?"
+    pap: "💡 Bo tabata order tambe: {products}. Bo ke agrega un di nan? 🥕",
+    en: "💡 You've also ordered before: {products}. Would you like to add any? 🥕",
+    nl: "💡 Je hebt eerder ook besteld: {products}. Wil je iets toevoegen? 🥕",
+    es: "💡 También has pedido antes: {products}. ¿Te gustaría agregar alguno? 🥕"
   },
   // Multiple no_match variations to avoid repetition
   no_match: {
     pap: [
-      "🤔 Hmm, Dre no por haña '{item}'. Purba otro nomber?",
-      "🤔 '{item}' no ta den nos lista. Tin otro kos bo ke pidi?",
-      "🤔 Mi no ta ripará '{item}'. Por fabor deskribí esaki diferente?"
+      "🤔 Hmm, Dre no por haña '{item}'. Nos tin fruta, bèrdura i djùs frèsku. Purba otro nomber?",
+      "🤔 '{item}' no ta den nos lista. Nos ta bende fruta i bèrdura frèsku solamente. Tin otro kos bo ke pidi?",
+      "🤔 Mi no ta ripará '{item}'. Por fabor check nos lista di fruta i bèrdura?"
     ],
     en: [
-      "🤔 Hmm, Dre couldn't find '{item}'. Try another name?",
-      "🤔 '{item}' isn't in our list. Anything else you'd like?",
-      "🤔 I don't recognize '{item}'. Could you describe it differently?"
+      "🤔 Hmm, Dre couldn't find '{item}'. We carry fresh fruits, veggies and juices. Try another name?",
+      "🤔 '{item}' isn't in our list. We sell fresh produce only - no meat or fish. Anything else?",
+      "🤔 I don't recognize '{item}'. Check our fresh fruits and vegetables selection?"
     ],
     nl: [
-      "🤔 Hmm, Dre kon '{item}' niet vinden. Probeer een andere naam?",
-      "🤔 '{item}' staat niet in onze lijst. Iets anders?",
-      "🤔 Ik herken '{item}' niet. Kun je het anders beschrijven?"
+      "🤔 Hmm, Dre kon '{item}' niet vinden. We hebben vers fruit, groente en sap. Probeer een andere naam?",
+      "🤔 '{item}' staat niet in onze lijst. We verkopen alleen verse producten - geen vlees of vis. Iets anders?",
+      "🤔 Ik herken '{item}' niet. Bekijk onze verse groente en fruit selectie?"
     ],
     es: [
-      "🤔 Hmm, Dre no encontró '{item}'. ¿Otro nombre?",
-      "🤔 '{item}' no está en nuestra lista. ¿Algo más?",
-      "🤔 No reconozco '{item}'. ¿Puedes describirlo diferente?"
+      "🤔 Hmm, Dre no encontró '{item}'. Tenemos frutas, verduras y jugos frescos. ¿Otro nombre?",
+      "🤔 '{item}' no está en nuestra lista. Solo vendemos productos frescos - sin carne ni pescado. ¿Algo más?",
+      "🤔 No reconozco '{item}'. ¿Revisar nuestra selección de frutas y verduras frescas?"
     ]
   },
   greeting_response: {
-    pap: "Kon ta! Dre aki 👋 Ki kos bo ke pidi awe?",
-    en: "Hey there! Dre here 👋 What would you like to order today?",
-    nl: "Hoi! Dre hier 👋 Wat wil je vandaag bestellen?",
-    es: "¡Hola! Dre aquí 👋 ¿Qué te gustaría pedir hoy?"
+    pap: "Kon ta! Dre aki 👋 Ki fruta òf bèrdura bo ke pidi awe? 🥬",
+    en: "Hey there! Dre here 👋 What fresh produce would you like to order today? 🥬",
+    nl: "Hoi! Dre hier 👋 Welke verse groente of fruit wil je vandaag bestellen? 🥬",
+    es: "¡Hola! Dre aquí 👋 ¿Qué productos frescos te gustaría pedir hoy? 🥬"
   },
   cancel_item_success: {
     pap: "🚫 Oke, Dre a kita '{item}' for di bo orden.",
@@ -150,11 +152,12 @@ const RESPONSE_TEMPLATES = {
 };
 
 // Language detection patterns
+// Note: FUIK sells fresh produce (fruits, vegetables, juices) - NOT fish/meat
 const LANGUAGE_PATTERNS = {
-  pap: ['bon', 'dia', 'tardi', 'nochi', 'danki', 'por', 'fabor', 'mi', 'ke', 'pidi', 'awe', 'kico', 'tur', 'si', 'no', 'mas', 'awa', 'piska', 'karni', 'e', 'ta', 'un', 'dos', 'tres', 'kansela', 'kita', 'agrega', 'mesun', 'mañan'],
-  nl: ['goedemorgen', 'goedemiddag', 'goedenavond', 'bedankt', 'alstublieft', 'graag', 'bestellen', 'wil', 'hebben', 'ja', 'nee', 'meer', 'water', 'vis', 'vlees', 'de', 'het', 'een', 'twee', 'drie', 'annuleren', 'verwijderen', 'toevoegen', 'zelfde', 'morgen'],
-  es: ['buenos', 'dias', 'tardes', 'noches', 'gracias', 'favor', 'quiero', 'pedir', 'hoy', 'sí', 'no', 'más', 'agua', 'pescado', 'carne', 'el', 'la', 'uno', 'dos', 'tres', 'cancelar', 'quitar', 'agregar', 'mismo', 'mañana'],
-  en: ['good', 'morning', 'afternoon', 'evening', 'thanks', 'please', 'want', 'order', 'today', 'yes', 'no', 'more', 'water', 'fish', 'meat', 'the', 'a', 'one', 'two', 'three', 'cancel', 'remove', 'add', 'same', 'tomorrow']
+  pap: ['bon', 'dia', 'tardi', 'nochi', 'danki', 'por', 'fabor', 'mi', 'ke', 'pidi', 'awe', 'kico', 'tur', 'si', 'no', 'mas', 'awa', 'fruta', 'bèrdura', 'e', 'ta', 'un', 'dos', 'tres', 'kansela', 'kita', 'agrega', 'mesun', 'mañan'],
+  nl: ['goedemorgen', 'goedemiddag', 'goedenavond', 'bedankt', 'alstublieft', 'graag', 'bestellen', 'wil', 'hebben', 'ja', 'nee', 'meer', 'water', 'fruit', 'groente', 'de', 'het', 'een', 'twee', 'drie', 'annuleren', 'verwijderen', 'toevoegen', 'zelfde', 'morgen'],
+  es: ['buenos', 'dias', 'tardes', 'noches', 'gracias', 'favor', 'quiero', 'pedir', 'hoy', 'sí', 'no', 'más', 'agua', 'fruta', 'verdura', 'el', 'la', 'uno', 'dos', 'tres', 'cancelar', 'quitar', 'agregar', 'mismo', 'mañana'],
+  en: ['good', 'morning', 'afternoon', 'evening', 'thanks', 'please', 'want', 'order', 'today', 'yes', 'no', 'more', 'water', 'fruit', 'vegetable', 'the', 'a', 'one', 'two', 'three', 'cancel', 'remove', 'add', 'same', 'tomorrow']
 };
 
 // Cancellation patterns
