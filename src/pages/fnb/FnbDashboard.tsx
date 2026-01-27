@@ -8,6 +8,7 @@ import { Package, Users, ShoppingCart, ClipboardList, MessageSquare, TrendingUp,
 import { Skeleton } from '@/components/ui/skeleton';
 import { FnbAlertsCard } from '@/components/fnb/FnbAlertsCard';
 import { DreSalesPerformance } from '@/components/fnb/DreSalesPerformance';
+import { WhatsAppLiveFeed } from '@/components/fnb/WhatsAppLiveFeed';
 
 export default function FnbDashboard() {
   const { data: stats, isLoading } = useQuery({
@@ -203,9 +204,10 @@ export default function FnbDashboard() {
           <FnbAlertsCard showAudioAlerts />
         </div>
 
-        {/* Dre Sales Performance */}
-        <div className="mb-6">
+        {/* Dre Sales Performance & Live Feed */}
+        <div className="grid gap-6 lg:grid-cols-2 mb-6">
           <DreSalesPerformance />
+          <WhatsAppLiveFeed />
         </div>
 
         {/* Recent Orders */}

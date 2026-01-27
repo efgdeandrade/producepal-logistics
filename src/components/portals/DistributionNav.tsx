@@ -1,19 +1,19 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, ShoppingCart, ClipboardPaste, FileText, Mail } from 'lucide-react';
+import { Home, ShoppingCart, ClipboardPaste, FileText, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useEmailInboxCount } from '@/hooks/useEmailInboxCount';
+import { useWhatsAppUnreadCount } from '@/hooks/useWhatsAppMessages';
 
 const navItems = [
   { path: '/distribution', label: 'Home', icon: Home },
   { path: '/distribution/orders', label: 'Orders', icon: ShoppingCart },
   { path: '/quick-paste', label: 'Quick', icon: ClipboardPaste, highlight: true },
-  { path: '/distribution/email-inbox', label: 'Inbox', icon: Mail, showBadge: true },
+  { path: '/distribution/whatsapp-inbox', label: 'Dre', icon: MessageSquare, showBadge: true },
   { path: '/distribution/invoices', label: 'Invoices', icon: FileText },
 ];
 
 export function DistributionNav() {
   const location = useLocation();
-  const { unreadCount } = useEmailInboxCount();
+  const unreadCount = useWhatsAppUnreadCount();
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t pb-safe">
