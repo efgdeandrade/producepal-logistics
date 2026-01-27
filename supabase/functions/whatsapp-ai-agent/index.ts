@@ -9,30 +9,99 @@ const corsHeaders = {
 // Dre - Your friendly FUIK order buddy
 // IMPORTANT: FUIK sells FRESH PRODUCE ONLY - fruits, vegetables, herbs, and fresh juices
 // NO fish, meat, or seafood - despite the company name, we specialize in fresh produce!
+// Helper to pick random response variation for natural conversation
+function pickRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
 const RESPONSE_TEMPLATES = {
   welcome_new: {
-    pap: "Kon ta! 👋 Mi ta Dre, bo kompañero di order di FUIK! 🥬🍎 Ki fruta òf bèrdura bo ke pidi awe?",
-    en: "Hey! 👋 I'm Dre, your FUIK order buddy! 🥬🍎 What fresh fruits or veggies can I get for you today?",
-    nl: "Hoi! 👋 Ik ben Dre, je FUIK bestelmaatje! 🥬🍎 Welk vers fruit of groente kan ik voor je regelen?",
-    es: "¡Hola! 👋 Soy Dre, tu amigo de pedidos de FUIK! 🥬🍎 ¿Qué frutas o verduras frescas puedo conseguirte hoy?"
+    pap: [
+      "Kon ta! 👋 Mi ta Dre di FUIK! Ki fruta òf bèrdura bo ke pidi awe? 🥬🍎",
+      "Hola! Dre aki 👋 Laga mi sa kiko bo ke order di fruta i bèrdura! 🥕",
+      "Bon dia! 👋 Mi ta Dre, bo helper di FUIK. Ki produkto frèsku bo mester? 🍎"
+    ],
+    en: [
+      "Hey! 👋 I'm Dre from FUIK! What fresh produce can I get for you today? 🥬🍎",
+      "Hi there! Dre here 👋 Let me know what fruits or veggies you need! 🥕",
+      "Hello! 👋 I'm Dre, your FUIK order buddy. What fresh stuff do you need? 🍎"
+    ],
+    nl: [
+      "Hoi! 👋 Ik ben Dre van FUIK! Welk vers groente of fruit kan ik voor je regelen? 🥬🍎",
+      "Hey! Dre hier 👋 Laat me weten wat je nodig hebt aan verse producten! 🥕",
+      "Hallo! 👋 Ik ben Dre, je FUIK bestelmaatje. Wat heb je nodig? 🍎"
+    ],
+    es: [
+      "¡Hola! 👋 Soy Dre de FUIK! ¿Qué frutas o verduras frescas necesitas hoy? 🥬🍎",
+      "¡Hey! Dre aquí 👋 Dime qué productos frescos necesitas! 🥕",
+      "¡Hola! 👋 Soy Dre, tu amigo de pedidos FUIK. ¿Qué necesitas? 🍎"
+    ]
   },
   order_recap: {
-    pap: "📋 Bo orden:\n{items}\n\nTur kos ta bon? Bisa 'Si' pa konfirmá. 🥕",
-    en: "📋 Your order:\n{items}\n\nEverything correct? Say 'Yes' to confirm. 🥕",
-    nl: "📋 Je bestelling:\n{items}\n\nKlopt alles? Zeg 'Ja' om te bevestigen. 🥕",
-    es: "📋 Tu pedido:\n{items}\n\n¿Todo correcto? Di 'Sí' para confirmar. 🥕"
+    pap: [
+      "📋 Oke, mi tin:\n{items}\n\nTa bon asina? Bisa 'Si' pa konfirmá 👍",
+      "📋 Bo pedido:\n{items}\n\nTur kos korekto? 'Si' pa konfirmá! ✅",
+      "📋 Check:\n{items}\n\nTa esaki bo ke? Konfirmá ku 'Si' 🥕"
+    ],
+    en: [
+      "📋 Got it:\n{items}\n\nLooks good? Say 'Yes' to confirm 👍",
+      "📋 Your order:\n{items}\n\nAll correct? 'Yes' to confirm! ✅",
+      "📋 Here's what I have:\n{items}\n\nReady to go? Say 'Yes' 🥕"
+    ],
+    nl: [
+      "📋 Oké, ik heb:\n{items}\n\nKlopt dit? Zeg 'Ja' om te bevestigen 👍",
+      "📋 Je bestelling:\n{items}\n\nAlles correct? 'Ja' om te bevestigen! ✅",
+      "📋 Dit heb ik genoteerd:\n{items}\n\nKlaar? Zeg 'Ja' 🥕"
+    ],
+    es: [
+      "📋 Listo, tengo:\n{items}\n\n¿Todo bien? Di 'Sí' para confirmar 👍",
+      "📋 Tu pedido:\n{items}\n\n¿Todo correcto? ¡'Sí' para confirmar! ✅",
+      "📋 Esto tengo anotado:\n{items}\n\n¿Listo? Di 'Sí' 🥕"
+    ]
   },
   order_confirmed: {
-    pap: "✅ Mashá bon! Dre tin bo cubrí! Bo orden ta registrá. Nos lo entregá bo fruta i bèrdura pronto. 🚚🥬",
-    en: "✅ Awesome! Dre's got you covered! Your order is placed. We'll deliver your fresh produce soon. 🚚🥬",
-    nl: "✅ Top! Dre regelt het! Je bestelling is geplaatst. We bezorgen je verse producten snel. 🚚🥬",
-    es: "✅ ¡Genial! ¡Dre te tiene cubierto! Tu pedido está registrado. Entregaremos tus productos frescos pronto. 🚚🥬"
+    pap: [
+      "✅ Perfekto! Bo pedido ta registrá. Nos lo entregá pronto! 🚚🥬",
+      "✅ Dre tin bo cubrí! Order kla, entrega ta bin. 🚚🍎",
+      "✅ Tur kos kla! Bo fruta i bèrdura ta na kaminda pronto. 🚚"
+    ],
+    en: [
+      "✅ Perfect! Your order is placed. We'll deliver soon! 🚚🥬",
+      "✅ Dre's got you covered! Order placed, delivery coming. 🚚🍎",
+      "✅ All set! Your fresh produce is on its way soon. 🚚"
+    ],
+    nl: [
+      "✅ Perfect! Je bestelling is geplaatst. We bezorgen snel! 🚚🥬",
+      "✅ Dre regelt het! Bestelling geplaatst, bezorging komt eraan. 🚚🍎",
+      "✅ Alles klaar! Je verse producten komen snel. 🚚"
+    ],
+    es: [
+      "✅ ¡Perfecto! Tu pedido está registrado. ¡Entregamos pronto! 🚚🥬",
+      "✅ ¡Dre te tiene cubierto! Pedido listo, entrega en camino. 🚚🍎",
+      "✅ ¡Todo listo! Tus productos frescos llegarán pronto. 🚚"
+    ]
   },
   addition_confirmed: {
-    pap: "✅ Klaar! Dre a agregá e produktonan na bo orden. 🚚🍎",
-    en: "✅ Done! Dre added the items to your order. 🚚🍎",
-    nl: "✅ Geregeld! Dre heeft de items aan je bestelling toegevoegd. 🚚🍎",
-    es: "✅ ¡Listo! Dre agregó los productos a tu pedido. 🚚🍎"
+    pap: [
+      "✅ Agregá! E produktonan nobo ta na bo pedido. 🚚🍎",
+      "✅ Kla! Mi a agregá esaki na bo order. 🥕",
+      "✅ Tur bon! E items ekstra ta agregá. 📦"
+    ],
+    en: [
+      "✅ Added! The new items are on your order. 🚚🍎",
+      "✅ Done! I added those to your order. 🥕",
+      "✅ All good! Extra items are added. 📦"
+    ],
+    nl: [
+      "✅ Toegevoegd! De nieuwe items staan op je bestelling. 🚚🍎",
+      "✅ Klaar! Ik heb dit aan je bestelling toegevoegd. 🥕",
+      "✅ Prima! De extra items zijn toegevoegd. 📦"
+    ],
+    es: [
+      "✅ ¡Agregado! Los nuevos productos están en tu pedido. 🚚🍎",
+      "✅ ¡Listo! Agregué eso a tu pedido. 🥕",
+      "✅ ¡Todo bien! Los items extra están agregados. 📦"
+    ]
   },
   suggestions: {
     pap: "💡 Bo tabata order tambe: {products}. Bo ke agrega un di nan? 🥕",
@@ -43,31 +112,47 @@ const RESPONSE_TEMPLATES = {
   // Multiple no_match variations to avoid repetition
   no_match: {
     pap: [
-      "🤔 Hmm, Dre no por haña '{item}'. Nos tin fruta, bèrdura i djùs frèsku. Purba otro nomber?",
-      "🤔 '{item}' no ta den nos lista. Nos ta bende fruta i bèrdura frèsku solamente. Tin otro kos bo ke pidi?",
-      "🤔 Mi no ta ripará '{item}'. Por fabor check nos lista di fruta i bèrdura?"
+      "🤔 Hmm, '{item}' no ta den nos lista. Nos tin fruta, bèrdura i djùs frèsku. Purba otro nomber?",
+      "🤔 Mi no por haña '{item}'. Por fabor check e nomber?",
+      "🤔 '{item}' no ta konosí. Nos ta bende solamente fruta i bèrdura frèsku."
     ],
     en: [
-      "🤔 Hmm, Dre couldn't find '{item}'. We carry fresh fruits, veggies and juices. Try another name?",
-      "🤔 '{item}' isn't in our list. We sell fresh produce only - no meat or fish. Anything else?",
-      "🤔 I don't recognize '{item}'. Check our fresh fruits and vegetables selection?"
+      "🤔 Hmm, I can't find '{item}'. We have fresh fruits, veggies and juices. Try another name?",
+      "🤔 '{item}' isn't in our list. Check the name?",
+      "🤔 I don't recognize '{item}'. We only sell fresh produce."
     ],
     nl: [
-      "🤔 Hmm, Dre kon '{item}' niet vinden. We hebben vers fruit, groente en sap. Probeer een andere naam?",
-      "🤔 '{item}' staat niet in onze lijst. We verkopen alleen verse producten - geen vlees of vis. Iets anders?",
-      "🤔 Ik herken '{item}' niet. Bekijk onze verse groente en fruit selectie?"
+      "🤔 Hmm, ik kan '{item}' niet vinden. We hebben vers fruit, groente en sap. Andere naam proberen?",
+      "🤔 '{item}' staat niet in onze lijst. Check de naam?",
+      "🤔 '{item}' ken ik niet. We verkopen alleen verse producten."
     ],
     es: [
-      "🤔 Hmm, Dre no encontró '{item}'. Tenemos frutas, verduras y jugos frescos. ¿Otro nombre?",
-      "🤔 '{item}' no está en nuestra lista. Solo vendemos productos frescos - sin carne ni pescado. ¿Algo más?",
-      "🤔 No reconozco '{item}'. ¿Revisar nuestra selección de frutas y verduras frescas?"
+      "🤔 Hmm, no encuentro '{item}'. Tenemos frutas, verduras y jugos frescos. ¿Otro nombre?",
+      "🤔 '{item}' no está en nuestra lista. ¿Verificar el nombre?",
+      "🤔 No reconozco '{item}'. Solo vendemos productos frescos."
     ]
   },
   greeting_response: {
-    pap: "Kon ta! Dre aki 👋 Ki fruta òf bèrdura bo ke pidi awe? 🥬",
-    en: "Hey there! Dre here 👋 What fresh produce would you like to order today? 🥬",
-    nl: "Hoi! Dre hier 👋 Welke verse groente of fruit wil je vandaag bestellen? 🥬",
-    es: "¡Hola! Dre aquí 👋 ¿Qué productos frescos te gustaría pedir hoy? 🥬"
+    pap: [
+      "Kon ta! Dre aki 👋 Ki fruta òf bèrdura bo ke pidi awe? 🥬",
+      "Hola! 👋 Dre ta kla pa yuda. Kiko bo mester? 🥕",
+      "Bon dia/tardi/nochi! Dre aki. Ki produkto frèsku bo ke? 🍎"
+    ],
+    en: [
+      "Hey! Dre here 👋 What fresh produce would you like today? 🥬",
+      "Hello! 👋 Dre's ready to help. What do you need? 🥕",
+      "Hi there! Dre speaking. What fresh stuff can I get you? 🍎"
+    ],
+    nl: [
+      "Hoi! Dre hier 👋 Welke verse groente of fruit wil je vandaag? 🥬",
+      "Hallo! 👋 Dre staat klaar. Wat heb je nodig? 🥕",
+      "Hey! Dre aan de lijn. Wat voor vers kan ik regelen? 🍎"
+    ],
+    es: [
+      "¡Hola! Dre aquí 👋 ¿Qué productos frescos necesitas hoy? 🥬",
+      "¡Hey! 👋 Dre listo para ayudar. ¿Qué necesitas? 🥕",
+      "¡Hola! Dre aquí. ¿Qué frescos te consigo? 🍎"
+    ]
   },
   cancel_item_success: {
     pap: "🚫 Oke, Dre a kita '{item}' for di bo orden.",
@@ -88,10 +173,22 @@ const RESPONSE_TEMPLATES = {
     es: "⚠️ Ups, tu pedido fue realizado hace más de {hours} horas. Por favor llámanos para cancelar."
   },
   no_recent_order: {
-    pap: "🤔 Dre no por haña ningun orden resien pa bo. Bo ke pidi algo nobo?",
-    en: "🤔 Dre couldn't find any recent order for you. Would you like to place a new order?",
-    nl: "🤔 Dre kon geen recente bestelling voor je vinden. Wil je een nieuwe bestelling plaatsen?",
-    es: "🤔 Dre no pudo encontrar ningún pedido reciente tuyo. ¿Te gustaría hacer uno nuevo?"
+    pap: [
+      "🤔 Mi no por haña ningun orden resien pa bo. Bo ke pidi algo nobo?",
+      "🤔 Bo no tin orden aktivo. Laga mi sa kiko bo ke pidi!"
+    ],
+    en: [
+      "🤔 I couldn't find any recent order for you. Want to place a new one?",
+      "🤔 No active order found. Let me know what you'd like to order!"
+    ],
+    nl: [
+      "🤔 Ik kon geen recente bestelling vinden. Wil je een nieuwe plaatsen?",
+      "🤔 Geen actieve bestelling gevonden. Laat weten wat je wilt bestellen!"
+    ],
+    es: [
+      "🤔 No encontré ningún pedido reciente tuyo. ¿Quieres hacer uno nuevo?",
+      "🤔 Sin pedido activo. ¡Dime qué quieres pedir!"
+    ]
   },
   existing_order_today: {
     pap: "📦 Bo tin un orden pa awe kaba ({order_number}). E produktonan nobo ta pa e mesun orden, òf pa mañan?",
@@ -125,10 +222,22 @@ const RESPONSE_TEMPLATES = {
   },
   // Human escalation request responses
   human_escalation: {
-    pap: "👤 Sin problema! Mi ta pasa bo na un di nos ekipo. Un momento por fabor, nan lo kontaktá bo pronto.",
-    en: "👤 No problem! I'm connecting you with our team. One moment please, they'll reach out shortly.",
-    nl: "👤 Geen probleem! Ik verbind je met ons team. Even geduld, ze nemen snel contact op.",
-    es: "👤 ¡Sin problema! Te estoy conectando con nuestro equipo. Un momento, te contactarán pronto."
+    pap: [
+      "👤 Sin problema! Mi ta pasa bo na nos team. Un momento...",
+      "👤 Oke! Dre ta konektá bo ku nos ekipo. Nan lo kontaktá bo pronto."
+    ],
+    en: [
+      "👤 No problem! Connecting you with our team. One moment...",
+      "👤 Sure! Dre's getting someone for you. They'll reach out shortly."
+    ],
+    nl: [
+      "👤 Geen probleem! Ik verbind je met ons team. Even geduld...",
+      "👤 Oké! Dre regelt iemand voor je. Ze nemen snel contact op."
+    ],
+    es: [
+      "👤 ¡Sin problema! Conectándote con nuestro equipo. Un momento...",
+      "👤 ¡Claro! Dre te conecta con alguien. Te contactarán pronto."
+    ]
   },
   human_escalation_team: {
     pap: "🆘 Kliente {customer_name} ({phone}) ta pidi pa papia ku un hende. Mensahe original: \"{message}\"\n\nPor fabor kontakta nan.",
@@ -138,18 +247,74 @@ const RESPONSE_TEMPLATES = {
   },
   // Complaint escalation (direct message to management)
   complaint_customer: {
-    pap: "Mi ta sinti esaki, {customer_name}. Mi ta notifiká maneho awor mesora. Nan lo kontaktá bo pronto pa resolve esaki. 🙏",
-    en: "I hear you, {customer_name}. I'm notifying management right now. They'll reach out to you shortly to resolve this. 🙏",
-    nl: "Ik begrijp het, {customer_name}. Ik breng nu management op de hoogte. Ze nemen snel contact met je op. 🙏",
-    es: "Te escucho, {customer_name}. Estoy notificando a gerencia ahora. Te contactarán pronto para resolverlo. 🙏"
+    pap: [
+      "Mi ta sinti esaki, {customer_name}. Mi ta notifiká maneho awor mesora. Nan lo kontaktá bo pronto. 🙏",
+      "Mi ta komprendé, {customer_name}. Mi ta informá management. Bo lo risibi yamada pronto. 🙏"
+    ],
+    en: [
+      "I hear you, {customer_name}. I'm notifying management now. They'll reach out shortly. 🙏",
+      "I understand, {customer_name}. Getting management involved. You'll hear from them soon. 🙏"
+    ],
+    nl: [
+      "Ik begrijp het, {customer_name}. Ik breng management op de hoogte. Ze nemen snel contact op. 🙏",
+      "Ik hoor je, {customer_name}. Management wordt geïnformeerd. Je hoort snel van hen. 🙏"
+    ],
+    es: [
+      "Te escucho, {customer_name}. Notificando a gerencia. Te contactarán pronto. 🙏",
+      "Entiendo, {customer_name}. Informando a gerencia. Te contactarán pronto. 🙏"
+    ]
   },
   complaint_team: {
     pap: "⚠️ *Kliente kla* - {customer_name}\n📱 {phone}\n\n*Mensahe:*\n\"{message}\"\n\n*Orden:* {order_info}\n\nPor fabor kontakta kliente lo mas lihe posibel.",
     en: "⚠️ *Customer Complaint* - {customer_name}\n📱 {phone}\n\n*Message:*\n\"{message}\"\n\n*Order:* {order_info}\n\nPlease contact customer ASAP.",
     nl: "⚠️ *Klacht klant* - {customer_name}\n📱 {phone}\n\n*Bericht:*\n\"{message}\"\n\n*Bestelling:* {order_info}\n\nNeem zsm contact op met klant.",
     es: "⚠️ *Queja de cliente* - {customer_name}\n📱 {phone}\n\n*Mensaje:*\n\"{message}\"\n\n*Pedido:* {order_info}\n\nContactar al cliente lo antes posible."
+  },
+  // Session abandoned responses (when user says no to order)
+  session_abandoned: {
+    pap: [
+      "Oke, ningun problema! Laga mi sa ora bo ta kla pa order. 👋",
+      "Ta bon! Mi ta keda den tòko. Yama mi ora bo mester algo! 👋"
+    ],
+    en: [
+      "No problem! Let me know when you're ready to order. 👋",
+      "All good! I'm here when you need me. 👋"
+    ],
+    nl: [
+      "Geen probleem! Laat me weten wanneer je klaar bent. 👋",
+      "Prima! Ik ben er als je me nodig hebt. 👋"
+    ],
+    es: [
+      "¡Sin problema! Avísame cuando estés listo para pedir. 👋",
+      "¡Todo bien! Aquí estoy cuando me necesites. 👋"
+    ]
   }
 };
+
+// Helper to get template (handles arrays for random variation)
+function getTemplate(template: string | string[], language: string, replacements?: Record<string, string>): string {
+  const langTemplates = template as unknown;
+  let text: string;
+  
+  if (Array.isArray(langTemplates)) {
+    text = pickRandom(langTemplates as string[]);
+  } else if (typeof langTemplates === 'object' && langTemplates !== null) {
+    const langObj = langTemplates as Record<string, string | string[]>;
+    const langValue = langObj[language] || langObj['pap'];
+    text = Array.isArray(langValue) ? pickRandom(langValue) : langValue;
+  } else {
+    text = langTemplates as string;
+  }
+  
+  // Apply replacements
+  if (replacements) {
+    for (const [key, value] of Object.entries(replacements)) {
+      text = text.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
+    }
+  }
+  
+  return text;
+}
 
 // Language detection patterns
 // Note: FUIK sells fresh produce (fruits, vegetables, juices) - NOT fish/meat
@@ -669,7 +834,8 @@ Deno.serve(async (req) => {
       console.log('Customer requesting human escalation');
       
       // Send acknowledgment to customer
-      const customerMsg = RESPONSE_TEMPLATES.human_escalation[language as keyof typeof RESPONSE_TEMPLATES.human_escalation];
+      const humanEscTemplates = RESPONSE_TEMPLATES.human_escalation[language as keyof typeof RESPONSE_TEMPLATES.human_escalation];
+      const customerMsg = Array.isArray(humanEscTemplates) ? pickRandom(humanEscTemplates) : humanEscTemplates;
       await sendWhatsAppMessage(customer_phone, customerMsg);
       
       // Get management team member to notify
@@ -757,7 +923,8 @@ Deno.serve(async (req) => {
         : 'No recent order';
       
       // Send acknowledgment to customer
-      const customerMsgTemplate = RESPONSE_TEMPLATES.complaint_customer[language as keyof typeof RESPONSE_TEMPLATES.complaint_customer];
+      const complaintTemplates = RESPONSE_TEMPLATES.complaint_customer[language as keyof typeof RESPONSE_TEMPLATES.complaint_customer];
+      const customerMsgTemplate = Array.isArray(complaintTemplates) ? pickRandom(complaintTemplates) : complaintTemplates;
       const customerMsg = customerMsgTemplate.replace('{customer_name}', customer_name?.split(' ')[0] || 'friend');
       await sendWhatsAppMessage(customer_phone, customerMsg);
       
@@ -1065,13 +1232,14 @@ Deno.serve(async (req) => {
         });
         
         // Send confirmation request
-        const parsedItems = recentConvo[0].parsed_items as Array<{ product_name: string; quantity: number; unit_price: number }>;
+        const parsedItems = recentConvo[0].parsed_items as Array<{ product_name: string; quantity: number; unit?: string; unit_price: number }>;
         const itemsList = parsedItems.map(item => 
-          `• ${item.quantity}x ${item.product_name}`
+          item.unit ? `• ${item.quantity} ${item.unit} ${item.product_name}` : `• ${item.quantity}x ${item.product_name}`
         ).join('\n');
         
-        const recapMsg = RESPONSE_TEMPLATES.order_recap[language as keyof typeof RESPONSE_TEMPLATES.order_recap]
-          .replace('{items}', itemsList) + 
+        const recapTemplates = RESPONSE_TEMPLATES.order_recap[language as keyof typeof RESPONSE_TEMPLATES.order_recap];
+        const recapTemplate = Array.isArray(recapTemplates) ? pickRandom(recapTemplates) : recapTemplates;
+        const recapMsg = recapTemplate.replace('{items}', itemsList) + 
           (language === 'pap' ? '\n\n📦 Esaki lo wordo agregá na bo orden di awe.' :
            language === 'nl' ? '\n\n📦 Dit wordt toegevoegd aan uw bestelling van vandaag.' :
            language === 'es' ? '\n\n📦 Esto se agregará a tu pedido de hoy.' :
@@ -1114,13 +1282,14 @@ Deno.serve(async (req) => {
         });
         
         // Send confirmation request
-        const parsedItems = recentConvo[0].parsed_items as Array<{ product_name: string; quantity: number; unit_price: number }>;
+        const parsedItems = recentConvo[0].parsed_items as Array<{ product_name: string; quantity: number; unit?: string; unit_price: number }>;
         const itemsList = parsedItems.map(item => 
-          `• ${item.quantity}x ${item.product_name}`
+          item.unit ? `• ${item.quantity} ${item.unit} ${item.product_name}` : `• ${item.quantity}x ${item.product_name}`
         ).join('\n');
         
-        const recapMsg = RESPONSE_TEMPLATES.order_recap[language as keyof typeof RESPONSE_TEMPLATES.order_recap]
-          .replace('{items}', itemsList) + 
+        const recapTemplates = RESPONSE_TEMPLATES.order_recap[language as keyof typeof RESPONSE_TEMPLATES.order_recap];
+        const recapTemplate = Array.isArray(recapTemplates) ? pickRandom(recapTemplates) : recapTemplates;
+        const recapMsg = recapTemplate.replace('{items}', itemsList) + 
           (language === 'pap' ? '\n\n📅 Esaki ta pa mañan.' :
            language === 'nl' ? '\n\n📅 Dit is voor morgen.' :
            language === 'es' ? '\n\n📅 Esto es para mañana.' :
@@ -1281,8 +1450,9 @@ Deno.serve(async (req) => {
           }
           
           // Send confirmation
-          const template = isAdditionConfirmation ? RESPONSE_TEMPLATES.addition_confirmed : RESPONSE_TEMPLATES.order_confirmed;
-          const confirmMsg = template[language as keyof typeof template];
+          const templateObj = isAdditionConfirmation ? RESPONSE_TEMPLATES.addition_confirmed : RESPONSE_TEMPLATES.order_confirmed;
+          const templateArr = templateObj[language as keyof typeof templateObj];
+          const confirmMsg = Array.isArray(templateArr) ? pickRandom(templateArr) : templateArr;
           await sendWhatsAppMessage(customer_phone, confirmMsg);
           
           // Store outbound message
@@ -1327,9 +1497,11 @@ Deno.serve(async (req) => {
       
       if (isNewCustomer) {
         // Welcome new customer
-        response = RESPONSE_TEMPLATES.welcome_new[language as keyof typeof RESPONSE_TEMPLATES.welcome_new];
+        const welcomeTemplates = RESPONSE_TEMPLATES.welcome_new[language as keyof typeof RESPONSE_TEMPLATES.welcome_new];
+        response = Array.isArray(welcomeTemplates) ? pickRandom(welcomeTemplates) : welcomeTemplates;
       } else {
-        response = RESPONSE_TEMPLATES.greeting_response[language as keyof typeof RESPONSE_TEMPLATES.greeting_response];
+        const greetTemplates = RESPONSE_TEMPLATES.greeting_response[language as keyof typeof RESPONSE_TEMPLATES.greeting_response];
+        response = Array.isArray(greetTemplates) ? pickRandom(greetTemplates) : greetTemplates;
       }
       
       await sendWhatsAppMessage(customer_phone, response);
@@ -1413,7 +1585,8 @@ Deno.serve(async (req) => {
           
           await supabase.from('distribution_order_items').insert(orderItems);
           
-          const confirmMsg = RESPONSE_TEMPLATES.order_confirmed[language as keyof typeof RESPONSE_TEMPLATES.order_confirmed];
+          const confirmTemplates = RESPONSE_TEMPLATES.order_confirmed[language as keyof typeof RESPONSE_TEMPLATES.order_confirmed];
+          const confirmMsg = Array.isArray(confirmTemplates) ? pickRandom(confirmTemplates) : confirmTemplates;
           await sendWhatsAppMessage(customer_phone, confirmMsg);
           
           await supabase.from('whatsapp_messages').insert({
@@ -1468,7 +1641,8 @@ Deno.serve(async (req) => {
     if (parsedItems.length === 0) {
       // Check if they're trying to cancel but no order found
       if ((isCancelOrder || isCancelItem) && !recentOrder) {
-        const msg = RESPONSE_TEMPLATES.no_recent_order[language as keyof typeof RESPONSE_TEMPLATES.no_recent_order];
+        const noOrderTemplates = RESPONSE_TEMPLATES.no_recent_order[language as keyof typeof RESPONSE_TEMPLATES.no_recent_order];
+        const msg = Array.isArray(noOrderTemplates) ? pickRandom(noOrderTemplates) : noOrderTemplates;
         await sendWhatsAppMessage(customer_phone, msg);
         
         return new Response(JSON.stringify({ 
@@ -1482,9 +1656,11 @@ Deno.serve(async (req) => {
       // No items found, send welcome/help message
       let response: string;
       if (isNewCustomer) {
-        response = RESPONSE_TEMPLATES.welcome_new[language as keyof typeof RESPONSE_TEMPLATES.welcome_new];
+        const welcomeTemplates = RESPONSE_TEMPLATES.welcome_new[language as keyof typeof RESPONSE_TEMPLATES.welcome_new];
+        response = Array.isArray(welcomeTemplates) ? pickRandom(welcomeTemplates) : welcomeTemplates;
       } else {
-        response = RESPONSE_TEMPLATES.greeting_response[language as keyof typeof RESPONSE_TEMPLATES.greeting_response];
+        const greetTemplates = RESPONSE_TEMPLATES.greeting_response[language as keyof typeof RESPONSE_TEMPLATES.greeting_response];
+        response = Array.isArray(greetTemplates) ? pickRandom(greetTemplates) : greetTemplates;
       }
       
       await sendWhatsAppMessage(customer_phone, response);
@@ -1503,6 +1679,7 @@ Deno.serve(async (req) => {
       product_id: string; 
       product_name: string; 
       quantity: number; 
+      unit?: string; // kg, lb, etc.
       unit_price: number;
       confidence: number;
       matchSource: string;
@@ -1523,6 +1700,7 @@ Deno.serve(async (req) => {
           product_id: product.id,
           product_name: product.name,
           quantity: item.quantity,
+          unit: item.unit, // Preserve unit from parsing (kg, lb, etc.)
           unit_price: product.price_xcg || 0,
           confidence,
           matchSource
@@ -1654,13 +1832,14 @@ Deno.serve(async (req) => {
     const intentType = isAddition && recentOrder ? 'addition_recap' : 'order_recap';
     
     if (matchedItems.length > 0) {
-      // Build order recap
+      // Build order recap with proper unit display
       const itemsList = matchedItems.map(item => 
-        `• ${item.quantity}x ${item.product_name}`
+        item.unit ? `• ${item.quantity} ${item.unit} ${item.product_name}` : `• ${item.quantity}x ${item.product_name}`
       ).join('\n');
       
-      responseMessage = RESPONSE_TEMPLATES.order_recap[language as keyof typeof RESPONSE_TEMPLATES.order_recap]
-        .replace('{items}', itemsList);
+      const recapTemplates = RESPONSE_TEMPLATES.order_recap[language as keyof typeof RESPONSE_TEMPLATES.order_recap];
+      const recapTemplate = Array.isArray(recapTemplates) ? pickRandom(recapTemplates) : recapTemplates;
+      responseMessage = recapTemplate.replace('{items}', itemsList);
       
       // Add note if this is an addition
       if (isAddition && recentOrder) {
