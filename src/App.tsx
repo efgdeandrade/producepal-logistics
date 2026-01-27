@@ -65,6 +65,7 @@ import FnbEmailTemplates from "./pages/fnb/FnbEmailTemplates";
 import FnbWhatsAppInbox from "./pages/fnb/FnbWhatsAppInbox";
 import FnbDreCommandCenter from "./pages/fnb/FnbDreCommandCenter";
 import FnbDreMobile from "./pages/fnb/FnbDreMobile";
+import DreApp from "./pages/DreApp";
 
 // Logistics Department
 import LogisticsDashboard from "./pages/LogisticsDashboard";
@@ -231,6 +232,15 @@ const App = () => (
                   {/* Legal Pages - Public, no auth required */}
                   <Route path="/privacy" element={<PrivacyPolicy />} />
                   <Route path="/eula" element={<EULA />} />
+                  
+                  {/* Dre Command Center - Standalone App */}
+                  <Route path="/dre" element={
+                    <ProtectedRoute>
+                      <PasswordChangeRequired>
+                        <DreApp />
+                      </PasswordChangeRequired>
+                    </ProtectedRoute>
+                  } />
 
                   {/* Executive Dashboard - Full layout */}
                   <Route path="/" element={<ProtectedWithLayout><ExecutiveDashboard /></ProtectedWithLayout>} />
