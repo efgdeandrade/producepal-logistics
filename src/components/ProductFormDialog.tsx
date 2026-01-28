@@ -4,6 +4,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SupplierPricingSection, SupplierPriceEntry } from '@/components/SupplierPricingSection';
+import { Badge } from '@/components/ui/badge';
+import { Sparkles } from 'lucide-react';
 
 interface ProductFormData {
   code: string;
@@ -103,12 +105,20 @@ export const ProductFormDialog = ({
         <div className="space-y-4 py-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="code">Product Code *</Label>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="code">Product Code *</Label>
+                {!editingProduct && formData.code.startsWith('IMP-') && (
+                  <Badge variant="secondary" className="text-xs gap-1">
+                    <Sparkles className="h-3 w-3" />
+                    Auto-generated
+                  </Badge>
+                )}
+              </div>
               <Input
                 id="code"
                 value={formData.code}
                 onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                placeholder="e.g., BLB_125"
+                placeholder="e.g., IMP-003510"
                 required
               />
             </div>

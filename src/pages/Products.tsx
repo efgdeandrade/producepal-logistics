@@ -102,6 +102,30 @@ const Products = () => {
     height_cm: '',
   });
 
+  // Generate product code for new products
+  const generateProductCode = async (): Promise<string> => {
+    const { data } = await supabase
+      .from('products')
+      .select('code')
+      .order('code', { ascending: false })
+      .limit(200);
+    
+    let maxNum = 0;
+    data?.forEach(p => {
+      // Match IMP-XXXXXX format
+      const impMatch = p.code.match(/^IMP-(\d+)$/);
+      // Match pure numeric codes
+      const numMatch = p.code.match(/^(\d+)/);
+      if (impMatch) {
+        maxNum = Math.max(maxNum, parseInt(impMatch[1]));
+      } else if (numMatch) {
+        maxNum = Math.max(maxNum, parseInt(numMatch[1]));
+      }
+    });
+    
+    return `IMP-${String(maxNum + 1).padStart(6, '0')}`;
+  };
+
   const handleOpenDialog = async (product: Product | null = null) => {
     if (product) {
       setEditingProduct(product);
@@ -151,8 +175,12 @@ const Products = () => {
     } else {
       setEditingProduct(null);
       setSupplierPrices([]);
+      
+      // Generate product code for new products
+      const generatedCode = await generateProductCode();
+      
       setFormData({
-        code: '',
+        code: generatedCode,
         name: '',
         pack_size: '',
         supplier_id: '',
