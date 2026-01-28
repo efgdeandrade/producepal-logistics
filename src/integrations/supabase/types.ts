@@ -3984,6 +3984,7 @@ export type Database = {
           customer_name: string
           customer_notes: string | null
           id: string
+          is_from_stock: boolean | null
           order_id: string
           po_number: string | null
           product_code: string
@@ -3995,6 +3996,7 @@ export type Database = {
           customer_name: string
           customer_notes?: string | null
           id?: string
+          is_from_stock?: boolean | null
           order_id: string
           po_number?: string | null
           product_code: string
@@ -4006,6 +4008,7 @@ export type Database = {
           customer_name?: string
           customer_notes?: string | null
           id?: string
+          is_from_stock?: boolean | null
           order_id?: string
           po_number?: string | null
           product_code?: string
