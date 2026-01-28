@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -23,14 +23,24 @@ import { DreConversationList } from '@/components/dre/DreConversationList';
 import { DreConversationDetail } from '@/components/dre/DreConversationDetail';
 import { playOrderNotificationSound } from '@/utils/audioNotification';
 import { supabase } from '@/integrations/supabase/client';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function FnbDreCommandCenter() {
+  const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { conversations, isLoading } = useDreConversations();
   const [selectedConversation, setSelectedConversation] = useState<DreConversation | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'urgent' | 'waiting' | 'taken_over'>('all');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const queryClient = useQueryClient();
+
+  // On mobile, Dre should run as the standalone app at /dre (not inside the Distribution portal UI).
+  useEffect(() => {
+    if (isMobile) {
+      navigate('/dre', { replace: true });
+    }
+  }, [isMobile, navigate]);
 
   // Filter conversations
   const filteredConversations = (conversations || []).filter((c) => {
@@ -164,9 +174,9 @@ export default function FnbDreCommandCenter() {
             )}
           </Button>
           <Button variant="outline" asChild>
-            <Link to="/distribution/dre-mobile">
+            <Link to="/dre">
               <Smartphone className="h-4 w-4 mr-2" />
-              Mobile App
+              Open Dre App
             </Link>
           </Button>
           <Button variant="outline" onClick={handleRefresh}>

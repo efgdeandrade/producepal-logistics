@@ -83,6 +83,8 @@ const hiddenRoutes = [
   '/offline',
   '/logistics/driver-mobile',
   '/fnb/driver-mobile',
+  // Standalone apps (should not show the main FUIK bottom nav)
+  '/dre',
 ];
 
 export const BottomNavigation = () => {
