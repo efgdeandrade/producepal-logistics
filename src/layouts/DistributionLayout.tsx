@@ -88,7 +88,7 @@ export function DistributionLayout({ children }: DistributionLayoutProps) {
         </header>
 
         {/* Mobile Main Content - prevent horizontal scroll */}
-        <main className="flex-1 pb-20 overflow-x-hidden w-full">
+        <main className="flex-1 pb-20 p-4 overflow-x-hidden w-full">
           <div className="w-full max-w-full overflow-x-hidden">
             {children}
           </div>
@@ -127,7 +127,7 @@ export function DistributionLayout({ children }: DistributionLayoutProps) {
           </header>
 
           {/* Desktop Main Content */}
-          <main className="flex-1">
+          <main className="flex-1 p-4 md:p-6">
             {children}
           </main>
         </SidebarInset>

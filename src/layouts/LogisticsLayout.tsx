@@ -58,7 +58,7 @@ export function LogisticsLayout({ children }: LogisticsLayoutProps) {
         </header>
 
         {/* Mobile Main Content */}
-        <main className="flex-1 pb-20">
+        <main className="flex-1 pb-20 p-4">
           {children}
         </main>
 
@@ -95,7 +95,7 @@ export function LogisticsLayout({ children }: LogisticsLayoutProps) {
           </header>
 
           {/* Desktop Main Content */}
-          <main className="flex-1">
+          <main className="flex-1 p-4 md:p-6">
             {children}
           </main>
         </SidebarInset>
