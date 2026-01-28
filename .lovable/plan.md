@@ -1,140 +1,117 @@
 
-# Import Department Enhancement Plan
 
-## Summary
+# Import Department AI Enhancement Plan
 
-Enhance the Import department with full CRUD capabilities for bills, functional document management with storage integration, real analytics with historical data, and import-specific reporting. This plan addresses the four key gaps you identified.
+## Current AI Capabilities Assessment
 
----
+### Existing AI Edge Functions
+| Function | Purpose | Model Used | Status |
+|----------|---------|------------|--------|
+| `cif-advisor` | CIF allocation strategy recommendations | Gemini 2.5 Pro | Active, integrated in CIF Calculator |
+| `cif-learning-engine` | Analyze historical CIF variances, generate adjustment patterns | Gemini 2.5 Flash | Available but not surfaced in UI |
+| `document-parser` | Extract data from warehouse receipts and freight invoices | Gemini 2.5 Flash | Active |
+| `market-price-advisor` | Research Curacao grocery prices for wholesale/retail positioning | Gemini 2.5 Pro | Active |
+| `volumetric-weight-advisor` | Optimize freight costs via volumetric weight analysis | Gemini 2.5 Flash | Active |
 
-## Phase 1: Bills/Expenses Management
+### UI Components with AI
+- `CIFLearningInsights.tsx` - Displays learning patterns but **not integrated** into any Import page
+- `DitoAdvisor.tsx` - Volumetric recommendations, integrated in CIF flow
 
-**Current State:** Read-only table, no create/edit functionality, no payment tracking
-
-**Enhancements:**
-
-### 1.1 Add Bill Dialog Component
-Create `src/components/import/AddBillDialog.tsx`:
-- Form fields: Bill number, vendor (dropdown from suppliers), date, due date, amount, currency, status, notes
-- Validation with zod schema
-- Support for both create and edit modes
-
-### 1.2 Payment Status Enhancement
-Database migration to add `payment_status` column to bills table:
-- Values: `unpaid`, `partial`, `paid`
-- Add `paid_date` and `paid_amount` columns for tracking
-
-### 1.3 Update ImportBills Page
-- Add "Add Bill" button in header
-- Add row actions (Edit, Delete, Mark as Paid)
-- Add payment status badge column
-- Add filters for status/payment
-- Add overdue indicator (highlight bills past due_date that are unpaid)
-
-### 1.4 Aging Report Card
-Add aging summary showing:
-- Current (not yet due)
-- 1-30 days overdue
-- 31-60 days overdue
-- 60+ days overdue
+### Gaps Identified
+1. **No AI Insights Panel in Import Analytics** - Charts show data but no AI-driven cost optimization recommendations
+2. **CIF Learning Engine UI disconnected** - Component exists but not accessible from Import sidebar
+3. **No Document Auto-Classification** - Uploaded documents require manual category selection
+4. **No Supplier Performance AI** - The Suppliers page has no AI-driven reliability or cost efficiency analysis
+5. **No Predictive Analytics** - No landed cost forecasting, exchange rate predictions, or demand forecasting
 
 ---
 
-## Phase 2: Document Management
+## Phase 1: Import AI Insights Dashboard
 
-**Current State:** Static placeholders, non-functional upload
+**Goal:** Add an AI-powered insights panel to Import Analytics that surfaces actionable cost optimization recommendations.
 
-**Enhancements:**
+### 1.1 Create AI Insights Edge Function
+Create `supabase/functions/import-ai-insights/index.ts`:
+- Aggregate data from CIF calculations, bills, orders, and suppliers
+- Analyze spending patterns, cost trends, supplier efficiency
+- Generate structured insights including:
+  - Cost optimization opportunities
+  - Supplier performance rankings
+  - Freight efficiency recommendations
+  - Margin improvement suggestions
+  - Anomaly detection (unusual cost spikes)
 
-### 2.1 Database Table
-Create `import_documents` table:
-- `id`, `file_name`, `file_path`, `file_type`, `file_size`
-- `category` (customs, airwaybill, commercial, packing, certificates, phyto, other)
-- `order_id` (optional FK to orders)
-- `shipment_id` (optional FK for future shipments table)
-- `uploaded_by`, `created_at`, `notes`
+### 1.2 Create Import AI Insights Component
+Create `src/components/import/ImportAIInsightsPanel.tsx`:
+- "Generate Insights" button to trigger AI analysis
+- Display structured recommendations in cards
+- Categories: Opportunities, Warnings, Improvements
+- Show confidence scores and supporting data
 
-### 2.2 Storage Bucket
-Create `import-documents` storage bucket with appropriate RLS policies
-
-### 2.3 Upload Document Dialog
-Create `src/components/import/UploadDocumentDialog.tsx`:
-- File picker with drag-and-drop
-- Category selection
-- Optional order linking (dropdown)
-- Notes field
-
-### 2.4 Update ImportDocuments Page
-- Wire Upload button to dialog
-- Fetch documents from database
-- Display in table with: file name, category, linked order, upload date
-- Row actions: Download, Delete, View (for PDFs/images)
-- Update category cards with real counts
+### 1.3 Integrate into Import Analytics
+Update `src/pages/import/ImportAnalytics.tsx`:
+- Add the AI Insights Panel at the top of the page
+- Position as the primary strategic tool before charts
 
 ---
 
-## Phase 3: Analytics Depth
+## Phase 2: CIF Learning Engine Integration
 
-**Current State:** Static mock data for monthly chart, no cost/margin analysis
+**Goal:** Surface the existing CIF Learning Engine in the Import department UI for continuous cost improvement.
 
-**Enhancements:**
+### 2.1 Add CIF Learning to Import Sidebar
+Update `src/layouts/ImportLayout.tsx`:
+- Add "AI Learning" nav item linking to a dedicated page
 
-### 3.1 Replace Mock Data with Real Queries
-Update ImportAnalytics.tsx to:
-- Query CIF calculations grouped by month
-- Calculate actual monthly trends from `created_at` field
-
-### 3.2 Add Cost Trend Charts
-New chart section showing:
-- Freight costs over time (from CIF calculations)
-- Average CIF per kg/unit trends
-- Exchange rate trends
-
-### 3.3 Add Supplier Performance Metrics
-New card section:
-- Orders per supplier
-- Average order value by supplier
-- Lead time analysis (if shipment dates tracked)
-
-### 3.4 Add Margin Analysis
-Create margin insights from CIF data:
-- Cost breakdown: FOB, Freight, Insurance, Duties
-- Margin % by calculation type
-- Comparison of allocated methods
+### 2.2 Create CIF Learning Page
+Create `src/pages/import/ImportCIFLearning.tsx`:
+- Import and display the existing `CIFLearningInsights` component
+- Add contextual header explaining the learning engine
+- Show historical accuracy metrics
+- Display adjustment factor recommendations
 
 ---
 
-## Phase 4: Import-Specific Reports
+## Phase 3: Supplier Performance AI Advisor
 
-**Current State:** Report templates focus on distribution/sales, no import category
+**Goal:** Add AI-driven supplier analysis to help procurement decisions.
 
-**Enhancements:**
+### 3.1 Create Supplier Performance Advisor Edge Function
+Create `supabase/functions/supplier-performance-advisor/index.ts`:
+- Analyze order history per supplier
+- Calculate delivery reliability (on-time rate)
+- Calculate cost efficiency (price trends, value for money)
+- Compare weight accuracy (estimated vs actual)
+- Generate supplier rankings and recommendations
 
-### 4.1 Add "import" Category to Report Templates
-Update `src/lib/reportTemplates.ts` to include:
+### 3.2 Create Supplier AI Panel Component
+Create `src/components/import/SupplierAIPanel.tsx`:
+- Display supplier performance scores
+- Show AI recommendations (e.g., "Consider consolidating orders with Supplier X for volume discounts")
+- Highlight suppliers with declining performance
 
-**Supplier Spend Report:**
-- Total spend by supplier
-- Breakdown by product category
-- Trend over time
+### 3.3 Integrate into Suppliers Page
+Update `src/pages/Suppliers.tsx`:
+- Add AI panel at the top or as a dedicated tab
+- Allow analysis on-demand or for specific supplier
 
-**Landed Cost Analysis Report:**
-- CIF breakdown (FOB, Freight, Insurance, Duties)
-- Average landed cost per product
-- Comparison by supplier
+---
 
-**Bill Aging Report:**
-- Outstanding bills by age bracket
-- Vendor-wise breakdown
-- Payment trend analysis
+## Phase 4: Document Auto-Classification (Optional Enhancement)
 
-**Shipment Status Report:**
-- Active shipments by status
-- ETD/ETA tracking
-- Supplier performance metrics
+**Goal:** Automatically categorize uploaded documents using AI vision.
 
-### 4.2 Update Report Library Category Labels
-Add "import" category with label "Import" and description "Supplier spend, landed costs, and bills"
+### 4.1 Enhance Document Upload Flow
+Update `src/hooks/useImportDocuments.ts`:
+- After upload, optionally call AI to classify document type
+- Use document-parser with classification prompt
+- Auto-fill category dropdown based on AI suggestion
+
+### 4.2 Update Upload Dialog
+Update `src/components/import/UploadDocumentDialog.tsx`:
+- Add "Auto-detect category" toggle
+- Show AI-suggested category with confidence
+- Allow user to confirm or override
 
 ---
 
@@ -142,68 +119,75 @@ Add "import" category with label "Import" and description "Supplier spend, lande
 
 | File | Purpose |
 |------|---------|
-| `src/components/import/AddBillDialog.tsx` | Create/edit bill form dialog |
-| `src/components/import/UploadDocumentDialog.tsx` | Document upload with category selection |
-| `src/hooks/useImportDocuments.ts` | Hook for document CRUD operations |
+| `supabase/functions/import-ai-insights/index.ts` | AI-powered cost optimization insights |
+| `supabase/functions/supplier-performance-advisor/index.ts` | Supplier reliability and efficiency analysis |
+| `src/components/import/ImportAIInsightsPanel.tsx` | Display AI recommendations in analytics |
+| `src/components/import/SupplierAIPanel.tsx` | Supplier performance AI widget |
+| `src/pages/import/ImportCIFLearning.tsx` | Dedicated page for CIF learning engine |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/import/ImportBills.tsx` | Add button, row actions, payment tracking, aging cards |
-| `src/pages/import/ImportDocuments.tsx` | Wire upload, display documents from DB |
-| `src/pages/import/ImportAnalytics.tsx` | Replace mock data, add cost/supplier/margin charts |
-| `src/lib/reportTemplates.ts` | Add import category and 4 new templates |
-| `src/pages/ReportLibrary.tsx` | Add import category to labels |
-
-## Database Changes
-
-```sql
--- Add payment tracking to bills
-ALTER TABLE bills 
-ADD COLUMN payment_status text DEFAULT 'unpaid',
-ADD COLUMN paid_date date,
-ADD COLUMN paid_amount numeric DEFAULT 0;
-
--- Create import documents table
-CREATE TABLE import_documents (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  file_name text NOT NULL,
-  file_path text NOT NULL,
-  file_type text,
-  file_size integer,
-  category text NOT NULL,
-  order_id uuid REFERENCES orders(id),
-  notes text,
-  uploaded_by uuid REFERENCES auth.users(id),
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-
--- Enable RLS
-ALTER TABLE import_documents ENABLE ROW LEVEL SECURITY;
-
--- Create storage bucket
-INSERT INTO storage.buckets (id, name, public) 
-VALUES ('import-documents', 'import-documents', false);
-```
+| `src/pages/import/ImportAnalytics.tsx` | Add ImportAIInsightsPanel component |
+| `src/pages/Suppliers.tsx` | Add SupplierAIPanel component |
+| `src/layouts/ImportLayout.tsx` | Add "AI Learning" nav item to sidebar |
+| `src/components/import/UploadDocumentDialog.tsx` | Optional: Add auto-classification toggle |
+| `src/hooks/useImportDocuments.ts` | Optional: Add AI classification call after upload |
 
 ---
 
 ## Implementation Order
 
-1. **Database migrations** - Add payment columns, create documents table and bucket
-2. **Bills enhancements** - AddBillDialog, update ImportBills page
-3. **Documents functionality** - UploadDocumentDialog, wire ImportDocuments page
-4. **Analytics real data** - Replace mock charts, add new metric sections
-5. **Report templates** - Add import category and templates
+1. **Phase 1** - Import AI Insights (highest value)
+   - Create edge function for aggregated analysis
+   - Build insights panel component
+   - Integrate into Import Analytics page
+
+2. **Phase 2** - CIF Learning Integration (quick win)
+   - Add sidebar nav item
+   - Create dedicated page wrapping existing component
+
+3. **Phase 3** - Supplier Performance AI
+   - Create edge function for supplier analysis
+   - Build supplier AI panel
+   - Integrate into Suppliers page
+
+4. **Phase 4** - Document Auto-Classification (optional)
+   - Enhance upload hook with AI classification
+   - Update upload dialog UI
+
+---
+
+## Technical Details
+
+### Edge Function Pattern (Import AI Insights)
+```typescript
+// Aggregate metrics from multiple tables
+const [cifData, billsData, ordersData, suppliersData] = await Promise.all([
+  supabase.from('cif_calculations').select('*').order('created_at', { ascending: false }).limit(100),
+  supabase.from('bills').select('*').order('bill_date', { ascending: false }).limit(100),
+  supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(50),
+  supabase.from('suppliers').select('*')
+]);
+
+// Build AI prompt with business context and data summary
+// Call Lovable AI (google/gemini-2.5-flash for speed)
+// Return structured insights JSON
+```
+
+### AI Models Selection
+- **Import AI Insights**: `google/gemini-2.5-flash` (fast, cost-effective for aggregated analysis)
+- **Supplier Performance**: `google/gemini-2.5-flash` (structured output, fast response)
+- **Document Classification**: `google/gemini-2.5-flash` (vision capable, efficient for classification)
 
 ---
 
 ## Result
 
 After implementation:
-- Full CRUD for supplier bills with payment tracking and aging visibility
-- Functional document upload with category organization and order linking
-- Real-time analytics with cost trends, supplier metrics, and margin analysis
-- Import-specific report templates for operational insights
+- AI-powered insights panel in Import Analytics surfacing cost optimization opportunities
+- CIF Learning Engine accessible from Import sidebar for continuous accuracy improvement
+- Supplier Performance AI advisor helping procurement decisions
+- Optional document auto-classification reducing manual categorization effort
+
