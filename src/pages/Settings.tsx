@@ -309,7 +309,7 @@ export default function Settings() {
         {/* Quick Actions */}
         <Card className="mb-6">
           <CardContent className="py-4 space-y-2">
-            <Link to="/settings/integrations">
+            <Link to="/admin/integrations">
               <div className="flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors cursor-pointer">
                 <div className="flex items-center gap-3">
                   <Plug className="h-5 w-5 text-primary" />
@@ -321,7 +321,7 @@ export default function Settings() {
                 <ArrowRight className="h-5 w-5 text-muted-foreground" />
               </div>
             </Link>
-            <Link to="/standing-orders">
+            <Link to="/import/standing-orders">
               <div className="flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors cursor-pointer">
                 <div className="flex items-center gap-3">
                   <Calendar className="h-5 w-5 text-primary" />

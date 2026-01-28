@@ -903,7 +903,7 @@ const PICKER_UNITS = [
               setShowSwitchPicker(false);
               setPreviousPickerStats(null);
             } else {
-              navigate('/fnb');
+              navigate('/distribution');
             }
           }}
           previousPickerStats={previousPickerStats}
@@ -972,7 +972,7 @@ const PICKER_UNITS = [
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" asChild>
-              <Link to="/fnb">
+              <Link to="/distribution">
                 <ArrowLeft className="h-4 w-4" />
               </Link>
             </Button>

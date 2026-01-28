@@ -560,7 +560,7 @@ const OrderDetails = () => {
   return (
     <div className="container py-8">
         <div className="flex items-center gap-4 mb-8">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/history')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/import/orders')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex-1">

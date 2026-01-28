@@ -102,7 +102,7 @@ const NewOrder = () => {
           
         if (orderError) {
           toast({ title: 'Error', description: 'Failed to load order', variant: 'destructive' });
-          navigate('/history');
+          navigate('/import/orders');
           return;
         }
         
@@ -484,7 +484,7 @@ const NewOrder = () => {
         if (itemsError) throw itemsError;
 
         toast({ title: 'Success', description: 'Order saved successfully!' });
-        setTimeout(() => navigate('/history'), 1000);
+        setTimeout(() => navigate('/import/orders'), 1000);
       }
     } catch (error) {
       console.error('Error saving order:', error);
@@ -619,7 +619,7 @@ const NewOrder = () => {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => navigate('/history')}>
+              <Button variant="ghost" size="icon" onClick={() => navigate('/import/orders')}>
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <h1 className="text-4xl font-bold text-foreground">
@@ -932,7 +932,7 @@ const NewOrder = () => {
           {!isEditMode && (
             <div className="text-center">
               <Link 
-                to="/standing-orders" 
+                to="/import/standing-orders" 
                 className="text-sm text-muted-foreground hover:text-primary inline-flex items-center gap-1"
               >
                 <Settings className="h-3 w-3" />

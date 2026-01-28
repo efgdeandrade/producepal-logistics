@@ -454,7 +454,7 @@ export default function FnbDriverPortal() {
     return (
       <div className="px-4 md:container py-4 space-y-6 w-full max-w-full overflow-x-hidden">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/fnb")}>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/logistics")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
@@ -638,7 +638,7 @@ export default function FnbDriverPortal() {
   return (
     <div className="px-4 md:container py-4 space-y-6 max-w-lg w-full overflow-x-hidden">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/fnb")}>
+        <Button variant="ghost" size="icon" onClick={() => navigate("/logistics")}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>

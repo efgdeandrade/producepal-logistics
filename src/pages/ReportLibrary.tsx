@@ -53,15 +53,16 @@ export default function ReportLibrary() {
   });
 
   const handleRunReport = (template: ReportTemplate) => {
-    navigate(`/executive-reports?template=${template.id}`);
+    navigate(`/admin/reports?template=${template.id}`);
   };
 
   const handleScheduleReport = (template: ReportTemplate) => {
-    navigate(`/scheduled-reports?template=${template.id}`);
+    navigate(`/admin/scheduled-reports?template=${template.id}`);
   };
 
   const handleViewBuilder = () => {
-    navigate("/report-builder");
+    // Report builder doesn't exist yet - navigate to reports
+    navigate("/admin/reports");
   };
 
   return (

@@ -414,7 +414,7 @@ export default function StandingOrders() {
     <div className="container py-8">
         <div className="mb-8">
           <div className="flex items-center gap-4 mb-2">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/import')}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <h1 className="text-4xl font-bold text-foreground">Standing Orders</h1>

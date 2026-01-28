@@ -56,7 +56,7 @@ const WhatsAppSettings = () => {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/settings/integrations')}>
+        <Button variant="ghost" size="icon" onClick={() => navigate('/admin/integrations')}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>

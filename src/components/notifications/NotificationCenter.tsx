@@ -90,7 +90,7 @@ export function NotificationCenter() {
           <Button
             variant="ghost"
             className="w-full text-xs text-muted-foreground"
-            onClick={() => navigate("/settings")}
+            onClick={() => navigate("/admin/settings")}
           >
             Notification Settings
           </Button>

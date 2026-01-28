@@ -760,7 +760,7 @@ export default function FnbNewOrder() {
       queryClient.invalidateQueries({ queryKey: ['fnb-orders'] });
       queryClient.invalidateQueries({ queryKey: ['fnb-order', orderId] });
       toast.success(`Order ${result.order_number} updated`);
-      navigate('/fnb/orders');
+      navigate('/distribution/orders');
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -1197,12 +1197,12 @@ export default function FnbNewOrder() {
                   </ul>
                   <div className="flex gap-2 mt-3">
                     <Button size="sm" variant="outline" asChild>
-                      <Link to={`/fnb/orders/${duplicateOrders[0].id}/edit`}>
+                      <Link to={`/distribution/orders/${duplicateOrders[0].id}/edit`}>
                         Edit Existing Order
                       </Link>
                     </Button>
                     <Button size="sm" variant="ghost" asChild>
-                      <Link to="/fnb/orders">View All Orders</Link>
+                      <Link to="/distribution/orders">View All Orders</Link>
                     </Button>
                   </div>
                 </AlertDescription>

@@ -247,7 +247,7 @@ export default function FnbEmailInbox() {
           description: 'Your Workspace security policy requires re-authentication.',
           action: {
             label: 'Reconnect',
-            onClick: () => navigate('/settings/integrations/gmail'),
+            onClick: () => navigate('/admin/integrations/gmail'),
           },
           duration: 10000,
         });
@@ -297,7 +297,7 @@ export default function FnbEmailInbox() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => navigate('/settings/integrations/gmail')}
+              onClick={() => navigate('/admin/integrations/gmail')}
               className="ml-4 shrink-0"
             >
               <Settings className="h-4 w-4 mr-2" />
@@ -316,7 +316,7 @@ export default function FnbEmailInbox() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => navigate('/settings/integrations/gmail')}
+              onClick={() => navigate('/admin/integrations/gmail')}
               className="ml-4 shrink-0"
             >
               <Settings className="h-4 w-4 mr-2" />
