@@ -3,14 +3,12 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PasswordChangeRequired } from "@/components/PasswordChangeRequired";
 import { VersionUpdateToast } from "@/components/VersionUpdateToast";
-import { AppLayout } from "@/components/layout/AppLayout";
-import { BottomNavigation } from "@/components/mobile/BottomNavigation";
 import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
@@ -20,12 +18,27 @@ import { LogisticsLayout } from "@/layouts/LogisticsLayout";
 import { ProductionLayout } from "@/layouts/ProductionLayout";
 import { HRLayout } from "@/layouts/HRLayout";
 import { ImportLayout } from "@/layouts/ImportLayout";
+import { AdminLayout } from "@/layouts/AdminLayout";
 
-// Executive
+// Portal Selector
+import PortalSelector from "./pages/PortalSelector";
+
+// Admin/Executive Pages
 import ExecutiveDashboard from "./pages/ExecutiveDashboard";
+import UserManagement from "./pages/UserManagement";
+import UserActivity from "./pages/UserActivity";
+import ReportLibrary from "./pages/ReportLibrary";
+import ScheduledReports from "./pages/ScheduledReports";
+import Settings from "./pages/Settings";
+import IntegrationHub from "./pages/integrations/IntegrationHub";
+import GmailSettings from "./pages/integrations/GmailSettings";
+import WhatsAppSettings from "./pages/integrations/WhatsAppSettings";
+import QuickBooksSync from "./pages/integrations/QuickBooksSync";
+import QuickBooksConnect from "./pages/integrations/QuickBooksConnect";
+import WebhookManager from "./pages/integrations/WebhookManager";
+import ApiConnectors from "./pages/integrations/ApiConnectors";
 
 // Import Department
-import Dashboard from "./pages/Dashboard";
 import ImportDashboard from "./pages/ImportDashboard";
 import NewOrder from "./pages/NewOrder";
 import History from "./pages/History";
@@ -40,14 +53,12 @@ import StandingOrders from "./pages/StandingOrders";
 
 // Distribution Department
 import DistributionDashboard from "./pages/DistributionDashboard";
-import FnbDashboard from "./pages/fnb/FnbDashboard";
 import FnbProducts from "./pages/fnb/FnbProducts";
 import FnbCustomers from "./pages/fnb/FnbCustomers";
 import FnbOrders from "./pages/fnb/FnbOrders";
 import FnbNewOrder from "./pages/fnb/FnbNewOrder";
 import FnbPicker from "./pages/fnb/FnbPicker";
 import FnbPickerSupervisor from "./pages/fnb/FnbPickerSupervisor";
-import FnbDeliveryManagement from "./pages/fnb/FnbDeliveryManagement";
 import FnbCODReconciliation from "./pages/fnb/FnbCODReconciliation";
 import FnbAnalytics from "./pages/fnb/FnbAnalytics";
 import FnbZoneManagement from "./pages/fnb/FnbZoneManagement";
@@ -67,10 +78,9 @@ import FnbDreCommandCenter from "./pages/fnb/FnbDreCommandCenter";
 import FnbDreMobile from "./pages/fnb/FnbDreMobile";
 import DreApp from "./pages/DreApp";
 
-// Logistics Department
+// Logistics/Driver
 import LogisticsDashboard from "./pages/LogisticsDashboard";
 import RoutesPage from "./pages/Routes";
-import DriverPortal from "./pages/DriverPortal";
 import DeliveryManagement from "./pages/DeliveryManagement";
 import Invoices from "./pages/Invoices";
 import FnbDriverPortal from "./pages/fnb/FnbDriverPortal";
@@ -80,8 +90,8 @@ import FnbDispatch from "./pages/fnb/FnbDispatch";
 import FnbDriverZones from "./pages/fnb/FnbDriverZones";
 
 // Production Department
-import ProductionDashboard from "./pages/ProductionDashboard";
 import ProductionDashboardNew from "./pages/ProductionDashboardNew";
+import ProductionDashboard from "./pages/ProductionDashboard";
 import ProductionInput from "./pages/ProductionInput";
 import ProductionEdit from "./pages/ProductionEdit";
 
@@ -92,30 +102,14 @@ import TimeAttendance from "./pages/hr/TimeAttendance";
 import Timesheets from "./pages/hr/Timesheets";
 import Documents from "./pages/hr/Documents";
 
-// Settings & Admin
+// Public/Auth Pages
 import Auth from "./pages/Auth";
-import UserManagement from "./pages/UserManagement";
-import UserActivity from "./pages/UserActivity";
-import PredictionsAnalytics from "./pages/PredictionsAnalytics";
-import ExecutiveReports from "./pages/ExecutiveReports";
-import Settings from "./pages/Settings";
-import ReportLibrary from "./pages/ReportLibrary";
-import ScheduledReports from "./pages/ScheduledReports";
 import NotFound from "./pages/NotFound";
 import Install from "./pages/Install";
 import Offline from "./pages/Offline";
 import ResetPassword from "./pages/ResetPassword";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import EULA from "./pages/EULA";
-
-// Integrations
-import IntegrationHub from "./pages/integrations/IntegrationHub";
-import GmailSettings from "./pages/integrations/GmailSettings";
-import WhatsAppSettings from "./pages/integrations/WhatsAppSettings";
-import QuickBooksSync from "./pages/integrations/QuickBooksSync";
-import QuickBooksConnect from "./pages/integrations/QuickBooksConnect";
-import WebhookManager from "./pages/integrations/WebhookManager";
-import ApiConnectors from "./pages/integrations/ApiConnectors";
 
 const queryClient = new QueryClient();
 
@@ -160,11 +154,10 @@ const ProtectedImport = ({ children }: { children: React.ReactNode }) => (
   </ProtectedRoute>
 );
 
-// Executive/Admin layout (full access)
-const ProtectedWithLayout = ({ children, requiredRole }: { children: React.ReactNode; requiredRole?: string }) => (
-  <ProtectedRoute requiredRole={requiredRole}>
+const ProtectedAdmin = ({ children }: { children: React.ReactNode }) => (
+  <ProtectedRoute requiredRole="admin">
     <PasswordChangeRequired>
-      <AppLayout>{children}</AppLayout>
+      <AdminLayout>{children}</AdminLayout>
     </PasswordChangeRequired>
   </ProtectedRoute>
 );
@@ -193,23 +186,6 @@ const OfflineWrapper = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// Conditionally show bottom navigation only for executive/full layout
-const ConditionalBottomNav = () => {
-  const location = useLocation();
-  const isPortalRoute = 
-    location.pathname.startsWith('/distribution') ||
-    location.pathname.startsWith('/logistics') ||
-    location.pathname.startsWith('/production') ||
-    location.pathname.startsWith('/hr') ||
-    location.pathname.startsWith('/import') ||
-    location.pathname === '/quick-paste';
-  
-  // Portal routes have their own navigation, don't show global bottom nav
-  if (isPortalRoute) return null;
-  
-  return <BottomNavigation />;
-};
-
 const App = () => (
   <ThemeProvider>
     <QueryClientProvider client={queryClient}>
@@ -222,18 +198,31 @@ const App = () => (
               <VersionUpdateToast />
               <BrowserRouter>
                 <InstallBanner />
-                <ConditionalBottomNav />
                 <Routes>
-                  {/* Auth - No layout */}
+                  {/* ========== PUBLIC ROUTES ========== */}
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/install" element={<Install />} />
-                  
-                  {/* Legal Pages - Public, no auth required */}
                   <Route path="/privacy" element={<PrivacyPolicy />} />
                   <Route path="/eula" element={<EULA />} />
-                  
-                  {/* Dre Command Center - Standalone App */}
+
+                  {/* ========== PORTAL SELECTOR (Entry Point) ========== */}
+                  <Route path="/" element={
+                    <ProtectedRoute>
+                      <PasswordChangeRequired>
+                        <PortalSelector />
+                      </PasswordChangeRequired>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/select-portal" element={
+                    <ProtectedRoute>
+                      <PasswordChangeRequired>
+                        <PortalSelector />
+                      </PasswordChangeRequired>
+                    </ProtectedRoute>
+                  } />
+
+                  {/* ========== STANDALONE APPS ========== */}
                   <Route path="/dre" element={
                     <ProtectedRoute>
                       <PasswordChangeRequired>
@@ -242,8 +231,29 @@ const App = () => (
                     </ProtectedRoute>
                   } />
 
-                  {/* Executive Dashboard - Full layout */}
-                  <Route path="/" element={<ProtectedWithLayout><ExecutiveDashboard /></ProtectedWithLayout>} />
+                  {/* ========== DRIVER PORTAL (Standalone PWA) ========== */}
+                  <Route path="/driver" element={
+                    <ProtectedRoute requiredRole="driver">
+                      <PasswordChangeRequired>
+                        <FnbDriverMobile />
+                      </PasswordChangeRequired>
+                    </ProtectedRoute>
+                  } />
+
+                  {/* ========== ADMIN PORTAL ========== */}
+                  <Route path="/admin" element={<ProtectedAdmin><ExecutiveDashboard /></ProtectedAdmin>} />
+                  <Route path="/admin/users" element={<ProtectedAdmin><UserManagement /></ProtectedAdmin>} />
+                  <Route path="/admin/activity" element={<ProtectedAdmin><UserActivity /></ProtectedAdmin>} />
+                  <Route path="/admin/reports" element={<ProtectedAdmin><ReportLibrary /></ProtectedAdmin>} />
+                  <Route path="/admin/scheduled-reports" element={<ProtectedAdmin><ScheduledReports /></ProtectedAdmin>} />
+                  <Route path="/admin/settings" element={<ProtectedAdmin><Settings /></ProtectedAdmin>} />
+                  <Route path="/admin/integrations" element={<ProtectedAdmin><IntegrationHub /></ProtectedAdmin>} />
+                  <Route path="/admin/integrations/gmail" element={<ProtectedAdmin><GmailSettings /></ProtectedAdmin>} />
+                  <Route path="/admin/integrations/whatsapp" element={<ProtectedAdmin><WhatsAppSettings /></ProtectedAdmin>} />
+                  <Route path="/admin/integrations/quickbooks" element={<ProtectedAdmin><QuickBooksSync /></ProtectedAdmin>} />
+                  <Route path="/admin/integrations/quickbooks/connect" element={<ProtectedAdmin><QuickBooksConnect /></ProtectedAdmin>} />
+                  <Route path="/admin/integrations/webhooks" element={<ProtectedAdmin><WebhookManager /></ProtectedAdmin>} />
+                  <Route path="/admin/integrations/api" element={<ProtectedAdmin><ApiConnectors /></ProtectedAdmin>} />
 
                   {/* ========== IMPORT PORTAL ========== */}
                   <Route path="/import" element={<ProtectedImport><ImportDashboard /></ProtectedImport>} />
@@ -285,8 +295,6 @@ const App = () => (
                   <Route path="/distribution/whatsapp-inbox" element={<ProtectedDistribution><FnbWhatsAppInbox /></ProtectedDistribution>} />
                   <Route path="/distribution/dre-command-center" element={<ProtectedDistribution><FnbDreCommandCenter /></ProtectedDistribution>} />
                   <Route path="/distribution/dre-mobile" element={<ProtectedDistribution><FnbDreMobile /></ProtectedDistribution>} />
-                  
-                  {/* Quick Paste - Uses Distribution layout */}
                   <Route path="/quick-paste" element={<ProtectedDistribution><FnbQuickPaste /></ProtectedDistribution>} />
 
                   {/* ========== LOGISTICS PORTAL ========== */}
@@ -313,58 +321,7 @@ const App = () => (
                   <Route path="/hr/timesheets" element={<ProtectedHR><Timesheets /></ProtectedHR>} />
                   <Route path="/hr/documents" element={<ProtectedHR><Documents /></ProtectedHR>} />
 
-                  {/* ========== SETTINGS & ADMIN (Full Layout) ========== */}
-                  <Route path="/settings" element={<ProtectedWithLayout requiredRole="admin"><Settings /></ProtectedWithLayout>} />
-                  <Route path="/settings/integrations" element={<ProtectedWithLayout requiredRole="admin"><IntegrationHub /></ProtectedWithLayout>} />
-                  <Route path="/settings/integrations/gmail" element={<ProtectedWithLayout requiredRole="admin"><GmailSettings /></ProtectedWithLayout>} />
-                  <Route path="/settings/integrations/whatsapp" element={<ProtectedWithLayout requiredRole="admin"><WhatsAppSettings /></ProtectedWithLayout>} />
-                  <Route path="/settings/integrations/quickbooks" element={<ProtectedWithLayout requiredRole="admin"><QuickBooksSync /></ProtectedWithLayout>} />
-                  <Route path="/settings/integrations/quickbooks/connect" element={<ProtectedWithLayout requiredRole="admin"><QuickBooksConnect /></ProtectedWithLayout>} />
-                  <Route path="/settings/integrations/webhooks" element={<ProtectedWithLayout requiredRole="admin"><WebhookManager /></ProtectedWithLayout>} />
-                  <Route path="/settings/integrations/api" element={<ProtectedWithLayout requiredRole="admin"><ApiConnectors /></ProtectedWithLayout>} />
-                  <Route path="/users" element={<ProtectedWithLayout requiredRole="admin"><UserManagement /></ProtectedWithLayout>} />
-                  <Route path="/user-activity" element={<ProtectedWithLayout><UserActivity /></ProtectedWithLayout>} />
-                  <Route path="/analytics" element={<ProtectedWithLayout><PredictionsAnalytics /></ProtectedWithLayout>} />
-                  <Route path="/reports" element={<ProtectedWithLayout><ExecutiveReports /></ProtectedWithLayout>} />
-                  <Route path="/reports/library" element={<ProtectedWithLayout><ReportLibrary /></ProtectedWithLayout>} />
-                  <Route path="/reports/scheduled" element={<ProtectedWithLayout><ScheduledReports /></ProtectedWithLayout>} />
-
-                  {/* ========== LEGACY ROUTES ========== */}
-                  <Route path="/order/new" element={<ProtectedWithLayout><NewOrder /></ProtectedWithLayout>} />
-                  <Route path="/order/edit/:orderId" element={<ProtectedWithLayout><NewOrder /></ProtectedWithLayout>} />
-                  <Route path="/order/:orderId" element={<ProtectedWithLayout><OrderDetails /></ProtectedWithLayout>} />
-                  <Route path="/history" element={<ProtectedWithLayout><History /></ProtectedWithLayout>} />
-                  <Route path="/suppliers" element={<ProtectedWithLayout><Suppliers /></ProtectedWithLayout>} />
-                  <Route path="/products" element={<ProtectedWithLayout><Products /></ProtectedWithLayout>} />
-                  <Route path="/customers" element={<ProtectedWithLayout><Customers /></ProtectedWithLayout>} />
-                  <Route path="/consolidation-groups" element={<ProtectedWithLayout><ConsolidationGroups /></ProtectedWithLayout>} />
-                  <Route path="/cif-calculator" element={<ProtectedWithLayout><CIFCalculator /></ProtectedWithLayout>} />
-                  <Route path="/cif-calculator-history" element={<ProtectedWithLayout><CIFCalculatorHistory /></ProtectedWithLayout>} />
-                  <Route path="/standing-orders" element={<ProtectedWithLayout><StandingOrders /></ProtectedWithLayout>} />
-                  <Route path="/routes" element={<ProtectedWithLayout><RoutesPage /></ProtectedWithLayout>} />
-                  <Route path="/driver-portal" element={<ProtectedWithLayout requiredRole="driver"><DriverPortal /></ProtectedWithLayout>} />
-                  <Route path="/deliveries" element={<ProtectedWithLayout><DeliveryManagement /></ProtectedWithLayout>} />
-                  <Route path="/invoices" element={<ProtectedWithLayout><Invoices /></ProtectedWithLayout>} />
-                  <Route path="/production-input" element={<ProtectedWithLayout><ProductionInput /></ProtectedWithLayout>} />
-                  <Route path="/production-edit/:orderId" element={<ProtectedWithLayout><ProductionEdit /></ProtectedWithLayout>} />
-                  <Route path="/user-management" element={<ProtectedWithLayout requiredRole="admin"><UserManagement /></ProtectedWithLayout>} />
-
-                  {/* F&B Legacy Routes */}
-                  <Route path="/fnb" element={<ProtectedDistribution><FnbDashboard /></ProtectedDistribution>} />
-                  <Route path="/fnb/products" element={<ProtectedDistribution><FnbProducts /></ProtectedDistribution>} />
-                  <Route path="/fnb/customers" element={<ProtectedDistribution><FnbCustomers /></ProtectedDistribution>} />
-                  <Route path="/fnb/orders" element={<ProtectedDistribution><FnbOrders /></ProtectedDistribution>} />
-                  <Route path="/fnb/orders/new" element={<ProtectedDistribution><FnbNewOrder /></ProtectedDistribution>} />
-                  <Route path="/fnb/orders/edit/:orderId" element={<ProtectedDistribution><FnbNewOrder /></ProtectedDistribution>} />
-                  <Route path="/fnb/picker/:orderId?" element={<ProtectedDistribution><FnbPicker /></ProtectedDistribution>} />
-                  <Route path="/fnb/picker/supervisor" element={<ProtectedDistribution><FnbPickerSupervisor /></ProtectedDistribution>} />
-                  <Route path="/fnb/delivery" element={<ProtectedDistribution><FnbDeliveryManagement /></ProtectedDistribution>} />
-                  <Route path="/fnb/driver-portal" element={<ProtectedLogistics requiredRole="driver"><FnbDriverPortal /></ProtectedLogistics>} />
-                  <Route path="/fnb/cod" element={<ProtectedDistribution><FnbCODReconciliation /></ProtectedDistribution>} />
-                  <Route path="/fnb/analytics" element={<ProtectedDistribution><FnbAnalytics /></ProtectedDistribution>} />
-                  <Route path="/fnb/zones" element={<ProtectedDistribution><FnbZoneManagement /></ProtectedDistribution>} />
-
-                  {/* 404 */}
+                  {/* ========== 404 ========== */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </BrowserRouter>

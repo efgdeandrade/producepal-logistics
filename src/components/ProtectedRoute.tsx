@@ -25,7 +25,7 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     }
 
     if (!loading && user && requiredRole && !hasRequiredAccess) {
-      navigate('/');
+      navigate('/select-portal');
     }
   }, [user, loading, requiredRole, hasRequiredAccess, navigate, location.pathname, location.search, location.hash]);
 

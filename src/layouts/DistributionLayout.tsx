@@ -68,7 +68,7 @@ export function DistributionLayout({ children }: DistributionLayoutProps) {
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 safe-area-top">
           <div className="flex h-14 items-center px-4 gap-3">
             <Button variant="ghost" size="icon" className="h-9 w-9" asChild>
-              <Link to="/">
+              <Link to="/select-portal">
                 <ArrowLeft className="h-5 w-5" />
               </Link>
             </Button>
