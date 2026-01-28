@@ -16,6 +16,7 @@ import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { ProductPriceHistory } from '@/components/ProductPriceHistory';
 import { ProductFormDialog } from '@/components/ProductFormDialog';
+import { SupplierPriceEntry } from '@/components/SupplierPricingSection';
 
 const productSchema = z.object({
   code: z.string().trim().min(1, 'Product code is required').max(50, 'Code too long'),
@@ -76,6 +77,7 @@ const Products = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [priceHistoryProduct, setPriceHistoryProduct] = useState<{ id: string; code: string } | null>(null);
+  const [supplierPrices, setSupplierPrices] = useState<SupplierPriceEntry[]>([]);
   const [formData, setFormData] = useState({
     code: '',
     name: '',
@@ -100,7 +102,7 @@ const Products = () => {
     height_cm: '',
   });
 
-  const handleOpenDialog = (product: Product | null = null) => {
+  const handleOpenDialog = async (product: Product | null = null) => {
     if (product) {
       setEditingProduct(product);
       setFormData({
@@ -126,8 +128,29 @@ const Products = () => {
         width_cm: product.width_cm?.toString() || '',
         height_cm: product.height_cm?.toString() || '',
       });
+      
+      // Fetch existing supplier prices for this product
+      const { data: existingPrices, error } = await supabase
+        .from('product_supplier_prices')
+        .select('*')
+        .eq('product_id', product.id);
+      
+      if (!error && existingPrices) {
+        setSupplierPrices(existingPrices.map(sp => ({
+          id: sp.id,
+          supplier_id: sp.supplier_id,
+          cost_price_usd: sp.cost_price_usd?.toString() || '',
+          cost_price_xcg: sp.cost_price_xcg?.toString() || '',
+          lead_time_days: sp.lead_time_days?.toString() || '',
+          min_order_qty: sp.min_order_qty?.toString() || '',
+          notes: sp.notes || '',
+        })));
+      } else {
+        setSupplierPrices([]);
+      }
     } else {
       setEditingProduct(null);
+      setSupplierPrices([]);
       setFormData({
         code: '',
         name: '',
@@ -384,12 +407,18 @@ const Products = () => {
 
 
 
-  const handleSave = () => {
+  const handleSave = async () => {
     try {
       if (editingProduct) {
-        updateMutation.mutate({ id: editingProduct.id, ...formData });
+        await updateMutation.mutateAsync({ id: editingProduct.id, ...formData });
+        // Save supplier prices
+        await saveSupplierPrices(editingProduct.id);
       } else {
-        createMutation.mutate(formData);
+        const newProduct = await createMutation.mutateAsync(formData);
+        // Save supplier prices for new product
+        if (newProduct) {
+          await saveSupplierPrices(newProduct.id);
+        }
       }
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -400,6 +429,44 @@ const Products = () => {
         });
       }
     }
+  };
+
+  const saveSupplierPrices = async (productId: string) => {
+    // Delete existing supplier prices for this product
+    await supabase
+      .from('product_supplier_prices')
+      .delete()
+      .eq('product_id', productId);
+
+    // Insert new supplier prices
+    const validPrices = supplierPrices.filter(sp => sp.supplier_id);
+    if (validPrices.length > 0) {
+      const pricesToInsert = validPrices.map(sp => ({
+        product_id: productId,
+        supplier_id: sp.supplier_id,
+        cost_price_usd: sp.cost_price_usd ? parseFloat(sp.cost_price_usd) : 0,
+        cost_price_xcg: sp.cost_price_xcg ? parseFloat(sp.cost_price_xcg) : 0,
+        lead_time_days: sp.lead_time_days ? parseInt(sp.lead_time_days) : null,
+        min_order_qty: sp.min_order_qty ? parseInt(sp.min_order_qty) : null,
+        notes: sp.notes || null,
+      }));
+
+      const { error } = await supabase
+        .from('product_supplier_prices')
+        .insert(pricesToInsert);
+
+      if (error) {
+        console.error('Error saving supplier prices:', error);
+        toast({ 
+          title: 'Warning', 
+          description: 'Product saved but supplier prices may not have been saved correctly.', 
+          variant: 'destructive' 
+        });
+      }
+    }
+    
+    // Reset supplier prices state
+    setSupplierPrices([]);
   };
 
   if (productsLoading) {
@@ -441,6 +508,8 @@ const Products = () => {
           setCurrencyRate={setCurrencyRate}
           onSave={handleSave}
           canManage={canManage}
+          supplierPrices={supplierPrices}
+          onSupplierPricesChange={setSupplierPrices}
         />
 
         <div className="flex items-center mb-6">
