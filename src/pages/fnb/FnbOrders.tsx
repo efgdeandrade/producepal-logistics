@@ -94,6 +94,7 @@ import { CSS } from '@dnd-kit/utilities';
 const supabase = supabaseClient as any;
 
 type CustomerType = 'regular' | 'supermarket' | 'cod' | 'credit';
+type OrderSource = 'email' | 'whatsapp' | 'standing' | 'manual';
 
 interface OrderWithDetails {
   id: string;
@@ -110,6 +111,8 @@ interface OrderWithDetails {
   is_pickup: boolean | null;
   po_number: string | null;
   notes: string | null;
+  source_email_id: string | null;
+  standing_order_template_id: string | null;
   distribution_customers: {
     name: string;
     whatsapp_phone?: string;
@@ -128,6 +131,49 @@ interface OrderWithDetails {
     } | null;
   }[];
 }
+
+// Get order source based on order_number prefix or linked records
+const getOrderSource = (order: OrderWithDetails): OrderSource => {
+  if (order.order_number.startsWith('EM-') || order.source_email_id) return 'email';
+  if (order.order_number.startsWith('WA-')) return 'whatsapp';
+  if (order.standing_order_template_id || order.notes?.startsWith('Auto-generated from standing order:')) return 'standing';
+  return 'manual';
+};
+
+// Source colors for visual differentiation
+const sourceColors: Record<OrderSource, { bg: string; border: string; text: string; icon: string }> = {
+  email: { 
+    bg: 'bg-blue-50 dark:bg-blue-950', 
+    border: 'border-blue-400', 
+    text: 'text-blue-700 dark:text-blue-300',
+    icon: '📧'
+  },
+  whatsapp: { 
+    bg: 'bg-green-50 dark:bg-green-950', 
+    border: 'border-green-400', 
+    text: 'text-green-700 dark:text-green-300',
+    icon: '💬'
+  },
+  standing: { 
+    bg: 'bg-purple-50 dark:bg-purple-950', 
+    border: 'border-purple-400', 
+    text: 'text-purple-700 dark:text-purple-300',
+    icon: '🔄'
+  },
+  manual: { 
+    bg: 'bg-gray-50 dark:bg-gray-900', 
+    border: 'border-gray-400', 
+    text: 'text-gray-700 dark:text-gray-300',
+    icon: '✏️'
+  },
+};
+
+const sourceLabels: Record<OrderSource, string> = {
+  email: 'Email Order',
+  whatsapp: 'WhatsApp Order',
+  standing: 'Standing Order',
+  manual: 'Manual Order',
+};
 
 const isStandingOrder = (order: OrderWithDetails) => {
   return order.notes?.startsWith('Auto-generated from standing order:') ?? false;
@@ -430,6 +476,8 @@ export default function FnbOrders() {
           is_pickup,
           po_number,
           notes,
+          source_email_id,
+          standing_order_template_id,
           distribution_customers (name, whatsapp_phone, delivery_zone, customer_type),
           distribution_order_items (id, quantity, picked_quantity, short_quantity, unit_price_xcg, distribution_products (name, code))
         `)
@@ -704,6 +752,8 @@ export default function FnbOrders() {
     const totalItems = order.distribution_order_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
 
     const isPendingStandingOrder = order.status === 'pending' && isStandingOrder(order);
+    const orderSource = getOrderSource(order);
+    const sourceStyle = sourceColors[orderSource];
 
     return (
       <Collapsible
@@ -714,17 +764,22 @@ export default function FnbOrders() {
         <Card
           className={cn(
             'mb-2 transition-shadow border-l-4',
-            getZoneColor(order.distribution_customers?.delivery_zone || null),
+            sourceStyle.border,
             needsReceipt && 'ring-2 ring-orange-400',
             isPendingStandingOrder && 'ring-2 ring-amber-400 animate-pulse',
             isExpanded && 'shadow-md'
           )}
           onClick={(e) => e.stopPropagation()}
         >
+          {/* Source indicator banner */}
+          <div className={cn('px-3 py-1 text-xs font-medium flex items-center gap-1.5 rounded-t-md', sourceStyle.bg, sourceStyle.text)}>
+            <span>{sourceStyle.icon}</span>
+            <span>{sourceLabels[orderSource]}</span>
+          </div>
           {/* Needs Confirmation Banner for pending standing orders */}
           {isPendingStandingOrder && (
             <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 
-                            px-3 py-1.5 text-xs font-medium flex items-center gap-2 rounded-t-md">
+                            px-3 py-1.5 text-xs font-medium flex items-center gap-2">
               <AlertCircle className="h-3.5 w-3.5" />
               Standing order - needs confirmation before picking
             </div>
@@ -735,9 +790,6 @@ export default function FnbOrders() {
                 {/* Row 1: Customer name + Status + Chevron */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                    {isStandingOrder(order) && (
-                      <Repeat className="h-4 w-4 text-blue-500 shrink-0" />
-                    )}
                     <p className="font-semibold text-base line-clamp-1">{order.distribution_customers?.name || 'Unknown'}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
