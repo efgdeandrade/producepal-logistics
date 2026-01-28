@@ -25,6 +25,16 @@ interface Product {
   wholesale_price_xcg_per_unit: number | null;
 }
 
+interface ProductSupplierPrice {
+  id: string;
+  product_id: string;
+  supplier_id: string;
+  cost_price_usd: number;
+  cost_price_xcg: number;
+  lead_time_days: number | null;
+  min_order_qty: number | null;
+}
+
 interface Customer {
   id: string;
   name: string;
@@ -60,6 +70,8 @@ const NewOrder = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([]);
+  const [productSupplierPrices, setProductSupplierPrices] = useState<ProductSupplierPrice[]>([]);
+  const [selectedSuppliers, setSelectedSuppliers] = useState<Record<string, string>>({}); // productId -> supplierId
   const today = new Date();
   const [weekNumber, setWeekNumber] = useState(getWeek(today));
   const [deliveryDate, setDeliveryDate] = useState(today.toISOString().split('T')[0]);
@@ -73,10 +85,11 @@ const NewOrder = () => {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const [customersRes, productsRes, suppliersRes] = await Promise.all([
+      const [customersRes, productsRes, suppliersRes, supplierPricesRes] = await Promise.all([
         supabase.from('customers').select('id, name, pricing_tier').order('name'),
         supabase.from('products').select('id, code, name, pack_size, supplier_id, consolidation_group, retail_price_xcg_per_unit, wholesale_price_xcg_per_unit').order('name'),
         supabase.from('suppliers').select('id, name').order('name'),
+        supabase.from('product_supplier_prices').select('id, product_id, supplier_id, cost_price_usd, cost_price_xcg, lead_time_days, min_order_qty'),
       ]);
       
       if (customersRes.error) {
@@ -98,6 +111,7 @@ const NewOrder = () => {
       setCustomers(customersRes.data || []);
       setProducts(productsRes.data || []);
       setSuppliers(suppliersRes.data || []);
+      setProductSupplierPrices(supplierPricesRes.data || []);
       
       // If in edit mode, fetch existing order data
       if (isEditMode && orderId) {
@@ -421,12 +435,60 @@ const NewOrder = () => {
     consolidatedGroups: ConsolidatedGroup[];
   }
 
+  // Get available suppliers for a product (from product_supplier_prices or legacy supplier_id)
+  const getSuppliersForProduct = (productId: string): { id: string; name: string; costUsd: number; costXcg: number }[] => {
+    const product = products.find(p => p.id === productId);
+    const supplierPrices = productSupplierPrices.filter(sp => sp.product_id === productId);
+    
+    if (supplierPrices.length > 0) {
+      // Return suppliers from the new multi-supplier pricing table
+      return supplierPrices.map(sp => {
+        const supplier = suppliers.find(s => s.id === sp.supplier_id);
+        return {
+          id: sp.supplier_id,
+          name: supplier?.name || 'Unknown',
+          costUsd: sp.cost_price_usd,
+          costXcg: sp.cost_price_xcg,
+        };
+      });
+    }
+    
+    // Fallback to legacy supplier_id
+    if (product?.supplier_id) {
+      const supplier = suppliers.find(s => s.id === product.supplier_id);
+      return supplier ? [{ id: supplier.id, name: supplier.name, costUsd: 0, costXcg: 0 }] : [];
+    }
+    
+    return [];
+  };
+
+  // Get selected supplier for a product (or first available)
+  const getSelectedSupplierForProduct = (productId: string): string => {
+    if (selectedSuppliers[productId]) {
+      return selectedSuppliers[productId];
+    }
+    const availableSuppliers = getSuppliersForProduct(productId);
+    if (availableSuppliers.length > 0) {
+      return availableSuppliers[0].id;
+    }
+    const product = products.find(p => p.id === productId);
+    return product?.supplier_id || 'unknown';
+  };
+
+  const handleSupplierChange = (productId: string, supplierId: string) => {
+    setSelectedSuppliers(prev => ({
+      ...prev,
+      [productId]: supplierId,
+    }));
+  };
+
   const groupBySupplier = (): SupplierGroup[] => {
     const roundup = calculateRoundup();
     const supplierMap = new Map<string, SupplierGroup>();
 
     roundup.forEach(item => {
-      const supplierId = item.product.supplier_id || 'unknown';
+      // Use selected supplier or fall back to product's supplier
+      const supplierId = getSelectedSupplierForProduct(item.product.id);
       const supplier = suppliers.find(s => s.id === supplierId) || { id: 'unknown', name: 'Unknown Supplier' };
       const groupKey = item.product.consolidation_group;
       const packSize = item.product.pack_size;
@@ -971,6 +1033,57 @@ const NewOrder = () => {
                       <strong>{getInStockItemsCount()}</strong> item{getInStockItemsCount() !== 1 ? 's' : ''} from existing stock 
                       <span className="text-green-600 dark:text-green-400"> (not included in supplier orders)</span>
                     </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Supplier Selection Per Product */}
+              {roundup.length > 0 && (
+                <div className="mt-6 pt-6 border-t">
+                  <h4 className="text-sm font-semibold text-foreground mb-4">Select Supplier Per Product</h4>
+                  <div className="space-y-2">
+                    {roundup.map(item => {
+                      const availableSuppliers = getSuppliersForProduct(item.product.id);
+                      const currentSupplierId = getSelectedSupplierForProduct(item.product.id);
+                      const hasMultipleSuppliers = availableSuppliers.length > 1;
+                      
+                      return (
+                        <div 
+                          key={item.product.id} 
+                          className={`flex items-center justify-between gap-4 p-3 rounded-lg ${hasMultipleSuppliers ? 'bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800' : 'bg-muted/50'}`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-sm text-foreground truncate">{item.product.name}</div>
+                            <div className="text-xs text-muted-foreground">{item.totalTrays} trays ({item.totalUnits} units)</div>
+                          </div>
+                          
+                          {availableSuppliers.length > 0 ? (
+                            <Select
+                              value={currentSupplierId}
+                              onValueChange={(value) => handleSupplierChange(item.product.id, value)}
+                            >
+                              <SelectTrigger className="w-[200px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availableSuppliers.map(s => (
+                                  <SelectItem key={s.id} value={s.id}>
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span>{s.name}</span>
+                                      {s.costUsd > 0 && (
+                                        <span className="text-xs text-muted-foreground">${s.costUsd.toFixed(2)}</span>
+                                      )}
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <span className="text-sm text-muted-foreground italic">No supplier</span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

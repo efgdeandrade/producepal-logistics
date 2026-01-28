@@ -4394,6 +4394,60 @@ export type Database = {
           },
         ]
       }
+      product_supplier_prices: {
+        Row: {
+          cost_price_usd: number
+          cost_price_xcg: number
+          created_at: string
+          id: string
+          lead_time_days: number | null
+          min_order_qty: number | null
+          notes: string | null
+          product_id: string
+          supplier_id: string
+          updated_at: string
+        }
+        Insert: {
+          cost_price_usd?: number
+          cost_price_xcg?: number
+          created_at?: string
+          id?: string
+          lead_time_days?: number | null
+          min_order_qty?: number | null
+          notes?: string | null
+          product_id: string
+          supplier_id: string
+          updated_at?: string
+        }
+        Update: {
+          cost_price_usd?: number
+          cost_price_xcg?: number
+          created_at?: string
+          id?: string
+          lead_time_days?: number | null
+          min_order_qty?: number | null
+          notes?: string | null
+          product_id?: string
+          supplier_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_supplier_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_supplier_prices_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       production_items: {
         Row: {
           actual_quantity: number | null

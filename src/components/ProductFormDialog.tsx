@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SupplierPricingSection, SupplierPriceEntry } from '@/components/SupplierPricingSection';
 
 interface ProductFormData {
   code: string;
@@ -68,6 +69,8 @@ interface ProductFormDialogProps {
   setCurrencyRate: (rate: number) => void;
   onSave: () => void;
   canManage: boolean;
+  supplierPrices?: SupplierPriceEntry[];
+  onSupplierPricesChange?: (prices: SupplierPriceEntry[]) => void;
 }
 
 export const ProductFormDialog = ({
@@ -81,6 +84,8 @@ export const ProductFormDialog = ({
   setCurrencyRate,
   onSave,
   canManage,
+  supplierPrices = [],
+  onSupplierPricesChange = () => {},
 }: ProductFormDialogProps) => {
   // Calculate volumetric weight when dimensions change
   const volumetricWeight = formData.length_cm && formData.width_cm && formData.height_cm
@@ -353,6 +358,14 @@ export const ProductFormDialog = ({
               </div>
             </div>
           </div>
+
+          {/* Multi-Supplier Pricing Section */}
+          <SupplierPricingSection
+            supplierPrices={supplierPrices}
+            onSupplierPricesChange={onSupplierPricesChange}
+            suppliers={suppliers}
+            currencyRate={currencyRate}
+          />
 
           <div className="space-y-3">
             <h4 className="text-sm font-medium">Wholesale Price</h4>
