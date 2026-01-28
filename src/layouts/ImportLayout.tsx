@@ -5,6 +5,7 @@ import { ImportNav } from '@/components/portals/ImportNav';
 import { PortalSidebar, PortalNavItem } from '@/components/layout/PortalSidebar';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
+import { HeaderClock } from '@/components/layout/HeaderClock';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { 
   Ship, 
@@ -52,6 +53,7 @@ export function ImportLayout({ children }: ImportLayoutProps) {
               <span className="font-semibold">Import</span>
             </div>
             <div className="flex-1" />
+            <HeaderClock />
             <OfflineIndicator />
             <NotificationCenter />
           </div>
@@ -88,6 +90,7 @@ export function ImportLayout({ children }: ImportLayoutProps) {
             <div className="flex h-14 items-center px-4 gap-4">
               <SidebarTrigger />
               <div className="flex-1" />
+              <HeaderClock />
               <OfflineIndicator />
               <NotificationCenter />
             </div>

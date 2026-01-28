@@ -5,6 +5,7 @@ import { DistributionNav } from '@/components/portals/DistributionNav';
 import { PortalSidebar, PortalNavItem } from '@/components/layout/PortalSidebar';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
+import { HeaderClock } from '@/components/layout/HeaderClock';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { 
   Package, 
@@ -80,6 +81,7 @@ export function DistributionLayout({ children }: DistributionLayoutProps) {
               <span className="font-semibold">Distribution</span>
             </div>
             <div className="flex-1" />
+            <HeaderClock />
             <OfflineIndicator />
             <NotificationCenter />
           </div>
@@ -118,6 +120,7 @@ export function DistributionLayout({ children }: DistributionLayoutProps) {
             <div className="flex h-14 items-center px-4 gap-4">
               <SidebarTrigger />
               <div className="flex-1" />
+              <HeaderClock />
               <OfflineIndicator />
               <NotificationCenter />
             </div>
