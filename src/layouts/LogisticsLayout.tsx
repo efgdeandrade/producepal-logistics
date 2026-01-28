@@ -5,6 +5,7 @@ import { LogisticsNav } from '@/components/portals/LogisticsNav';
 import { PortalSidebar, PortalNavItem } from '@/components/layout/PortalSidebar';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
+import { HeaderClock } from '@/components/layout/HeaderClock';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { 
   Truck, 
@@ -50,6 +51,7 @@ export function LogisticsLayout({ children }: LogisticsLayoutProps) {
               <span className="font-semibold">Logistics</span>
             </div>
             <div className="flex-1" />
+            <HeaderClock />
             <OfflineIndicator />
             <NotificationCenter />
           </div>
@@ -86,6 +88,7 @@ export function LogisticsLayout({ children }: LogisticsLayoutProps) {
             <div className="flex h-14 items-center px-4 gap-4">
               <SidebarTrigger />
               <div className="flex-1" />
+              <HeaderClock />
               <OfflineIndicator />
               <NotificationCenter />
             </div>

@@ -4,6 +4,7 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/s
 import { Separator } from '@/components/ui/separator';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
+import { HeaderClock } from '@/components/layout/HeaderClock';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -173,6 +174,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               <span className="font-semibold">Admin</span>
             </div>
             <div className="flex-1" />
+            <HeaderClock />
             <ThemeToggle />
             <OfflineIndicator />
             <NotificationCenter />
@@ -197,6 +199,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               <SidebarTrigger />
               <Separator orientation="vertical" className="h-6" />
               <div className="flex-1" />
+              <HeaderClock />
               <ThemeToggle />
               <OfflineIndicator />
               <NotificationCenter />
