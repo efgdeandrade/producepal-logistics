@@ -77,6 +77,7 @@ import FnbWhatsAppInbox from "./pages/fnb/FnbWhatsAppInbox";
 import FnbDreCommandCenter from "./pages/fnb/FnbDreCommandCenter";
 import FnbDreMobile from "./pages/fnb/FnbDreMobile";
 import DreApp from "./pages/DreApp";
+import FnbDreAnalytics from "./pages/fnb/FnbDreAnalytics";
 
 // Logistics/Driver
 import LogisticsDashboard from "./pages/LogisticsDashboard";
@@ -295,6 +296,7 @@ const App = () => (
                   <Route path="/distribution/whatsapp-inbox" element={<ProtectedDistribution><FnbWhatsAppInbox /></ProtectedDistribution>} />
                   <Route path="/distribution/dre-command-center" element={<ProtectedDistribution><FnbDreCommandCenter /></ProtectedDistribution>} />
                   <Route path="/distribution/dre-mobile" element={<ProtectedDistribution><FnbDreMobile /></ProtectedDistribution>} />
+                  <Route path="/distribution/dre-analytics" element={<ProtectedDistribution><FnbDreAnalytics /></ProtectedDistribution>} />
                   <Route path="/quick-paste" element={<ProtectedDistribution><FnbQuickPaste /></ProtectedDistribution>} />
 
                   {/* ========== LOGISTICS PORTAL ========== */}

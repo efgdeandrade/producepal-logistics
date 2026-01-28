@@ -41,6 +41,7 @@ const distributionNavItems: PortalNavItem[] = [
   { path: '/distribution/orders', label: 'All Orders', icon: ClipboardPaste },
   { path: '/distribution/whatsapp-inbox', label: 'Dre Inbox', icon: MessageSquare, showBadge: true },
   { path: '/distribution/dre-command-center', label: 'Dre Command Center', icon: Bot },
+  { path: '/distribution/dre-analytics', label: 'Dre Analytics', icon: BarChart },
   { path: '/distribution/email-inbox', label: 'Email Inbox', icon: Mail, showBadge: true },
   { path: '/distribution/weekly', label: 'Weekly Board', icon: Calendar },
   { path: '/distribution/standing-orders', label: 'Standing Orders', icon: Repeat },
