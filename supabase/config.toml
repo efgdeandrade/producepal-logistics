@@ -140,3 +140,9 @@ verify_jwt = false
 
 [functions.whatsapp-health-monitor]
 verify_jwt = false
+
+[functions.executive-insights]
+verify_jwt = true
+
+[functions.send-team-whatsapp]
+verify_jwt = true
