@@ -3988,6 +3988,7 @@ export type Database = {
           po_number: string | null
           product_code: string
           quantity: number
+          sale_price_xcg: number | null
         }
         Insert: {
           created_at?: string
@@ -3998,6 +3999,7 @@ export type Database = {
           po_number?: string | null
           product_code: string
           quantity?: number
+          sale_price_xcg?: number | null
         }
         Update: {
           created_at?: string
@@ -4008,6 +4010,7 @@ export type Database = {
           po_number?: string | null
           product_code?: string
           quantity?: number
+          sale_price_xcg?: number | null
         }
         Relationships: [
           {

@@ -20,11 +20,14 @@ interface Product {
   pack_size: number;
   supplier_id: string | null;
   consolidation_group: string | null;
+  retail_price_xcg_per_unit: number | null;
+  wholesale_price_xcg_per_unit: number | null;
 }
 
 interface Customer {
   id: string;
   name: string;
+  pricing_tier: string | null;
 }
 
 interface OrderProduct {
@@ -35,6 +38,8 @@ interface OrderProduct {
   packSize: number;
   trays: number;
   units: number;
+  salePriceXcg: number | null;
+  defaultPriceXcg: number | null;
 }
 
 interface CustomerOrderItem {
@@ -67,8 +72,8 @@ const NewOrder = () => {
     const fetchData = async () => {
       setLoading(true);
       const [customersRes, productsRes, suppliersRes] = await Promise.all([
-        supabase.from('customers').select('id, name').order('name'),
-        supabase.from('products').select('id, code, name, pack_size, supplier_id, consolidation_group').order('name'),
+        supabase.from('customers').select('id, name, pricing_tier').order('name'),
+        supabase.from('products').select('id, code, name, pack_size, supplier_id, consolidation_group, retail_price_xcg_per_unit, wholesale_price_xcg_per_unit').order('name'),
         supabase.from('suppliers').select('id, name').order('name'),
       ]);
       
@@ -139,6 +144,8 @@ const NewOrder = () => {
             packSize: product.pack_size,
             trays: item.quantity,
             units: item.quantity * product.pack_size,
+            salePriceXcg: item.sale_price_xcg ?? null,
+            defaultPriceXcg: product.wholesale_price_xcg_per_unit ?? product.retail_price_xcg_per_unit ?? null,
           };
           
           if (existingCustomer) {
@@ -196,18 +203,25 @@ const NewOrder = () => {
     ));
   };
 
-  const addProductToCustomer = (customerId: string, productId: string) => {
+  const addProductToCustomer = (customerOrderId: string, productId: string) => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
 
     setCustomerOrders(customerOrders.map(co => {
-      if (co.id !== customerId) return co;
+      if (co.id !== customerOrderId) return co;
       
       // Check if product already exists
       if (co.products.some(p => p.productId === productId)) {
         toast({ title: 'Product already added', variant: 'destructive' });
         return co;
       }
+
+      // Get customer's pricing tier to determine default price
+      const customer = customers.find(c => c.id === co.customerId);
+      const pricingTier = customer?.pricing_tier || 'wholesale';
+      const defaultPrice = pricingTier === 'retail' 
+        ? product.retail_price_xcg_per_unit 
+        : product.wholesale_price_xcg_per_unit;
 
       return {
         ...co,
@@ -219,9 +233,26 @@ const NewOrder = () => {
           packSize: product.pack_size,
           trays: 0,
           units: 0,
+          salePriceXcg: defaultPrice ?? null,
+          defaultPriceXcg: defaultPrice ?? null,
         }]
       };
     }));
+  };
+
+  const updateProductPrice = (customerOrderId: string, productId: string, price: number | null) => {
+    setCustomerOrders(customerOrders.map(co => 
+      co.id === customerOrderId 
+        ? {
+            ...co,
+            products: co.products.map(p =>
+              p.id === productId 
+                ? { ...p, salePriceXcg: price }
+                : p
+            )
+          }
+        : co
+    ));
   };
 
   const removeProduct = (customerId: string, productId: string) => {
@@ -278,8 +309,15 @@ const NewOrder = () => {
   }>) => {
     // Convert standing order data to CustomerOrderItem format
     const newCustomerOrders: CustomerOrderItem[] = data.map(customerData => {
+      const customer = customers.find(c => c.id === customerData.customerId);
+      const pricingTier = customer?.pricing_tier || 'wholesale';
+      
       const customerProducts: OrderProduct[] = customerData.products.map(p => {
         const product = products.find(prod => prod.code === p.productCode);
+        const defaultPrice = pricingTier === 'retail' 
+          ? product?.retail_price_xcg_per_unit 
+          : product?.wholesale_price_xcg_per_unit;
+        
         return {
           id: Date.now().toString() + Math.random(),
           productId: product?.id || '',
@@ -288,6 +326,8 @@ const NewOrder = () => {
           packSize: product?.pack_size || 1,
           trays: p.quantity,
           units: p.quantity * (product?.pack_size || 1),
+          salePriceXcg: defaultPrice ?? null,
+          defaultPriceXcg: defaultPrice ?? null,
         };
       });
 
@@ -435,6 +475,7 @@ const NewOrder = () => {
             customer_name: co.customerName,
             product_code: p.productCode,
             quantity: p.trays,
+            sale_price_xcg: p.salePriceXcg,
             po_number: null,
             customer_notes: co.notes || null,
           }))
@@ -472,6 +513,7 @@ const NewOrder = () => {
             customer_name: co.customerName,
             product_code: p.productCode,
             quantity: p.trays,
+            sale_price_xcg: p.salePriceXcg,
             po_number: null,
             customer_notes: co.notes || null,
           }))
@@ -749,44 +791,65 @@ const NewOrder = () => {
                           <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Product</th>
                           <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Trays/Cases</th>
                           <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Units</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Price (XCG)</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Total</th>
                           <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Pack Size</th>
                           <th className="w-12"></th>
                         </tr>
                       </thead>
                       <tbody>
-                        {customerOrder.products.map((product) => (
-                          <tr key={product.id} className="border-b">
-                            <td className="py-3 px-4 text-sm text-foreground">{product.productName}</td>
-                            <td className="py-3 px-4">
-                              <Input
-                                type="number"
-                                min="0"
-                                value={product.trays || ''}
-                                onChange={(e) => updateProductTrays(customerOrder.id, product.id, parseInt(e.target.value) || 0)}
-                                className="w-24 ml-auto"
-                              />
-                            </td>
-                            <td className="py-3 px-4">
-                              <Input
-                                type="number"
-                                min="0"
-                                value={product.units || ''}
-                                onChange={(e) => updateProductUnits(customerOrder.id, product.id, parseInt(e.target.value) || 0)}
-                                className="w-24 ml-auto"
-                              />
-                            </td>
-                            <td className="py-3 px-4 text-right text-sm text-muted-foreground">{product.packSize}</td>
-                            <td className="py-3 px-4">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => removeProduct(customerOrder.id, product.id)}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
+                        {customerOrder.products.map((product) => {
+                          const isCustomPrice = product.salePriceXcg !== product.defaultPriceXcg && product.salePriceXcg !== null;
+                          const lineTotal = (product.trays || 0) * (product.salePriceXcg || 0);
+                          
+                          return (
+                            <tr key={product.id} className="border-b">
+                              <td className="py-3 px-4 text-sm text-foreground">{product.productName}</td>
+                              <td className="py-3 px-4">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={product.trays || ''}
+                                  onChange={(e) => updateProductTrays(customerOrder.id, product.id, parseInt(e.target.value) || 0)}
+                                  className="w-24 ml-auto"
+                                />
+                              </td>
+                              <td className="py-3 px-4">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={product.units || ''}
+                                  onChange={(e) => updateProductUnits(customerOrder.id, product.id, parseInt(e.target.value) || 0)}
+                                  className="w-24 ml-auto"
+                                />
+                              </td>
+                              <td className="py-3 px-4">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={product.salePriceXcg ?? ''}
+                                  onChange={(e) => updateProductPrice(customerOrder.id, product.id, e.target.value ? parseFloat(e.target.value) : null)}
+                                  className={`w-24 ml-auto ${isCustomPrice ? 'border-amber-500 ring-1 ring-amber-500' : ''}`}
+                                  title={isCustomPrice ? `Default: ${product.defaultPriceXcg?.toFixed(2) ?? 'N/A'}` : undefined}
+                                />
+                              </td>
+                              <td className="py-3 px-4 text-right text-sm font-medium text-foreground">
+                                {lineTotal > 0 ? lineTotal.toFixed(2) : '-'}
+                              </td>
+                              <td className="py-3 px-4 text-right text-sm text-muted-foreground">{product.packSize}</td>
+                              <td className="py-3 px-4">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeProduct(customerOrder.id, product.id)}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
