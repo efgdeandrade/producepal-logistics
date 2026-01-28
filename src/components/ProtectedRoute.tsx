@@ -1,5 +1,5 @@
 import { ReactNode, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface ProtectedRouteProps {
@@ -10,19 +10,24 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
   const { user, loading, hasRole, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Check if user has required access (admin can access everything)
   const hasRequiredAccess = !requiredRole || isAdmin() || hasRole(requiredRole);
 
   useEffect(() => {
     if (!loading && !user) {
-      navigate('/auth');
+      const from = `${location.pathname}${location.search}${location.hash}`;
+      navigate('/auth', {
+        replace: true,
+        state: { from },
+      });
     }
 
     if (!loading && user && requiredRole && !hasRequiredAccess) {
       navigate('/');
     }
-  }, [user, loading, requiredRole, hasRequiredAccess, navigate]);
+  }, [user, loading, requiredRole, hasRequiredAccess, navigate, location.pathname, location.search, location.hash]);
 
   if (loading) {
     return (

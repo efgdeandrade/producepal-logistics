@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +25,7 @@ const roleToPortal: Record<string, string> = {
 
 export default function Auth() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, roles, signIn } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -35,10 +36,16 @@ export default function Auth() {
     if (user && roles.length >= 0) {
       redirectToPortal();
     }
-  }, [user, roles]);
+  }, [user, roles, location.key]);
 
   const redirectToPortal = async () => {
     if (!user) return;
+
+    const from = (location.state as any)?.from as string | undefined;
+    if (from && typeof from === 'string' && from.startsWith('/') && !from.startsWith('/auth')) {
+      navigate(from, { replace: true });
+      return;
+    }
     
     try {
       // Check for saved default portal preference
