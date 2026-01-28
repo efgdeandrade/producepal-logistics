@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, Save, Printer, X, ArrowLeft, FileText, Settings } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Plus, Trash2, Save, Printer, X, ArrowLeft, FileText, Settings, Package } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -40,6 +41,7 @@ interface OrderProduct {
   units: number;
   salePriceXcg: number | null;
   defaultPriceXcg: number | null;
+  isFromStock: boolean;
 }
 
 interface CustomerOrderItem {
@@ -146,6 +148,7 @@ const NewOrder = () => {
             units: item.quantity * product.pack_size,
             salePriceXcg: item.sale_price_xcg ?? null,
             defaultPriceXcg: product.wholesale_price_xcg_per_unit ?? product.retail_price_xcg_per_unit ?? null,
+            isFromStock: item.is_from_stock ?? false,
           };
           
           if (existingCustomer) {
@@ -235,6 +238,7 @@ const NewOrder = () => {
           units: 0,
           salePriceXcg: defaultPrice ?? null,
           defaultPriceXcg: defaultPrice ?? null,
+          isFromStock: false,
         }]
       };
     }));
@@ -328,6 +332,7 @@ const NewOrder = () => {
           units: p.quantity * (product?.pack_size || 1),
           salePriceXcg: defaultPrice ?? null,
           defaultPriceXcg: defaultPrice ?? null,
+          isFromStock: false,
         };
       });
 
@@ -358,25 +363,48 @@ const NewOrder = () => {
     const productMap = new Map<string, { product: Product; totalTrays: number; totalUnits: number }>();
 
     customerOrders.forEach(co => {
-      co.products.forEach(orderProduct => {
-        const product = products.find(p => p.id === orderProduct.productId);
-        if (!product) return;
+      co.products
+        .filter(p => !p.isFromStock)  // Exclude in-stock items from supplier orders
+        .forEach(orderProduct => {
+          const product = products.find(p => p.id === orderProduct.productId);
+          if (!product) return;
 
-        const existing = productMap.get(product.id);
-        if (existing) {
-          existing.totalTrays += orderProduct.trays;
-          existing.totalUnits += orderProduct.units;
-        } else {
-          productMap.set(product.id, {
-            product,
-            totalTrays: orderProduct.trays,
-            totalUnits: orderProduct.units,
-          });
-        }
-      });
+          const existing = productMap.get(product.id);
+          if (existing) {
+            existing.totalTrays += orderProduct.trays;
+            existing.totalUnits += orderProduct.units;
+          } else {
+            productMap.set(product.id, {
+              product,
+              totalTrays: orderProduct.trays,
+              totalUnits: orderProduct.units,
+            });
+          }
+        });
     });
 
     return Array.from(productMap.values()).sort((a, b) => a.product.name.localeCompare(b.product.name));
+  };
+
+  const updateProductFromStock = (customerId: string, productId: string, isFromStock: boolean) => {
+    setCustomerOrders(customerOrders.map(co => 
+      co.id === customerId 
+        ? {
+            ...co,
+            products: co.products.map(p =>
+              p.id === productId 
+                ? { ...p, isFromStock }
+                : p
+            )
+          }
+        : co
+    ));
+  };
+
+  const getInStockItemsCount = () => {
+    return customerOrders.reduce((count, co) => 
+      count + co.products.filter(p => p.isFromStock).length, 0
+    );
   };
 
   interface ConsolidatedGroup {
@@ -482,6 +510,7 @@ const NewOrder = () => {
             product_code: p.productCode,
             quantity: p.trays,
             sale_price_xcg: p.salePriceXcg,
+            is_from_stock: p.isFromStock,
             po_number: null,
             customer_notes: co.notes || null,
           }))
@@ -520,6 +549,7 @@ const NewOrder = () => {
             product_code: p.productCode,
             quantity: p.trays,
             sale_price_xcg: p.salePriceXcg,
+            is_from_stock: p.isFromStock,
             po_number: null,
             customer_notes: co.notes || null,
           }))
@@ -800,6 +830,7 @@ const NewOrder = () => {
                           <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Price (XCG)</th>
                           <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Total</th>
                           <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Pack Size</th>
+                          <th className="text-center py-3 px-4 text-sm font-semibold text-foreground">In Stock</th>
                           <th className="w-12"></th>
                         </tr>
                       </thead>
@@ -809,8 +840,21 @@ const NewOrder = () => {
                           const lineTotal = (product.trays || 0) * (product.salePriceXcg || 0);
                           
                           return (
-                            <tr key={product.id} className="border-b">
-                              <td className="py-3 px-4 text-sm text-foreground">{product.productName}</td>
+                            <tr 
+                              key={product.id} 
+                              className={`border-b ${product.isFromStock ? 'bg-green-50 dark:bg-green-950/20' : ''}`}
+                            >
+                              <td className="py-3 px-4 text-sm text-foreground">
+                                <div className="flex items-center gap-2">
+                                  {product.productName}
+                                  {product.isFromStock && (
+                                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300">
+                                      <Package className="h-3 w-3" />
+                                      Stock
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
                               <td className="py-3 px-4">
                                 <Input
                                   type="number"
@@ -844,6 +888,13 @@ const NewOrder = () => {
                                 {lineTotal > 0 ? lineTotal.toFixed(2) : '-'}
                               </td>
                               <td className="py-3 px-4 text-right text-sm text-muted-foreground">{product.packSize}</td>
+                              <td className="py-3 px-4 text-center">
+                                <Checkbox
+                                  checked={product.isFromStock}
+                                  onCheckedChange={(checked) => updateProductFromStock(customerOrder.id, product.id, !!checked)}
+                                  title="Check if this item is from existing stock (won't be ordered from supplier)"
+                                />
+                              </td>
                               <td className="py-3 px-4">
                                 <Button
                                   variant="ghost"
@@ -910,6 +961,19 @@ const NewOrder = () => {
                   </tbody>
                 </table>
               </div>
+
+              {/* In-Stock Items Summary */}
+              {getInStockItemsCount() > 0 && (
+                <div className="mt-4 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
+                  <div className="flex items-center gap-2 text-green-700 dark:text-green-300 text-sm">
+                    <Package className="h-4 w-4" />
+                    <span>
+                      <strong>{getInStockItemsCount()}</strong> item{getInStockItemsCount() !== 1 ? 's' : ''} from existing stock 
+                      <span className="text-green-600 dark:text-green-400"> (not included in supplier orders)</span>
+                    </span>
+                  </div>
+                </div>
+              )}
 
               {/* Consolidated Supplier Orders Section */}
               {roundup.length > 0 && (
