@@ -98,11 +98,13 @@ function compressProductsForAI(products: any[], aliases: any[]) {
   });
 }
 
-// Fuzzy match fallback for items the AI couldn't match
-function fuzzyMatchProduct(searchText: string, products: any[], aliases: any[]): { productId: string | null; confidence: string; matchedName: string | null } {
+// Fuzzy match fallback for items the AI couldn't match - ENHANCED
+function fuzzyMatchProduct(searchText: string, products: any[], aliases: any[]): { productId: string | null; confidence: string; matchedName: string | null; matchReason: string } {
   const normalizedSearch = searchText.toLowerCase().trim()
     .replace(/[^a-z0-9\s]/g, '')
     .replace(/\s+/g, ' ');
+
+  console.log(`Fuzzy matching: "${searchText}" -> normalized: "${normalizedSearch}"`);
 
   // Check aliases first (highest priority - trained by staff)
   for (const alias of aliases) {
@@ -114,70 +116,81 @@ function fuzzyMatchProduct(searchText: string, products: any[], aliases: any[]):
         normalizedSearch.includes(normalizedAlias) || 
         normalizedAlias.includes(normalizedSearch)) {
       const product = products.find(p => p.id === alias.product_id);
+      console.log(`  ✓ Alias match: "${alias.alias}" -> ${product?.name}`);
       return { 
         productId: alias.product_id, 
         confidence: 'high', 
-        matchedName: product?.name || null 
+        matchedName: product?.name || null,
+        matchReason: `alias_match: ${alias.alias}`
       };
     }
   }
 
   // Check product names (including multilingual)
-  let bestMatch: { productId: string; score: number; name: string } | null = null;
+  let bestMatch: { productId: string; score: number; name: string; reason: string } | null = null;
   
   for (const product of products) {
     const namesToCheck = [
-      product.name,
-      product.code,
-      product.name_pap,
-      product.name_nl,
-      product.name_es,
-    ].filter(Boolean);
+      { name: product.name, source: 'name' },
+      { name: product.code, source: 'code' },
+      { name: product.name_pap, source: 'name_pap' },
+      { name: product.name_nl, source: 'name_nl' },
+      { name: product.name_es, source: 'name_es' },
+    ].filter(n => n.name);
 
-    for (const name of namesToCheck) {
+    for (const { name, source } of namesToCheck) {
       const normalizedName = name.toLowerCase().trim()
         .replace(/[^a-z0-9\s]/g, '')
         .replace(/\s+/g, ' ');
 
       // Exact match
       if (normalizedSearch === normalizedName) {
-        return { productId: product.id, confidence: 'high', matchedName: product.name };
+        console.log(`  ✓ Exact ${source} match: "${name}"`);
+        return { productId: product.id, confidence: 'high', matchedName: product.name, matchReason: `exact_${source}_match` };
       }
 
-      // Contains match
+      // Contains match - check both directions
       if (normalizedSearch.includes(normalizedName) || normalizedName.includes(normalizedSearch)) {
         const score = Math.max(normalizedSearch.length, normalizedName.length) / 
                       Math.min(normalizedSearch.length, normalizedName.length);
         if (!bestMatch || score < bestMatch.score) {
-          bestMatch = { productId: product.id, score, name: product.name };
+          bestMatch = { productId: product.id, score, name: product.name, reason: `contains_${source}_match` };
         }
       }
 
-      // Word overlap scoring
-      const searchWords = normalizedSearch.split(' ').filter((w: string) => w.length > 2);
-      const nameWords = normalizedName.split(' ').filter((w: string) => w.length > 2);
-      const matchingWords = searchWords.filter((sw: string) => 
-        nameWords.some((nw: string) => nw.includes(sw) || sw.includes(nw))
-      );
-
-      if (matchingWords.length >= Math.min(2, searchWords.length)) {
-        const score = matchingWords.length / Math.max(searchWords.length, nameWords.length);
-        if (!bestMatch || score > 1/bestMatch.score) {
-          bestMatch = { productId: product.id, score: 1/score, name: product.name };
+      // Word overlap scoring - more lenient
+      const searchWords = normalizedSearch.split(' ').filter((w: string) => w.length > 1);
+      const nameWords = normalizedName.split(' ').filter((w: string) => w.length > 1);
+      
+      // Check for significant word matches
+      for (const sw of searchWords) {
+        for (const nw of nameWords) {
+          // Check if words are similar (one contains the other or Levenshtein-like similarity)
+          if (sw.length >= 3 && nw.length >= 3) {
+            if (nw.includes(sw) || sw.includes(nw)) {
+              const score = Math.abs(sw.length - nw.length) + 0.5;
+              if (!bestMatch || score < bestMatch.score) {
+                bestMatch = { productId: product.id, score, name: product.name, reason: `word_match: ${sw}≈${nw}` };
+              }
+            }
+          }
         }
       }
     }
   }
 
-  if (bestMatch && bestMatch.score < 3) {
+  if (bestMatch && bestMatch.score < 4) {
+    console.log(`  ✓ Best fuzzy match: "${bestMatch.name}" (score: ${bestMatch.score.toFixed(2)}, reason: ${bestMatch.reason})`);
     return { 
       productId: bestMatch.productId, 
       confidence: bestMatch.score < 1.5 ? 'medium' : 'low', 
-      matchedName: bestMatch.name 
+      matchedName: bestMatch.name,
+      matchReason: bestMatch.reason
     };
   }
 
-  return { productId: null, confidence: 'low', matchedName: null };
+  console.log(`  ✗ No match found for: "${searchText}"`);
+  return { productId: null, confidence: 'low', matchedName: null, matchReason: 'no_match' };
 }
 
 serve(async (req) => {
@@ -427,15 +440,17 @@ ${JSON.stringify(customerMappings, null, 2)}` : ''}
     
     for (const item of extractedData.items || []) {
       if (!item.product_id && item.product_name) {
-        console.log(`Attempting fuzzy match for: "${item.product_name}"`);
+        console.log(`Attempting fuzzy match for unmatched item: "${item.product_name}"`);
         const fuzzyResult = fuzzyMatchProduct(item.product_name, products || [], aliases || []);
         if (fuzzyResult.productId) {
-          console.log(`Fuzzy matched "${item.product_name}" to "${fuzzyResult.matchedName}" with ${fuzzyResult.confidence} confidence`);
+          console.log(`Fuzzy matched "${item.product_name}" to "${fuzzyResult.matchedName}" with ${fuzzyResult.confidence} confidence (${fuzzyResult.matchReason})`);
           item.product_id = fuzzyResult.productId;
           item.matched_product_name = fuzzyResult.matchedName;
           item.confidence = fuzzyResult.confidence;
-          item.match_reason = 'fuzzy_match_fallback';
+          item.match_reason = fuzzyResult.matchReason;
         }
+      } else if (item.product_id) {
+        console.log(`AI matched: "${item.product_name}" -> ${item.matched_product_name || item.product_id}`);
       }
     }
 

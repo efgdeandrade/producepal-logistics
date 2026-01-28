@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, Pencil, X, Plus, AlertTriangle, History, Target, FileText } from 'lucide-react';
+import { MessageSquare, Pencil, X, Plus, AlertTriangle, History, Target, FileText, Mail, Paperclip, ChevronDown, ChevronUp } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -58,6 +58,23 @@ const statusWarnings: Record<string, string> = {
   delivered: 'This order has been delivered. Editing will only update records.',
 };
 
+// Order source detection
+type OrderSource = 'email' | 'whatsapp' | 'standing' | 'manual';
+
+const getOrderSource = (order: any): OrderSource => {
+  if (order?.order_number?.startsWith('EM-') || order?.source_email_id) return 'email';
+  if (order?.order_number?.startsWith('WA-')) return 'whatsapp';
+  if (order?.standing_order_template_id || order?.notes?.startsWith('Auto-generated from standing order:')) return 'standing';
+  return 'manual';
+};
+
+const sourceLabels: Record<OrderSource, { label: string; icon: string; color: string }> = {
+  email: { label: 'Email Order', icon: '📧', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' },
+  whatsapp: { label: 'WhatsApp Order', icon: '💬', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' },
+  standing: { label: 'Standing Order', icon: '🔄', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' },
+  manual: { label: 'Manual Order', icon: '✏️', color: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300' },
+};
+
 interface FnbOrderDetailDialogProps {
   order: any;
   open: boolean;
@@ -70,6 +87,10 @@ export function FnbOrderDetailDialog({ order, open, onOpenChange }: FnbOrderDeta
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [showModifications, setShowModifications] = useState(false);
   const [showNotes, setShowNotes] = useState(order?.notes?.includes('Original WhatsApp Message') ?? false);
+  const [showEmailContent, setShowEmailContent] = useState(false);
+  
+  const orderSource = getOrderSource(order);
+  const sourceInfo = sourceLabels[orderSource];
 
   const cancelOrderMutation = useMutation({
     mutationFn: async (orderId: string) => {
@@ -158,6 +179,29 @@ export function FnbOrderDetailDialog({ order, open, onOpenChange }: FnbOrderDeta
     enabled: !!order,
   });
 
+  // Fetch email content if this is an email order
+  const { data: emailData } = useQuery({
+    queryKey: ['fnb-order-email', order?.source_email_id],
+    queryFn: async () => {
+      if (!order?.source_email_id) return null;
+      const { data: email, error } = await supabase
+        .from('email_inbox')
+        .select('id, from_email, from_name, subject, body_text, received_at, extracted_data')
+        .eq('id', order.source_email_id)
+        .single();
+      if (error) throw error;
+      
+      // Also fetch attachments
+      const { data: attachments } = await supabase
+        .from('email_inbox_attachments')
+        .select('id, filename, mime_type, size_bytes, storage_path')
+        .eq('email_id', order.source_email_id);
+      
+      return { ...email, attachments: attachments || [] };
+    },
+    enabled: !!order?.source_email_id,
+  });
+
   if (!order) return null;
 
   return (
@@ -165,7 +209,13 @@ export function FnbOrderDetailDialog({ order, open, onOpenChange }: FnbOrderDeta
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Order {order.order_number}</DialogTitle>
+            <div className="flex items-center gap-2">
+              <DialogTitle>Order {order.order_number}</DialogTitle>
+              <Badge className={sourceInfo.color}>
+                <span className="mr-1">{sourceInfo.icon}</span>
+                {sourceInfo.label}
+              </Badge>
+            </div>
           </DialogHeader>
           <div className="space-y-4">
             {/* Warning for in-progress orders */}
@@ -269,6 +319,105 @@ export function FnbOrderDetailDialog({ order, open, onOpenChange }: FnbOrderDeta
                     <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono">
                       {order.notes}
                     </pre>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+
+            {/* Email Content (for email orders) */}
+            {emailData && (
+              <Collapsible open={showEmailContent} onOpenChange={setShowEmailContent}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-full justify-between bg-blue-50 dark:bg-blue-950 hover:bg-blue-100 dark:hover:bg-blue-900">
+                    <span className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                      <Mail className="h-4 w-4" />
+                      Original Email Content
+                      {emailData.attachments?.length > 0 && (
+                        <Badge variant="outline" className="ml-2 text-xs">
+                          <Paperclip className="h-3 w-3 mr-1" />
+                          {emailData.attachments.length} attachment{emailData.attachments.length > 1 ? 's' : ''}
+                        </Badge>
+                      )}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <Badge variant="secondary">{showEmailContent ? 'Hide' : 'Show'}</Badge>
+                      {showEmailContent ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </div>
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="mt-2 p-4 bg-blue-50/50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800 space-y-3">
+                    {/* Email Header */}
+                    <div className="space-y-1 text-sm">
+                      <div className="flex items-start gap-2">
+                        <span className="text-muted-foreground font-medium min-w-[60px]">From:</span>
+                        <span>{emailData.from_name || emailData.from_email}</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-muted-foreground font-medium min-w-[60px]">Subject:</span>
+                        <span className="font-medium">{emailData.subject}</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-muted-foreground font-medium min-w-[60px]">Date:</span>
+                        <span>{format(new Date(emailData.received_at), 'MMM d, yyyy HH:mm')}</span>
+                      </div>
+                    </div>
+
+                    {/* Email Body */}
+                    <div className="border-t pt-3">
+                      <p className="text-xs font-medium text-muted-foreground mb-2">Email Body:</p>
+                      <ScrollArea className="max-h-48 rounded border bg-background p-3">
+                        <pre className="text-xs whitespace-pre-wrap font-mono">
+                          {emailData.body_text || '(No text content)'}
+                        </pre>
+                      </ScrollArea>
+                    </div>
+
+                    {/* Attachments */}
+                    {emailData.attachments && emailData.attachments.length > 0 && (
+                      <div className="border-t pt-3">
+                        <p className="text-xs font-medium text-muted-foreground mb-2">Attachments:</p>
+                        <div className="space-y-1">
+                          {emailData.attachments.map((att: any) => (
+                            <div key={att.id} className="flex items-center gap-2 text-xs bg-background rounded p-2 border">
+                              <Paperclip className="h-3 w-3 text-muted-foreground" />
+                              <span className="flex-1 truncate">{att.filename}</span>
+                              <span className="text-muted-foreground">
+                                {att.size_bytes ? `${(att.size_bytes / 1024).toFixed(1)} KB` : ''}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Extracted Data Preview */}
+                    {emailData.extracted_data && typeof emailData.extracted_data === 'object' && !Array.isArray(emailData.extracted_data) && (
+                      <div className="border-t pt-3">
+                        <p className="text-xs font-medium text-muted-foreground mb-2">AI Extraction Summary:</p>
+                        <div className="text-xs space-y-1 bg-background rounded p-3 border">
+                          {(emailData.extracted_data as Record<string, any>).matched_items && (
+                            <p>
+                              <span className="text-green-600 dark:text-green-400">
+                                ✓ {((emailData.extracted_data as Record<string, any>).matched_items as any[]).length} items matched
+                              </span>
+                            </p>
+                          )}
+                          {((emailData.extracted_data as Record<string, any>).unmatched_items as any[])?.length > 0 && (
+                            <p>
+                              <span className="text-amber-600 dark:text-amber-400">
+                                ⚠ {((emailData.extracted_data as Record<string, any>).unmatched_items as any[]).length} items need review
+                              </span>
+                            </p>
+                          )}
+                          {(emailData.extracted_data as Record<string, any>).extraction_confidence !== undefined && (
+                            <p className="text-muted-foreground">
+                              Confidence: {Math.round(((emailData.extracted_data as Record<string, any>).extraction_confidence || 0) * 100)}%
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </CollapsibleContent>
               </Collapsible>
