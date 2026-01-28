@@ -381,6 +381,7 @@ const NewOrder = () => {
 
   interface ConsolidatedGroup {
     groupName: string | null;
+    productId: string | null;  // For non-consolidated products: track by product ID
     packSize: number;
     products: Array<{ product: Product; individualUnits: number }>;
     totalUnits: number;
@@ -409,13 +410,18 @@ const NewOrder = () => {
       const supplierGroup = supplierMap.get(supplierId)!;
       
       // Find or create consolidation group
+      // For consolidated products: match by group name and pack size
+      // For non-consolidated products: match by product ID (each product is its own group)
       let consolidatedGroup = supplierGroup.consolidatedGroups.find(
-        cg => cg.groupName === groupKey && cg.packSize === packSize
+        cg => groupKey !== null 
+          ? (cg.groupName === groupKey && cg.packSize === packSize)
+          : (cg.productId === item.product.id)
       );
 
       if (!consolidatedGroup) {
         consolidatedGroup = {
           groupName: groupKey,
+          productId: groupKey ? null : item.product.id,  // Track product ID for non-consolidated
           packSize,
           products: [],
           totalUnits: 0,
