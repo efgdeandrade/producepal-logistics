@@ -1,25 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Package,
   Truck,
-  DollarSign,
-  TrendingUp,
-  TrendingDown,
   Users,
-  AlertTriangle,
   Factory,
   Store,
-  Clock,
-  CheckCircle,
-  ArrowUpRight,
-  ArrowDownRight,
-  FileCheck,
-  UserCog,
   Zap,
+  Calendar,
 } from "lucide-react";
 import {
   AreaChart,
@@ -29,16 +20,15 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
   BarChart,
   Bar,
 } from "recharts";
 import { format, subDays, startOfDay, endOfDay, startOfWeek, endOfWeek } from "date-fns";
 import { useExecutiveDashboardRealtime } from "@/hooks/useRealtimeUpdates";
 import { FnbAlertsCard } from "@/components/fnb/FnbAlertsCard";
-import { IntegrationHealthBadges, IntegrationHealthIndicator } from "@/components/IntegrationHealthIndicator";
+import { IntegrationHealthIndicator, IntegrationHealthBadges } from "@/components/IntegrationHealthIndicator";
+import { ExecutiveKPIGrid } from "@/components/executive/ExecutiveKPIGrid";
+import { ExecutiveInsightsPanel } from "@/components/executive/ExecutiveInsightsPanel";
 
 // Fetch dashboard stats
 const useDashboardStats = () => {
@@ -101,7 +91,7 @@ const useDashboardStats = () => {
         weeklyOrders: weeklyOrders || [],
       };
     },
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: 30000,
   });
 };
 
@@ -111,8 +101,6 @@ const useHRMetrics = () => {
     queryKey: ["hr-dashboard-stats"],
     queryFn: async () => {
       const today = new Date();
-      const todayStart = startOfDay(today).toISOString();
-      const todayEnd = endOfDay(today).toISOString();
       const weekStart = startOfWeek(today, { weekStartsOn: 1 }).toISOString();
       const weekEnd = endOfWeek(today, { weekStartsOn: 1 }).toISOString();
 
@@ -160,7 +148,7 @@ const useHRMetrics = () => {
         expiringDocs: expiringDocs || 0,
       };
     },
-    refetchInterval: 60000, // Refresh every minute
+    refetchInterval: 60000,
   });
 };
 
@@ -212,132 +200,43 @@ const useDepartmentHealth = () => {
   });
 };
 
-// KPI Card component
-function KPICard({
-  title,
-  value,
-  subtitle,
-  icon: Icon,
-  trend,
-  trendValue,
-  loading,
-}: {
-  title: string;
-  value: string | number;
-  subtitle?: string;
-  icon: React.ComponentType<{ className?: string }>;
-  trend?: "up" | "down" | "neutral";
-  trendValue?: string;
-  loading?: boolean;
-}) {
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-8 w-8 rounded-full" />
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-8 w-20 mb-1" />
-          <Skeleton className="h-3 w-32" />
-        </CardContent>
-      </Card>
-    );
-  }
+// Fetch Dre AI metrics
+const useDreAIMetrics = () => {
+  return useQuery({
+    queryKey: ["dre-ai-metrics"],
+    queryFn: async () => {
+      const weekAgo = subDays(new Date(), 7).toISOString();
 
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {title}
-        </CardTitle>
-        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-          <Icon className="h-4 w-4 text-primary" />
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-        <div className="flex items-center gap-2 mt-1">
-          {trend && trendValue && (
-            <div
-              className={`flex items-center text-xs ${
-                trend === "up"
-                  ? "text-green-600"
-                  : trend === "down"
-                  ? "text-red-600"
-                  : "text-muted-foreground"
-              }`}
-            >
-              {trend === "up" ? (
-                <ArrowUpRight className="h-3 w-3" />
-              ) : trend === "down" ? (
-                <ArrowDownRight className="h-3 w-3" />
-              ) : null}
-              {trendValue}
-            </div>
-          )}
-          {subtitle && (
-            <span className="text-xs text-muted-foreground">{subtitle}</span>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+      const { data: aiLogs } = await supabase
+        .from("distribution_ai_match_logs")
+        .select("was_corrected, needs_review")
+        .gte("created_at", weekAgo);
 
-// Department Health Card
-function DepartmentHealthCard({
-  title,
-  icon: Icon,
-  metrics,
-  color,
-  loading,
-}: {
-  title: string;
-  icon: React.ComponentType<{ className?: string }>;
-  metrics: { label: string; value: string | number }[];
-  color: string;
-  loading?: boolean;
-}) {
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader className="pb-2">
-          <Skeleton className="h-5 w-32" />
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-4 w-full mb-2" />
-          <Skeleton className="h-4 w-3/4" />
-        </CardContent>
-      </Card>
-    );
-  }
+      const total = aiLogs?.length || 0;
+      const correct = aiLogs?.filter(l => !l.was_corrected && !l.needs_review).length || 0;
+      const accuracy = total > 0 ? ((correct / total) * 100).toFixed(1) : '--';
 
-  return (
-    <Card className="overflow-hidden">
-      <div className={`h-1 ${color}`} />
-      <CardHeader className="flex flex-row items-center gap-2 pb-2">
-        <Icon className="h-5 w-5 text-muted-foreground" />
-        <CardTitle className="text-base">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          {metrics.map((metric, i) => (
-            <div key={i} className="flex justify-between items-center text-sm">
-              <span className="text-muted-foreground">{metric.label}</span>
-              <span className="font-medium">{metric.value}</span>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+      const { data: healthCheck } = await supabase
+        .from("whatsapp_health_checks")
+        .select("status")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      return {
+        accuracy: `${accuracy}%`,
+        uptime: healthCheck?.status === 'healthy' ? 100 : 0,
+        conversions: 0, // Would need outreach log data
+      };
+    },
+  });
+};
 
 export default function ExecutiveDashboard() {
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: health, isLoading: healthLoading } = useDepartmentHealth();
   const { data: hrMetrics, isLoading: hrLoading } = useHRMetrics();
+  const { data: aiMetrics } = useDreAIMetrics();
   const { lastUpdate } = useExecutiveDashboardRealtime();
 
   // Process weekly data for chart
@@ -362,256 +261,185 @@ export default function ExecutiveDashboard() {
     return Object.values(days);
   })();
 
-  const COLORS = ["hsl(var(--primary))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))"];
-
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <h1 className="hidden md:block text-3xl font-bold tracking-tight">Executive Dashboard</h1>
+          <h1 className="hidden md:block text-2xl font-bold tracking-tight">Executive Overview</h1>
           <div className="flex items-center gap-3">
             <IntegrationHealthBadges />
             {lastUpdate && (
               <Badge variant="outline" className="gap-1 text-xs">
                 <Zap className="h-3 w-3 text-green-500" />
-                Live • {format(lastUpdate, "h:mm:ss a")}
+                Live
               </Badge>
             )}
           </div>
         </div>
-        <p className="text-muted-foreground text-sm md:text-base">
-          Overview of all business operations • {format(new Date(), "EEEE, MMMM d, yyyy")}
-        </p>
-      </div>
-
-      {/* KPI Cards Row 1 - Operations */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <KPICard
-          title="Import Orders Today"
-          value={stats?.importOrdersToday || 0}
-          icon={Package}
-          loading={statsLoading}
-        />
-        <KPICard
-          title="Distribution Orders"
-          value={stats?.distributionOrdersToday || 0}
-          icon={Store}
-          loading={statsLoading}
-        />
-        <KPICard
-          title="Active Deliveries"
-          value={stats?.activeDeliveries || 0}
-          icon={Truck}
-          loading={statsLoading}
-        />
-        <KPICard
-          title="Today's Revenue"
-          value={`ƒ ${(stats?.todayRevenue || 0).toLocaleString()}`}
-          icon={DollarSign}
-          loading={statsLoading}
-        />
-        <KPICard
-          title="Pending Issues"
-          value={stats?.pendingIssues || 0}
-          icon={AlertTriangle}
-          loading={statsLoading}
-          trend={stats?.pendingIssues ? "down" : "neutral"}
-        />
-      </div>
-
-      {/* KPI Cards Row 2 - HR Metrics */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KPICard
-          title="Employees Working"
-          value={hrMetrics?.clockedIn || 0}
-          subtitle="currently clocked in"
-          icon={UserCog}
-          loading={hrLoading}
-        />
-        <KPICard
-          title="Weekly Hours"
-          value={`${hrMetrics?.weeklyHours || 0}h`}
-          subtitle="logged this week"
-          icon={Clock}
-          loading={hrLoading}
-        />
-        <KPICard
-          title="Pending Documents"
-          value={hrMetrics?.pendingDocs || 0}
-          subtitle="need review"
-          icon={FileCheck}
-          loading={hrLoading}
-        />
-        <KPICard
-          title="Expiring Soon"
-          value={hrMetrics?.expiringDocs || 0}
-          subtitle="documents within 30 days"
-          icon={AlertTriangle}
-          loading={hrLoading}
-          trend={hrMetrics?.expiringDocs ? "down" : "neutral"}
-        />
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        {/* Weekly Orders Trend */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Weekly Orders Trend</CardTitle>
-            <CardDescription>Distribution orders over the last 7 days</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[250px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="date" className="text-xs" />
-                  <YAxis className="text-xs" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--background))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="orders"
-                    stroke="hsl(var(--primary))"
-                    fillOpacity={1}
-                    fill="url(#colorOrders)"
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Revenue by Day */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Daily Revenue</CardTitle>
-            <CardDescription>Revenue trend for the last 7 days</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[250px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="date" className="text-xs" />
-                  <YAxis className="text-xs" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--background))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                    }}
-                    formatter={(value: number) => [`ƒ ${value.toLocaleString()}`, "Revenue"]}
-                  />
-                  <Bar dataKey="revenue" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Department Health */}
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Department Health</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-          <DepartmentHealthCard
-            title="Import"
-            icon={Package}
-            color="bg-blue-500"
-            loading={healthLoading}
-            metrics={[
-              { label: "Orders Today", value: stats?.importOrdersToday || 0 },
-              { label: "Pending CIF", value: "—" },
-            ]}
-          />
-          <DepartmentHealthCard
-            title="Distribution"
-            icon={Store}
-            color="bg-green-500"
-            loading={healthLoading}
-            metrics={[
-              { label: "Picking Queue", value: health?.distribution.pickingQueue || 0 },
-              { label: "COD Collected", value: `ƒ ${(health?.distribution.codCollected || 0).toLocaleString()}` },
-            ]}
-          />
-          <DepartmentHealthCard
-            title="Logistics"
-            icon={Truck}
-            color="bg-orange-500"
-            loading={healthLoading}
-            metrics={[
-              { label: "Drivers Active", value: health?.logistics.driversActive || 0 },
-              { label: "In Transit", value: stats?.activeDeliveries || 0 },
-            ]}
-          />
-          <DepartmentHealthCard
-            title="Production"
-            icon={Factory}
-            color="bg-purple-500"
-            loading={healthLoading}
-            metrics={[
-              { label: "Pending Orders", value: health?.production.pendingOrders || 0 },
-              { label: "Completion Rate", value: "—" },
-            ]}
-          />
-          <DepartmentHealthCard
-            title="HR & Team"
-            icon={UserCog}
-            color="bg-pink-500"
-            loading={hrLoading}
-            metrics={[
-              { label: "Working Now", value: hrMetrics?.clockedIn || 0 },
-              { label: "Weekly Hours", value: `${hrMetrics?.weeklyHours || 0}h` },
-            ]}
-          />
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <Calendar className="h-4 w-4" />
+            {format(new Date(), "EEEE, MMMM d, yyyy")}
+          </span>
+          <span>Week {format(new Date(), "w")}</span>
         </div>
       </div>
 
-      {/* Quick Actions / Alerts */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* Distribution Alerts - Live from picker station */}
-        <FnbAlertsCard compact={true} />
+      {/* KPI Grid */}
+      <ExecutiveKPIGrid
+        stats={stats}
+        hrMetrics={hrMetrics}
+        health={health}
+        aiMetrics={aiMetrics}
+        statsLoading={statsLoading}
+        hrLoading={hrLoading}
+        healthLoading={healthLoading}
+      />
 
-        {/* Integration Health */}
-        <IntegrationHealthIndicator />
+      {/* Main Content Grid */}
+      <div className="grid gap-6 lg:grid-cols-12">
+        {/* Left Column - Charts & Health */}
+        <div className="lg:col-span-8 space-y-6">
+          {/* Charts Row */}
+          <Tabs defaultValue="orders" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 max-w-[300px]">
+              <TabsTrigger value="orders">Orders Trend</TabsTrigger>
+              <TabsTrigger value="revenue">Revenue</TabsTrigger>
+            </TabsList>
+            <TabsContent value="orders">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Weekly Orders</CardTitle>
+                  <CardDescription>Distribution orders over the last 7 days</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[240px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData}>
+                        <defs>
+                          <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis dataKey="date" className="text-xs" />
+                        <YAxis className="text-xs" />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "hsl(var(--background))",
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "8px",
+                          }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="orders"
+                          stroke="hsl(var(--primary))"
+                          fillOpacity={1}
+                          fill="url(#colorOrders)"
+                          strokeWidth={2}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="revenue">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Daily Revenue</CardTitle>
+                  <CardDescription>Revenue trend for the last 7 days</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[240px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis dataKey="date" className="text-xs" />
+                        <YAxis className="text-xs" />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "hsl(var(--background))",
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "8px",
+                          }}
+                          formatter={(value: number) => [`ƒ ${value.toLocaleString()}`, "Revenue"]}
+                        />
+                        <Bar dataKey="revenue" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
-              AI Insights
-            </CardTitle>
-            <CardDescription>Recommendations based on your data</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="p-3 bg-primary/5 rounded-lg border border-primary/10">
-                <p className="text-sm">
-                  <strong>💡 Opportunity:</strong> Distribution orders are up 15% this week. Consider optimizing driver routes for the busy zones.
-                </p>
-              </div>
-              <div className="p-3 bg-muted rounded-lg">
-                <p className="text-sm text-muted-foreground">
-                  More insights will appear as data accumulates.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          {/* Department Quick View */}
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+            <Card className="overflow-hidden">
+              <div className="h-1 bg-blue-500" />
+              <CardHeader className="pb-2 pt-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Package className="h-4 w-4 text-blue-500" />
+                  Import
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-xs text-muted-foreground">
+                {stats?.importOrdersToday || 0} orders today
+              </CardContent>
+            </Card>
+            <Card className="overflow-hidden">
+              <div className="h-1 bg-green-500" />
+              <CardHeader className="pb-2 pt-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Store className="h-4 w-4 text-green-500" />
+                  Distribution
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-xs text-muted-foreground">
+                {stats?.distributionOrdersToday || 0} orders today
+              </CardContent>
+            </Card>
+            <Card className="overflow-hidden">
+              <div className="h-1 bg-orange-500" />
+              <CardHeader className="pb-2 pt-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Truck className="h-4 w-4 text-orange-500" />
+                  Logistics
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-xs text-muted-foreground">
+                {health?.logistics?.driversActive || 0} drivers active
+              </CardContent>
+            </Card>
+            <Card className="overflow-hidden">
+              <div className="h-1 bg-purple-500" />
+              <CardHeader className="pb-2 pt-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Factory className="h-4 w-4 text-purple-500" />
+                  Production
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-xs text-muted-foreground">
+                {health?.production?.pendingOrders || 0} pending
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Alerts & Integrations Row */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <FnbAlertsCard compact />
+            <IntegrationHealthIndicator />
+          </div>
+        </div>
+
+        {/* Right Column - AI Insights */}
+        <div className="lg:col-span-4">
+          <ExecutiveInsightsPanel />
+        </div>
       </div>
     </div>
   );
