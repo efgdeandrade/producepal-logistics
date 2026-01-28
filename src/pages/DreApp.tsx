@@ -28,6 +28,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useDreConversations, type DreConversation } from '@/hooks/useDreConversations';
 import { useTeamPresence } from '@/hooks/useTeamPresence';
 import { DreTeamChat } from '@/components/dre/DreTeamChat';
+import { DreInstallBanner } from '@/components/dre/DreInstallBanner';
 import { playOrderNotificationSound } from '@/utils/audioNotification';
 import { supabase } from '@/integrations/supabase/client';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -635,6 +636,7 @@ export default function DreApp() {
       ) : (
         <ConversationListView />
       )}
+      <DreInstallBanner />
     </div>
   );
 }
