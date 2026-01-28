@@ -1,13 +1,13 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, ShoppingCart, Calculator, Package, Mail } from 'lucide-react';
+import { Home, ShoppingCart, Calculator, Package, Mail, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { path: '/import', label: 'Dashboard', icon: Home },
   { path: '/import/orders', label: 'Orders', icon: ShoppingCart },
   { path: '/import/cif', label: 'CIF', icon: Calculator, highlight: true },
+  { path: '/import/standing-orders', label: 'Templates', icon: FileText },
   { path: '/import/products', label: 'Products', icon: Package },
-  { path: '/import/email-templates', label: 'Templates', icon: Mail },
 ];
 
 export function ImportNav() {
