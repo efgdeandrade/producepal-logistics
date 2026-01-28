@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Eye, ArrowLeft } from 'lucide-react';
+import { Search, Eye, ArrowLeft, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -80,14 +80,20 @@ const History = () => {
     <div className="container py-8">
       
       <main className="container py-8">
-        <div className="flex items-center gap-4 mb-8">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-          <h1 className="text-4xl font-bold text-foreground mb-2">Order History</h1>
-            <p className="text-muted-foreground">View and manage all past orders</p>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/import')}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div>
+              <h1 className="text-4xl font-bold text-foreground mb-2">Order History</h1>
+              <p className="text-muted-foreground">View and manage all past orders</p>
+            </div>
           </div>
+          <Button onClick={() => navigate('/import/orders/new')}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Order
+          </Button>
         </div>
 
         <Card className="mb-6">
@@ -136,7 +142,7 @@ const History = () => {
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => navigate(`/order/${order.id}`)}
+                      onClick={() => navigate(`/import/orders/${order.id}`)}
                     >
                       <Eye className="mr-2 h-4 w-4" />
                       View
