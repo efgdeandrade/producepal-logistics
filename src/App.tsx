@@ -265,11 +265,12 @@ const App = () => (
                   <Route path="/import/orders/:orderId" element={<ProtectedImport><OrderDetails /></ProtectedImport>} />
                   <Route path="/import/standing-orders" element={<ProtectedImport><StandingOrders /></ProtectedImport>} />
                   <Route path="/import/cif" element={<ProtectedImport><CIFCalculator /></ProtectedImport>} />
-                  <Route path="/import/cif/history" element={<ProtectedImport><CIFCalculatorHistory /></ProtectedImport>} />
+                  <Route path="/import/cif-history" element={<ProtectedImport><CIFCalculatorHistory /></ProtectedImport>} />
                   <Route path="/import/suppliers" element={<ProtectedImport><Suppliers /></ProtectedImport>} />
                   <Route path="/import/products" element={<ProtectedImport><Products /></ProtectedImport>} />
                   <Route path="/import/customers" element={<ProtectedImport><Customers /></ProtectedImport>} />
-                  <Route path="/import/consolidation" element={<ProtectedImport><ConsolidationGroups /></ProtectedImport>} />
+                  <Route path="/import/consolidation-groups" element={<ProtectedImport><ConsolidationGroups /></ProtectedImport>} />
+                  <Route path="/import/invoices" element={<ProtectedImport><Invoices /></ProtectedImport>} />
                   <Route path="/import/email-templates" element={<ProtectedImport><ImportEmailTemplates /></ProtectedImport>} />
 
                   {/* ========== DISTRIBUTION PORTAL ========== */}
