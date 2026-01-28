@@ -2,7 +2,7 @@ export interface ReportTemplate {
   id: string;
   name: string;
   description: string;
-  category: "sales" | "operations" | "finance" | "customers";
+  category: "sales" | "operations" | "finance" | "customers" | "import";
   icon: string;
   queryConfig: {
     table: string;
@@ -330,6 +330,199 @@ export const builtInReportTemplates: ReportTemplate[] = [
         type: "table",
         title: "Zone Details",
         config: { columns: ["delivery_zone", "customer_count"] },
+      },
+    ],
+  },
+  // Import-specific reports
+  {
+    id: "supplier-spend-report",
+    name: "Supplier Spend Report",
+    description: "Total spend by supplier with breakdown by product category and trends over time",
+    category: "import",
+    icon: "DollarSign",
+    queryConfig: {
+      table: "bills",
+      select: "id, bill_number, vendor_name, vendor_id, amount, currency, bill_date, status, payment_status",
+    },
+    parameters: [
+      {
+        key: "dateRange",
+        label: "Date Range",
+        type: "dateRange",
+        required: true,
+      },
+      {
+        key: "vendor_id",
+        label: "Supplier",
+        type: "select",
+        required: false,
+      },
+    ],
+    visualizations: [
+      {
+        type: "metric",
+        title: "Total Spend",
+        config: { aggregation: "sum", field: "amount" },
+      },
+      {
+        type: "barChart",
+        title: "Spend by Supplier",
+        config: { xField: "vendor_name", yField: "amount", aggregation: "sum" },
+      },
+      {
+        type: "lineChart",
+        title: "Monthly Spend Trend",
+        config: { xField: "bill_date", yField: "amount", aggregation: "sum" },
+      },
+      {
+        type: "table",
+        title: "Bill Details",
+        config: { columns: ["bill_number", "vendor_name", "bill_date", "amount", "status"] },
+      },
+    ],
+  },
+  {
+    id: "landed-cost-analysis",
+    name: "Landed Cost Analysis",
+    description: "CIF breakdown showing FOB, freight, and other costs with margin analysis",
+    category: "import",
+    icon: "Calculator",
+    queryConfig: {
+      table: "cif_calculations",
+      select: "id, calculation_name, calculation_type, exchange_rate, freight_exterior_per_kg, freight_local_per_kg, total_chargeable_weight, total_pallets, selected_distribution_method, created_at",
+    },
+    parameters: [
+      {
+        key: "dateRange",
+        label: "Date Range",
+        type: "dateRange",
+        required: true,
+      },
+      {
+        key: "calculation_type",
+        label: "Calculation Type",
+        type: "select",
+        options: [
+          { label: "All", value: "" },
+          { label: "Estimate", value: "estimate" },
+          { label: "Actual", value: "actual" },
+        ],
+      },
+    ],
+    visualizations: [
+      {
+        type: "metric",
+        title: "Total Calculations",
+        config: { aggregation: "count" },
+      },
+      {
+        type: "metric",
+        title: "Avg Exchange Rate",
+        config: { aggregation: "avg", field: "exchange_rate" },
+      },
+      {
+        type: "pieChart",
+        title: "By Calculation Type",
+        config: { labelField: "calculation_type", valueField: "id", aggregation: "count" },
+      },
+      {
+        type: "table",
+        title: "CIF Details",
+        config: { columns: ["calculation_name", "calculation_type", "exchange_rate", "total_chargeable_weight", "created_at"] },
+      },
+    ],
+  },
+  {
+    id: "bill-aging-report",
+    name: "Bill Aging Report",
+    description: "Outstanding bills by age bracket with vendor-wise breakdown",
+    category: "import",
+    icon: "Clock",
+    queryConfig: {
+      table: "bills",
+      select: "id, bill_number, vendor_name, amount, currency, bill_date, due_date, payment_status, paid_amount",
+    },
+    parameters: [
+      {
+        key: "payment_status",
+        label: "Payment Status",
+        type: "select",
+        options: [
+          { label: "All", value: "" },
+          { label: "Unpaid", value: "unpaid" },
+          { label: "Partial", value: "partial" },
+          { label: "Paid", value: "paid" },
+        ],
+      },
+    ],
+    visualizations: [
+      {
+        type: "metric",
+        title: "Total Outstanding",
+        config: { aggregation: "sum", field: "amount", filter: { payment_status: "unpaid" } },
+      },
+      {
+        type: "barChart",
+        title: "Aging by Bracket",
+        config: { xField: "aging_bracket", yField: "amount", aggregation: "sum" },
+      },
+      {
+        type: "pieChart",
+        title: "By Payment Status",
+        config: { labelField: "payment_status", valueField: "amount", aggregation: "sum" },
+      },
+      {
+        type: "table",
+        title: "Outstanding Bills",
+        config: { columns: ["bill_number", "vendor_name", "due_date", "amount", "payment_status"] },
+      },
+    ],
+  },
+  {
+    id: "shipment-status-report",
+    name: "Shipment Status Report",
+    description: "Track active shipments with ETD/ETA and supplier performance metrics",
+    category: "import",
+    icon: "Plane",
+    queryConfig: {
+      table: "orders",
+      select: "id, status, created_at, supplier_id",
+    },
+    parameters: [
+      {
+        key: "dateRange",
+        label: "Date Range",
+        type: "dateRange",
+        required: true,
+      },
+      {
+        key: "status",
+        label: "Status",
+        type: "select",
+        options: [
+          { label: "All", value: "" },
+          { label: "Pending", value: "pending" },
+          { label: "Confirmed", value: "confirmed" },
+          { label: "In Transit", value: "in_transit" },
+          { label: "Delivered", value: "delivered" },
+        ],
+      },
+    ],
+    visualizations: [
+      {
+        type: "metric",
+        title: "Total Shipments",
+        config: { aggregation: "count" },
+      },
+      {
+        type: "pieChart",
+        title: "By Status",
+        config: { labelField: "status", valueField: "id", aggregation: "count" },
+      },
+      {
+        type: "table",
+        title: "Shipment Details",
+        config: { columns: ["id", "status", "created_at"] },
       },
     ],
   },
