@@ -115,10 +115,10 @@ export default function DistributionDashboard() {
         isLoading={statsLoading} 
       />
 
-      {/* Main Content Grid */}
-      <div className="grid gap-4 lg:grid-cols-4">
-        {/* Kanban Columns - Takes 3 columns */}
-        <div className="lg:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-3 h-[500px]">
+      {/* Main Content - Kanban + Sidebar */}
+      <div className="grid gap-4 lg:grid-cols-12">
+        {/* Kanban Columns - Takes 9 columns on large screens */}
+        <div className="lg:col-span-9 grid grid-cols-2 md:grid-cols-4 gap-3">
           <DashboardKanbanColumn
             title="New Orders"
             icon={<Clock className="h-4 w-4 text-yellow-500" />}
@@ -149,17 +149,16 @@ export default function DistributionDashboard() {
           />
         </div>
 
-        {/* Right Sidebar - Takes 1 column */}
-        <div className="space-y-4">
+        {/* Right Sidebar - Takes 3 columns */}
+        <div className="lg:col-span-3 space-y-4">
           {/* Dre AI Summary */}
           <DreSummaryWidget />
-
           {/* Alerts */}
           <FnbAlertsCard showAudioAlerts compact />
         </div>
       </div>
 
-      {/* Live Feed */}
+      {/* Live Feed - Full Width Below */}
       <WhatsAppLiveFeed />
     </div>
   );
