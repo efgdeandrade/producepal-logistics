@@ -50,6 +50,7 @@ import CIFCalculator from "./pages/CIFCalculator";
 import CIFCalculatorHistory from "./pages/CIFCalculatorHistory";
 import ConsolidationGroups from "./pages/ConsolidationGroups";
 import StandingOrders from "./pages/StandingOrders";
+import ImportEmailTemplates from "./pages/import/ImportEmailTemplates";
 
 // Distribution Department
 import DistributionDashboard from "./pages/DistributionDashboard";
@@ -269,6 +270,7 @@ const App = () => (
                   <Route path="/import/products" element={<ProtectedImport><Products /></ProtectedImport>} />
                   <Route path="/import/customers" element={<ProtectedImport><Customers /></ProtectedImport>} />
                   <Route path="/import/consolidation" element={<ProtectedImport><ConsolidationGroups /></ProtectedImport>} />
+                  <Route path="/import/email-templates" element={<ProtectedImport><ImportEmailTemplates /></ProtectedImport>} />
 
                   {/* ========== DISTRIBUTION PORTAL ========== */}
                   <Route path="/distribution" element={<ProtectedDistribution><DistributionDashboard /></ProtectedDistribution>} />
