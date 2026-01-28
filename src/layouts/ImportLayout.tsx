@@ -17,7 +17,10 @@ import {
   History,
   ArrowLeft,
   Mail,
-  FileText
+  FileText,
+  Users,
+  Layers,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -28,10 +31,13 @@ interface ImportLayoutProps {
 const importNavItems: PortalNavItem[] = [
   { path: '/import', label: 'Dashboard', icon: Home },
   { path: '/import/orders', label: 'Orders', icon: ShoppingCart },
-  { path: '/import/cif', label: 'CIF Calculator', icon: Calculator },
-  { path: '/import/cif-history', label: 'CIF History', icon: History },
+  { path: '/import/customers', label: 'Customers', icon: Users },
   { path: '/import/products', label: 'Products', icon: Package },
   { path: '/import/suppliers', label: 'Suppliers', icon: Building2 },
+  { path: '/import/consolidation-groups', label: 'Consolidation Groups', icon: Layers },
+  { path: '/import/cif', label: 'CIF Calculator', icon: Calculator },
+  { path: '/import/cif-history', label: 'CIF History', icon: History },
+  { path: '/import/invoices', label: 'Invoices', icon: FileSpreadsheet },
   { path: '/import/standing-orders', label: 'Order Templates', icon: FileText },
   { path: '/import/email-templates', label: 'Email Templates', icon: Mail },
 ];
