@@ -24,7 +24,8 @@ import {
   Receipt,
   Truck,
   FolderOpen,
-  BarChart3
+  BarChart3,
+  Brain
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -48,6 +49,7 @@ const importNavItems: PortalNavItem[] = [
   { path: '/import/analytics', label: 'Analytics', icon: BarChart3 },
   { path: '/import/standing-orders', label: 'Order Templates', icon: FileText },
   { path: '/import/email-templates', label: 'Email Templates', icon: Mail },
+  { path: '/import/ai-learning', label: 'AI Learning', icon: Brain },
 ];
 
 export function ImportLayout({ children }: ImportLayoutProps) {

@@ -28,6 +28,7 @@ import {
   Legend,
 } from "recharts";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
+import { ImportAIInsightsPanel } from "@/components/import/ImportAIInsightsPanel";
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', '#82ca9d', '#ffc658', '#8884d8'];
 
@@ -187,13 +188,16 @@ export default function ImportAnalytics() {
   }, [bills]);
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Import Analytics</h1>
         <p className="text-muted-foreground">
           Performance metrics and insights for import operations
         </p>
       </div>
+
+      {/* AI Insights Panel */}
+      <ImportAIInsightsPanel />
 
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-5">
