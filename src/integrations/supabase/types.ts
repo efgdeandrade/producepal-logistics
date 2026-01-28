@@ -202,6 +202,9 @@ export type Database = {
           id: string
           notes: string | null
           ocr_data: Json | null
+          paid_amount: number | null
+          paid_date: string | null
+          payment_status: string | null
           pdf_url: string | null
           status: string
           updated_at: string
@@ -220,6 +223,9 @@ export type Database = {
           id?: string
           notes?: string | null
           ocr_data?: Json | null
+          paid_amount?: number | null
+          paid_date?: string | null
+          payment_status?: string | null
           pdf_url?: string | null
           status?: string
           updated_at?: string
@@ -238,6 +244,9 @@ export type Database = {
           id?: string
           notes?: string | null
           ocr_data?: Json | null
+          paid_amount?: number | null
+          paid_date?: string | null
+          payment_status?: string | null
           pdf_url?: string | null
           status?: string
           updated_at?: string
@@ -3842,6 +3851,56 @@ export type Database = {
           watch_expiration?: string | null
         }
         Relationships: []
+      }
+      import_documents: {
+        Row: {
+          category: string
+          created_at: string | null
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          notes: string | null
+          order_id: string | null
+          updated_at: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          updated_at?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          updated_at?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_documents_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invoices: {
         Row: {

@@ -18,6 +18,9 @@ import {
   Play,
   Calendar,
   FileText,
+  Calculator,
+  Clock,
+  Plane,
 } from "lucide-react";
 import { builtInReportTemplates, ReportTemplate } from "@/lib/reportTemplates";
 
@@ -30,6 +33,9 @@ const iconMap: Record<string, React.ElementType> = {
   Wallet,
   ClipboardList,
   MapPin,
+  Calculator,
+  Clock,
+  Plane,
 };
 
 const categoryLabels: Record<string, { label: string; description: string }> = {
@@ -37,6 +43,7 @@ const categoryLabels: Record<string, { label: string; description: string }> = {
   operations: { label: "Operations", description: "Delivery, picking, and logistics" },
   finance: { label: "Finance", description: "COD, invoices, and payments" },
   customers: { label: "Customers", description: "Customer analytics and history" },
+  import: { label: "Import", description: "Supplier spend, landed costs, and bills" },
 };
 
 export default function ReportLibrary() {
