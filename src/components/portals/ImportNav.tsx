@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, ShoppingCart, Calculator, Package, Settings } from 'lucide-react';
+import { Home, ShoppingCart, Calculator, Package, Mail } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -7,7 +7,7 @@ const navItems = [
   { path: '/import/orders', label: 'Orders', icon: ShoppingCart },
   { path: '/import/cif', label: 'CIF', icon: Calculator, highlight: true },
   { path: '/import/products', label: 'Products', icon: Package },
-  { path: '/import/suppliers', label: 'Suppliers', icon: Settings },
+  { path: '/import/email-templates', label: 'Templates', icon: Mail },
 ];
 
 export function ImportNav() {

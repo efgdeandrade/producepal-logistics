@@ -15,7 +15,8 @@ import {
   Package,
   Building2,
   History,
-  ArrowLeft
+  ArrowLeft,
+  Mail
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -30,6 +31,7 @@ const importNavItems: PortalNavItem[] = [
   { path: '/import/cif-history', label: 'CIF History', icon: History },
   { path: '/import/products', label: 'Products', icon: Package },
   { path: '/import/suppliers', label: 'Suppliers', icon: Building2 },
+  { path: '/import/email-templates', label: 'Email Templates', icon: Mail },
 ];
 
 export function ImportLayout({ children }: ImportLayoutProps) {
