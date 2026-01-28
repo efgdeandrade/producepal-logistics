@@ -24,7 +24,7 @@ const IntegrationHub = () => {
       description: 'Receive customer orders via email and send confirmations',
       icon: Mail,
       status: gmailConnected ? 'connected' : 'disconnected',
-      href: '/settings/integrations/gmail',
+      href: '/admin/integrations/gmail',
       color: 'text-red-500',
     },
     {
@@ -33,7 +33,7 @@ const IntegrationHub = () => {
       icon: MessageSquare,
       status: whatsappIntegration?.is_active ? 'connected' : 'disconnected',
       lastSync: whatsappIntegration?.last_sync_at,
-      href: '/settings/integrations/whatsapp',
+      href: '/admin/integrations/whatsapp',
       color: 'text-green-500',
     },
     {
@@ -42,7 +42,7 @@ const IntegrationHub = () => {
       icon: RefreshCw,
       status: quickbooksIntegration?.is_active ? 'connected' : 'disconnected',
       lastSync: quickbooksIntegration?.last_sync_at,
-      href: '/settings/integrations/quickbooks',
+      href: '/admin/integrations/quickbooks',
       color: 'text-blue-500',
     },
     {
@@ -51,7 +51,7 @@ const IntegrationHub = () => {
       icon: Webhook,
       status: activeWebhooksCount > 0 ? 'active' : 'inactive',
       extra: `${activeWebhooksCount} active`,
-      href: '/settings/integrations/webhooks',
+      href: '/admin/integrations/webhooks',
       color: 'text-purple-500',
     },
     {
@@ -60,7 +60,7 @@ const IntegrationHub = () => {
       icon: Plug,
       status: integrations.filter(i => i.type === 'custom_api').length > 0 ? 'configured' : 'none',
       extra: `${integrations.filter(i => i.type === 'custom_api').length} connectors`,
-      href: '/settings/integrations/api',
+      href: '/admin/integrations/api',
       color: 'text-orange-500',
     },
   ];
@@ -90,7 +90,7 @@ const IntegrationHub = () => {
           <h1 className="text-2xl font-bold">Integration Hub</h1>
           <p className="text-muted-foreground">Connect and manage external services</p>
         </div>
-        <Button variant="outline" onClick={() => navigate('/settings')}>
+        <Button variant="outline" onClick={() => navigate('/admin/settings')}>
           <Settings className="h-4 w-4 mr-2" />
           Settings
         </Button>

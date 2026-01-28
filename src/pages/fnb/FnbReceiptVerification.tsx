@@ -269,7 +269,7 @@ export default function FnbReceiptVerification() {
     <div className="px-4 md:container py-6 space-y-6 w-full max-w-full overflow-x-hidden">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
-            <Link to="/fnb">
+            <Link to="/distribution">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>

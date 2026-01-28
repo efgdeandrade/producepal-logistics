@@ -43,7 +43,7 @@ const QuickBooksSync = () => {
         title: 'Connected to QuickBooks',
         description: 'Your QuickBooks account has been successfully linked.',
       });
-      navigate('/settings/integrations/quickbooks', { replace: true });
+      navigate('/admin/integrations/quickbooks', { replace: true });
       loadTokenStatus();
     }
     
@@ -53,7 +53,7 @@ const QuickBooksSync = () => {
         description: decodeURIComponent(error),
         variant: 'destructive',
       });
-      navigate('/settings/integrations/quickbooks', { replace: true });
+      navigate('/admin/integrations/quickbooks', { replace: true });
     }
   }, [searchParams, toast, navigate]);
 
@@ -137,7 +137,7 @@ const QuickBooksSync = () => {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/settings/integrations')}>
+        <Button variant="ghost" size="icon" onClick={() => navigate('/admin/integrations')}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
@@ -204,7 +204,7 @@ const QuickBooksSync = () => {
                   )}
                   <Button 
                     variant="outline" 
-                    onClick={() => navigate('/settings/integrations/quickbooks/connect')}
+                    onClick={() => navigate('/admin/integrations/quickbooks/connect')}
                   >
                     <RefreshCw className="h-4 w-4 mr-2" />
                     {isExpired ? 'Reconnect' : 'Manage Connection'}
@@ -218,7 +218,7 @@ const QuickBooksSync = () => {
                       Connect your QuickBooks account to enable invoice syncing.
                     </AlertDescription>
                   </Alert>
-                  <Button onClick={() => navigate('/settings/integrations/quickbooks/connect')}>
+                  <Button onClick={() => navigate('/admin/integrations/quickbooks/connect')}>
                     <LinkIcon className="h-4 w-4 mr-2" />
                     Connect to QuickBooks
                   </Button>

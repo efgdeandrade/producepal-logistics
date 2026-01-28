@@ -199,7 +199,7 @@ export default function FnbDriverZones() {
     <div className="px-4 md:container py-4 md:py-6 space-y-6 w-full max-w-full overflow-x-hidden">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/fnb")}>
+            <Button variant="ghost" size="icon" onClick={() => navigate("/logistics")}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
@@ -283,7 +283,7 @@ export default function FnbDriverZones() {
                 <p className="text-muted-foreground mb-4">
                   No major zones configured. Create Pariba, Pabou, and Meimei first.
                 </p>
-                <Button variant="outline" onClick={() => navigate("/fnb/zones")}>
+                <Button variant="outline" onClick={() => navigate("/distribution/zones")}>
                   Go to Zone Management
                 </Button>
               </div>

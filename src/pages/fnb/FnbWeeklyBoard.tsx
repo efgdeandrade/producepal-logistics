@@ -316,7 +316,7 @@ export default function FnbWeeklyBoard() {
     <div className="px-4 md:container max-w-screen-2xl py-6 space-y-6 w-full overflow-x-hidden">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
-            <Link to="/fnb">
+            <Link to="/distribution">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
@@ -367,14 +367,14 @@ export default function FnbWeeklyBoard() {
                     ) : activeTemplatesCount > 0 ? (
                       <>{activeTemplatesCount} active templates ready to generate</>
                     ) : (
-                      <>No templates configured. <Link to="/fnb/standing-orders" className="text-primary underline">Set up templates</Link></>
+                      <>No templates configured. <Link to="/distribution/standing-orders" className="text-primary underline">Set up templates</Link></>
                     )}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" asChild>
-                  <Link to="/fnb/standing-orders">
+                  <Link to="/distribution/standing-orders">
                     Manage Templates
                   </Link>
                 </Button>
@@ -575,19 +575,19 @@ export default function FnbWeeklyBoard() {
                 {/* Quick Actions */}
                 <div className="flex gap-2 pt-4 border-t">
                   <Button asChild variant="outline">
-                    <Link to="/fnb/receipts">
+                    <Link to="/distribution/receipts">
                       <Camera className="h-4 w-4 mr-2" />
                       Verify Receipts
                     </Link>
                   </Button>
                   <Button asChild variant="outline">
-                    <Link to="/fnb/cod">
+                    <Link to="/distribution/cod">
                       <Banknote className="h-4 w-4 mr-2" />
                       COD Reconciliation
                     </Link>
                   </Button>
                   <Button asChild variant="outline">
-                    <Link to="/fnb/orders">
+                    <Link to="/distribution/orders">
                       <ExternalLink className="h-4 w-4 mr-2" />
                       View All Orders
                     </Link>

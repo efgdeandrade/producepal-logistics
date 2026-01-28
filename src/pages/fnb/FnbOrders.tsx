@@ -976,7 +976,7 @@ export default function FnbOrders() {
           >
             {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
           </Button>
-          <Button onClick={() => navigate('/fnb/orders/new')}>
+          <Button onClick={() => navigate('/distribution/orders/new')}>
             <Plus className="h-4 w-4 mr-2" />
             New Order
           </Button>
