@@ -51,6 +51,10 @@ import CIFCalculatorHistory from "./pages/CIFCalculatorHistory";
 import ConsolidationGroups from "./pages/ConsolidationGroups";
 import StandingOrders from "./pages/StandingOrders";
 import ImportEmailTemplates from "./pages/import/ImportEmailTemplates";
+import ImportBills from "./pages/import/ImportBills";
+import ImportShipments from "./pages/import/ImportShipments";
+import ImportDocuments from "./pages/import/ImportDocuments";
+import ImportAnalytics from "./pages/import/ImportAnalytics";
 
 // Distribution Department
 import DistributionDashboard from "./pages/DistributionDashboard";
@@ -271,6 +275,10 @@ const App = () => (
                   <Route path="/import/customers" element={<ProtectedImport><Customers /></ProtectedImport>} />
                   <Route path="/import/consolidation-groups" element={<ProtectedImport><ConsolidationGroups /></ProtectedImport>} />
                   <Route path="/import/invoices" element={<ProtectedImport><Invoices /></ProtectedImport>} />
+                  <Route path="/import/bills" element={<ProtectedImport><ImportBills /></ProtectedImport>} />
+                  <Route path="/import/shipments" element={<ProtectedImport><ImportShipments /></ProtectedImport>} />
+                  <Route path="/import/documents" element={<ProtectedImport><ImportDocuments /></ProtectedImport>} />
+                  <Route path="/import/analytics" element={<ProtectedImport><ImportAnalytics /></ProtectedImport>} />
                   <Route path="/import/email-templates" element={<ProtectedImport><ImportEmailTemplates /></ProtectedImport>} />
 
                   {/* ========== DISTRIBUTION PORTAL ========== */}

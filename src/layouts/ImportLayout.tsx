@@ -20,7 +20,11 @@ import {
   FileText,
   Users,
   Layers,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Receipt,
+  Truck,
+  FolderOpen,
+  BarChart3
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -38,6 +42,10 @@ const importNavItems: PortalNavItem[] = [
   { path: '/import/cif', label: 'CIF Calculator', icon: Calculator },
   { path: '/import/cif-history', label: 'CIF History', icon: History },
   { path: '/import/invoices', label: 'Invoices', icon: FileSpreadsheet },
+  { path: '/import/bills', label: 'Bills/Expenses', icon: Receipt },
+  { path: '/import/shipments', label: 'Shipment Tracking', icon: Truck },
+  { path: '/import/documents', label: 'Documents', icon: FolderOpen },
+  { path: '/import/analytics', label: 'Analytics', icon: BarChart3 },
   { path: '/import/standing-orders', label: 'Order Templates', icon: FileText },
   { path: '/import/email-templates', label: 'Email Templates', icon: Mail },
 ];
