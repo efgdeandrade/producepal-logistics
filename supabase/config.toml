@@ -146,3 +146,6 @@ verify_jwt = true
 
 [functions.send-team-whatsapp]
 verify_jwt = true
+
+[functions.import-ai-insights]
+verify_jwt = true
