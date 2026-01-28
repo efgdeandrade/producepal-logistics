@@ -13,66 +13,39 @@ const loginSchema = z.object({
   password: z.string().min(6, { message: 'Password must be at least 6 characters' }),
 });
 
-const roleToPortal: Record<string, string> = {
-  driver: '/logistics',
-  picker: '/distribution/picker',
-  production: '/production',
-  hr: '/hr',
-  import: '/import',
-  distribution: '/distribution',
-  admin: '/',
-};
-
 export default function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, roles, signIn } = useAuth();
+  const { user, signIn, hasRole } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (user && roles.length >= 0) {
+    if (user) {
       redirectToPortal();
     }
-  }, [user, roles, location.key]);
+  }, [user, location.key]);
 
-  const redirectToPortal = async () => {
+  const redirectToPortal = () => {
     if (!user) return;
 
+    // Check if coming from a specific page
     const from = (location.state as any)?.from as string | undefined;
     if (from && typeof from === 'string' && from.startsWith('/') && !from.startsWith('/auth')) {
       navigate(from, { replace: true });
       return;
     }
     
-    try {
-      // Check for saved default portal preference
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('default_portal')
-        .eq('id', user.id)
-        .single();
-
-      if (profile?.default_portal) {
-        navigate(`/${profile.default_portal}`, { replace: true });
-        return;
-      }
-
-      // Redirect based on primary role
-      for (const role of roles) {
-        if (roleToPortal[role]) {
-          navigate(roleToPortal[role], { replace: true });
-          return;
-        }
-      }
-
-      // Default to executive dashboard
-      navigate('/', { replace: true });
-    } catch (error) {
-      navigate('/', { replace: true });
+    // Drivers go directly to driver portal
+    if (hasRole('driver') && !hasRole('admin')) {
+      navigate('/driver', { replace: true });
+      return;
     }
+
+    // Everyone else goes to portal selector
+    navigate('/select-portal', { replace: true });
   };
 
   const handleLogin = async (e: React.FormEvent) => {

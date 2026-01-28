@@ -91,11 +91,11 @@ export function PortalSidebar({ portalName, portalPath, portalIcon, navItems }: 
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
               <Link
-                to="/"
+                to="/select-portal"
                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
               >
                 <ArrowLeft className="h-4 w-4" />
-                <span>Back to Dashboard</span>
+                <span>Portal Selector</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
