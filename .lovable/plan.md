@@ -1,94 +1,38 @@
-# FUIK Application Architecture
 
-## Unified Portal System (Implemented 2026-01-28)
+# Add Import Order Templates to Navigation
 
-### Overview
-The application uses a **Portal Selector** pattern where users log in once and choose which departmental portal to access.
+## Problem
+The Standing Orders (Order Templates) feature for the Import department exists at `/import/standing-orders` but is not accessible because:
+1. It's missing from the sidebar navigation in `ImportLayout.tsx`
+2. It's missing from the mobile navigation in `ImportNav.tsx`
 
-### User Flow
-```
-/auth → Login
-  ↓
-/select-portal → Choose Portal
-  ↓
-/distribution, /import, /production, /hr, /admin, /driver
-```
+## Solution
+Add the "Order Templates" link to both desktop sidebar and mobile navigation.
 
-### Available Portals
+## Changes Required
 
-| Portal | Path | Description |
-|--------|------|-------------|
-| Distribution | `/distribution/*` | Orders, picking, invoicing, customers, WhatsApp/Email inbox |
-| Import | `/import/*` | CIF calculations, shipment tracking, supplier management |
-| Production | `/production/*` | Production planning, bakery input, manufacturing |
-| HR & Logistics | `/hr/*` | Time & attendance, employees, documents |
-| Admin | `/admin/*` | Executive dashboard, user management, settings, integrations |
-| Driver | `/driver` | Standalone mobile PWA for drivers |
-
-### Key Architecture Decisions
-
-1. **Portal Selector as Entry Point**: After login, all users (except drivers) land on `/select-portal` to choose their workspace.
-
-2. **Role-Based Redirects**: 
-   - Drivers automatically redirect to `/driver` (mobile PWA)
-   - Admins see additional Admin section in portal selector
-   
-3. **Each Portal Has Its Own Layout**: 
-   - Distribution → `DistributionLayout`
-   - Import → `ImportLayout`
-   - Production → `ProductionLayout`
-   - HR → `HRLayout`
-   - Admin → `AdminLayout`
-   - Logistics uses its own driver-specific layouts
-
-4. **No Legacy Routes**: All old root-level routes (`/orders`, `/customers`, `/products`, etc.) have been removed. Each feature now lives under its portal namespace.
-
-5. **Consistent Navigation**: All portals have a "Portal Selector" back button to return to the main portal chooser.
-
-### Admin Routes
-All administrative functions are consolidated under `/admin`:
-- `/admin` - Executive Dashboard
-- `/admin/users` - User Management
-- `/admin/activity` - User Activity Logs
-- `/admin/reports` - Report Library
-- `/admin/scheduled-reports` - Scheduled Reports
-- `/admin/settings` - System Settings
-- `/admin/integrations` - Integration Hub (Gmail, WhatsApp, QuickBooks, etc.)
-
-### Files Structure
-```
-src/
-├── pages/
-│   ├── PortalSelector.tsx     # Main portal selection page
-│   ├── fnb/                   # Distribution portal pages
-│   ├── hr/                    # HR portal pages
-│   └── integrations/          # Admin integration pages
-├── layouts/
-│   ├── AdminLayout.tsx        # Admin portal layout
-│   ├── DistributionLayout.tsx
-│   ├── ImportLayout.tsx
-│   ├── ProductionLayout.tsx
-│   ├── HRLayout.tsx
-│   └── LogisticsLayout.tsx
-└── App.tsx                    # Clean route definitions
+### 1. Update ImportLayout.tsx
+Add a new navigation item to the `importNavItems` array:
+```typescript
+{ path: '/import/standing-orders', label: 'Order Templates', icon: FileText }
 ```
 
-### Removed Files (Legacy)
-- `src/pages/Index.tsx`
-- `src/pages/Dashboard.tsx`
-- `src/pages/DriverPortal.tsx`
-- `src/components/mobile/BottomNavigation.tsx`
-- `src/components/layout/AppLayout.tsx`
-- `src/components/layout/AppSidebar.tsx`
+### 2. Update ImportNav.tsx (Mobile Navigation)
+Add the Order Templates link to the mobile bottom navigation for consistency.
 
-### Next Steps for Native App
-With the web version now having a single, consistent architecture:
-1. All business logic is properly organized by department
-2. Mobile-responsive layouts are in place for each portal
-3. PWA features (offline, install prompts) already implemented
-4. Ready for Capacitor wrapping for native iOS/Android
+## Technical Details
 
----
+### File: `src/layouts/ImportLayout.tsx`
+- Add `FileText` icon import from lucide-react
+- Insert new nav item in the `importNavItems` array (position after "Suppliers" or before "Email Templates")
 
-# Previous Plan: Enhanced Team Visibility for Dre WhatsApp System
-(Completed - See FnbDreCommandCenter.tsx for implementation)
+### File: `src/components/portals/ImportNav.tsx`
+- Add Order Templates link to the mobile navigation menu
+
+## Existing Functionality
+The `StandingOrders.tsx` page provides:
+- Day-based order templates (Tuesday, Wednesday, Friday)
+- Customer + product management per template
+- Auto-generate from last order feature
+- Product roundup/aggregation view
+- Uses `day_order_templates` and `day_order_template_items` database tables
