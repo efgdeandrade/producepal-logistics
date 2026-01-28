@@ -2721,6 +2721,127 @@ export type Database = {
         }
         Relationships: []
       }
+      dre_channel_members: {
+        Row: {
+          channel_id: string | null
+          created_at: string | null
+          id: string
+          last_read_at: string | null
+          role: string | null
+          user_id: string | null
+        }
+        Insert: {
+          channel_id?: string | null
+          created_at?: string | null
+          id?: string
+          last_read_at?: string | null
+          role?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          channel_id?: string | null
+          created_at?: string | null
+          id?: string
+          last_read_at?: string | null
+          role?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dre_channel_members_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "dre_team_channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dre_direct_messages: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          message_text: string
+          recipient_id: string
+          sender_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message_text: string
+          recipient_id: string
+          sender_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message_text?: string
+          recipient_id?: string
+          sender_id?: string
+        }
+        Relationships: []
+      }
+      dre_escalation_queue: {
+        Row: {
+          ai_summary: string | null
+          assigned_department: string | null
+          assigned_to: string | null
+          context: Json | null
+          conversation_id: string
+          created_at: string | null
+          customer_id: string | null
+          escalation_type: string
+          id: string
+          priority: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ai_summary?: string | null
+          assigned_department?: string | null
+          assigned_to?: string | null
+          context?: Json | null
+          conversation_id: string
+          created_at?: string | null
+          customer_id?: string | null
+          escalation_type: string
+          id?: string
+          priority?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ai_summary?: string | null
+          assigned_department?: string | null
+          assigned_to?: string | null
+          context?: Json | null
+          conversation_id?: string
+          created_at?: string | null
+          customer_id?: string | null
+          escalation_type?: string
+          id?: string
+          priority?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dre_escalation_queue_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dre_outreach_log: {
         Row: {
           anomaly_id: string | null
@@ -2851,6 +2972,42 @@ export type Database = {
           },
         ]
       }
+      dre_team_channels: {
+        Row: {
+          channel_type: string
+          created_at: string | null
+          created_by: string | null
+          department: string | null
+          description: string | null
+          id: string
+          is_archived: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          channel_type?: string
+          created_at?: string | null
+          created_by?: string | null
+          department?: string | null
+          description?: string | null
+          id?: string
+          is_archived?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          channel_type?: string
+          created_at?: string | null
+          created_by?: string | null
+          department?: string | null
+          description?: string | null
+          id?: string
+          is_archived?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       dre_team_chat: {
         Row: {
           conversation_id: string | null
@@ -2882,6 +3039,93 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      dre_team_messages: {
+        Row: {
+          channel_id: string | null
+          created_at: string | null
+          id: string
+          is_pinned: boolean | null
+          message_text: string
+          message_type: string | null
+          metadata: Json | null
+          related_conversation_id: string | null
+          related_customer_id: string | null
+          sender_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          channel_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_pinned?: boolean | null
+          message_text: string
+          message_type?: string | null
+          metadata?: Json | null
+          related_conversation_id?: string | null
+          related_customer_id?: string | null
+          sender_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          channel_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_pinned?: boolean | null
+          message_text?: string
+          message_type?: string | null
+          metadata?: Json | null
+          related_conversation_id?: string | null
+          related_customer_id?: string | null
+          sender_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dre_team_messages_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "dre_team_channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dre_team_messages_related_customer_id_fkey"
+            columns: ["related_customer_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dre_team_presence: {
+        Row: {
+          active_conversations: number | null
+          current_view: string | null
+          id: string
+          last_seen_at: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          active_conversations?: number | null
+          current_view?: string | null
+          id?: string
+          last_seen_at?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          active_conversations?: number | null
+          current_view?: string | null
+          id?: string
+          last_seen_at?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       driver_availability: {
         Row: {
