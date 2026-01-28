@@ -1,257 +1,166 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { useNavigate } from "react-router-dom";
-import {
-  ShoppingCart,
-  Package,
-  Users,
-  DollarSign,
-  ArrowRight,
-  ClipboardList,
-  TrendingUp,
-} from "lucide-react";
-import { format, startOfDay, endOfDay } from "date-fns";
-import { FnbAlertsCard } from "@/components/fnb/FnbAlertsCard";
-import { MissingOrdersCard } from "@/components/fnb/MissingOrdersCard";
-import { WhatsAppLiveFeed } from "@/components/fnb/WhatsAppLiveFeed";
+import { Header } from '@/components/layout/Header';
+import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { 
+  Plus, Package, Truck, Clock, Box
+} from 'lucide-react';
+import { format, startOfDay, endOfDay } from 'date-fns';
+import { DashboardStatsBar } from '@/components/fnb/DashboardStatsBar';
+import { DashboardKanbanColumn } from '@/components/fnb/DashboardKanbanColumn';
+import { DreSummaryWidget } from '@/components/fnb/DreSummaryWidget';
+import { FnbAlertsCard } from '@/components/fnb/FnbAlertsCard';
+import { WhatsAppLiveFeed } from '@/components/fnb/WhatsAppLiveFeed';
 
 export default function DistributionDashboard() {
-  const navigate = useNavigate();
-  const today = new Date();
+  const today = format(new Date(), 'yyyy-MM-dd');
 
-  // Fetch today's FnB orders
-  const { data: todayOrders } = useQuery({
-    queryKey: ["fnb-orders-today"],
+  // Fetch dashboard stats
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ['distribution-dashboard-stats', today],
     queryFn: async () => {
-      const dayStart = startOfDay(today).toISOString();
-      const dayEnd = endOfDay(today).toISOString();
-      
-      const { data, error } = await supabase
-        .from("distribution_orders")
-        .select("*, distribution_customers(name)")
-        .gte("delivery_date", dayStart.split("T")[0])
-        .lte("delivery_date", dayEnd.split("T")[0]);
-      if (error) throw error;
-      return data as any[] || [];
+      const todayStart = startOfDay(new Date()).toISOString();
+      const todayEnd = endOfDay(new Date()).toISOString();
+
+      // Fetch all active orders for stats
+      const { data: allOrders } = await supabase
+        .from('distribution_orders')
+        .select('id, status, total_xcg, created_at, updated_at')
+        .limit(500);
+
+      const orders = (allOrders || []) as any[];
+      const todayCreated = orders.filter((o: any) => 
+        o.created_at >= todayStart && o.created_at <= todayEnd
+      );
+      const todayDelivered = orders.filter((o: any) => 
+        o.status === 'delivered' && o.updated_at >= todayStart && o.updated_at <= todayEnd
+      );
+
+      return {
+        todayOrders: todayCreated.length,
+        pending: orders.filter((o: any) => o.status === 'pending' || o.status === 'confirmed').length,
+        picking: orders.filter((o: any) => o.status === 'picking').length,
+        outForDelivery: orders.filter((o: any) => o.status === 'out_for_delivery').length,
+        completed: todayDelivered.length,
+        todayRevenue: todayDelivered.reduce((sum: number, o: any) => sum + (o.total_xcg || 0), 0),
+        activeCustomers: 0,
+        sameDayOrders: 0, // Removed since delivery_type doesn't exist
+      };
     },
+    refetchInterval: 30000,
   });
 
-  // Fetch picker queue
-  const { data: pickerQueue } = useQuery({
-    queryKey: ["picker-queue-summary"],
+  // Fetch orders for kanban columns
+  const { data: orders } = useQuery({
+    queryKey: ['distribution-kanban-orders'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("distribution_picker_queue")
-        .select("*")
-        .in("status", ["pending", "in_progress"]);
+        .from('distribution_orders')
+        .select(`
+          id,
+          order_number,
+          status,
+          delivery_date,
+          total_xcg,
+          created_at,
+          distribution_customers(name, whatsapp_phone, delivery_zone)
+        `)
+        .in('status', ['pending', 'confirmed', 'picking', 'ready', 'out_for_delivery'])
+        .order('created_at', { ascending: false })
+        .limit(50);
+
       if (error) throw error;
-      return data as any[] || [];
+      return (data || []) as any[];
     },
+    refetchInterval: 15000,
   });
 
-  // Calculate stats
-  const orderStats = {
-    total: todayOrders?.length || 0,
-    pending: todayOrders?.filter((o: any) => o.status === "pending").length || 0,
-    picking: todayOrders?.filter((o: any) => o.status === "picking").length || 0,
-    ready: todayOrders?.filter((o: any) => o.status === "ready").length || 0,
-    delivered: todayOrders?.filter((o: any) => o.status === "delivered").length || 0,
-    totalValue: todayOrders?.reduce((sum: number, o: any) => sum + (o.total_xcg || 0), 0) || 0,
-    codCollected: todayOrders
-      ?.filter((o: any) => o.cod_amount_collected)
-      .reduce((sum: number, o: any) => sum + (o.cod_amount_collected || 0), 0) || 0,
-  };
-
-  const completionRate = orderStats.total > 0 
-    ? Math.round((orderStats.delivered / orderStats.total) * 100) 
-    : 0;
+  // Group orders by status
+  const pendingOrders = orders?.filter(o => o.status === 'pending' || o.status === 'confirmed') || [];
+  const pickingOrders = orders?.filter(o => o.status === 'picking') || [];
+  const readyOrders = orders?.filter(o => o.status === 'ready') || [];
+  const deliveryOrders = orders?.filter(o => o.status === 'out_for_delivery') || [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 p-4 md:p-6">
+      {/* Page Header with Quick Action */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Distribution Dashboard</h1>
-          <p className="text-muted-foreground">
-            Orders, picking, and delivery management
+          <h1 className="text-2xl font-bold tracking-tight">Distribution</h1>
+          <p className="text-sm text-muted-foreground">
+            {format(new Date(), 'EEEE, MMMM d, yyyy')}
           </p>
         </div>
-        <Button onClick={() => navigate("/distribution/orders/new")}>
-          <ShoppingCart className="h-4 w-4 mr-2" />
-          New Order
+        <Button asChild size="sm" className="gap-2">
+          <Link to="/distribution/orders/new">
+            <Plus className="h-4 w-4" />
+            New Order
+          </Link>
         </Button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Orders</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{orderStats.total}</div>
-            <div className="flex gap-2 mt-2">
-              {orderStats.pending > 0 && (
-                <Badge variant="secondary">{orderStats.pending} pending</Badge>
-              )}
-              {orderStats.picking > 0 && (
-                <Badge variant="outline">{orderStats.picking} picking</Badge>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+      {/* Stats Bar */}
+      <DashboardStatsBar 
+        stats={stats || {
+          todayOrders: 0,
+          pending: 0,
+          picking: 0,
+          outForDelivery: 0,
+          completed: 0,
+          todayRevenue: 0,
+          activeCustomers: 0,
+          sameDayOrders: 0,
+        }} 
+        isLoading={statsLoading} 
+      />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Picker Queue</CardTitle>
-            <ClipboardList className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{pickerQueue?.length || 0}</div>
-            <p className="text-xs text-muted-foreground">orders waiting</p>
-          </CardContent>
-        </Card>
+      {/* Main Content Grid */}
+      <div className="grid gap-4 lg:grid-cols-4">
+        {/* Kanban Columns - Takes 3 columns */}
+        <div className="lg:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-3 h-[500px]">
+          <DashboardKanbanColumn
+            title="New Orders"
+            icon={<Clock className="h-4 w-4 text-yellow-500" />}
+            orders={pendingOrders}
+            color="bg-yellow-500/10"
+            emptyMessage="No pending orders"
+          />
+          <DashboardKanbanColumn
+            title="Picking"
+            icon={<Box className="h-4 w-4 text-purple-500" />}
+            orders={pickingOrders}
+            color="bg-purple-500/10"
+            emptyMessage="No orders being picked"
+          />
+          <DashboardKanbanColumn
+            title="Ready"
+            icon={<Package className="h-4 w-4 text-blue-500" />}
+            orders={readyOrders}
+            color="bg-blue-500/10"
+            emptyMessage="No orders ready"
+          />
+          <DashboardKanbanColumn
+            title="Delivery"
+            icon={<Truck className="h-4 w-4 text-orange-500" />}
+            orders={deliveryOrders}
+            color="bg-orange-500/10"
+            emptyMessage="No orders in delivery"
+          />
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">COD Collected</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              ${orderStats.codCollected.toLocaleString()}
-            </div>
-            <p className="text-xs text-muted-foreground">today</p>
-          </CardContent>
-        </Card>
+        {/* Right Sidebar - Takes 1 column */}
+        <div className="space-y-4">
+          {/* Dre AI Summary */}
+          <DreSummaryWidget />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completion</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{completionRate}%</div>
-            <Progress value={completionRate} className="mt-2" />
-          </CardContent>
-        </Card>
+          {/* Alerts */}
+          <FnbAlertsCard showAudioAlerts compact />
+        </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card
-          className="cursor-pointer hover:bg-accent/50 transition-colors"
-          onClick={() => navigate("/distribution/orders")}
-        >
-          <CardContent className="pt-6 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <ShoppingCart className="h-8 w-8 text-primary" />
-              <div>
-                <p className="font-medium">Orders</p>
-                <p className="text-sm text-muted-foreground">View all orders</p>
-              </div>
-            </div>
-            <ArrowRight className="h-5 w-5 text-muted-foreground" />
-          </CardContent>
-        </Card>
-
-        <Card
-          className="cursor-pointer hover:bg-accent/50 transition-colors"
-          onClick={() => navigate("/distribution/picker")}
-        >
-          <CardContent className="pt-6 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Package className="h-8 w-8 text-primary" />
-              <div>
-                <p className="font-medium">Picker Station</p>
-                <p className="text-sm text-muted-foreground">Pick orders</p>
-              </div>
-            </div>
-            <ArrowRight className="h-5 w-5 text-muted-foreground" />
-          </CardContent>
-        </Card>
-
-        <Card
-          className="cursor-pointer hover:bg-accent/50 transition-colors"
-          onClick={() => navigate("/distribution/customers")}
-        >
-          <CardContent className="pt-6 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Users className="h-8 w-8 text-primary" />
-              <div>
-                <p className="font-medium">Customers</p>
-                <p className="text-sm text-muted-foreground">Manage customers</p>
-              </div>
-            </div>
-            <ArrowRight className="h-5 w-5 text-muted-foreground" />
-          </CardContent>
-        </Card>
-
-        <Card
-          className="cursor-pointer hover:bg-accent/50 transition-colors"
-          onClick={() => navigate("/distribution/cod")}
-        >
-          <CardContent className="pt-6 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <DollarSign className="h-8 w-8 text-primary" />
-              <div>
-                <p className="font-medium">COD</p>
-                <p className="text-sm text-muted-foreground">Reconciliation</p>
-              </div>
-            </div>
-            <ArrowRight className="h-5 w-5 text-muted-foreground" />
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Order Intelligence - Missing Orders Detection */}
-      <MissingOrdersCard />
-
-      {/* Dre WhatsApp Live Feed */}
+      {/* Live Feed */}
       <WhatsAppLiveFeed />
-
-      {/* Alerts and Order Status */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        {/* Operational Alerts */}
-        <FnbAlertsCard compact={true} />
-
-        {/* Order Status Overview */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Today's Order Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 grid-cols-5">
-              <div className="text-center p-3 rounded-lg bg-muted/50">
-                <div className="text-2xl font-bold text-yellow-600">{orderStats.pending}</div>
-                <p className="text-xs text-muted-foreground">Pending</p>
-              </div>
-              <div className="text-center p-3 rounded-lg bg-muted/50">
-                <div className="text-2xl font-bold text-blue-600">{orderStats.picking}</div>
-                <p className="text-xs text-muted-foreground">Picking</p>
-              </div>
-              <div className="text-center p-3 rounded-lg bg-muted/50">
-                <div className="text-2xl font-bold text-purple-600">{orderStats.ready}</div>
-                <p className="text-xs text-muted-foreground">Ready</p>
-              </div>
-              <div className="text-center p-3 rounded-lg bg-muted/50">
-                <div className="text-2xl font-bold text-green-600">{orderStats.delivered}</div>
-                <p className="text-xs text-muted-foreground">Delivered</p>
-              </div>
-              <div className="text-center p-3 rounded-lg bg-primary/10">
-                <div className="text-2xl font-bold text-primary">
-                  ${orderStats.totalValue.toLocaleString()}
-                </div>
-                <p className="text-xs text-muted-foreground">Value</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }
