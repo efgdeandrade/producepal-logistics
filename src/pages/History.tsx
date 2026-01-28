@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Eye, ArrowLeft, Plus } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Search, Eye, ArrowLeft, Plus, CalendarIcon, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import LoadingBox from '@/components/LoadingBox';
 
 interface Order {
@@ -23,6 +27,7 @@ interface Order {
 const History = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -63,10 +68,16 @@ const History = () => {
     }
   };
 
-  const filteredOrders = orders.filter(order =>
-    order.order_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    order.placed_by.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredOrders = orders.filter(order => {
+    const matchesSearch = 
+      order.order_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.placed_by.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesDate = !selectedDate || 
+      format(new Date(order.delivery_date), 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
+    
+    return matchesSearch && matchesDate;
+  });
 
   if (loading) {
     return (
@@ -102,14 +113,50 @@ const History = () => {
             <CardDescription>Find orders by number, customer, or date</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by order number or name..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by order number or name..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[200px] justify-start text-left font-normal",
+                        !selectedDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={setSelectedDate}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+                {selectedDate && (
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => setSelectedDate(undefined)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
