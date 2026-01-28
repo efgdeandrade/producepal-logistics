@@ -1398,65 +1398,46 @@ const PICKER_UNITS = [
                     )}
                   </div>
 
-                  {/* Claim Button */}
+                  {/* Claim Button - shown for queued orders */}
                   {selectedQueueItem.status === 'queued' && (
-                    <>
+                    <div className="space-y-2">
                       <Button
-                        className="w-full h-16 text-lg"
+                        className="w-full h-14 text-lg"
                         onClick={() => claimMutation.mutate(selectedQueueItem.id)}
                         disabled={claimMutation.isPending}
                       >
                         <User className="mr-2 h-5 w-5" />
-                        Claim This Order
+                        Claim & Start Picking
                       </Button>
-
-                      {/* Items Preview for unclaimed orders */}
-                      {orderItems && orderItems.length > 0 && (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Package className="h-4 w-4 text-muted-foreground" />
-                            <h4 className="font-medium text-sm text-muted-foreground">
-                              Items Preview ({orderItems.length} items)
-                            </h4>
-                          </div>
-                          <div className="space-y-1 max-h-[200px] overflow-y-auto">
-                            {orderItems.map((item: any) => (
-                              <div
-                                key={item.id}
-                                className="py-2 px-3 rounded-lg border bg-muted/30"
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <p className="text-sm font-medium">{item.distribution_products?.name}</p>
-                                                  <p className="text-xs text-muted-foreground">
-                                                      {item.distribution_products?.code}
-                                                    </p>
-                                  </div>
-                                  <div className="text-right">
-                                                    <p className="text-sm font-bold">
-                                                      {item.quantity} {item.distribution_products?.unit}
-                                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </>
+                      <p className="text-xs text-center text-muted-foreground">
+                        You can adjust items below before claiming
+                      </p>
+                    </div>
                   )}
 
-                  {/* Picking Interface */}
-                  {selectedQueueItem.status === 'in_progress' && orderItems && (
+                  {/* Picking/Editing Interface - shown for both queued and in_progress */}
+                  {(selectedQueueItem.status === 'in_progress' || selectedQueueItem.status === 'queued') && orderItems && (
                     <div className="space-y-4">
-                      {/* Progress */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span>Progress</span>
-                          <span className="font-medium">{pickedCount} / {totalCount} items</span>
+                      {/* Progress - only show for in_progress orders */}
+                      {selectedQueueItem.status === 'in_progress' && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span>Progress</span>
+                            <span className="font-medium">{pickedCount} / {totalCount} items</span>
+                          </div>
+                          <Progress value={progress} className="h-2" />
                         </div>
-                        <Progress value={progress} className="h-2" />
-                      </div>
+                      )}
+                      
+                      {/* Pre-claim adjustment notice */}
+                      {selectedQueueItem.status === 'queued' && (
+                        <div className="p-3 bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 rounded-lg">
+                          <p className="text-sm text-blue-700 dark:text-blue-300 flex items-center gap-2">
+                            <Edit className="h-4 w-4" />
+                            <span>Adjust quantities below before claiming</span>
+                          </p>
+                        </div>
+                      )}
 
                       {/* Add Item Button */}
                       <div className="flex gap-2">
