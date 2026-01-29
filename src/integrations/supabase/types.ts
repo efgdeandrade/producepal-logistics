@@ -3985,6 +3985,69 @@ export type Database = {
           },
         ]
       }
+      market_news_cache: {
+        Row: {
+          affected_products: string[] | null
+          affected_suppliers: string[] | null
+          ai_action_items: Json | null
+          ai_recommendation: string | null
+          country_code: string | null
+          created_at: string | null
+          expires_at: string | null
+          fetched_at: string | null
+          financial_impact_direction: string | null
+          financial_impact_estimate: number | null
+          headline: string
+          id: string
+          impact_level: string | null
+          impact_type: string | null
+          published_at: string | null
+          source_name: string | null
+          source_url: string | null
+          summary: string | null
+        }
+        Insert: {
+          affected_products?: string[] | null
+          affected_suppliers?: string[] | null
+          ai_action_items?: Json | null
+          ai_recommendation?: string | null
+          country_code?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          fetched_at?: string | null
+          financial_impact_direction?: string | null
+          financial_impact_estimate?: number | null
+          headline: string
+          id?: string
+          impact_level?: string | null
+          impact_type?: string | null
+          published_at?: string | null
+          source_name?: string | null
+          source_url?: string | null
+          summary?: string | null
+        }
+        Update: {
+          affected_products?: string[] | null
+          affected_suppliers?: string[] | null
+          ai_action_items?: Json | null
+          ai_recommendation?: string | null
+          country_code?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          fetched_at?: string | null
+          financial_impact_direction?: string | null
+          financial_impact_estimate?: number | null
+          headline?: string
+          id?: string
+          impact_level?: string | null
+          impact_type?: string | null
+          published_at?: string | null
+          source_name?: string | null
+          source_url?: string | null
+          summary?: string | null
+        }
+        Relationships: []
+      }
       market_price_snapshots: {
         Row: {
           calculated_wholesale: number | null
