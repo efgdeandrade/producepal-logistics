@@ -1,287 +1,330 @@
 
+# Implementation Plan: Complete CIF System Integration (Phase 2)
 
-# CIF System Comprehensive Audit & Improvement Plan
-
-## Executive Summary
-
-I've conducted a deep audit of your CIF calculation system, AI Learning Engine, Dito Advisor, and CIF Analytics. While the foundation is solid, I've identified several issues affecting accuracy and usability. This plan consolidates the 7 methods into 3-4 essential ones and introduces a more intelligent, data-driven approach.
+This plan completes the CIF system overhaul by integrating the new simplified calculation methods, learning hook, and unified advisor into the three main components.
 
 ---
 
-## Current State Assessment
+## Overview
 
-### 1. CIF Calculation Methods (7 Methods)
-
-| Method | Purpose | Issue |
-|--------|---------|-------|
-| **byWeight** | Allocate by chargeable weight | Core method - KEEP |
-| **byCost** | Allocate by product value | Core method - KEEP |
-| **equally** | Split evenly | Rarely accurate - REMOVE |
-| **hybrid** | 50/50 weight+cost | Arbitrary ratio - CONSOLIDATE |
-| **strategic** | Risk-adjusted (waste+velocity) | Good concept but hardcoded - IMPROVE |
-| **volumeOptimized** | Frequency-based | Overlaps with strategic - MERGE |
-| **customerTier** | Wholesale vs retail split | Arbitrary 0.85x/1.15x - RETHINK |
-
-**Verdict**: You don't need 7 methods. The complexity creates confusion without adding value. The differences between methods like "strategic" and "volumeOptimized" are subtle and their formulas are based on assumptions rather than your actual business data.
-
-### 2. CIF Analytics Component
-
-**Issues Found**:
-- Duplicates CIF calculation logic instead of using `cifCalculations.ts`
-- Exchange rate hardcoded as `1.82` in multiple places
-- Labor XCG divided equally across products (line 554) - should be proportional
-- No caching of calculated values (recalculates on every render)
-- AI recommendation fetches duplicate product data
-
-### 3. AI Learning Engine
-
-**Issues Found**:
-- Only learns from products with **actual costs entered** (limited data)
-- `cif_learning_patterns` table lacks `updated_at` column
-- Adjustment factors calculated but **never applied** to future estimates
-- No connection between learning patterns and the CIF Calculator
-- Historical variance of 44% in your data suggests systematic estimation issues
-
-### 4. Dito Advisor (Volumetric Weight Advisor)
-
-**Issues Found**:
-- Good concept but operates in isolation
-- Recommendations not integrated with learning patterns
-- Product density calculations incomplete (missing volumetric data for many products)
+| Component | Current State | Target State |
+|-----------|---------------|--------------|
+| `CIFCalculator.tsx` | Uses old 7-method system from `cifCalculations.ts` | Use new 3-method system from `cifCalculationsV2.ts` + learning hook |
+| `CIFAnalytics.tsx` | Duplicates CIF logic (~200 lines), calls old `cif-advisor` | Use shared functions, call unified advisor |
+| `DitoAdvisor.tsx` | Calls `volumetric-weight-advisor` only | Call unified `dito-unified-advisor` |
 
 ---
 
-## Proposed Improvements
+## Implementation Details
 
-### Phase 1: Simplify CIF Methods (3 Core Methods)
+### 1. CIFCalculator.tsx Updates
 
-Replace 7 methods with 3 intelligent ones:
+**Changes Required:**
 
-| New Method | Logic | When to Use |
-|------------|-------|-------------|
-| **Proportional** | Allocate by chargeable weight (current byWeight) | Default - most accurate for freight |
-| **Value-Based** | Allocate by product value (current byCost) | High-value low-weight items |
-| **Smart Blend** | AI-recommended dynamic blend using learned patterns | Recommended by Dito |
+**A. Import Updates (lines 22-33)**
+- Replace `cifCalculations` import with `cifCalculationsV2`
+- Add `useCIFLearning` hook import
 
-**Smart Blend Formula**:
+**B. Add Learning Hook Integration**
+- Add hook initialization in component
+- Fetch learning patterns when products change
+- Display learning confidence indicators in UI
+
+**C. Simplify Method Selector (around line 121)**
+- Replace 7-method dropdown with 3 new methods:
+  - "Proportional (by Weight)" - default, most accurate for freight
+  - "Value-Based (by Cost)" - for high-value, low-weight items  
+  - "Smart Blend (AI-Recommended)" - uses learned patterns
+
+**D. Update calculateCIF Function (lines 551-665)**
+- Use `calculateCIFWithLearning` from V2 when patterns available
+- Pass learning patterns and blend ratio from Dito recommendations
+- Add visual indicators for adjusted CIF values
+
+**E. Add Learning Pattern Display**
+- Show adjustment factors and confidence scores in results table
+- Highlight products with high-confidence adjustments
+- Add tooltip explaining why adjustment was applied
+
+**F. Record Actuals for Learning**
+- When user enters actual costs (Actual tab), call `recordActual()` 
+- Trigger learning engine after saving actual calculation
+
+---
+
+### 2. CIFAnalytics.tsx Updates
+
+**Changes Required:**
+
+**A. Import Shared Functions**
+- Add imports from `cifCalculationsV2.ts`
+- Remove duplicated calculation logic (lines 248-316)
+
+**B. Replace getAIRecommendation Function (lines 113-392)**
+- Call `dito-unified-advisor` instead of `cif-advisor`
+- Simplify data preparation using shared types
+- Update response handling for new unified format
+
+**C. Replace calculateResults Logic (lines 248-316)**
+- Use `calculateCIFByMethod` from V2
+- Remove 7-method switch statement (~70 lines)
+
+**D. Update UI for New Response Format**
+- Show blend ratio recommendation
+- Display learning adjustments in insights
+- Add weight optimization suggestions to UI
+
+**E. Remove Hardcoded Values**
+- Use constants from V2 for exchange rate defaults
+- Get labor/logistics from settings consistently
+
+---
+
+### 3. DitoAdvisor.tsx Updates
+
+**Changes Required:**
+
+**A. Update Edge Function Call (lines 94-128)**
+- Change from `volumetric-weight-advisor` to `dito-unified-advisor`
+- Add CIF method results to request body
+- Include exchange rate and freight cost
+
+**B. Update Recommendation Interface (lines 42-82)**
+- Add new fields: `recommendedMethod`, `blendRatio`, `learningAdjustments`
+- Add `confidence` field with HIGH/MEDIUM/LOW values
+- Add `riskAlerts` array
+
+**C. Update UI Display**
+- Add CIF method recommendation section
+- Show recommended blend ratio with explanation
+- Display learning adjustment confirmations
+- Show risk alerts prominently
+
+**D. Add "Apply Recommendation" Action**
+- New callback prop: `onApplyMethodRecommendation`
+- Button to apply recommended CIF method to parent component
+
+---
+
+## New UI Elements
+
+### CIF Calculator Method Selector (Simplified)
 ```
-blendRatio = learningPattern.adjustment_factor || 0.7
-freightShare = (weightShare * blendRatio) + (costShare * (1 - blendRatio))
+┌────────────────────────────────────────────────┐
+│ Distribution Method                             │
+├────────────────────────────────────────────────┤
+│ ○ Proportional (by Weight)    [Default]        │
+│   Freight allocated by product weight share    │
+│                                                 │
+│ ○ Value-Based (by Cost)                        │
+│   Freight allocated by product value share     │
+│                                                 │
+│ ● Smart Blend (AI-Recommended)  [Learning]     │
+│   70% weight + 30% cost (based on patterns)    │
+│   ✓ Using 12 learned patterns                  │
+└────────────────────────────────────────────────┘
 ```
 
-The blend ratio comes from AI Learning Engine analysis, not arbitrary 50/50.
-
-### Phase 2: Unified CIF Engine
-
-Create a single source of truth that:
-1. Integrates learning patterns into calculations
-2. Applies product-specific adjustment factors
-3. Stores calculation metadata for future learning
-
-**Files to modify**:
-- `src/lib/cifCalculations.ts` - Reduce to 3 methods + add learning integration
-- `src/pages/CIFCalculator.tsx` - Simplify method selector
-- `src/components/CIFAnalytics.tsx` - Remove duplicated logic, use shared functions
-
-### Phase 3: Enhanced Learning Engine
-
-Improvements:
-1. **Auto-apply adjustments**: Use learned patterns in estimate calculations
-2. **Track more signals**: Seasonal patterns, supplier performance, exchange rate impact
-3. **Confidence scoring**: Weight adjustments by sample size and consistency
-4. **Feedback loop**: When actuals entered, automatically retrain patterns
-
-**Database changes**:
-- Add `updated_at` to `cif_learning_patterns`
-- Add `season_quarter` column for seasonal analysis
-- Add `supplier_pattern_key` for supplier-specific learning
-
-### Phase 4: Unified Dito Advisor
-
-Merge CIF Advisor and Weight Advisor into one intelligent system:
-
+### Learning Indicator in Results Table
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     DITO ADVISOR 2.0                         │
-├─────────────────────────────────────────────────────────────┤
-│  INPUTS                                                      │
-│  • Order items with quantities                               │
-│  • Historical patterns from cif_learning_patterns            │
-│  • Market intelligence data                                  │
-│  • Pallet configuration                                      │
-├─────────────────────────────────────────────────────────────┤
-│  OUTPUTS                                                     │
-│  • Recommended CIF method (with explanation)                 │
-│  • Product-specific adjustment factors                       │
-│  • Weight optimization suggestions                           │
-│  • Profit projections per method                             │
-│  • Risk alerts (high waste products, price sensitivity)      │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────┬───────┬──────────┬──────────────────┐
+│ Product          │ Qty   │ CIF/Unit │ Adjustment       │
+├──────────────────┼───────┼──────────┼──────────────────┤
+│ Kankantrie Apple │ 120   │ Cg 4.52  │ +5% (92% conf.)  │
+│ Red Seedless     │ 240   │ Cg 3.18  │ -3% (78% conf.)  │
+│ Butterhead       │ 60    │ Cg 2.94  │ No pattern       │
+└──────────────────┴───────┴──────────┴──────────────────┘
 ```
 
 ---
 
-## Technical Implementation Details
+## Technical Details
 
-### 1. Simplified cifCalculations.ts
+### File: src/pages/CIFCalculator.tsx
 
+**Import changes:**
 ```typescript
-// NEW: Only 3 distribution methods
-export type DistributionMethod = 
-  | 'proportional'    // By chargeable weight (renamed from byWeight)
-  | 'valueBased'      // By product value (renamed from byCost)  
-  | 'smartBlend';     // AI-recommended dynamic blend
+// OLD
+import { calculateCIFByMethod, ... } from '@/lib/cifCalculations';
 
-// NEW: Learning pattern integration
-export interface LearningAdjustment {
-  productCode: string;
-  adjustmentFactor: number;  // e.g., 1.05 means add 5% to estimates
-  confidence: number;        // 0-100
-  sampleSize: number;
-}
+// NEW  
+import { 
+  calculateCIFWithLearning,
+  calculateAllMethods,
+  DistributionMethodV2,
+  DEFAULT_BLEND_RATIO,
+  getRecommendedBlendRatio,
+} from '@/lib/cifCalculationsV2';
+import { useCIFLearning } from '@/hooks/useCIFLearning';
+```
 
-// NEW: Enhanced CIF calculation with learning
-export function calculateCIFWithLearning(
-  products: CIFProductInput[],
-  params: CIFParams,
-  learningPatterns?: LearningAdjustment[]
-): CIFResult[] {
-  const results = calculateCIFByMethod(products, params, 'proportional');
-  
-  if (!learningPatterns?.length) return results;
-  
-  // Apply learned adjustments
-  return results.map(result => {
-    const pattern = learningPatterns.find(p => p.productCode === result.productCode);
-    if (pattern && pattern.confidence > 50) {
-      const adjustedCIF = result.cifPerUnit * pattern.adjustmentFactor;
-      return {
-        ...result,
-        cifPerUnit: adjustedCIF,
-        cifXCG: adjustedCIF * result.quantity,
-        adjustmentApplied: pattern.adjustmentFactor,
-        adjustmentConfidence: pattern.confidence,
-      };
-    }
-    return result;
+**Hook initialization:**
+```typescript
+const { 
+  loading: learningLoading,
+  patterns,
+  fetchPatterns,
+  recordActual,
+  triggerLearning
+} = useCIFLearning();
+```
+
+**Method selector state:**
+```typescript
+// Change from string to DistributionMethodV2
+const [selectedMethod, setSelectedMethod] = useState<DistributionMethodV2>('proportional');
+const [blendRatio, setBlendRatio] = useState(DEFAULT_BLEND_RATIO);
+```
+
+### File: src/components/CIFAnalytics.tsx
+
+**Key refactor - remove duplicated logic:**
+```typescript
+// REMOVE this entire block (lines 248-316):
+const calculateResults = (distributionMethod: 'weight' | 'cost' | 'equal' | ...) => {
+  return productsWithWeight.map(product => {
+    // ... 70 lines of duplicated calculation
   });
+};
+
+// REPLACE with:
+import { calculateCIFByMethod, type CIFProductInput } from '@/lib/cifCalculationsV2';
+
+const cifInputs: CIFProductInput[] = productsWithData.map(p => ({
+  productCode: p.code,
+  productName: p.name,
+  quantity: p.totalUnits,
+  costPerUnit: p.costPerUnit,
+  actualWeight: p.totalWeight,
+  volumetricWeight: p.totalWeight, // Use chargeable
+  wholesalePriceXCG: p.wholesalePriceXCG,
+}));
+
+const cifResults = calculateAllMethods(cifInputs, {
+  totalFreight,
+  exchangeRate,
+  limitingFactor: 'actual',
+});
+```
+
+**Update advisor call:**
+```typescript
+// CHANGE from:
+const { data } = await supabase.functions.invoke('cif-advisor', { ... });
+
+// TO:
+const { data } = await supabase.functions.invoke('dito-unified-advisor', {
+  body: {
+    products: productsWithData.map(p => ({
+      code: p.code,
+      name: p.name,
+      quantity: p.totalUnits,
+      actualWeight: p.totalWeight,
+      volumetricWeight: p.totalWeight,
+      costUSD: p.totalUnits * p.costPerUnit,
+      wholesalePriceXCG: p.wholesalePriceXCG,
+    })),
+    totalFreight,
+    exchangeRate,
+    cifMethodResults: Object.entries(cifResults).map(([method, results]) => ({
+      method,
+      totalProfit: results.reduce((sum, r) => sum + r.wholesaleMargin * r.quantity, 0),
+      avgMargin: results.reduce((sum, r) => sum + r.wholesaleMargin, 0) / results.length,
+      products: results.map(r => ({
+        productCode: r.productCode,
+        cifPerUnit: r.cifPerUnit,
+        wholesaleMargin: r.wholesaleMargin,
+        freightShare: r.freightCost,
+      })),
+    })),
+  }
+});
+```
+
+### File: src/components/DitoAdvisor.tsx
+
+**Update interface:**
+```typescript
+interface Recommendation {
+  // Existing fields...
+  
+  // NEW unified advisor fields
+  recommendedMethod?: 'proportional' | 'valueBased' | 'smartBlend';
+  confidence?: 'HIGH' | 'MEDIUM' | 'LOW';
+  blendRatio?: number;
+  reasoning?: string[];
+  learningAdjustments?: Array<{
+    productCode: string;
+    originalFactor: number;
+    recommendedFactor: number;
+    reasoning: string;
+  }>;
+  riskAlerts?: string[];
 }
 ```
 
-### 2. Learning Integration Hook
-
+**Update function call:**
 ```typescript
-// NEW: src/hooks/useCIFLearning.ts
-export function useCIFLearning() {
-  const fetchPatterns = async (productCodes: string[]) => {
-    const { data } = await supabase
-      .from('cif_learning_patterns')
-      .select('*')
-      .in('pattern_key', productCodes.map(c => `product_${c}`));
-    
-    return data?.map(p => ({
-      productCode: p.pattern_key.replace('product_', ''),
-      adjustmentFactor: p.adjustment_factor,
-      confidence: p.confidence_score,
-      sampleSize: p.sample_size,
-    })) || [];
-  };
+// CHANGE from:
+const { data } = await supabase.functions.invoke('volumetric-weight-advisor', { ... });
 
-  const recordActual = async (orderId: string, productCode: string, actualCIF: number, estimatedCIF: number) => {
-    const variance = ((actualCIF - estimatedCIF) / estimatedCIF) * 100;
-    
-    await supabase.from('cif_estimates').upsert({
-      order_id: orderId,
-      product_code: productCode,
-      estimated_cif_xcg: estimatedCIF,
-      actual_cif_xcg: actualCIF,
-      variance_percentage: variance,
-    });
-    
-    // Trigger pattern recalculation
-    await supabase.functions.invoke('cif-learning-engine');
-  };
-
-  return { fetchPatterns, recordActual };
-}
-```
-
-### 3. Unified Dito Advisor Edge Function
-
-Merge `cif-advisor` and `volumetric-weight-advisor` into a single `dito-unified-advisor`:
-
-```typescript
-// Key improvements:
-// 1. Single AI call instead of two
-// 2. Uses learning patterns from database
-// 3. Returns unified recommendations
-// 4. Includes weight optimization in CIF context
+// TO:
+const { data } = await supabase.functions.invoke('dito-unified-advisor', {
+  body: {
+    products: orderItems.map(item => ({
+      code: item.code,
+      name: item.name,
+      quantity: item.quantity,
+      actualWeight: item.actualWeight,
+      volumetricWeight: item.volumetricWeight,
+      costUSD: item.costUSD,
+      wholesalePriceXCG: item.wholesalePriceXCG,
+      retailPriceXCG: item.retailPriceXCG,
+    })),
+    totalFreight: freightCostPerKg * palletConfiguration.totalChargeableWeight,
+    exchangeRate,
+    palletConfig: {
+      totalPallets: palletConfiguration.totalPallets,
+      totalActualWeight: palletConfiguration.totalActualWeight,
+      totalVolumetricWeight: palletConfiguration.totalVolumetricWeight,
+      utilizationPercentage: palletConfiguration.utilizationPercentage,
+    },
+    includeWeightOptimization: true,
+  }
+});
 ```
 
 ---
 
-## Database Schema Updates
+## Backward Compatibility
 
-```sql
--- Add missing column
-ALTER TABLE cif_learning_patterns 
-ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+The V2 calculation module maintains full backward compatibility:
+- Legacy method names (`byWeight`, `byCost`, etc.) still work
+- `calculateAllCIFMethods()` returns results for all 7 legacy methods
+- Existing saved calculations load correctly
 
--- Add seasonal tracking
-ALTER TABLE cif_learning_patterns
-ADD COLUMN IF NOT EXISTS season_quarter INTEGER,
-ADD COLUMN IF NOT EXISTS supplier_id UUID REFERENCES suppliers(id);
-
--- Create trigger to auto-update
-CREATE OR REPLACE FUNCTION update_learning_pattern_timestamp()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER learning_pattern_timestamp
-BEFORE UPDATE ON cif_learning_patterns
-FOR EACH ROW EXECUTE FUNCTION update_learning_pattern_timestamp();
-```
+The UI will only show 3 methods but calculations can still use legacy methods for historical data.
 
 ---
 
 ## Files to Modify
 
-| File | Changes |
-|------|---------|
-| `src/lib/cifCalculations.ts` | Reduce to 3 methods, add learning integration |
-| `src/components/CIFAnalytics.tsx` | Remove duplicate logic, use shared functions |
-| `src/components/CIFLearningInsights.tsx` | Add visual for active patterns, show applied adjustments |
-| `src/components/DitoAdvisor.tsx` | Integrate CIF method recommendation |
-| `src/pages/CIFCalculator.tsx` | Simplify method selection, show learning confidence |
-| `supabase/functions/cif-advisor/index.ts` | Merge with volumetric advisor |
-| `supabase/functions/cif-learning-engine/index.ts` | Add seasonal analysis, auto-apply patterns |
-| `supabase/functions/volumetric-weight-advisor/index.ts` | Deprecate (merge into unified) |
+| File | Lines Changed | Description |
+|------|---------------|-------------|
+| `src/pages/CIFCalculator.tsx` | ~150 lines | Add learning hook, simplify methods, show adjustments |
+| `src/components/CIFAnalytics.tsx` | ~120 lines | Remove duplicate logic, use shared functions, call unified advisor |
+| `src/components/DitoAdvisor.tsx` | ~80 lines | Call unified advisor, show CIF recommendations |
 
 ---
 
-## Expected Outcomes
+## Testing Checklist
 
-| Metric | Before | After |
-|--------|--------|-------|
-| CIF Methods | 7 (confusing) | 3 (clear purpose) |
-| Learning Applied | Never | Automatic on every estimate |
-| Variance Rate | ~44% | Target <15% with learning |
-| Advisor Calls | 2 separate | 1 unified |
-| Code Duplication | High (500+ lines) | Eliminated |
-
----
-
-## Implementation Order
-
-1. **Database migrations** (add missing columns)
-2. **Simplify `cifCalculations.ts`** (3 methods)
-3. **Create `useCIFLearning` hook**
-4. **Update CIF Calculator** to use learning patterns
-5. **Merge Dito Advisors** into unified function
-6. **Refactor CIFAnalytics** to use shared logic
-7. **Add visual learning indicators** in UI
+After implementation:
+1. Verify CIF Calculator shows 3 methods and calculates correctly
+2. Confirm learning patterns are fetched and applied
+3. Check that adjusted CIF values show confidence indicators
+4. Test CIFAnalytics calls unified advisor successfully
+5. Verify DitoAdvisor shows CIF method recommendations
+6. Confirm backward compatibility with saved calculations
+7. Test actual cost recording triggers learning engine
 
