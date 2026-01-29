@@ -1,12 +1,13 @@
-
 # Implementation Plan: Optional Receipt Editing Before Creation
+
+## Status: ✅ COMPLETED
 
 ## Overview
 This plan adds an optional "Edit Before Creating" step in the receipt creation flow, allowing last-minute adjustments (quantity changes, adding items, moving items between customers) for the **customer receipt only** without affecting the supplier PO data.
 
-## Files to Create
+## Files Created
 
-### 1. `src/components/ReceiptEditDialog.tsx` (NEW)
+### 1. `src/components/ReceiptEditDialog.tsx` ✅
 
 A new dialog component that allows editing receipt items before generation.
 
@@ -20,146 +21,34 @@ A new dialog component that allows editing receipt items before generation.
 - Customer total and grand total display
 - "Continue to Print" button that passes edited items back
 
-**Component Structure:**
-```typescript
-interface ReceiptEditDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  orderItems: OrderItem[];
-  selectedCustomers: string[];
-  onConfirm: (editedItems: OrderItem[]) => void;
-}
-```
+---
 
-**Key State:**
-- `editedItems` - Copy of order items that user modifies (in-memory only)
-- `products` - Product catalog for pricing and add item dropdown
-- `showAddItemDialog` - Controls add item modal per customer
-- `showMoveDialog` - Controls move item modal
+## Files Modified
 
-**UI Layout:**
-```text
-┌────────────────────────────────────────────────────────────────┐
-│  Edit Receipt Items                                       [X]  │
-│  Adjust quantities... These changes will NOT affect the order │
-├────────────────────────────────────────────────────────────────┤
-│  ┌── Customer Name ────────────────── Total: Cg 151.00 ────┐  │
-│  │ Product      │ Qty(trays) │ Price  │ Total   │ Actions  │  │
-│  │──────────────────────────────────────────────────────────│  │
-│  │ STB_500      │   [10]     │ Cg 5.50│ Cg 55.00│ ➡️ 🗑    │  │
-│  │ Strawberry   │            │        │         │          │  │
-│  │ ×10 = 100 un │            │        │         │          │  │
-│  │──────────────────────────────────────────────────────────│  │
-│  │ [+ Add Item]                                             │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                                                                │
-│                              [Cancel]  [Continue to Print]     │
-└────────────────────────────────────────────────────────────────┘
-```
+### 2. `src/pages/OrderDetails.tsx` ✅
+
+- Added new state: `editableReceiptItems` and `showEditReceiptDialog`
+- Added import for `ReceiptEditDialog` and `FileEdit` icon
+- Added `handleEditBeforeReceipt()` and `handleConfirmEditedReceipt()` handlers
+- Updated customer selection dialog with two buttons: "Create Receipt" and "Edit Before Creating"
+- Updated receipt rendering to use `editableReceiptItems` when available
+- Updated receipt number generation to use edited items
+- Updated download handler to use edited items
+- Reset `editableReceiptItems` on dialog close
 
 ---
 
-## Files to Modify
-
-### 2. `src/pages/OrderDetails.tsx`
-
-**Add new state variables:**
-```typescript
-const [editableReceiptItems, setEditableReceiptItems] = useState<OrderItem[]>([]);
-const [showEditReceiptDialog, setShowEditReceiptDialog] = useState(false);
-```
-
-**Update import:**
-```typescript
-import { ReceiptEditDialog } from '@/components/ReceiptEditDialog';
-import { Edit } from 'lucide-react';
-```
-
-**Update customer selection dialog** (lines 926-957):
-
-Add two buttons after customer selection:
-- "Create Receipt" - Direct flow (existing)
-- "Edit Before Creating" - Opens edit dialog first (new)
-
-**New handler for edit flow:**
-```typescript
-const handleEditBeforeReceipt = () => {
-  if (selectedCustomers.length === 0) {
-    toast.error('Please select at least one customer');
-    return;
-  }
-  setShowReceiptCustomerDialog(false);
-  setShowEditReceiptDialog(true);
-};
-
-const handleConfirmEditedReceipt = (editedItems: OrderItem[]) => {
-  setEditableReceiptItems(editedItems);
-  setShowEditReceiptDialog(false);
-  setPendingAction({ type: 'receipt', action: 'view' });
-  setShowFormatDialog(true);
-};
-```
-
-**Update receipt rendering** (lines 1013-1030):
-
-Use `editableReceiptItems` if available, otherwise use original `orderItems`:
-```typescript
-{viewDialog === 'receipt' && order && (
-  <div className="space-y-8">
-    {selectedCustomers.map((customerName, index) => (
-      <div 
-        key={customerName}
-        data-customer={customerName}
-        className={index < selectedCustomers.length - 1 ? 'print:page-break-after-always' : ''}
-      >
-        <CustomerReceipt
-          order={order}
-          orderItems={editableReceiptItems.length > 0 ? editableReceiptItems : orderItems}
-          customerName={customerName}
-          format={printFormat}
-          receiptNumber={receiptNumbers[customerName]}
-        />
-      </div>
-    ))}
-  </div>
-)}
-```
-
-**Add ReceiptEditDialog component** (before closing `</div>`):
-```typescript
-<ReceiptEditDialog
-  open={showEditReceiptDialog}
-  onOpenChange={setShowEditReceiptDialog}
-  orderItems={orderItems}
-  selectedCustomers={selectedCustomers}
-  onConfirm={handleConfirmEditedReceipt}
-/>
-```
-
-**Reset edited items on dialog close:**
-Update the view dialog close handler to also reset `editableReceiptItems`:
-```typescript
-onOpenChange={() => {
-  setViewDialog(null);
-  setPendingAction(null);
-  setSelectedCustomers([]);
-  setEditableReceiptItems([]); // Reset edited items
-}}
-```
-
----
-
-## Updated User Flow
+## User Flow
 
 ```text
 1. Click "Create Receipt" button
       ↓
-2. Select Customers Dialog (existing)
+2. Select Customers Dialog
       ↓
 3. Two buttons appear:
-   ├── [Create Receipt] → 4a. Format Dialog → 5. Generate & Print/Download
+   ├── [Create Receipt] → Direct to format selection → Generate & Print/Download
    │
-   └── [Edit Before Creating] → 4b. Edit Receipt Dialog
+   └── [Edit Before Creating] → Edit Receipt Dialog
                                         ↓
                                  - Adjust quantities
                                  - Add/remove items
@@ -167,7 +56,7 @@ onOpenChange={() => {
                                         ↓
                                  [Continue to Print]
                                         ↓
-                                 4c. Format Dialog → 5. Generate with edited items
+                                 Format Dialog → Generate with edited items
 ```
 
 ---
@@ -189,13 +78,4 @@ onOpenChange={() => {
 
 ## No Database Changes Required
 
-This feature operates entirely on the frontend with in-memory state. The `order_items` table and all supplier-related data remain untouched. Receipt records saved to `receipt_numbers` table will reflect the edited amounts.
-
----
-
-## Files Summary
-
-| File | Action | Lines Changed |
-|------|--------|---------------|
-| `src/components/ReceiptEditDialog.tsx` | Create | ~350 lines |
-| `src/pages/OrderDetails.tsx` | Modify | ~40 lines added/changed |
+This feature operates entirely on the frontend with in-memory state. The `order_items` table and all supplier-related data remain untouched.
