@@ -1,53 +1,139 @@
 
 
-# Fix Email Processing Status Constraint Error
+# Fix: Order Not Created from Forwarded Emails
 
-## Root Cause Analysis
+## Problem Analysis
 
-The email processing **is working correctly** - it extracted the order data successfully (Dreams Curacao Resorts, PO DCU0000003268, 1 item matched). However, when saving the result, it fails due to a database constraint mismatch.
+Your email processing **successfully extracted** all the data:
+- **Customer**: Dreams Curacao Resorts, Casino & Spa  
+- **PO Number**: DCU0000003268
+- **Delivery Date**: 2026-01-30
+- **Item**: CHEESE PAISA 1X425GR → Paisa (30 kg, high confidence)
 
-**Database constraint allows:** `new`, `processing`, `pending_review`, `confirmed`, `declined`, `error`
+**BUT no order was created** because `matched_customer_id` is NULL.
 
-**Code tries to set:** `processed` (line 535 of process-email-order function)
+### Why `matched_customer_id` is NULL
 
-The status `processed` is not in the allowed list, causing the save to fail even though extraction succeeded.
+The email-webhook matches customers by checking if the **sender's email** exists in:
+- `whatsapp_phone` column
+- `notes` column
+
+**The problem**: You forwarded the email, so the sender is `efg.deandrade@gmail.com` (your email), NOT the original customer email (`Eliandra.carolie@dreamsresorts.com`).
+
+The Dreams Hotel customer record has different emails stored, so no match occurs.
+
+### Order Creation Condition
+
+Line 568 of process-email-order:
+```typescript
+if (orderItems.length >= AUTO_CREATE_MIN_ITEMS && email.matched_customer_id) {
+```
+
+Since `matched_customer_id` is NULL → order creation is skipped entirely.
+
+---
 
 ## Solution
 
-Update the `process-email-order` Edge Function to use `confirmed` instead of `processed` when saving successfully extracted emails.
+Add **AI-based customer matching** in `process-email-order` when initial email-based matching fails. The AI already extracts `customer_name` ("Dreams Curacao Resorts, Casino & Spa"), so we can use fuzzy matching against the customer database.
 
-## Technical Details
+### Technical Changes
 
-| File | Change |
-|------|--------|
-| `supabase/functions/process-email-order/index.ts` | Line 535: Change `"processed"` to `"confirmed"` |
+| File | Changes |
+|------|---------|
+| `supabase/functions/process-email-order/index.ts` | Add customer lookup by AI-extracted name when `matched_customer_id` is NULL |
 
-### Code Change
+### Code Flow
+
+1. If `email.matched_customer_id` is NULL after email-webhook processing
+2. Use the AI-extracted `customer_name` to search `distribution_customers`
+3. Apply fuzzy matching (ILIKE with partial names)
+4. If a match is found, update `matched_customer_id` on the email record
+5. Proceed with order creation using the matched customer
+
+### Implementation Details
 
 ```typescript
-// Line 535 - BEFORE:
-const finalStatus = needsReview ? "pending_review" : "processed";
-
-// Line 535 - AFTER:
-const finalStatus = needsReview ? "pending_review" : "confirmed";
+// After AI extraction, if no customer was matched by email
+if (!email.matched_customer_id && extractedData.customer_name) {
+  console.log(`No email-matched customer, searching by AI-extracted name: "${extractedData.customer_name}"`);
+  
+  // Search for customer by extracted name
+  const searchName = extractedData.customer_name.toLowerCase();
+  const searchWords = searchName.split(/\s+/).filter(w => w.length > 3);
+  
+  // Try progressively looser matches
+  let matchedCustomer = null;
+  
+  // 1. Exact match first
+  const { data: exactMatch } = await supabase
+    .from("distribution_customers")
+    .select("id, name")
+    .ilike("name", extractedData.customer_name)
+    .limit(1)
+    .maybeSingle();
+    
+  if (exactMatch) {
+    matchedCustomer = exactMatch;
+  } else {
+    // 2. Try partial matches with key words (e.g., "Dreams")
+    for (const word of searchWords) {
+      const { data: partialMatch } = await supabase
+        .from("distribution_customers")
+        .select("id, name")
+        .ilike("name", `%${word}%`)
+        .limit(1)
+        .maybeSingle();
+        
+      if (partialMatch) {
+        matchedCustomer = partialMatch;
+        break;
+      }
+    }
+  }
+  
+  if (matchedCustomer) {
+    console.log(`AI name matched to customer: ${matchedCustomer.name} (${matchedCustomer.id})`);
+    
+    // Update email record with matched customer
+    await supabase
+      .from("email_inbox")
+      .update({ matched_customer_id: matchedCustomer.id })
+      .eq("id", emailId);
+      
+    // Use for order creation
+    email.matched_customer_id = matchedCustomer.id;
+  } else {
+    console.log(`Could not match customer by AI name: "${extractedData.customer_name}"`);
+  }
+}
 ```
 
-## Why This Will Be Permanent
+---
 
-This fix addresses the exact constraint check in the database. The allowed statuses are:
-- `new` - Email just received
-- `processing` - Currently being processed
-- `pending_review` - Needs human review
-- `confirmed` - Successfully processed (this is what we'll use)
-- `declined` - User rejected the order
-- `error` - Processing failed
+## Why This Solves the Problem Permanently
 
-## What Happened With Your Email
+1. **Forwarded emails**: Even when YOU forward an email, the AI extracts the original customer name from the PO content
+2. **AI name → Customer match**: "Dreams Curacao Resorts" will fuzzy-match to "Dreams Hotel" 
+3. **Order creation**: With `matched_customer_id` populated, the order creation logic proceeds normally
 
-Your email (DCU0000003268) was actually extracted correctly:
-- Customer: Dreams Curacao Resorts, Casino & Spa
-- Delivery: 2026-01-30
-- Item: CHEESE PAISA 1X425GR → Paisa (30 kg, high confidence)
+---
 
-It just couldn't be saved due to this status constraint. After the fix, it should work properly.
+## Expected Result After Fix
+
+For your forwarded email (DCU0000003268):
+1. Email-webhook: `matched_customer_id` = NULL (sender is your email)
+2. process-email-order: AI extracts "Dreams Curacao Resorts, Casino & Spa"
+3. **NEW**: Fuzzy search finds "Dreams Hotel" customer
+4. **NEW**: Updates email with matched customer
+5. Creates order with 1 item (Paisa 30kg)
+6. Order appears in your Orders list
+
+---
+
+## Files to Modify
+
+| File | Action |
+|------|--------|
+| `supabase/functions/process-email-order/index.ts` | Add AI-based customer matching after extraction, before order creation |
 
