@@ -98,7 +98,7 @@ export const SupplierOrderList = ({ order, orderItems, format }: Props) => {
         }, {} as Record<string, number>);
 
         return (
-          <div key={supplierName} data-supplier={supplierName} className={`${containerClass} mx-auto bg-white text-black p-6 page-break`}>
+          <div key={supplierName} data-supplier={supplierName} className={`${containerClass} mx-auto bg-white text-black p-6 supplier-page`}>
             <div className="border-b-2 border-black pb-4 mb-4">
               <h1 className={`${format === 'receipt' ? 'text-lg' : 'text-2xl'} font-bold`}>SUPPLIER ORDER</h1>
               <div className={`${textSize} mt-2`}>
@@ -167,11 +167,22 @@ export const SupplierOrderList = ({ order, orderItems, format }: Props) => {
       
       <style>{`
         @media print {
-          .page-break {
+          .supplier-page {
             page-break-after: always;
+            break-after: page;
+            page-break-inside: avoid;
+            break-inside: avoid;
           }
-          .page-break:last-child {
+          .supplier-page:last-child {
             page-break-after: auto;
+            break-after: auto;
+          }
+        }
+        @media screen {
+          .supplier-page + .supplier-page {
+            margin-top: 2rem;
+            border-top: 2px dashed #ccc;
+            padding-top: 2rem;
           }
         }
       `}</style>
