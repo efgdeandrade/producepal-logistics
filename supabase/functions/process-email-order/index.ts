@@ -532,7 +532,7 @@ ${JSON.stringify(customerMappings, null, 2)}` : ''}
     console.log(`Processing complete: ${orderItems.length} matched, ${unmatchedItems.length} unmatched, confidence: ${(confidenceScore * 100).toFixed(0)}%`);
 
     // Store extracted data with raw AI response for debugging
-    const finalStatus = needsReview ? "pending_review" : "processed";
+    const finalStatus = needsReview ? "pending_review" : "confirmed";
     
     const { error: updateError } = await supabase
       .from("email_inbox")
