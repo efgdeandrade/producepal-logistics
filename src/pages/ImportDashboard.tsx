@@ -16,12 +16,12 @@ import {
   Calculator,
   Package,
   Plane,
-  TrendingUp,
   ArrowRight,
   Clock,
   DollarSign,
 } from "lucide-react";
-import { format, subDays } from "date-fns";
+import { format } from "date-fns";
+import { MarketNewsWidget } from "@/components/import/MarketNewsWidget";
 
 export default function ImportDashboard() {
   const navigate = useNavigate();
@@ -195,56 +195,62 @@ export default function ImportDashboard() {
         </Card>
       </div>
 
-      {/* Recent CIF Calculations */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Recent CIF Calculations</CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => navigate("/import/cif/history")}>
-            View All
-            <ArrowRight className="h-4 w-4 ml-2" />
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {recentCIF && recentCIF.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Products</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="text-right">Exchange Rate</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentCIF.map((calc) => (
-                  <TableRow key={calc.id}>
-                    <TableCell className="font-medium">
-                      {calc.calculation_name}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{calc.calculation_type}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      {Array.isArray(calc.products) ? calc.products.length : 0}
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(calc.created_at), "MMM d, yyyy")}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {calc.exchange_rate?.toFixed(2)}
-                    </TableCell>
+      {/* Bottom Row: News + CIF History */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Market News Intelligence */}
+        <MarketNewsWidget />
+
+        {/* Recent CIF Calculations */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Recent CIF Calculations</CardTitle>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/import/cif/history")}>
+              View All
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {recentCIF && recentCIF.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Products</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="text-right">Exchange Rate</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <p className="text-center text-muted-foreground py-8">
-              No CIF calculations yet
-            </p>
-          )}
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {recentCIF.map((calc) => (
+                    <TableRow key={calc.id}>
+                      <TableCell className="font-medium">
+                        {calc.calculation_name}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{calc.calculation_type}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {Array.isArray(calc.products) ? calc.products.length : 0}
+                      </TableCell>
+                      <TableCell>
+                        {format(new Date(calc.created_at), "MMM d, yyyy")}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {calc.exchange_rate?.toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <p className="text-center text-muted-foreground py-8">
+                No CIF calculations yet
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

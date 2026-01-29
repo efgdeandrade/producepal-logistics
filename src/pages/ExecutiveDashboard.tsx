@@ -29,6 +29,7 @@ import { FnbAlertsCard } from "@/components/fnb/FnbAlertsCard";
 import { IntegrationHealthIndicator, IntegrationHealthBadges } from "@/components/IntegrationHealthIndicator";
 import { ExecutiveKPIGrid } from "@/components/executive/ExecutiveKPIGrid";
 import { ExecutiveInsightsPanel } from "@/components/executive/ExecutiveInsightsPanel";
+import { MarketNewsSummary } from "@/components/executive/MarketNewsSummary";
 
 // Fetch dashboard stats
 const useDashboardStats = () => {
@@ -434,6 +435,9 @@ export default function ExecutiveDashboard() {
             <FnbAlertsCard compact />
             <IntegrationHealthIndicator />
           </div>
+
+          {/* Market News */}
+          <MarketNewsSummary />
         </div>
 
         {/* Right Column - AI Insights */}
