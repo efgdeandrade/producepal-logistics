@@ -94,20 +94,26 @@ CRITICAL INSTRUCTIONS:
 SPECIAL HANDLING FOR WEEKLY ORDER TEMPLATES (Fuik/Osteria Rosso style):
 When the content includes "FORMAT: WEEKLY_ORDER_TEMPLATE":
 1. This file has columns: Item Name | Unit | Price R | Price F | Status | Monday | Tuesday | Wednesday | Thursday | Friday
-2. CRITICAL: Find the LAST weekday column (rightmost) that has ANY non-empty quantities
-3. Extract ONLY items with quantities in that LAST filled weekday column
-4. EXCLUDE any items where the Status column contains "HOLD" - do not include these in the items list
-5. Parse quantity strings:
-   - "3 tros" → quantity: 3, unit: "bunch"
-   - "2 kg" or "2 kilo" → quantity: 2, unit: "kg"
-   - "250 gram" or "250gr" → quantity: 250, unit: "gram"
-   - "1 stuk" or "2 stuks" → quantity: 1 or 2, unit: "stuks"
+2. CRITICAL: The user wants to import ALL items that have orders for the ENTIRE WEEK
+3. Scan EVERY weekday column (Monday through Friday) and extract ALL items that have quantities in ANY column
+4. For items with quantities in multiple days, COMBINE them by creating separate items OR adding quantities (prefer separate items with different days noted)
+5. EXCLUDE any items where the Status column contains "HOLD" - do not include these in the items list
+6. Parse quantity strings carefully:
+   - "3 tros" or "2 tros" → quantity: 3 or 2, unit: "bunch"
+   - "2 kg" or "2 kilo" or "3 kilo" → quantity: 2 or 3, unit: "kg"
+   - "250 gram" or "250gr" or "400 gram" or "100 gram" → quantity: 0.25 or 0.4 or 0.1, unit: "kg" (convert grams to kg!)
+   - "1 stuk" or "2 stuks" or "4 st" or "6 stuk" → quantity: 1, 2, 4, 6, unit: "stuks"
    - "5 pack" → quantity: 5, unit: "pack"
+   - "3 bos" → quantity: 3, unit: "bunch"
+   - "1 tray" → quantity: 1, unit: "tray"
+   - "1 hele" → quantity: 1, unit: "whole"
    - Plain numbers like "3" → quantity: 3, unit from the Unit column
-6. Set the delivery_date field to the actual calendar date calculated from TODAY's date (provided in the format line)
-7. Set detected_delivery_weekday to the weekday name that was used (e.g., "Friday")
-8. Set po_number to "Weekly-YYYY-MM-DD" using the delivery date
-9. Set customer_name to "Fuik" or "Osteria Rosso" if identifiable from filename/content
+7. When the same item appears with quantities on different days, keep them as separate line items with the day name in description
+8. Set detected_delivery_weekday to the LAST weekday that has orders (e.g., "Friday" if Friday has items)
+9. Set po_number to "Weekly-YYYY-MM-DD" using TODAY's date from the format line
+10. Set customer_name to "Fuik" or "Osteria Rosso" if identifiable from filename/content
+
+IMPORTANT: Do NOT skip items! Scan every row and every weekday column. If a row has quantities in Monday, Wednesday, AND Friday, extract ALL three.
 
 UNIT NORMALIZATION (always apply):
 - "tros" → "bunch", "bos" → "bunch"
@@ -115,6 +121,7 @@ UNIT NORMALIZATION (always apply):
 - "kilo" → "kg", "kilogram" → "kg"
 - "pak" → "pack"
 - "gr" → "gram"
+- Convert grams to kg: divide by 1000
 
 Be thorough and extract every single line item. Do not miss any products.`;
 
