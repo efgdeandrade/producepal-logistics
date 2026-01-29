@@ -6,6 +6,7 @@ interface OrderItem {
   customer_name: string;
   product_code: string;
   quantity: number;
+  is_from_stock?: boolean;
 }
 
 interface Order {

@@ -46,6 +46,7 @@ interface OrderItem {
   product_code: string;
   quantity: number;
   po_number?: string;
+  is_from_stock?: boolean;
 }
 
 interface Order {
@@ -1056,14 +1057,14 @@ const OrderDetails = () => {
             {viewDialog === 'supplier' && order && (
               <SupplierOrderList 
                 order={order} 
-                orderItems={orderItems} 
+                orderItems={orderItems.filter(item => !item.is_from_stock)} 
                 format={printFormat}
               />
             )}
             {viewDialog === 'roundup' && order && (
               <RoundupTable 
                 order={order} 
-                orderItems={orderItems} 
+                orderItems={orderItems.filter(item => !item.is_from_stock)} 
                 format={printFormat}
               />
             )}
