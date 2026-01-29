@@ -435,6 +435,68 @@ ${JSON.stringify(customerMappings, null, 2)}` : ''}
       };
     }
 
+    // AI-based customer matching: If no customer was matched by email, try fuzzy matching by extracted name
+    if (!email.matched_customer_id && extractedData.customer_name) {
+      console.log(`No email-matched customer, searching by AI-extracted name: "${extractedData.customer_name}"`);
+      
+      const searchName = extractedData.customer_name.toLowerCase();
+      const searchWords = searchName.split(/\s+/).filter((w: string) => w.length > 3);
+      
+      let matchedCustomer: { id: string; name: string } | null = null;
+      
+      // 1. Try exact match first
+      const { data: exactMatch } = await supabase
+        .from("distribution_customers")
+        .select("id, name")
+        .ilike("name", extractedData.customer_name)
+        .limit(1)
+        .maybeSingle();
+        
+      if (exactMatch) {
+        matchedCustomer = exactMatch;
+        console.log(`Exact name match found: "${exactMatch.name}"`);
+      } else {
+        // 2. Try partial matches with key words (e.g., "Dreams", "Curacao", "Resort")
+        for (const word of searchWords) {
+          const { data: partialMatch } = await supabase
+            .from("distribution_customers")
+            .select("id, name")
+            .ilike("name", `%${word}%`)
+            .limit(1)
+            .maybeSingle();
+            
+          if (partialMatch) {
+            matchedCustomer = partialMatch;
+            console.log(`Partial name match on "${word}": "${partialMatch.name}"`);
+            break;
+          }
+        }
+      }
+      
+      if (matchedCustomer) {
+        console.log(`AI name matched to customer: ${matchedCustomer.name} (${matchedCustomer.id})`);
+        
+        // Update email record with matched customer
+        await supabase
+          .from("email_inbox")
+          .update({ matched_customer_id: matchedCustomer.id })
+          .eq("id", emailId);
+          
+        // Use for order creation
+        email.matched_customer_id = matchedCustomer.id;
+        
+        // Also load customer mappings for this newly matched customer
+        const { data: mappings } = await supabase
+          .from("distribution_customer_product_mappings")
+          .select("customer_sku, customer_product_name, product_id")
+          .eq("customer_id", matchedCustomer.id);
+        customerMappings = mappings || [];
+        console.log(`Loaded ${customerMappings.length} customer-specific mappings for matched customer`);
+      } else {
+        console.log(`Could not match customer by AI name: "${extractedData.customer_name}"`);
+      }
+    }
+
     // Post-process items: Apply fuzzy matching fallback for unmatched items
     console.log(`AI extracted ${extractedData.items?.length || 0} items`);
     
