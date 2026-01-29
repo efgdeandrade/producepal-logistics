@@ -302,7 +302,7 @@ const LimitingFactorBadge = ({ factor }: { factor: 'weight' | 'volume' | 'balanc
   }
 };
 
-// Case Stacking View - Now with actual dimensions!
+// Case Stacking View - Compact & well-fitted
 const CaseStackingView = ({ 
   products, 
   layer, 
@@ -327,7 +327,6 @@ const CaseStackingView = ({
   const getLayerCases = () => {
     const startCase = layer * casesPerLayer;
     const endCase = Math.min(startCase + casesPerLayer, totalCasesNeeded);
-    const casesThisLayer = endCase - startCase;
     
     // Map products to case positions
     const caseSlots: (ProductWeightInfo | null)[] = [];
@@ -354,119 +353,99 @@ const CaseStackingView = ({
   const layerCases = getLayerCases();
   const casesOnThisLayer = layerCases.filter(c => c !== null).length;
   
-  // Calculate aspect ratio based on pallet dimensions
-  const aspectRatio = caseFit.palletLength / caseFit.palletWidth;
-  
   return (
-    <div className="space-y-4">
-      {/* Pallet info header */}
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <Badge variant="outline" className="font-mono">
-          Pallet: {caseFit.palletLength}×{caseFit.palletWidth} cm
+    <div className="space-y-3">
+      {/* Pallet info header - compact */}
+      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+        <Badge variant="outline" className="font-mono text-[10px] px-1.5 py-0">
+          {caseFit.palletLength}×{caseFit.palletWidth}cm
         </Badge>
         {caseFit.hasDimensions ? (
-          <Badge variant="outline" className="font-mono">
-            Case: {caseFit.caseLength}×{caseFit.caseWidth}×{caseFit.caseHeight} cm
+          <Badge variant="outline" className="font-mono text-[10px] px-1.5 py-0">
+            {caseFit.caseLength}×{caseFit.caseWidth}×{caseFit.caseHeight}cm
           </Badge>
         ) : (
-          <Badge variant="secondary" className="text-yellow-600 dark:text-yellow-400">
-            ⚠️ No case dimensions - estimated layout
+          <Badge variant="secondary" className="text-yellow-600 dark:text-yellow-400 text-[10px] px-1.5 py-0">
+            ⚠️ Estimated
           </Badge>
         )}
         <span className="text-muted-foreground">
-          {casesAcross}×{casesDeep} = {casesPerLayer} cases/layer × {totalLayers} layers = {caseFit.totalCapacity} capacity
+          {casesAcross}×{casesDeep}={casesPerLayer}/layer
         </span>
       </div>
       
-      <div className="text-sm text-muted-foreground">
-        Layer {layer + 1} of {totalLayers} — {casesOnThisLayer} case{casesOnThisLayer !== 1 ? 's' : ''} on this layer
+      <div className="text-xs text-muted-foreground">
+        Layer {layer + 1}/{totalLayers} — {casesOnThisLayer} case{casesOnThisLayer !== 1 ? 's' : ''}
       </div>
       
-      {/* Pallet footprint visualization - TRUE TO SCALE */}
-      <div 
-        className="relative bg-amber-100 dark:bg-amber-900/30 rounded-lg border-2 border-amber-300 dark:border-amber-700 p-2 overflow-hidden"
-        style={{ 
-          aspectRatio: `${aspectRatio}`,
-          maxWidth: '100%'
-        }}
-      >
-        {/* Pallet base slats pattern */}
-        <div className="absolute inset-0 opacity-20 pointer-events-none">
-          <div className="grid h-full" style={{ gridTemplateColumns: `repeat(${Math.ceil(caseFit.palletLength / 20)}, 1fr)` }}>
-            {Array.from({ length: Math.ceil(caseFit.palletLength / 20) }).map((_, i) => (
-              <div key={i} className="border-r border-amber-600 last:border-r-0" />
-            ))}
+      {/* Pallet footprint visualization - FIXED HEIGHT for consistency */}
+      <div className="relative">
+        <div 
+          className="relative bg-amber-100 dark:bg-amber-900/30 rounded-lg border-2 border-amber-300 dark:border-amber-700 p-1.5 mx-auto"
+          style={{ 
+            width: '100%',
+            maxWidth: '280px',
+            height: `${Math.min(200, 280 * (caseFit.palletWidth / caseFit.palletLength))}px`
+          }}
+        >
+          {/* Cases grid */}
+          <div 
+            className="grid gap-0.5 h-full w-full"
+            style={{ 
+              gridTemplateColumns: `repeat(${casesAcross}, 1fr)`,
+              gridTemplateRows: `repeat(${casesDeep}, 1fr)`
+            }}
+          >
+            {layerCases.map((product, idx) => {
+              if (!product) {
+                return (
+                  <div 
+                    key={`empty-${idx}`}
+                    className="rounded-sm border border-dashed border-muted-foreground/20 bg-muted/20"
+                  />
+                );
+              }
+              
+              const hue = (product.code.charCodeAt(0) * 137 + (product.code.charCodeAt(1) || 0) * 73) % 360;
+              return (
+                <TooltipProvider key={idx}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div 
+                        className="rounded-sm flex items-center justify-center text-white font-bold text-[8px] sm:text-[10px] transition-transform hover:scale-105 hover:z-10 cursor-pointer shadow-sm"
+                        style={{ backgroundColor: `hsl(${hue}, 55%, 45%)` }}
+                      >
+                        <span className="truncate px-0.5 leading-none">{product.code.substring(0, 4)}</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs">
+                      <div className="text-xs space-y-0.5">
+                        <p className="font-semibold">{product.code}</p>
+                        <p>{product.quantity} units ({Math.ceil(product.quantity / product.packSize)} cases)</p>
+                        {product.lengthCm && product.widthCm && product.heightCm && (
+                          <p className="text-green-500">{product.lengthCm}×{product.widthCm}×{product.heightCm}cm</p>
+                        )}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              );
+            })}
           </div>
         </div>
         
-        {/* Cases grid - matches actual arrangement */}
-        <div 
-          className="relative grid gap-1 h-full w-full"
-          style={{ 
-            gridTemplateColumns: `repeat(${casesAcross}, 1fr)`,
-            gridTemplateRows: `repeat(${casesDeep}, 1fr)`
-          }}
-        >
-          {layerCases.map((product, idx) => {
-            if (!product) {
-              return (
-                <div 
-                  key={`empty-${idx}`}
-                  className="rounded border border-dashed border-muted-foreground/20 flex items-center justify-center text-muted-foreground/30 text-[10px]"
-                >
-                  –
-                </div>
-              );
-            }
-            
-            const hue = (product.code.charCodeAt(0) * 137 + product.code.charCodeAt(1) * 73) % 360;
-            return (
-              <TooltipProvider key={idx}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div 
-                      className="rounded flex items-center justify-center text-white font-bold text-[10px] sm:text-xs transition-all hover:scale-[1.02] hover:z-10 cursor-pointer shadow-sm border border-white/20"
-                      style={{ backgroundColor: `hsl(${hue}, 55%, 45%)` }}
-                    >
-                      <span className="truncate px-0.5">{product.code}</span>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-xs">
-                    <div className="text-xs space-y-1">
-                      <p className="font-semibold">{product.name || product.code}</p>
-                      <p>Total order: {product.quantity} units ({Math.ceil(product.quantity / product.packSize)} cases)</p>
-                      {product.lengthCm && product.widthCm && product.heightCm ? (
-                        <p className="text-green-600 dark:text-green-400">
-                          ✓ Case: {product.lengthCm}×{product.widthCm}×{product.heightCm} cm
-                        </p>
-                      ) : (
-                        <p className="text-yellow-600 dark:text-yellow-400">
-                          ⚠️ No case dimensions in database
-                        </p>
-                      )}
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            );
-          })}
-        </div>
-        
-        {/* Dimension labels */}
-        <div className="absolute -bottom-5 left-0 right-0 text-center text-[10px] text-muted-foreground font-mono">
-          {caseFit.palletLength} cm
-        </div>
-        <div className="absolute -right-8 top-0 bottom-0 flex items-center text-[10px] text-muted-foreground font-mono writing-mode-vertical">
-          <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>{caseFit.palletWidth} cm</span>
+        {/* Dimension labels - positioned outside */}
+        <div className="text-center text-[10px] text-muted-foreground font-mono mt-1">
+          {caseFit.palletLength}cm
         </div>
       </div>
       
-      {/* Layer slider */}
+      {/* Layer slider - compact */}
       {totalLayers > 1 && (
-        <div className="space-y-2 mt-8">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Layer 1 (Bottom)</span>
-            <span>Layer {totalLayers} (Top)</span>
+        <div className="space-y-1 pt-2">
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+            <span>L1</span>
+            <span>L{totalLayers}</span>
           </div>
           <Slider
             value={[layer]}
