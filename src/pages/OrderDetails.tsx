@@ -3,11 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Printer, Ban, Edit, Eye, Download, Receipt, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Printer, Ban, Edit, Eye, Download, Receipt, ChevronDown, FileEdit } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import LoadingBox from '@/components/LoadingBox';
+import { ReceiptEditDialog } from '@/components/ReceiptEditDialog';
 import {
   Dialog,
   DialogContent,
@@ -78,6 +79,8 @@ const OrderDetails = () => {
   const [freightSettings, setFreightSettings] = useState({ freightCostPerKg: 2.87, exchangeRate: 1.82 });
   const [hasActualCosts, setHasActualCosts] = useState(false);
   const [orderItemsExpanded, setOrderItemsExpanded] = useState(false);
+  const [showEditReceiptDialog, setShowEditReceiptDialog] = useState(false);
+  const [editableReceiptItems, setEditableReceiptItems] = useState<OrderItem[]>([]);
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -301,6 +304,22 @@ const OrderDetails = () => {
     setShowFormatDialog(true);
   };
 
+  const handleEditBeforeReceipt = () => {
+    if (selectedCustomers.length === 0) {
+      toast.error('Please select at least one customer');
+      return;
+    }
+    setShowReceiptCustomerDialog(false);
+    setShowEditReceiptDialog(true);
+  };
+
+  const handleConfirmEditedReceipt = (editedItems: OrderItem[]) => {
+    setEditableReceiptItems(editedItems);
+    setShowEditReceiptDialog(false);
+    setPendingAction({ type: 'receipt', action: 'view' });
+    setShowFormatDialog(true);
+  };
+
   const getUniqueCustomers = () => {
     return [...new Set(orderItems.map(item => item.customer_name))];
   };
@@ -318,13 +337,16 @@ const OrderDetails = () => {
       try {
         const numbers: Record<string, string> = {};
         
+        // Use edited items if available, otherwise use original order items
+        const itemsForReceipt = editableReceiptItems.length > 0 ? editableReceiptItems : orderItems;
+        
         // Generate receipt numbers for selected customers
         for (const customerName of selectedCustomers) {
           const receiptNumber = await generateReceiptNumber();
           numbers[customerName] = receiptNumber;
           
-          // Calculate customer total
-          const customerItems = orderItems.filter(item => item.customer_name === customerName);
+          // Calculate customer total using the correct items source
+          const customerItems = itemsForReceipt.filter(item => item.customer_name === customerName);
           const { data: productsData } = await supabase
             .from('products')
             .select('code, pack_size, wholesale_price_xcg_per_unit')
@@ -394,10 +416,13 @@ const OrderDetails = () => {
       setGeneratingPDF(true);
       
       try {
+        // Use edited items if available
+        const itemsForReceipt = editableReceiptItems.length > 0 ? editableReceiptItems : orderItems;
+        
         // Create receipt data array
         const receipts = selectedCustomers.map((customerName) => {
           const receiptNumber = receiptNumbers[customerName];
-          const customerItems = orderItems.filter(item => item.customer_name === customerName);
+          const customerItems = itemsForReceipt.filter(item => item.customer_name === customerName);
           
           // Calculate amount
           const amount = customerItems.reduce((sum, item) => {
@@ -441,6 +466,7 @@ const OrderDetails = () => {
         setPendingAction(null);
         setSelectedCustomers([]);
         setReceiptNumbers({});
+        setEditableReceiptItems([]);
       } catch (error) {
         console.error('Error generating PDFs:', error);
         toast.error('Failed to generate PDFs');
@@ -949,9 +975,19 @@ const OrderDetails = () => {
                 </div>
               ))}
             </div>
-            <Button onClick={handleConfirmCustomers} className="w-full">
-              Continue with {selectedCustomers.length} Customer{selectedCustomers.length !== 1 ? 's' : ''}
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button onClick={handleConfirmCustomers} className="w-full">
+                <Receipt className="mr-2 h-4 w-4" />
+                Create Receipt
+              </Button>
+              <Button onClick={handleEditBeforeReceipt} variant="outline" className="w-full">
+                <FileEdit className="mr-2 h-4 w-4" />
+                Edit Before Creating
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              {selectedCustomers.length} customer{selectedCustomers.length !== 1 ? 's' : ''} selected
+            </p>
           </div>
         </DialogContent>
       </Dialog>
@@ -960,6 +996,7 @@ const OrderDetails = () => {
         setViewDialog(null);
         setPendingAction(null);
         setSelectedCustomers([]);
+        setEditableReceiptItems([]);
       }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -1020,7 +1057,7 @@ const OrderDetails = () => {
                   >
                     <CustomerReceipt
                       order={order}
-                      orderItems={orderItems}
+                      orderItems={editableReceiptItems.length > 0 ? editableReceiptItems : orderItems}
                       customerName={customerName}
                       format={printFormat}
                       receiptNumber={receiptNumbers[customerName]}
@@ -1032,6 +1069,14 @@ const OrderDetails = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ReceiptEditDialog
+        open={showEditReceiptDialog}
+        onOpenChange={setShowEditReceiptDialog}
+        orderItems={orderItems}
+        selectedCustomers={selectedCustomers}
+        onConfirm={handleConfirmEditedReceipt}
+      />
     </div>
   );
 };
