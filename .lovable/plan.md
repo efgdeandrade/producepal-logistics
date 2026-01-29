@@ -1,81 +1,127 @@
-# Implementation Plan: Optional Receipt Editing Before Creation
 
-## Status: ✅ COMPLETED
 
-## Overview
-This plan adds an optional "Edit Before Creating" step in the receipt creation flow, allowing last-minute adjustments (quantity changes, adding items, moving items between customers) for the **customer receipt only** without affecting the supplier PO data.
+# Fix: Exclude "In Stock" Items from Supplier PO and Roundup
 
-## Files Created
+## Problem
 
-### 1. `src/components/ReceiptEditDialog.tsx` ✅
+Items marked as `is_from_stock = true` are currently appearing on:
+- Supplier Order List (PO to send to suppliers)
+- Order Roundup (checklist for receiving products)
 
-A new dialog component that allows editing receipt items before generation.
+This is incorrect behavior. "In stock" items should only appear on:
+- Customer receipts
+- Customer packing slips
 
-**Features:**
-- Displays items grouped by selected customer
-- Inline quantity editing (number input per item)
-- Remove item button (trash icon)
-- "Add Item" button per customer to add any product from the catalog
-- "Move to Another Customer" button when multiple customers selected
-- Read-only price display with auto-calculated line totals
-- Customer total and grand total display
-- "Continue to Print" button that passes edited items back
+## Root Cause
 
----
+The `SupplierOrderList` and `RoundupTable` components receive all `orderItems` without filtering out items where `is_from_stock = true`.
 
-## Files Modified
+## Solution
 
-### 2. `src/pages/OrderDetails.tsx` ✅
+Filter out items with `is_from_stock = true` when passing `orderItems` to these components.
 
-- Added new state: `editableReceiptItems` and `showEditReceiptDialog`
-- Added import for `ReceiptEditDialog` and `FileEdit` icon
-- Added `handleEditBeforeReceipt()` and `handleConfirmEditedReceipt()` handlers
-- Updated customer selection dialog with two buttons: "Create Receipt" and "Edit Before Creating"
-- Updated receipt rendering to use `editableReceiptItems` when available
-- Updated receipt number generation to use edited items
-- Updated download handler to use edited items
-- Reset `editableReceiptItems` on dialog close
+## Technical Changes
 
----
+| File | Changes |
+|------|---------|
+| `src/pages/OrderDetails.tsx` | Update OrderItem interface to include `is_from_stock`, filter items before passing to SupplierOrderList and RoundupTable |
+| `src/components/SupplierOrderList.tsx` | Update OrderItem interface to include `is_from_stock` for type safety |
+| `src/components/RoundupTable.tsx` | Update OrderItem interface to include `is_from_stock` for type safety |
 
-## User Flow
+### 1. Update OrderDetails.tsx
 
-```text
-1. Click "Create Receipt" button
-      ↓
-2. Select Customers Dialog
-      ↓
-3. Two buttons appear:
-   ├── [Create Receipt] → Direct to format selection → Generate & Print/Download
-   │
-   └── [Edit Before Creating] → Edit Receipt Dialog
-                                        ↓
-                                 - Adjust quantities
-                                 - Add/remove items
-                                 - Move between customers
-                                        ↓
-                                 [Continue to Print]
-                                        ↓
-                                 Format Dialog → Generate with edited items
+**Update the OrderItem interface** (around line 43-49):
+```typescript
+interface OrderItem {
+  id: string;
+  customer_name: string;
+  product_code: string;
+  quantity: number;
+  po_number?: string;
+  is_from_stock?: boolean;  // NEW
+}
 ```
 
----
+**Filter items for Supplier and Roundup views** (around lines 1057-1068):
 
-## Key Behaviors
+Replace:
+```typescript
+{viewDialog === 'supplier' && order && (
+  <SupplierOrderList 
+    order={order} 
+    orderItems={orderItems} 
+    format={printFormat}
+  />
+)}
+{viewDialog === 'roundup' && order && (
+  <RoundupTable 
+    order={order} 
+    orderItems={orderItems} 
+    format={printFormat}
+  />
+)}
+```
 
-| Feature | Behavior |
-|---------|----------|
-| Quantity adjustment | Edit inline, auto-calculates totals |
-| Add item | Opens dropdown with all products, adds to customer |
-| Remove item | Removes from receipt only (not from order) |
-| Move item | Transfers item to another selected customer |
-| Data persistence | **None** - edited items are in-memory only |
-| Original order | **Unchanged** - order_items table is never modified |
-| Cancel edit | Discards all changes, returns to customer selection |
-| Skip editing | User can use "Create Receipt" to skip entirely |
+With:
+```typescript
+{viewDialog === 'supplier' && order && (
+  <SupplierOrderList 
+    order={order} 
+    orderItems={orderItems.filter(item => !item.is_from_stock)} 
+    format={printFormat}
+  />
+)}
+{viewDialog === 'roundup' && order && (
+  <RoundupTable 
+    order={order} 
+    orderItems={orderItems.filter(item => !item.is_from_stock)} 
+    format={printFormat}
+  />
+)}
+```
 
----
+### 2. Update SupplierOrderList.tsx
 
-## No Database Changes Required
+**Update OrderItem interface** (lines 4-9):
+```typescript
+interface OrderItem {
+  id: string;
+  customer_name: string;
+  product_code: string;
+  quantity: number;
+  is_from_stock?: boolean;
+}
+```
 
-This feature operates entirely on the frontend with in-memory state. The `order_items` table and all supplier-related data remain untouched.
+### 3. Update RoundupTable.tsx
+
+**Update OrderItem interface** (lines 4-9):
+```typescript
+interface OrderItem {
+  id: string;
+  customer_name: string;
+  product_code: string;
+  quantity: number;
+  is_from_stock?: boolean;
+}
+```
+
+## Expected Result After Fix
+
+| Document Type | "In Stock" Items |
+|---------------|------------------|
+| Customer Receipt | Included |
+| Customer Packing Slip | Included |
+| Supplier Order (PO) | **Excluded** |
+| Order Roundup | **Excluded** |
+
+This aligns with the intended behavior: stock items are already in your warehouse, so they don't need to be ordered from suppliers or counted when receiving shipments.
+
+## Files Summary
+
+| File | Action |
+|------|--------|
+| `src/pages/OrderDetails.tsx` | Modify interface + filter orderItems |
+| `src/components/SupplierOrderList.tsx` | Update interface for type safety |
+| `src/components/RoundupTable.tsx` | Update interface for type safety |
+
