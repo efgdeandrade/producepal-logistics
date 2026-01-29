@@ -87,103 +87,134 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format, recei
   };
 
   const containerClass = format === 'receipt' ? 'max-w-[80mm]' : 'max-w-[210mm]';
-  const printClass = format === 'receipt' ? 'receipt-print-content format-receipt' : 'receipt-print-content format-a4';
-  const textSize = format === 'receipt' ? 'text-xs' : 'text-sm';
+  const printClass = format === 'receipt' ? 'receipt-print-content format-receipt high-contrast-print' : 'receipt-print-content format-a4 high-contrast-print';
+  const textSize = format === 'receipt' ? 'text-sm' : 'text-base';
 
   if (loading) {
     return (
       <div className={`${containerClass} mx-auto bg-white text-black p-6`}>
-        <div className="text-center py-8">Loading receipt data...</div>
+        <div className="text-center py-8 font-bold">Loading receipt data...</div>
       </div>
     );
   }
 
   return (
-    <div className={`${containerClass} ${printClass} mx-auto bg-white text-black p-6 print:p-0`}>
-      {/* Company Header */}
-      {companyInfo && (
-        <div className="text-center mb-4 pb-4 border-b border-gray-300">
-          {companyInfo.logo_url && (
-            <img 
-              src={companyInfo.logo_url} 
-              alt="Company Logo" 
-              className={`mx-auto mb-2 ${format === 'receipt' ? 'h-12' : 'h-16'} object-contain`}
-            />
-          )}
-          <h2 className={`font-bold ${format === 'receipt' ? 'text-base' : 'text-xl'}`}>
-            {companyInfo.company_name}
-          </h2>
-          <div className={`${textSize} text-gray-700 mt-1`}>
-            <p>{companyInfo.address_line1}</p>
-            {companyInfo.address_line2 && <p>{companyInfo.address_line2}</p>}
-            <p>{companyInfo.city}, {companyInfo.postal_code}</p>
-            <p>Tel: {companyInfo.phone} | Email: {companyInfo.email}</p>
-            {companyInfo.tax_info && <p className="text-xs mt-1">{companyInfo.tax_info}</p>}
+    <>
+      <style>{`
+        @media print {
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .high-contrast-print {
+            font-family: Arial, Helvetica, sans-serif !important;
+          }
+          .high-contrast-print * {
+            color: #000 !important;
+            font-weight: 600 !important;
+          }
+          .high-contrast-print h1,
+          .high-contrast-print h2,
+          .high-contrast-print .font-bold,
+          .high-contrast-print .font-extrabold,
+          .high-contrast-print th,
+          .high-contrast-print tfoot td {
+            font-weight: 900 !important;
+          }
+          .high-contrast-print table {
+            border-collapse: collapse;
+          }
+          .high-contrast-print tr {
+            border-bottom: 2px solid #000 !important;
+          }
+        }
+      `}</style>
+      <div className={`${containerClass} ${printClass} mx-auto bg-white text-black p-6 print:p-0 font-sans`}>
+        {/* Company Header */}
+        {companyInfo && (
+          <div className="text-center mb-4 pb-4 border-b-2 border-black">
+            {companyInfo.logo_url && (
+              <img 
+                src={companyInfo.logo_url} 
+                alt="Company Logo" 
+                className={`mx-auto mb-2 ${format === 'receipt' ? 'h-12' : 'h-16'} object-contain`}
+              />
+            )}
+            <h2 className={`font-extrabold ${format === 'receipt' ? 'text-lg' : 'text-2xl'}`}>
+              {companyInfo.company_name}
+            </h2>
+            <div className={`${textSize} text-black mt-1 font-medium`}>
+              <p>{companyInfo.address_line1}</p>
+              {companyInfo.address_line2 && <p>{companyInfo.address_line2}</p>}
+              <p>{companyInfo.city}, {companyInfo.postal_code}</p>
+              <p>Tel: {companyInfo.phone} | Email: {companyInfo.email}</p>
+              {companyInfo.tax_info && <p className="text-sm mt-1 font-bold">{companyInfo.tax_info}</p>}
+            </div>
+          </div>
+        )}
+
+        <div className="border-b-4 border-black pb-4 mb-4">
+          <h1 className={`${format === 'receipt' ? 'text-xl' : 'text-3xl'} font-extrabold text-center`}>RECEIPT</h1>
+          <div className={`${textSize} mt-2 font-bold`}>
+            <p><strong>Receipt #:</strong> {receiptNumber || `${order.order_number}-${customerName.replace(/\s+/g, '-').substring(0, 10)}`}</p>
+            <p><strong>Date:</strong> {new Date().toLocaleDateString()}</p>
+            <p><strong>Order #:</strong> {order.order_number}</p>
           </div>
         </div>
-      )}
 
-      <div className="border-b-2 border-black pb-4 mb-4">
-        <h1 className={`${format === 'receipt' ? 'text-lg' : 'text-2xl'} font-bold text-center`}>RECEIPT</h1>
-        <div className={`${textSize} mt-2`}>
-          <p><strong>Receipt #:</strong> {receiptNumber || `${order.order_number}-${customerName.replace(/\s+/g, '-').substring(0, 10)}`}</p>
-          <p><strong>Date:</strong> {new Date().toLocaleDateString()}</p>
-          <p><strong>Order #:</strong> {order.order_number}</p>
+        <div className="mb-4">
+          <h2 className={`${format === 'receipt' ? 'text-lg' : 'text-xl'} font-extrabold mb-2`}>Bill To</h2>
+          <p className={`${textSize} font-bold`}>{customerName}</p>
+          {customerItems[0]?.po_number && (
+            <p className={`${textSize} font-bold`}><strong>PO #:</strong> {customerItems[0].po_number}</p>
+          )}
+        </div>
+
+        <table className="w-full border-collapse mb-4">
+          <thead>
+            <tr className="border-b-4 border-black">
+              <th className={`${textSize} text-left py-2 font-extrabold`}>Item</th>
+              <th className={`${textSize} text-right py-2 font-extrabold`}>Qty</th>
+              <th className={`${textSize} text-right py-2 font-extrabold`}>Price</th>
+              <th className={`${textSize} text-right py-2 font-extrabold`}>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {customerItems.map((item) => {
+              const product = getProductInfo(item.product_code);
+              const units = product ? item.quantity * product.pack_size : 0;
+              const price = product?.wholesale_price_xcg_per_unit || 0;
+              const lineTotal = units * price;
+              
+              return (
+                <tr key={item.id} className="border-b-2 border-black">
+                  <td className={`${textSize} py-2`}>
+                    <div className="font-bold">{item.product_code}</div>
+                    {product && <div className="text-black text-sm font-bold">{product.name}</div>}
+                    <div className="text-black text-sm font-medium">{item.quantity} trays × {product?.pack_size} = {units} units</div>
+                  </td>
+                  <td className={`${textSize} text-right py-2 font-bold`}>{units}</td>
+                  <td className={`${textSize} text-right py-2 font-bold`}>Cg {price.toFixed(2)}</td>
+                  <td className={`${textSize} text-right py-2 font-bold`}>Cg {lineTotal.toFixed(2)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-4 border-black">
+              <td colSpan={3} className={`${textSize} font-extrabold py-2 text-right`}>Total Amount Due:</td>
+              <td className={`${textSize} font-extrabold text-right py-2`}>Cg {calculateTotal().toFixed(2)}</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <div className={`${textSize} mt-6 pt-4 border-t-2 border-black`}>
+          <p className="text-center font-extrabold mb-2">Payment Information</p>
+          <p className="font-bold">Payment Method: _________________________</p>
+          <p className="mt-2 font-bold">Signature: _________________________</p>
+          <p className="mt-4 text-center text-sm font-bold">Thank you for your business!</p>
         </div>
       </div>
-
-      <div className="mb-4">
-        <h2 className={`${format === 'receipt' ? 'text-base' : 'text-xl'} font-bold mb-2`}>Bill To</h2>
-        <p className={`${textSize} font-semibold`}>{customerName}</p>
-        {customerItems[0]?.po_number && (
-          <p className={`${textSize}`}><strong>PO #:</strong> {customerItems[0].po_number}</p>
-        )}
-      </div>
-
-      <table className="w-full border-collapse mb-4">
-        <thead>
-          <tr className="border-b-2 border-black">
-            <th className={`${textSize} text-left py-2`}>Item</th>
-            <th className={`${textSize} text-right py-2`}>Qty</th>
-            <th className={`${textSize} text-right py-2`}>Price</th>
-            <th className={`${textSize} text-right py-2`}>Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          {customerItems.map((item) => {
-            const product = getProductInfo(item.product_code);
-            const units = product ? item.quantity * product.pack_size : 0;
-            const price = product?.wholesale_price_xcg_per_unit || 0;
-            const lineTotal = units * price;
-            
-            return (
-              <tr key={item.id} className="border-b border-gray-300">
-                <td className={`${textSize} py-2`}>
-                  <div className="font-medium">{item.product_code}</div>
-                  {product && <div className="text-gray-600 text-xs">{product.name}</div>}
-                  <div className="text-gray-500 text-xs">{item.quantity} trays × {product?.pack_size} = {units} units</div>
-                </td>
-                <td className={`${textSize} text-right py-2`}>{units}</td>
-                <td className={`${textSize} text-right py-2`}>Cg {price.toFixed(2)}</td>
-                <td className={`${textSize} text-right py-2`}>Cg {lineTotal.toFixed(2)}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-        <tfoot>
-          <tr className="border-t-2 border-black">
-            <td colSpan={3} className={`${textSize} font-bold py-2 text-right`}>Total Amount Due:</td>
-            <td className={`${textSize} font-bold text-right py-2`}>Cg {calculateTotal().toFixed(2)}</td>
-          </tr>
-        </tfoot>
-      </table>
-
-      <div className={`${textSize} mt-6 pt-4 border-t border-gray-300`}>
-        <p className="text-center font-semibold mb-2">Payment Information</p>
-        <p>Payment Method: _________________________</p>
-        <p className="mt-2">Signature: _________________________</p>
-        <p className="mt-4 text-center text-xs">Thank you for your business!</p>
-      </div>
-    </div>
+    </>
   );
 };
