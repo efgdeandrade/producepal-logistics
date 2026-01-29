@@ -96,17 +96,20 @@ When the content includes columns for weekdays (Monday through Friday):
 
 1. This file has columns: Item Name | Unit | Price R | Price F | Status | Monday | Tuesday | Wednesday | Thursday | Friday
 
-2. CRITICAL: Scan LEFT TO RIGHT to find the LATEST filled day column:
-   - Start at Monday, check if ANY cell has a quantity
-   - Move to Tuesday, check if ANY cell has a quantity
-   - Continue through Wednesday, Thursday, Friday
-   - The LAST (rightmost) column that contains data is the TARGET DAY
-   - Example: If Monday, Tuesday, and Thursday have data → use Thursday ONLY
+2. CRITICAL ALGORITHM - Find the RIGHTMOST day with data:
+   - Check Friday column first - if ANY row has data in Friday, use FRIDAY ONLY
+   - If Friday is empty, check Thursday column - if ANY row has data, use THURSDAY ONLY
+   - If Thursday is empty, check Wednesday column - if ANY row has data, use WEDNESDAY ONLY
+   - If Wednesday is empty, check Tuesday column - if ANY row has data, use TUESDAY ONLY
+   - If Tuesday is empty, use Monday
+   
+   IMPORTANT: Once you identify the target day (e.g., Thursday), you must ONLY look at that single column!
 
-3. Extract items ONLY from that single identified TARGET DAY column
-   - Do NOT combine quantities from multiple days
-   - Do NOT extract items from earlier days
-   - IGNORE all data from days before the target day
+3. Extract items ONLY from the identified TARGET DAY column:
+   - Look at ONLY that one day's column
+   - Do NOT include items from Monday, Tuesday, Wednesday if target is Thursday
+   - Do NOT include items from ANY other day column
+   - If an item has NO value in the target day column, do NOT include it
 
 4. EXCLUDE items where Status column contains "HOLD"
 
@@ -126,6 +129,11 @@ When the content includes columns for weekdays (Monday through Friday):
 7. Set po_number to "Weekly-YYYY-MM-DD" using current date
 
 8. Set customer_name to "Fuik" or "Osteria Rosso" if identifiable from filename/content
+
+EXAMPLE: If Thursday has: Carrots 3kg, Limes 2kg, Pumpkin 1 hele
+And Monday has: Banana 2 tros, Melon 1 stuk
+→ You should ONLY return Carrots, Limes, Pumpkin (the 3 Thursday items)
+→ Do NOT include Banana or Melon (they are Monday items)
 
 UNIT NORMALIZATION (always apply):
 - "tros" → "bunch", "bos" → "bunch"
