@@ -6,10 +6,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-// RSS Feed sources for produce market news
-const RSS_FEEDS = [
-  { url: 'https://www.freshplaza.com/rss', name: 'Fresh Plaza', region: 'global' },
-  { url: 'https://www.producereport.com/feed', name: 'Produce Report', region: 'global' },
+// News sources to scrape (HTML pages with news)
+const NEWS_SOURCES = [
+  { url: 'https://www.fruitnet.com/eurofruit', name: 'Fruitnet Eurofruit', region: 'global' },
+  { url: 'https://www.fruitnet.com/asiafruit', name: 'Fruitnet Asiafruit', region: 'asia' },
+  { url: 'https://www.fruitnet.com', name: 'Fruitnet Global', region: 'global' },
 ];
 
 // Countries we monitor with their products
@@ -56,47 +57,65 @@ interface AnalyzedNews {
   published_at: string | null;
 }
 
-// Simple RSS parser for Deno
-async function fetchRSSFeed(feedUrl: string): Promise<NewsItem[]> {
+// Scrape news from HTML pages
+async function scrapeNewsPage(pageUrl: string, sourceName: string): Promise<NewsItem[]> {
   try {
-    console.log(`Fetching RSS feed: ${feedUrl}`);
-    const response = await fetch(feedUrl, {
-      headers: { 'User-Agent': 'FUIK-NewsBot/1.0' }
+    console.log(`Scraping news from: ${pageUrl}`);
+    const response = await fetch(pageUrl, {
+      headers: { 
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      }
     });
     
     if (!response.ok) {
-      console.log(`Failed to fetch ${feedUrl}: ${response.status}`);
+      console.log(`Failed to fetch ${pageUrl}: ${response.status}`);
       return [];
     }
     
-    const xml = await response.text();
+    const html = await response.text();
     const items: NewsItem[] = [];
     
-    // Simple regex-based XML parsing for RSS items
-    const itemMatches = xml.match(/<item[^>]*>[\s\S]*?<\/item>/gi) || [];
+    // Parse article links and titles from HTML
+    // Look for common patterns: <h2><a href="...">Title</a></h2> or similar
+    const articlePatterns = [
+      // Pattern for Fruitnet: article links with headlines
+      /<a[^>]+href=["']([^"']+\.article)["'][^>]*>([^<]+)<\/a>/gi,
+      // Pattern for news headlines in h2/h3 tags
+      /<h[23][^>]*>\s*<a[^>]+href=["']([^"']+)["'][^>]*>([^<]+)<\/a>\s*<\/h[23]>/gi,
+    ];
     
-    for (const itemXml of itemMatches.slice(0, 10)) { // Limit to 10 items per feed
-      const title = itemXml.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i)?.[1]?.trim() || '';
-      const description = itemXml.match(/<description[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/i)?.[1]?.trim() || '';
-      const link = itemXml.match(/<link[^>]*>([\s\S]*?)<\/link>/i)?.[1]?.trim() || '';
-      const pubDate = itemXml.match(/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/i)?.[1]?.trim() || null;
-      
-      if (title) {
-        items.push({
-          headline: title.replace(/<[^>]*>/g, ''),
-          summary: description.replace(/<[^>]*>/g, '').substring(0, 500),
-          source_url: link,
-          source_name: new URL(feedUrl).hostname.replace('www.', ''),
-          country_code: null,
-          published_at: pubDate ? new Date(pubDate).toISOString() : null,
-        });
+    for (const pattern of articlePatterns) {
+      let match;
+      while ((match = pattern.exec(html)) !== null && items.length < 15) {
+        const url = match[1];
+        const title = match[2].replace(/&#\d+;/g, '').replace(/&amp;/g, '&').trim();
+        
+        // Skip navigation links, author links, and duplicates
+        if (title.length > 15 && 
+            !url.includes('.bio') && 
+            !url.includes('subscribe') &&
+            !items.some(i => i.headline === title)) {
+          
+          // Make URL absolute if relative
+          const fullUrl = url.startsWith('http') ? url : `https://www.fruitnet.com${url}`;
+          
+          items.push({
+            headline: title,
+            summary: '', // Will be filled by AI
+            source_url: fullUrl,
+            source_name: sourceName,
+            country_code: null,
+            published_at: new Date().toISOString(),
+          });
+        }
       }
     }
     
-    console.log(`Parsed ${items.length} items from ${feedUrl}`);
+    console.log(`Scraped ${items.length} articles from ${pageUrl}`);
     return items;
   } catch (error) {
-    console.error(`Error fetching RSS feed ${feedUrl}:`, error);
+    console.error(`Error scraping ${pageUrl}:`, error);
     return [];
   }
 }
@@ -424,11 +443,11 @@ serve(async (req) => {
       .select('id, name, country')
       .limit(50);
     
-    // Fetch RSS feeds
+    // Scrape news from web pages
     const allNews: NewsItem[] = [];
-    for (const feed of RSS_FEEDS) {
-      const items = await fetchRSSFeed(feed.url);
-      allNews.push(...items.map(item => ({ ...item, source_name: feed.name })));
+    for (const source of NEWS_SOURCES) {
+      const items = await scrapeNewsPage(source.url, source.name);
+      allNews.push(...items);
     }
     
     console.log(`Total news items fetched: ${allNews.length}`);
