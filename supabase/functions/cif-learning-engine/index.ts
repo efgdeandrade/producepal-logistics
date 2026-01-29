@@ -1,6 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
-// Allowed origins for CORS - production and staging domains
 const allowedOrigins = [
   'https://fuik.io',
   'https://www.fuik.io',
@@ -16,7 +15,6 @@ function getCorsHeaders(req: Request) {
   };
 }
 
-// Default CORS headers for preflight
 const corsHeaders = {
   'Access-Control-Allow-Origin': allowedOrigins[0],
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -30,6 +28,8 @@ interface CIFEstimate {
   weight_type_used: string;
   pallets_used: number;
   estimated_date: string;
+  estimated_cif_xcg?: number;
+  actual_cif_xcg?: number;
 }
 
 interface LearningPattern {
@@ -40,6 +40,13 @@ interface LearningPattern {
   std_deviation: number;
   adjustment_factor: number;
   confidence_score: number;
+  season_quarter?: number;
+}
+
+// Get current season quarter (1-4)
+function getCurrentQuarter(): number {
+  const month = new Date().getMonth();
+  return Math.floor(month / 3) + 1;
 }
 
 Deno.serve(async (req) => {
@@ -54,12 +61,13 @@ Deno.serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch all CIF estimates with actual data
+    // Fetch CIF estimates with actual data
     const { data: estimates, error: fetchError } = await supabase
       .from('cif_estimates')
       .select('*')
-      .not('actual_total_freight_usd', 'is', null)
-      .order('estimated_date', { ascending: false });
+      .not('actual_cif_xcg', 'is', null)
+      .order('estimated_date', { ascending: false })
+      .limit(500); // Limit for performance
 
     if (fetchError) throw fetchError;
 
@@ -82,14 +90,24 @@ Deno.serve(async (req) => {
       return acc;
     }, {});
 
-    // Analyze patterns and prepare data for AI
+    // Analyze patterns
     const patterns: LearningPattern[] = [];
     const analysisData: any[] = [];
+    const currentQuarter = getCurrentQuarter();
 
     for (const [productCode, productEstimates] of Object.entries(productGroups)) {
-      if (productEstimates.length < 2) continue; // Need at least 2 data points
+      if (productEstimates.length < 2) continue;
 
-      const variances = productEstimates.map(e => e.variance_percentage);
+      // Calculate variance from CIF values
+      const variances = productEstimates.map(e => {
+        if (e.estimated_cif_xcg && e.actual_cif_xcg) {
+          return ((e.actual_cif_xcg - e.estimated_cif_xcg) / e.estimated_cif_xcg) * 100;
+        }
+        return e.variance_percentage || 0;
+      }).filter(v => !isNaN(v) && isFinite(v));
+
+      if (variances.length < 2) continue;
+
       const avgVariance = variances.reduce((sum, v) => sum + v, 0) / variances.length;
       
       // Calculate standard deviation
@@ -97,12 +115,13 @@ Deno.serve(async (req) => {
       const variance = squaredDiffs.reduce((sum, sd) => sum + sd, 0) / squaredDiffs.length;
       const stdDev = Math.sqrt(variance);
 
-      // Calculate adjustment factor (1.0 = no adjustment needed)
+      // Adjustment factor: if we consistently under-estimate (negative variance), 
+      // we need to increase estimates (factor > 1)
       const adjustmentFactor = 1 + (avgVariance / 100);
 
-      // Calculate confidence score based on sample size and consistency
-      const sampleSizeScore = Math.min(productEstimates.length / 10, 1) * 0.5; // Max 0.5 for sample size
-      const consistencyScore = Math.max(0, 1 - (stdDev / 50)) * 0.5; // Max 0.5 for consistency
+      // Confidence score based on sample size and consistency
+      const sampleSizeScore = Math.min(productEstimates.length / 10, 1) * 0.5;
+      const consistencyScore = Math.max(0, 1 - (stdDev / 50)) * 0.5;
       const confidenceScore = (sampleSizeScore + consistencyScore) * 100;
 
       const pattern: LearningPattern = {
@@ -111,8 +130,9 @@ Deno.serve(async (req) => {
         sample_size: productEstimates.length,
         avg_variance_percentage: avgVariance,
         std_deviation: stdDev,
-        adjustment_factor: adjustmentFactor,
-        confidence_score: confidenceScore
+        adjustment_factor: Math.max(0.5, Math.min(2.0, adjustmentFactor)), // Clamp between 0.5 and 2.0
+        confidence_score: confidenceScore,
+        season_quarter: currentQuarter,
       };
 
       patterns.push(pattern);
@@ -128,14 +148,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Use Lovable AI to generate insights
-    const aiPrompt = `You are a freight cost analysis expert. Analyze this historical CIF (Cost, Insurance, Freight) data and provide actionable insights:
+    // Use AI to generate insights
+    const aiPrompt = `You are a freight cost analysis expert. Analyze this historical CIF data and provide actionable insights:
 
 Historical Data Summary:
-${JSON.stringify(analysisData, null, 2)}
+${JSON.stringify(analysisData.slice(0, 20), null, 2)}
 
 Total estimates analyzed: ${estimates.length}
 Products with patterns: ${patterns.length}
+Current season: Q${currentQuarter}
 
 Tasks:
 1. Identify the top 3 products with the most variance (good or bad)
@@ -153,7 +174,8 @@ Format your response as JSON with this structure:
   "concerning_patterns": ["pattern1", "pattern2"],
   "product_adjustments": [
     {"product_code": "ABC", "current_factor": 1.05, "recommended_factor": 1.03, "reasoning": "..."}
-  ]
+  ],
+  "seasonal_insights": "Any seasonal patterns observed"
 }`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -190,16 +212,21 @@ Format your response as JSON with this structure:
 
     console.log('AI Insights generated:', aiInsights);
 
-    // Update or insert learning patterns
-    const patternsToUpdate = patterns.map(p => ({
-      ...p,
-      last_calculated: new Date().toISOString()
-    }));
-
-    for (const pattern of patternsToUpdate) {
+    // Update or insert learning patterns with new fields
+    for (const pattern of patterns) {
       const { error: upsertError } = await supabase
         .from('cif_learning_patterns')
-        .upsert(pattern, { onConflict: 'pattern_key' });
+        .upsert({
+          pattern_key: pattern.pattern_key,
+          pattern_type: pattern.pattern_type,
+          sample_size: pattern.sample_size,
+          avg_variance_percentage: pattern.avg_variance_percentage,
+          std_deviation: pattern.std_deviation,
+          adjustment_factor: pattern.adjustment_factor,
+          confidence_score: pattern.confidence_score,
+          season_quarter: pattern.season_quarter,
+          last_calculated: new Date().toISOString(),
+        }, { onConflict: 'pattern_key' });
 
       if (upsertError) {
         console.error(`Error upserting pattern ${pattern.pattern_key}:`, upsertError);
@@ -212,7 +239,10 @@ Format your response as JSON with this structure:
         patterns_analyzed: patterns.length,
         total_estimates: estimates.length,
         ai_insights: aiInsights,
-        patterns: patterns
+        patterns: patterns.map(p => ({
+          ...p,
+          last_calculated: new Date().toISOString()
+        }))
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

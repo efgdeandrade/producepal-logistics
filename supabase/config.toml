@@ -149,3 +149,6 @@ verify_jwt = true
 
 [functions.import-ai-insights]
 verify_jwt = true
+
+[functions.dito-unified-advisor]
+verify_jwt = true
