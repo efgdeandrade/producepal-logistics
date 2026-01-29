@@ -1,46 +1,73 @@
 
+# Fix Weekly PO Template Parsing - Left-to-Right Scan
 
-# Auto-Generate Product Codes in Import
+## Problem Analysis
 
-## Summary
+The current AI prompt incorrectly aggregates data from all weekday columns. Your requirement is to:
 
-Automatically generate a unique product code when creating new products in the Import department. The code will follow the format `IMP-XXXXXX` (e.g., `IMP-003510`) using a sequential number that auto-increments based on existing products.
+1. Scan **left to right** (Monday → Friday)
+2. Identify the **latest (rightmost) day column** that contains data
+3. Extract items **only** from that single day column
 
 ---
 
-## Implementation Approach
+## Technical Changes
 
-### Option 1: Client-Side Generation (Recommended)
+### File: `supabase/functions/parse-purchase-order/index.ts`
 
-Generate the code when the "Add Product" dialog opens, similar to how employee numbers are generated in the HR module.
+**Update the system prompt** to implement left-to-right scanning logic:
 
-**Advantages:**
-- Immediate feedback to the user
-- Simpler implementation (no database changes needed)
-- User can still modify the code if desired
+```text
+SPECIAL HANDLING FOR WEEKLY ORDER TEMPLATES (Fuik/Osteria Rosso style):
+When the content includes columns for weekdays (Monday through Friday):
 
-**Pattern:**
-```typescript
-const generateProductCode = async () => {
-  // Query the highest existing numeric product code
-  const { data } = await supabase
-    .from('products')
-    .select('code')
-    .order('code', { ascending: false })
-    .limit(100);
-  
-  // Find the highest numeric portion from IMP-XXXXXX codes or pure numeric codes
-  let maxNum = 0;
-  data?.forEach(p => {
-    const impMatch = p.code.match(/^IMP-(\d+)$/);
-    const numMatch = p.code.match(/^(\d+)/);
-    if (impMatch) maxNum = Math.max(maxNum, parseInt(impMatch[1]));
-    else if (numMatch) maxNum = Math.max(maxNum, parseInt(numMatch[1]));
-  });
-  
-  return `IMP-${String(maxNum + 1).padStart(6, '0')}`;
-};
+1. This file has columns: Item Name | Unit | Price R | Price F | Status | Monday | Tuesday | Wednesday | Thursday | Friday
+
+2. CRITICAL: Scan LEFT TO RIGHT to find the LATEST filled day column:
+   - Start at Monday, check if ANY cell has a quantity
+   - Move to Tuesday, check if ANY cell has a quantity
+   - Continue through Wednesday, Thursday, Friday
+   - The LAST (rightmost) column that contains data is the target day
+   - Example: If Monday, Tuesday, and Thursday have data → use Thursday
+
+3. Extract items ONLY from that single identified day column
+   - Do NOT combine quantities from multiple days
+   - Do NOT extract items from earlier days
+
+4. EXCLUDE items where Status column contains "HOLD"
+
+5. Parse quantity strings carefully:
+   - "3 tros" → quantity: 3, unit: "bunch"
+   - "2 kg" or "2 kilo" → quantity: 2, unit: "kg"
+   - "250 gram" → quantity: 0.25, unit: "kg" (convert grams to kg)
+   - "1 stuk" or "4 st" → quantity: 1 or 4, unit: "stuks"
+   - "3 bos" → quantity: 3, unit: "bunch"
+   - "1 hele" → quantity: 1, unit: "whole"
+
+6. Set detected_delivery_weekday to the day column that was used
+
+7. Set po_number to "Weekly-YYYY-MM-DD" using current date
 ```
+
+---
+
+## Expected Behavior
+
+**For the uploaded file (2025_Orderlist_FUIK-2.xlsx):**
+
+1. AI scans left-to-right: Monday → Tuesday → Wednesday → Thursday → Friday
+2. Identifies Thursday as the latest column with data
+3. Extracts ONLY Thursday items:
+   - Carrots: 3 kg
+   - Romaine lettuce: 0.1 kg (converted from 100 gram)
+   - Sali (Sage): 0.1 kg (converted from 100 gram)
+   - Pumpkin: 1 whole
+   - Red onion: 3 kg
+   - Tomatie Perita: 2 kg
+   - Limes: 2 kg
+
+4. Monday/Tuesday/Wednesday items are ignored
+5. `detected_delivery_weekday` = "Thursday"
 
 ---
 
@@ -48,97 +75,13 @@ const generateProductCode = async () => {
 
 | File | Changes |
 |------|---------|
-| `src/pages/Products.tsx` | Add `generateProductCode` function and call it in `handleOpenDialog` when creating new product |
-| `src/components/ProductFormDialog.tsx` | Add visual indicator showing the code is auto-generated, with option to edit |
+| `supabase/functions/parse-purchase-order/index.ts` | Update system prompt to scan left-to-right and parse only the latest filled day column |
 
 ---
 
-## Detailed Changes
+## Validation
 
-### 1. Update Products.tsx
-
-**Add a product code generator function:**
-- Query existing products to find the highest code number
-- Parse both `IMP-XXXXXX` format and pure numeric codes
-- Generate next sequential code in `IMP-XXXXXX` format
-- Set this as the default code when opening dialog for new product
-
-**Modify `handleOpenDialog`:**
-- When `product` is null (creating new), call `generateProductCode()`
-- Pre-fill the `code` field with the generated value
-
-### 2. Update ProductFormDialog.tsx
-
-**Add auto-generation indicator:**
-- Show a small badge or icon next to the code field when auto-generated
-- Include a "Regenerate" button to get a new code if needed
-- Keep the field editable so users can override if desired
-
----
-
-## Code Flow
-
-```text
-User clicks "Add Product"
-       │
-       ▼
-handleOpenDialog(null)
-       │
-       ▼
-generateProductCode()
-       │
-       ├─── Query products table
-       │
-       ├─── Find highest IMP-XXXXXX or numeric code
-       │
-       └─── Return IMP-{next_number}
-       │
-       ▼
-Set formData.code = generated code
-       │
-       ▼
-Open dialog with pre-filled code
-       │
-       ▼
-User can edit or keep auto-generated code
-       │
-       ▼
-Save product with final code
-```
-
----
-
-## Code Format
-
-**Format:** `IMP-XXXXXX`
-
-**Examples:**
-- `IMP-003510` (next after current max of 3509)
-- `IMP-003511`
-- `IMP-003512`
-
-**Why this format:**
-- `IMP` prefix clearly identifies Import department products
-- 6-digit padding ensures proper alphabetical sorting
-- Sequential numbering prevents duplicates
-- User can still override with custom codes like `BLB_125` if desired
-
----
-
-## Edge Cases Handled
-
-1. **No existing products**: Start from `IMP-000001`
-2. **Mixed code formats**: Parse both `IMP-XXXXXX` and pure numeric codes
-3. **User wants custom code**: Field remains editable
-4. **Duplicate check**: The existing validation will catch duplicates on save
-
----
-
-## Result
-
-After implementation:
-- New products automatically receive a unique `IMP-XXXXXX` code
-- Users see the generated code immediately when opening the dialog
-- The code can be edited if a custom format is preferred
-- No database changes required
-
+After deployment, re-upload the same file and verify:
+- Only Thursday items extracted (~7 items)
+- `detected_delivery_weekday` = "Thursday"
+- Items from Monday/Tuesday/Wednesday are NOT included
