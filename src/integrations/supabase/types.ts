@@ -503,7 +503,10 @@ export type Database = {
           pattern_key: string
           pattern_type: string
           sample_size: number | null
+          season_quarter: number | null
           std_deviation: number | null
+          supplier_id: string | null
+          updated_at: string | null
         }
         Insert: {
           adjustment_factor?: number | null
@@ -515,7 +518,10 @@ export type Database = {
           pattern_key: string
           pattern_type: string
           sample_size?: number | null
+          season_quarter?: number | null
           std_deviation?: number | null
+          supplier_id?: string | null
+          updated_at?: string | null
         }
         Update: {
           adjustment_factor?: number | null
@@ -527,9 +533,20 @@ export type Database = {
           pattern_key?: string
           pattern_type?: string
           sample_size?: number | null
+          season_quarter?: number | null
           std_deviation?: number | null
+          supplier_id?: string | null
+          updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "cif_learning_patterns_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cif_product_performance: {
         Row: {
