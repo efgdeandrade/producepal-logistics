@@ -1,292 +1,543 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Package, Layers, Weight, TrendingUp, Box } from 'lucide-react';
-import { OrderPalletConfig, SupplierPalletConfig } from '@/lib/weightCalculations';
+import { Progress } from '@/components/ui/progress';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Slider } from '@/components/ui/slider';
+import { 
+  Package, Layers, Weight, TrendingUp, Box, ChevronDown, ChevronUp,
+  Scale, Maximize, AlertTriangle, CheckCircle, Info
+} from 'lucide-react';
+import { OrderPalletConfig, SupplierPalletConfig, ProductWeightInfo } from '@/lib/weightCalculations';
+import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface PalletVisualizationProps {
   palletConfig: OrderPalletConfig | null;
 }
 
+// Color palette for suppliers
+const SUPPLIER_COLORS = [
+  { bg: 'bg-blue-500', text: 'text-blue-500', light: 'bg-blue-100 dark:bg-blue-900/30' },
+  { bg: 'bg-emerald-500', text: 'text-emerald-500', light: 'bg-emerald-100 dark:bg-emerald-900/30' },
+  { bg: 'bg-amber-500', text: 'text-amber-500', light: 'bg-amber-100 dark:bg-amber-900/30' },
+  { bg: 'bg-purple-500', text: 'text-purple-500', light: 'bg-purple-100 dark:bg-purple-900/30' },
+  { bg: 'bg-rose-500', text: 'text-rose-500', light: 'bg-rose-100 dark:bg-rose-900/30' },
+];
+
+// Get utilization color based on percentage
+const getUtilizationColor = (pct: number): string => {
+  if (pct < 50) return 'bg-red-500';
+  if (pct < 80) return 'bg-yellow-500';
+  if (pct < 95) return 'bg-green-500';
+  return 'bg-blue-500';
+};
+
+const getUtilizationLabel = (pct: number): string => {
+  if (pct < 50) return 'Underutilized';
+  if (pct < 80) return 'Acceptable';
+  if (pct < 95) return 'Optimal';
+  return 'Near Capacity';
+};
+
+// Overview Stats Cards
+const PalletOverviewCards = ({ config }: { config: OrderPalletConfig }) => {
+  const isMobile = useIsMobile();
+  
+  return (
+    <div className={cn(
+      "grid gap-4 mb-6",
+      isMobile ? "grid-cols-2" : "grid-cols-2 md:grid-cols-4"
+    )}>
+      <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 mb-1">
+            <Layers className="h-4 w-4" />
+            Total Pallets
+          </div>
+          <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{config.totalPallets}</div>
+        </CardContent>
+      </Card>
+      
+      <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 border-purple-200 dark:border-purple-800">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 text-sm text-purple-600 dark:text-purple-400 mb-1">
+            <Weight className="h-4 w-4" />
+            Chargeable Weight
+          </div>
+          <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">{config.totalChargeableWeight.toFixed(1)} kg</div>
+        </CardContent>
+      </Card>
+      
+      <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 border-emerald-200 dark:border-emerald-800">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 mb-1">
+            <TrendingUp className="h-4 w-4" />
+            Utilization
+          </div>
+          <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{config.overallUtilization.toFixed(1)}%</div>
+        </CardContent>
+      </Card>
+      
+      <Card className="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 border-amber-200 dark:border-amber-800">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 mb-1">
+            <Box className="h-4 w-4" />
+            Suppliers
+          </div>
+          <div className="text-2xl font-bold text-amber-700 dark:text-amber-300">{config.supplierConfigs.length}</div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// Weight Comparison Bars
+const WeightComparisonBars = ({ config }: { config: OrderPalletConfig }) => {
+  const maxWeight = Math.max(config.totalActualWeight, config.totalVolumetricWeight) * 1.1;
+  const actualPct = (config.totalActualWeight / maxWeight) * 100;
+  const volumetricPct = (config.totalVolumetricWeight / maxWeight) * 100;
+  const gap = Math.abs(config.totalVolumetricWeight - config.totalActualWeight);
+  const isVolumeLimited = config.totalVolumetricWeight > config.totalActualWeight;
+
+  return (
+    <Card className="mb-6">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Scale className="h-4 w-4" />
+          Weight Comparison
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <Info className="h-3.5 w-3.5 text-muted-foreground" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="max-w-xs">Chargeable weight is the higher of actual vs volumetric. The gap represents "air" you're paying freight for.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Actual Weight Bar */}
+        <div className="space-y-1">
+          <div className="flex justify-between text-sm">
+            <span className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-blue-500" />
+              Actual Weight
+            </span>
+            <span className="font-medium">{config.totalActualWeight.toFixed(1)} kg</span>
+          </div>
+          <div className="h-6 bg-secondary rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-blue-500 transition-all duration-500 ease-out rounded-full"
+              style={{ width: `${actualPct}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Volumetric Weight Bar */}
+        <div className="space-y-1">
+          <div className="flex justify-between text-sm">
+            <span className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-orange-500" />
+              Volumetric Weight
+            </span>
+            <span className="font-medium">{config.totalVolumetricWeight.toFixed(1)} kg</span>
+          </div>
+          <div className="h-6 bg-secondary rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-orange-500 transition-all duration-500 ease-out rounded-full"
+              style={{ width: `${volumetricPct}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Gap Indicator */}
+        {gap > 0 && (
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-dashed">
+            <AlertTriangle className={cn(
+              "h-5 w-5",
+              isVolumeLimited ? "text-orange-500" : "text-blue-500"
+            )} />
+            <div className="flex-1">
+              <p className="text-sm font-medium">
+                {isVolumeLimited ? 'Volume Limited' : 'Weight Limited'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {isVolumeLimited 
+                  ? `Paying for ${gap.toFixed(1)} kg of "air" in freight charges`
+                  : `Dense cargo - ${gap.toFixed(1)} kg of weight capacity used beyond volume`
+                }
+              </p>
+            </div>
+            <Badge variant={isVolumeLimited ? "destructive" : "default"}>
+              +{gap.toFixed(1)} kg
+            </Badge>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// Limiting Factor Badge
+const LimitingFactorBadge = ({ factor }: { factor: 'weight' | 'volume' | 'balanced' }) => {
+  switch (factor) {
+    case 'weight':
+      return (
+        <Badge className="bg-blue-500 hover:bg-blue-600">
+          <Weight className="h-3 w-3 mr-1" />
+          Weight Limited
+        </Badge>
+      );
+    case 'volume':
+      return (
+        <Badge className="bg-orange-500 hover:bg-orange-600">
+          <Maximize className="h-3 w-3 mr-1" />
+          Volume Limited
+        </Badge>
+      );
+    case 'balanced':
+      return (
+        <Badge className="bg-green-500 hover:bg-green-600">
+          <CheckCircle className="h-3 w-3 mr-1" />
+          Balanced
+        </Badge>
+      );
+  }
+};
+
+// Case Stacking View
+const CaseStackingView = ({ 
+  products, 
+  layer, 
+  onLayerChange 
+}: { 
+  products: ProductWeightInfo[];
+  layer: number;
+  onLayerChange: (layer: number) => void;
+}) => {
+  const casesPerLayer = 4;
+  const totalLayers = Math.min(Math.ceil(products.length / casesPerLayer), 5);
+  
+  // Get products for current layer
+  const startIdx = layer * casesPerLayer;
+  const layerProducts = products.slice(startIdx, startIdx + casesPerLayer);
+  
+  return (
+    <div className="space-y-4">
+      <div className="text-sm text-muted-foreground">
+        Layer {layer + 1} of {totalLayers} (Top-down view)
+      </div>
+      
+      {/* Pallet footprint visualization */}
+      <div className="relative aspect-[3/2] bg-amber-100 dark:bg-amber-900/30 rounded-lg border-2 border-amber-300 dark:border-amber-700 p-2">
+        {/* Pallet base pattern */}
+        <div className="absolute inset-0 opacity-20">
+          <div className="grid grid-cols-6 h-full">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="border-r border-amber-600 last:border-r-0" />
+            ))}
+          </div>
+        </div>
+        
+        {/* Cases on this layer */}
+        <div className="relative grid grid-cols-2 grid-rows-2 gap-2 h-full">
+          {layerProducts.map((product, idx) => {
+            const hue = (product.code.charCodeAt(0) * 137) % 360;
+            return (
+              <TooltipProvider key={idx}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div 
+                      className="rounded-md flex items-center justify-center text-white font-bold text-xs transition-transform hover:scale-105 cursor-pointer shadow-md"
+                      style={{ backgroundColor: `hsl(${hue}, 60%, 45%)` }}
+                    >
+                      {product.code}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="text-xs space-y-1">
+                      <p className="font-semibold">{product.name || product.code}</p>
+                      <p>Qty: {product.quantity}</p>
+                      {product.lengthCm && product.widthCm && product.heightCm && (
+                        <p>{product.lengthCm}×{product.widthCm}×{product.heightCm} cm</p>
+                      )}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            );
+          })}
+          
+          {/* Empty slots */}
+          {Array.from({ length: Math.max(0, casesPerLayer - layerProducts.length) }).map((_, idx) => (
+            <div 
+              key={`empty-${idx}`}
+              className="rounded-md border-2 border-dashed border-muted-foreground/30 flex items-center justify-center text-muted-foreground/50 text-xs"
+            >
+              Empty
+            </div>
+          ))}
+        </div>
+      </div>
+      
+      {/* Layer slider */}
+      {totalLayers > 1 && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Bottom</span>
+            <span>Top</span>
+          </div>
+          <Slider
+            value={[layer]}
+            onValueChange={([val]) => onLayerChange(val)}
+            max={totalLayers - 1}
+            step={1}
+            className="w-full"
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Supplier Pallet Card
+const SupplierPalletCard = ({ 
+  config, 
+  colorIndex 
+}: { 
+  config: SupplierPalletConfig; 
+  colorIndex: number;
+}) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [viewLayer, setViewLayer] = useState(0);
+  const color = SUPPLIER_COLORS[colorIndex % SUPPLIER_COLORS.length];
+  const isMobile = useIsMobile();
+  
+  return (
+    <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+      <Card className={cn(
+        "transition-all duration-200",
+        isExpanded && "ring-2 ring-primary/50"
+      )}>
+        <CollapsibleTrigger className="w-full text-left">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <div className={cn("w-4 h-4 rounded-full", color.bg)} />
+                <div>
+                  <CardTitle className="text-base">{config.supplierName}</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    {config.pallets} pallet{config.pallets !== 1 ? 's' : ''} • {config.products.length} product{config.products.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <LimitingFactorBadge factor={config.limitingFactor} />
+                {isExpanded ? (
+                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
+            </div>
+          </CardHeader>
+        </CollapsibleTrigger>
+        
+        <CardContent className="pt-0">
+          {/* Weight metrics - always visible */}
+          <div className="space-y-3">
+            {/* Utilization bar */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Utilization</span>
+                <span className={cn(
+                  "font-medium",
+                  config.utilizationPct < 50 && "text-red-500",
+                  config.utilizationPct >= 50 && config.utilizationPct < 80 && "text-yellow-500",
+                  config.utilizationPct >= 80 && "text-green-500"
+                )}>
+                  {config.utilizationPct.toFixed(1)}% - {getUtilizationLabel(config.utilizationPct)}
+                </span>
+              </div>
+              <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                <div 
+                  className={cn(
+                    "h-full transition-all duration-500 rounded-full",
+                    getUtilizationColor(config.utilizationPct)
+                  )}
+                  style={{ width: `${Math.min(config.utilizationPct, 100)}%` }}
+                />
+              </div>
+            </div>
+            
+            {/* Weight breakdown - compact */}
+            <div className={cn(
+              "grid gap-2 text-sm",
+              isMobile ? "grid-cols-1" : "grid-cols-3"
+            )}>
+              <div className="flex justify-between p-2 rounded bg-blue-50 dark:bg-blue-900/20">
+                <span className="text-muted-foreground">Actual</span>
+                <span className="font-medium">{config.totalActualWeight.toFixed(1)} kg</span>
+              </div>
+              <div className="flex justify-between p-2 rounded bg-orange-50 dark:bg-orange-900/20">
+                <span className="text-muted-foreground">Volumetric</span>
+                <span className="font-medium">{config.totalVolumetricWeight.toFixed(1)} kg</span>
+              </div>
+              <div className="flex justify-between p-2 rounded bg-purple-50 dark:bg-purple-900/20">
+                <span className="text-muted-foreground">Chargeable</span>
+                <span className="font-bold">{config.totalChargeableWeight.toFixed(1)} kg</span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Expanded content */}
+          <CollapsibleContent className="pt-4 space-y-4">
+            {/* Case stacking visualization */}
+            <div className="border rounded-lg p-4">
+              <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                <Layers className="h-4 w-4" />
+                Case Arrangement
+              </h4>
+              <CaseStackingView 
+                products={config.products}
+                layer={viewLayer}
+                onLayerChange={setViewLayer}
+              />
+            </div>
+            
+            {/* Products table */}
+            <div className="border rounded-lg overflow-hidden">
+              <div className="bg-muted/50 px-3 py-2 text-sm font-medium">
+                Products on Pallet
+              </div>
+              <div className="divide-y max-h-48 overflow-y-auto">
+                {config.products.map((product, idx) => (
+                  <div key={idx} className="px-3 py-2 flex items-center justify-between text-sm">
+                    <div>
+                      <span className="font-medium">{product.code}</span>
+                      {product.name && (
+                        <span className="text-muted-foreground ml-2">{product.name}</span>
+                      )}
+                    </div>
+                    <span className="text-muted-foreground">
+                      {product.quantity} units
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Optimization alerts */}
+            {config.utilizationPct < 50 && (
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800">
+                <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                    Low Utilization Warning
+                  </p>
+                  <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                    This pallet is under 50% utilized. Consider consolidating with other shipments or adding more products to optimize freight costs.
+                  </p>
+                </div>
+              </div>
+            )}
+          </CollapsibleContent>
+        </CardContent>
+      </Card>
+    </Collapsible>
+  );
+};
+
+// Pallet Grid View
+const PalletGridView = ({ configs }: { configs: SupplierPalletConfig[] }) => {
+  const isMobile = useIsMobile();
+  
+  return (
+    <div className={cn(
+      "grid gap-4",
+      isMobile ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"
+    )}>
+      {configs.map((config, idx) => (
+        <SupplierPalletCard 
+          key={config.supplierId}
+          config={config}
+          colorIndex={idx}
+        />
+      ))}
+    </div>
+  );
+};
+
+// Supplier Weight Summary Table
+const SupplierWeightTable = ({ configs }: { configs: SupplierPalletConfig[] }) => {
+  return (
+    <div className="border rounded-lg overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50">
+            <tr>
+              <th className="text-left p-3 font-medium">Supplier</th>
+              <th className="text-right p-3 font-medium">Pallets</th>
+              <th className="text-right p-3 font-medium">Actual (kg)</th>
+              <th className="text-right p-3 font-medium">Volumetric (kg)</th>
+              <th className="text-right p-3 font-medium">Chargeable (kg)</th>
+              <th className="text-center p-3 font-medium">Factor</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {configs.map((config, idx) => {
+              const color = SUPPLIER_COLORS[idx % SUPPLIER_COLORS.length];
+              return (
+                <tr key={config.supplierId} className="hover:bg-muted/30">
+                  <td className="p-3">
+                    <div className="flex items-center gap-2">
+                      <div className={cn("w-3 h-3 rounded-full", color.bg)} />
+                      <span>{config.supplierName}</span>
+                    </div>
+                  </td>
+                  <td className="text-right p-3">{config.pallets}</td>
+                  <td className="text-right p-3">{config.totalActualWeight.toFixed(1)}</td>
+                  <td className="text-right p-3">{config.totalVolumetricWeight.toFixed(1)}</td>
+                  <td className="text-right p-3 font-medium">{config.totalChargeableWeight.toFixed(1)}</td>
+                  <td className="text-center p-3">
+                    <LimitingFactorBadge factor={config.limitingFactor} />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot className="bg-muted/30 font-medium">
+            <tr>
+              <td className="p-3">Total</td>
+              <td className="text-right p-3">
+                {configs.reduce((sum, c) => sum + c.pallets, 0)}
+              </td>
+              <td className="text-right p-3">
+                {configs.reduce((sum, c) => sum + c.totalActualWeight, 0).toFixed(1)}
+              </td>
+              <td className="text-right p-3">
+                {configs.reduce((sum, c) => sum + c.totalVolumetricWeight, 0).toFixed(1)}
+              </td>
+              <td className="text-right p-3">
+                {configs.reduce((sum, c) => sum + c.totalChargeableWeight, 0).toFixed(1)}
+              </td>
+              <td className="p-3" />
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+// Main Component
 export const PalletVisualization = ({ palletConfig }: PalletVisualizationProps) => {
-  const canvasRefs = useRef<{ [key: string]: HTMLCanvasElement | null }>({});
-  const [selectedSupplier, setSelectedSupplier] = useState<string>('overview');
-
-  useEffect(() => {
-    if (!palletConfig) return;
-    
-    // Draw overview
-    const overviewCanvas = canvasRefs.current['overview'];
-    if (overviewCanvas) {
-      drawPalletOverview(overviewCanvas, palletConfig);
-    }
-
-    // Draw each supplier's pallets
-    palletConfig.supplierConfigs.forEach((config) => {
-      const canvas = canvasRefs.current[config.supplierId];
-      if (canvas) {
-        drawSupplierPallet(canvas, config);
-      }
-    });
-  }, [palletConfig]);
-
-  const drawPalletOverview = (canvas: HTMLCanvasElement, config: OrderPalletConfig) => {
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    canvas.width = 800;
-    canvas.height = 400;
-    
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Background
-    ctx.fillStyle = 'hsl(var(--muted))';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    const palletWidth = 80;
-    const palletDepth = 50;
-    const spacing = 20;
-    const startX = 50;
-    let startY = 200;
-
-    let currentX = startX;
-
-    config.supplierConfigs.forEach((supplier, idx) => {
-      const colors = [
-        'hsl(var(--primary))',
-        'hsl(var(--secondary))',
-        'hsl(var(--accent))',
-        'hsl(220, 70%, 50%)',
-        'hsl(280, 70%, 50%)',
-      ];
-      const color = colors[idx % colors.length];
-
-      for (let i = 0; i < supplier.pallets; i++) {
-        // Draw simple 3D pallet representation
-        const height = 60;
-        
-        // Pallet base
-        ctx.fillStyle = 'hsl(30, 40%, 40%)';
-        drawIsometricBox(ctx, currentX, startY, palletWidth, palletDepth, 10);
-        
-        // Cargo on pallet
-        ctx.fillStyle = color;
-        drawIsometricBox(ctx, currentX + 5, startY - 10, palletWidth - 10, palletDepth - 10, height);
-        
-        // Weight label
-        ctx.fillStyle = 'hsl(var(--foreground))';
-        ctx.font = 'bold 10px sans-serif';
-        const weight = (supplier.totalChargeableWeight / supplier.pallets).toFixed(0);
-        ctx.fillText(`${weight}kg`, currentX + palletWidth/2 - 15, startY - height - 5);
-        
-        currentX += palletWidth + spacing;
-
-        // Wrap to next row if needed
-        if (currentX > canvas.width - palletWidth - 50) {
-          currentX = startX;
-          startY += 150;
-        }
-      }
-    });
-
-    // Legend
-    ctx.fillStyle = 'hsl(var(--foreground))';
-    ctx.font = 'bold 14px sans-serif';
-    ctx.fillText('Pallet Configuration Overview', 20, 30);
-    
-    let legendY = 60;
-    config.supplierConfigs.forEach((supplier, idx) => {
-      const colors = [
-        'hsl(var(--primary))',
-        'hsl(var(--secondary))',
-        'hsl(var(--accent))',
-        'hsl(220, 70%, 50%)',
-        'hsl(280, 70%, 50%)',
-      ];
-      const color = colors[idx % colors.length];
-      
-      ctx.fillStyle = color;
-      ctx.fillRect(20, legendY, 20, 20);
-      
-      ctx.fillStyle = 'hsl(var(--foreground))';
-      ctx.font = '12px sans-serif';
-      ctx.fillText(`${supplier.supplierName} (${supplier.pallets} pallets)`, 50, legendY + 15);
-      legendY += 30;
-    });
-  };
-
-  const drawSupplierPallet = (canvas: HTMLCanvasElement, config: SupplierPalletConfig) => {
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    canvas.width = 800;
-    canvas.height = 500;
-    
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Background
-    ctx.fillStyle = 'hsl(var(--muted))';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    
-    // Draw single pallet in detail with cases stacked
-    const palletBaseWidth = 200;
-    const palletBaseDepth = 130;
-    const maxHeight = 250;
-    
-    // Pallet base
-    ctx.fillStyle = 'hsl(30, 40%, 40%)';
-    drawIsometricBox(ctx, centerX - palletBaseWidth/2, centerY + 50, palletBaseWidth, palletBaseDepth, 20);
-    
-    // Stack cases on pallet
-    const caseHeight = 40;
-    const casesPerLayer = 4;
-    const layers = Math.min(Math.ceil(config.products.length / casesPerLayer), 5);
-    
-    let currentY = centerY + 50 - 20;
-    
-    for (let layer = 0; layer < layers; layer++) {
-      const startIdx = layer * casesPerLayer;
-      const endIdx = Math.min(startIdx + casesPerLayer, config.products.length);
-      
-      const casesInLayer = endIdx - startIdx;
-      const caseWidth = palletBaseWidth / 2;
-      const caseDepth = palletBaseDepth / 2;
-      
-      for (let i = 0; i < casesInLayer; i++) {
-        const product = config.products[startIdx + i];
-        const row = Math.floor(i / 2);
-        const col = i % 2;
-        
-        const x = centerX - palletBaseWidth/2 + col * caseWidth;
-        const y = currentY - layer * caseHeight;
-        
-        // Case color based on product
-        const hue = (product.code.charCodeAt(0) * 137) % 360;
-        ctx.fillStyle = `hsl(${hue}, 60%, 55%)`;
-        
-        drawIsometricBox(ctx, x + row * 20, y, caseWidth - 10, caseDepth - 10, caseHeight);
-        
-        // Product code label
-        ctx.fillStyle = 'hsl(var(--foreground))';
-        ctx.font = 'bold 10px sans-serif';
-        ctx.fillText(product.code, x + 10, y + caseHeight / 2);
-      }
-    }
-
-    // Dimensions overlay
-    ctx.strokeStyle = 'hsl(var(--primary))';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([5, 5]);
-    
-    // Width dimension
-    ctx.beginPath();
-    ctx.moveTo(centerX - palletBaseWidth/2, centerY + 100);
-    ctx.lineTo(centerX + palletBaseWidth/2, centerY + 100);
-    ctx.stroke();
-    
-    ctx.fillStyle = 'hsl(var(--primary))';
-    ctx.font = 'bold 12px sans-serif';
-    ctx.fillText('120cm', centerX - 20, centerY + 120);
-    
-    // Height dimension
-    ctx.beginPath();
-    ctx.moveTo(centerX + palletBaseWidth/2 + 20, centerY + 50);
-    ctx.lineTo(centerX + palletBaseWidth/2 + 20, centerY + 50 - maxHeight);
-    ctx.stroke();
-    
-    ctx.fillText('155cm max', centerX + palletBaseWidth/2 + 30, centerY - maxHeight/2);
-    
-    ctx.setLineDash([]);
-
-    // Info panel
-    ctx.fillStyle = 'hsl(var(--card))';
-    ctx.fillRect(20, 20, 250, 180);
-    ctx.strokeStyle = 'hsl(var(--border))';
-    ctx.strokeRect(20, 20, 250, 180);
-    
-    ctx.fillStyle = 'hsl(var(--foreground))';
-    ctx.font = 'bold 14px sans-serif';
-    ctx.fillText(config.supplierName, 30, 45);
-    
-    ctx.font = '12px sans-serif';
-    ctx.fillText(`Products: ${config.products.length}`, 30, 70);
-    ctx.fillText(`Pallets: ${config.pallets}`, 30, 90);
-    ctx.fillText(`Total Weight: ${config.totalChargeableWeight.toFixed(1)} kg`, 30, 110);
-    ctx.fillText(`Utilization: ${config.utilizationPct.toFixed(1)}%`, 30, 130);
-    
-    const limitingColor = config.limitingFactor === 'volume' ? 'hsl(var(--destructive))' : 
-                          config.limitingFactor === 'weight' ? 'hsl(var(--primary))' : 
-                          'hsl(var(--accent))';
-    ctx.fillStyle = limitingColor;
-    ctx.fillText(`Limiting: ${config.limitingFactor}`, 30, 150);
-    
-    ctx.fillStyle = 'hsl(var(--foreground))';
-    ctx.fillText(`Actual: ${config.totalActualWeight.toFixed(1)} kg`, 30, 170);
-    ctx.fillText(`Volumetric: ${config.totalVolumetricWeight.toFixed(1)} kg`, 30, 190);
-  };
-
-  const drawIsometricBox = (
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    width: number,
-    depth: number,
-    height: number
-  ) => {
-    const angleX = Math.PI / 6; // 30 degrees
-    const angleY = Math.PI / 6;
-    
-    // Top face
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + width * Math.cos(angleX), y - width * Math.sin(angleX));
-    ctx.lineTo(x + width * Math.cos(angleX) + depth * Math.cos(angleY), y - width * Math.sin(angleX) + depth * Math.sin(angleY));
-    ctx.lineTo(x + depth * Math.cos(angleY), y + depth * Math.sin(angleY));
-    ctx.closePath();
-    ctx.fill();
-    
-    // Right face (darker)
-    const currentFill = ctx.fillStyle;
-    ctx.fillStyle = adjustBrightness(currentFill.toString(), -20);
-    ctx.beginPath();
-    ctx.moveTo(x + width * Math.cos(angleX), y - width * Math.sin(angleX));
-    ctx.lineTo(x + width * Math.cos(angleX), y - width * Math.sin(angleX) - height);
-    ctx.lineTo(x + width * Math.cos(angleX) + depth * Math.cos(angleY), y - width * Math.sin(angleX) + depth * Math.sin(angleY) - height);
-    ctx.lineTo(x + width * Math.cos(angleX) + depth * Math.cos(angleY), y - width * Math.sin(angleX) + depth * Math.sin(angleY));
-    ctx.closePath();
-    ctx.fill();
-    
-    // Left face (darkest)
-    ctx.fillStyle = adjustBrightness(currentFill.toString(), -40);
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x, y - height);
-    ctx.lineTo(x + width * Math.cos(angleX), y - width * Math.sin(angleX) - height);
-    ctx.lineTo(x + width * Math.cos(angleX), y - width * Math.sin(angleX));
-    ctx.closePath();
-    ctx.fill();
-    
-    ctx.fillStyle = currentFill;
-  };
-
-  const adjustBrightness = (color: string, percent: number): string => {
-    // Simple brightness adjustment for HSL colors
-    if (color.includes('hsl')) {
-      const match = color.match(/hsl\(([^,]+),\s*([^,]+),\s*([^)]+)\)/);
-      if (match) {
-        const h = match[1];
-        const s = match[2];
-        const l = parseFloat(match[3]);
-        const newL = Math.max(0, Math.min(100, l + percent));
-        return `hsl(${h}, ${s}, ${newL}%)`;
-      }
-    }
-    return color;
-  };
+  const [selectedTab, setSelectedTab] = useState<string>('overview');
 
   if (!palletConfig) {
     return (
@@ -314,113 +565,32 @@ export const PalletVisualization = ({ palletConfig }: PalletVisualizationProps) 
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Layers className="h-4 w-4" />
-                Total Pallets
-              </div>
-              <div className="text-2xl font-bold">{palletConfig.totalPallets}</div>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Weight className="h-4 w-4" />
-                Chargeable Weight
-              </div>
-              <div className="text-2xl font-bold">{palletConfig.totalChargeableWeight.toFixed(1)} kg</div>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <TrendingUp className="h-4 w-4" />
-                Utilization
-              </div>
-              <div className="text-2xl font-bold">{palletConfig.overallUtilization.toFixed(1)}%</div>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Box className="h-4 w-4" />
-                Suppliers
-              </div>
-              <div className="text-2xl font-bold">{palletConfig.supplierConfigs.length}</div>
-            </div>
-          </div>
+          {/* Overview Stats */}
+          <PalletOverviewCards config={palletConfig} />
+          
+          {/* Weight Comparison */}
+          <WeightComparisonBars config={palletConfig} />
 
-          <Tabs value={selectedSupplier} onValueChange={setSelectedSupplier}>
-            <TabsList className="mb-4">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              {palletConfig.supplierConfigs.map((config) => (
-                <TabsTrigger key={config.supplierId} value={config.supplierId}>
-                  {config.supplierName}
-                  <Badge variant="secondary" className="ml-2">
-                    {config.pallets}
-                  </Badge>
-                </TabsTrigger>
-              ))}
+          {/* Tabbed Content */}
+          <Tabs value={selectedTab} onValueChange={setSelectedTab}>
+            <TabsList className="mb-4 flex-wrap h-auto">
+              <TabsTrigger value="overview">
+                <Layers className="h-4 w-4 mr-2" />
+                Pallet Grid
+              </TabsTrigger>
+              <TabsTrigger value="table">
+                <Scale className="h-4 w-4 mr-2" />
+                Weight Summary
+              </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="overview" key="overview-content">
-              <div className="border border-border rounded-lg overflow-hidden bg-card">
-                <canvas
-                  ref={(el) => (canvasRefs.current['overview'] = el)}
-                  className="w-full"
-                />
-              </div>
+            <TabsContent value="overview" className="animate-fade-in">
+              <PalletGridView configs={palletConfig.supplierConfigs} />
             </TabsContent>
 
-            {palletConfig.supplierConfigs.map((config) => (
-              <TabsContent key={`${config.supplierId}-content`} value={config.supplierId}>
-                <div className="border border-border rounded-lg overflow-hidden bg-card">
-                  <canvas
-                    ref={(el) => (canvasRefs.current[config.supplierId] = el)}
-                    className="w-full"
-                  />
-                </div>
-
-                <div className="mt-4 grid grid-cols-2 gap-4">
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm">Weight Distribution</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Actual Weight:</span>
-                        <span className="font-medium">{config.totalActualWeight.toFixed(1)} kg</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Volumetric Weight:</span>
-                        <span className="font-medium">{config.totalVolumetricWeight.toFixed(1)} kg</span>
-                      </div>
-                      <div className="flex justify-between border-t pt-2">
-                        <span className="text-muted-foreground">Chargeable:</span>
-                        <span className="font-bold">{config.totalChargeableWeight.toFixed(1)} kg</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm">Efficiency Metrics</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Pallets Used:</span>
-                        <span className="font-medium">{config.pallets}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Utilization:</span>
-                        <span className="font-medium">{config.utilizationPct.toFixed(1)}%</span>
-                      </div>
-                      <div className="flex justify-between border-t pt-2">
-                        <span className="text-muted-foreground">Limiting Factor:</span>
-                        <Badge variant={config.limitingFactor === 'volume' ? 'destructive' : 'default'}>
-                          {config.limitingFactor}
-                        </Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
-            ))}
+            <TabsContent value="table" className="animate-fade-in">
+              <SupplierWeightTable configs={palletConfig.supplierConfigs} />
+            </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
