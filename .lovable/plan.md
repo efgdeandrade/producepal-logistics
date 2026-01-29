@@ -1,139 +1,201 @@
 
+# Implementation Plan: Optional Receipt Editing Before Creation
 
-# Fix: Order Not Created from Forwarded Emails
+## Overview
+This plan adds an optional "Edit Before Creating" step in the receipt creation flow, allowing last-minute adjustments (quantity changes, adding items, moving items between customers) for the **customer receipt only** without affecting the supplier PO data.
 
-## Problem Analysis
+## Files to Create
 
-Your email processing **successfully extracted** all the data:
-- **Customer**: Dreams Curacao Resorts, Casino & Spa  
-- **PO Number**: DCU0000003268
-- **Delivery Date**: 2026-01-30
-- **Item**: CHEESE PAISA 1X425GR → Paisa (30 kg, high confidence)
+### 1. `src/components/ReceiptEditDialog.tsx` (NEW)
 
-**BUT no order was created** because `matched_customer_id` is NULL.
+A new dialog component that allows editing receipt items before generation.
 
-### Why `matched_customer_id` is NULL
+**Features:**
+- Displays items grouped by selected customer
+- Inline quantity editing (number input per item)
+- Remove item button (trash icon)
+- "Add Item" button per customer to add any product from the catalog
+- "Move to Another Customer" button when multiple customers selected
+- Read-only price display with auto-calculated line totals
+- Customer total and grand total display
+- "Continue to Print" button that passes edited items back
 
-The email-webhook matches customers by checking if the **sender's email** exists in:
-- `whatsapp_phone` column
-- `notes` column
-
-**The problem**: You forwarded the email, so the sender is `efg.deandrade@gmail.com` (your email), NOT the original customer email (`Eliandra.carolie@dreamsresorts.com`).
-
-The Dreams Hotel customer record has different emails stored, so no match occurs.
-
-### Order Creation Condition
-
-Line 568 of process-email-order:
+**Component Structure:**
 ```typescript
-if (orderItems.length >= AUTO_CREATE_MIN_ITEMS && email.matched_customer_id) {
-```
-
-Since `matched_customer_id` is NULL → order creation is skipped entirely.
-
----
-
-## Solution
-
-Add **AI-based customer matching** in `process-email-order` when initial email-based matching fails. The AI already extracts `customer_name` ("Dreams Curacao Resorts, Casino & Spa"), so we can use fuzzy matching against the customer database.
-
-### Technical Changes
-
-| File | Changes |
-|------|---------|
-| `supabase/functions/process-email-order/index.ts` | Add customer lookup by AI-extracted name when `matched_customer_id` is NULL |
-
-### Code Flow
-
-1. If `email.matched_customer_id` is NULL after email-webhook processing
-2. Use the AI-extracted `customer_name` to search `distribution_customers`
-3. Apply fuzzy matching (ILIKE with partial names)
-4. If a match is found, update `matched_customer_id` on the email record
-5. Proceed with order creation using the matched customer
-
-### Implementation Details
-
-```typescript
-// After AI extraction, if no customer was matched by email
-if (!email.matched_customer_id && extractedData.customer_name) {
-  console.log(`No email-matched customer, searching by AI-extracted name: "${extractedData.customer_name}"`);
-  
-  // Search for customer by extracted name
-  const searchName = extractedData.customer_name.toLowerCase();
-  const searchWords = searchName.split(/\s+/).filter(w => w.length > 3);
-  
-  // Try progressively looser matches
-  let matchedCustomer = null;
-  
-  // 1. Exact match first
-  const { data: exactMatch } = await supabase
-    .from("distribution_customers")
-    .select("id, name")
-    .ilike("name", extractedData.customer_name)
-    .limit(1)
-    .maybeSingle();
-    
-  if (exactMatch) {
-    matchedCustomer = exactMatch;
-  } else {
-    // 2. Try partial matches with key words (e.g., "Dreams")
-    for (const word of searchWords) {
-      const { data: partialMatch } = await supabase
-        .from("distribution_customers")
-        .select("id, name")
-        .ilike("name", `%${word}%`)
-        .limit(1)
-        .maybeSingle();
-        
-      if (partialMatch) {
-        matchedCustomer = partialMatch;
-        break;
-      }
-    }
-  }
-  
-  if (matchedCustomer) {
-    console.log(`AI name matched to customer: ${matchedCustomer.name} (${matchedCustomer.id})`);
-    
-    // Update email record with matched customer
-    await supabase
-      .from("email_inbox")
-      .update({ matched_customer_id: matchedCustomer.id })
-      .eq("id", emailId);
-      
-    // Use for order creation
-    email.matched_customer_id = matchedCustomer.id;
-  } else {
-    console.log(`Could not match customer by AI name: "${extractedData.customer_name}"`);
-  }
+interface ReceiptEditDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  orderItems: OrderItem[];
+  selectedCustomers: string[];
+  onConfirm: (editedItems: OrderItem[]) => void;
 }
 ```
 
----
+**Key State:**
+- `editedItems` - Copy of order items that user modifies (in-memory only)
+- `products` - Product catalog for pricing and add item dropdown
+- `showAddItemDialog` - Controls add item modal per customer
+- `showMoveDialog` - Controls move item modal
 
-## Why This Solves the Problem Permanently
-
-1. **Forwarded emails**: Even when YOU forward an email, the AI extracts the original customer name from the PO content
-2. **AI name → Customer match**: "Dreams Curacao Resorts" will fuzzy-match to "Dreams Hotel" 
-3. **Order creation**: With `matched_customer_id` populated, the order creation logic proceeds normally
-
----
-
-## Expected Result After Fix
-
-For your forwarded email (DCU0000003268):
-1. Email-webhook: `matched_customer_id` = NULL (sender is your email)
-2. process-email-order: AI extracts "Dreams Curacao Resorts, Casino & Spa"
-3. **NEW**: Fuzzy search finds "Dreams Hotel" customer
-4. **NEW**: Updates email with matched customer
-5. Creates order with 1 item (Paisa 30kg)
-6. Order appears in your Orders list
+**UI Layout:**
+```text
+┌────────────────────────────────────────────────────────────────┐
+│  Edit Receipt Items                                       [X]  │
+│  Adjust quantities... These changes will NOT affect the order │
+├────────────────────────────────────────────────────────────────┤
+│  ┌── Customer Name ────────────────── Total: Cg 151.00 ────┐  │
+│  │ Product      │ Qty(trays) │ Price  │ Total   │ Actions  │  │
+│  │──────────────────────────────────────────────────────────│  │
+│  │ STB_500      │   [10]     │ Cg 5.50│ Cg 55.00│ ➡️ 🗑    │  │
+│  │ Strawberry   │            │        │         │          │  │
+│  │ ×10 = 100 un │            │        │         │          │  │
+│  │──────────────────────────────────────────────────────────│  │
+│  │ [+ Add Item]                                             │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                                                                │
+│                              [Cancel]  [Continue to Print]     │
+└────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## Files to Modify
 
-| File | Action |
-|------|--------|
-| `supabase/functions/process-email-order/index.ts` | Add AI-based customer matching after extraction, before order creation |
+### 2. `src/pages/OrderDetails.tsx`
 
+**Add new state variables:**
+```typescript
+const [editableReceiptItems, setEditableReceiptItems] = useState<OrderItem[]>([]);
+const [showEditReceiptDialog, setShowEditReceiptDialog] = useState(false);
+```
+
+**Update import:**
+```typescript
+import { ReceiptEditDialog } from '@/components/ReceiptEditDialog';
+import { Edit } from 'lucide-react';
+```
+
+**Update customer selection dialog** (lines 926-957):
+
+Add two buttons after customer selection:
+- "Create Receipt" - Direct flow (existing)
+- "Edit Before Creating" - Opens edit dialog first (new)
+
+**New handler for edit flow:**
+```typescript
+const handleEditBeforeReceipt = () => {
+  if (selectedCustomers.length === 0) {
+    toast.error('Please select at least one customer');
+    return;
+  }
+  setShowReceiptCustomerDialog(false);
+  setShowEditReceiptDialog(true);
+};
+
+const handleConfirmEditedReceipt = (editedItems: OrderItem[]) => {
+  setEditableReceiptItems(editedItems);
+  setShowEditReceiptDialog(false);
+  setPendingAction({ type: 'receipt', action: 'view' });
+  setShowFormatDialog(true);
+};
+```
+
+**Update receipt rendering** (lines 1013-1030):
+
+Use `editableReceiptItems` if available, otherwise use original `orderItems`:
+```typescript
+{viewDialog === 'receipt' && order && (
+  <div className="space-y-8">
+    {selectedCustomers.map((customerName, index) => (
+      <div 
+        key={customerName}
+        data-customer={customerName}
+        className={index < selectedCustomers.length - 1 ? 'print:page-break-after-always' : ''}
+      >
+        <CustomerReceipt
+          order={order}
+          orderItems={editableReceiptItems.length > 0 ? editableReceiptItems : orderItems}
+          customerName={customerName}
+          format={printFormat}
+          receiptNumber={receiptNumbers[customerName]}
+        />
+      </div>
+    ))}
+  </div>
+)}
+```
+
+**Add ReceiptEditDialog component** (before closing `</div>`):
+```typescript
+<ReceiptEditDialog
+  open={showEditReceiptDialog}
+  onOpenChange={setShowEditReceiptDialog}
+  orderItems={orderItems}
+  selectedCustomers={selectedCustomers}
+  onConfirm={handleConfirmEditedReceipt}
+/>
+```
+
+**Reset edited items on dialog close:**
+Update the view dialog close handler to also reset `editableReceiptItems`:
+```typescript
+onOpenChange={() => {
+  setViewDialog(null);
+  setPendingAction(null);
+  setSelectedCustomers([]);
+  setEditableReceiptItems([]); // Reset edited items
+}}
+```
+
+---
+
+## Updated User Flow
+
+```text
+1. Click "Create Receipt" button
+      ↓
+2. Select Customers Dialog (existing)
+      ↓
+3. Two buttons appear:
+   ├── [Create Receipt] → 4a. Format Dialog → 5. Generate & Print/Download
+   │
+   └── [Edit Before Creating] → 4b. Edit Receipt Dialog
+                                        ↓
+                                 - Adjust quantities
+                                 - Add/remove items
+                                 - Move between customers
+                                        ↓
+                                 [Continue to Print]
+                                        ↓
+                                 4c. Format Dialog → 5. Generate with edited items
+```
+
+---
+
+## Key Behaviors
+
+| Feature | Behavior |
+|---------|----------|
+| Quantity adjustment | Edit inline, auto-calculates totals |
+| Add item | Opens dropdown with all products, adds to customer |
+| Remove item | Removes from receipt only (not from order) |
+| Move item | Transfers item to another selected customer |
+| Data persistence | **None** - edited items are in-memory only |
+| Original order | **Unchanged** - order_items table is never modified |
+| Cancel edit | Discards all changes, returns to customer selection |
+| Skip editing | User can use "Create Receipt" to skip entirely |
+
+---
+
+## No Database Changes Required
+
+This feature operates entirely on the frontend with in-memory state. The `order_items` table and all supplier-related data remain untouched. Receipt records saved to `receipt_numbers` table will reflect the edited amounts.
+
+---
+
+## Files Summary
+
+| File | Action | Lines Changed |
+|------|--------|---------------|
+| `src/components/ReceiptEditDialog.tsx` | Create | ~350 lines |
+| `src/pages/OrderDetails.tsx` | Modify | ~40 lines added/changed |
