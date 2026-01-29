@@ -92,13 +92,25 @@ CRITICAL INSTRUCTIONS:
    - Location names that indicate a specific area within the customer's premises
 
 SPECIAL HANDLING FOR WEEKLY ORDER TEMPLATES (Fuik/Osteria Rosso style):
-When the content includes "FORMAT: WEEKLY_ORDER_TEMPLATE":
+When the content includes columns for weekdays (Monday through Friday):
+
 1. This file has columns: Item Name | Unit | Price R | Price F | Status | Monday | Tuesday | Wednesday | Thursday | Friday
-2. CRITICAL: The user wants to import ALL items that have orders for the ENTIRE WEEK
-3. Scan EVERY weekday column (Monday through Friday) and extract ALL items that have quantities in ANY column
-4. For items with quantities in multiple days, COMBINE them by creating separate items OR adding quantities (prefer separate items with different days noted)
-5. EXCLUDE any items where the Status column contains "HOLD" - do not include these in the items list
-6. Parse quantity strings carefully:
+
+2. CRITICAL: Scan LEFT TO RIGHT to find the LATEST filled day column:
+   - Start at Monday, check if ANY cell has a quantity
+   - Move to Tuesday, check if ANY cell has a quantity
+   - Continue through Wednesday, Thursday, Friday
+   - The LAST (rightmost) column that contains data is the TARGET DAY
+   - Example: If Monday, Tuesday, and Thursday have data → use Thursday ONLY
+
+3. Extract items ONLY from that single identified TARGET DAY column
+   - Do NOT combine quantities from multiple days
+   - Do NOT extract items from earlier days
+   - IGNORE all data from days before the target day
+
+4. EXCLUDE items where Status column contains "HOLD"
+
+5. Parse quantity strings carefully:
    - "3 tros" or "2 tros" → quantity: 3 or 2, unit: "bunch"
    - "2 kg" or "2 kilo" or "3 kilo" → quantity: 2 or 3, unit: "kg"
    - "250 gram" or "250gr" or "400 gram" or "100 gram" → quantity: 0.25 or 0.4 or 0.1, unit: "kg" (convert grams to kg!)
@@ -108,12 +120,12 @@ When the content includes "FORMAT: WEEKLY_ORDER_TEMPLATE":
    - "1 tray" → quantity: 1, unit: "tray"
    - "1 hele" → quantity: 1, unit: "whole"
    - Plain numbers like "3" → quantity: 3, unit from the Unit column
-7. When the same item appears with quantities on different days, keep them as separate line items with the day name in description
-8. Set detected_delivery_weekday to the LAST weekday that has orders (e.g., "Friday" if Friday has items)
-9. Set po_number to "Weekly-YYYY-MM-DD" using TODAY's date from the format line
-10. Set customer_name to "Fuik" or "Osteria Rosso" if identifiable from filename/content
 
-IMPORTANT: Do NOT skip items! Scan every row and every weekday column. If a row has quantities in Monday, Wednesday, AND Friday, extract ALL three.
+6. Set detected_delivery_weekday to the TARGET DAY column that was used (e.g., "Thursday")
+
+7. Set po_number to "Weekly-YYYY-MM-DD" using current date
+
+8. Set customer_name to "Fuik" or "Osteria Rosso" if identifiable from filename/content
 
 UNIT NORMALIZATION (always apply):
 - "tros" → "bunch", "bos" → "bunch"
