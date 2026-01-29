@@ -114,7 +114,7 @@ serve(async (req) => {
     const mimeType = file.type || 'application/octet-stream';
     const isPDF = mimeType === 'application/pdf';
     
-    // Validate file type
+    // Validate file type (MIME check)
     const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     const allowedTypes = [...allowedImageTypes, 'application/pdf'];
 
@@ -132,6 +132,46 @@ serve(async (req) => {
     // Convert file to base64 (works for both PDFs and images)
     const bytes = await file.arrayBuffer();
     const uint8Array = new Uint8Array(bytes);
+    
+    // SECURITY: Validate magic bytes to prevent MIME type spoofing
+    function validateMagicBytes(bytes: Uint8Array, declaredMime: string): boolean {
+      if (bytes.length < 12) return false;
+      
+      // PDF: Should start with %PDF-
+      if (declaredMime === 'application/pdf') {
+        const header = new TextDecoder().decode(bytes.slice(0, 5));
+        return header === '%PDF-';
+      }
+      
+      // JPEG: FF D8 FF
+      if (declaredMime === 'image/jpeg' || declaredMime === 'image/jpg') {
+        return bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF;
+      }
+      
+      // PNG: 89 50 4E 47 (‰PNG)
+      if (declaredMime === 'image/png') {
+        return bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47;
+      }
+      
+      // WEBP: RIFF....WEBP
+      if (declaredMime === 'image/webp') {
+        return bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+               bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50;
+      }
+      
+      return false;
+    }
+    
+    if (!validateMagicBytes(uint8Array, mimeType)) {
+      console.warn('Magic byte validation failed - file content does not match declared MIME type');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'File content does not match declared type. Please upload a valid file.' 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     // Convert to base64 in chunks to avoid stack overflow
     let binary = '';
