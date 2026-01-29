@@ -923,7 +923,15 @@ const OrderDetails = () => {
             {pendingAction?.type === 'receipt' ? (
               <div>
                 <p className="text-sm font-medium mb-2">Action:</p>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-3">
+                  <Button 
+                    onClick={() => handleConfirmFormat('view')}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <Eye className="mr-2 h-4 w-4" />
+                    View
+                  </Button>
                   <Button 
                     onClick={() => handleConfirmFormat('print')}
                     className="w-full"
@@ -1009,6 +1017,18 @@ const OrderDetails = () => {
               </DialogTitle>
               {pendingAction && (
                 <div className="flex gap-2">
+                  {pendingAction.action === 'view' && (
+                    <>
+                      <Button onClick={handlePrintFromPreview} size="sm" variant="outline">
+                        <Printer className="mr-2 h-4 w-4" />
+                        Print
+                      </Button>
+                      <Button onClick={handleDownloadFromPreview} size="sm" disabled={generatingPDF}>
+                        <Download className="mr-2 h-4 w-4" />
+                        {generatingPDF ? 'Generating...' : 'Download PDF'}
+                      </Button>
+                    </>
+                  )}
                   {pendingAction.action === 'print' && (
                     <Button onClick={handlePrintFromPreview} size="sm">
                       <Printer className="mr-2 h-4 w-4" />
