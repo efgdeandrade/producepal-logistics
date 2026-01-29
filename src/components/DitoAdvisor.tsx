@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Sparkles, TrendingUp, TrendingDown, AlertTriangle, Package, Loader2, CheckCircle2 } from 'lucide-react';
+import { Sparkles, TrendingUp, TrendingDown, AlertTriangle, Package, Loader2, CheckCircle2, Brain, Target } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -37,6 +37,7 @@ interface DitoAdvisorProps {
   freightCostPerKg: number;
   exchangeRate: number;
   onApplySuggestion?: (productCode: string, quantity: number) => void;
+  onApplyMethodRecommendation?: (method: 'proportional' | 'valueBased' | 'smartBlend', blendRatio?: number) => void;
 }
 
 interface Recommendation {
@@ -79,6 +80,18 @@ interface Recommendation {
     freightWasteReduction: number;
   };
   summary: string;
+  // New unified advisor fields
+  recommendedMethod?: 'proportional' | 'valueBased' | 'smartBlend';
+  confidence?: 'HIGH' | 'MEDIUM' | 'LOW';
+  blendRatio?: number;
+  reasoning?: string[];
+  learningAdjustments?: Array<{
+    productCode: string;
+    originalFactor: number;
+    recommendedFactor: number;
+    reasoning: string;
+  }>;
+  riskAlerts?: string[];
 }
 
 export const DitoAdvisor = ({ 
@@ -86,7 +99,8 @@ export const DitoAdvisor = ({
   palletConfiguration, 
   freightCostPerKg, 
   exchangeRate,
-  onApplySuggestion 
+  onApplySuggestion,
+  onApplyMethodRecommendation 
 }: DitoAdvisorProps) => {
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
   const [loading, setLoading] = useState(false);
@@ -95,12 +109,28 @@ export const DitoAdvisor = ({
     try {
       setLoading(true);
 
-      const { data, error } = await supabase.functions.invoke('volumetric-weight-advisor', {
+      // Call the unified advisor
+      const { data, error } = await supabase.functions.invoke('dito-unified-advisor', {
         body: {
-          orderItems,
-          palletConfiguration,
-          freightCostPerKg,
+          products: orderItems.map(item => ({
+            code: item.code,
+            name: item.name,
+            quantity: item.quantity,
+            actualWeight: item.actualWeight,
+            volumetricWeight: item.volumetricWeight,
+            costUSD: item.costUSD,
+            wholesalePriceXCG: item.wholesalePriceXCG,
+            retailPriceXCG: item.retailPriceXCG,
+          })),
+          totalFreight: freightCostPerKg * palletConfiguration.totalChargeableWeight,
           exchangeRate,
+          palletConfig: {
+            totalPallets: palletConfiguration.totalPallets,
+            totalActualWeight: palletConfiguration.totalActualWeight,
+            totalVolumetricWeight: palletConfiguration.totalVolumetricWeight,
+            utilizationPercentage: palletConfiguration.utilizationPercentage,
+          },
+          includeWeightOptimization: true,
         }
       });
 
@@ -141,6 +171,12 @@ export const DitoAdvisor = ({
     return <TrendingUp className="h-4 w-4" />;
   };
 
+  const getConfidenceColor = (confidence?: string) => {
+    if (confidence === 'HIGH') return 'text-green-600';
+    if (confidence === 'MEDIUM') return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
   return (
     <Card className="border-primary/20">
       <CardHeader>
@@ -148,10 +184,10 @@ export const DitoAdvisor = ({
           <div>
             <CardTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
-              Dito Advisor - Weight Optimization AI
+              Dito Advisor - Unified AI
             </CardTitle>
             <CardDescription>
-              AI-powered recommendations to maximize profitability and optimize freight costs
+              AI-powered recommendations for weight optimization and CIF method selection
             </CardDescription>
           </div>
           <Button 
@@ -176,6 +212,89 @@ export const DitoAdvisor = ({
 
       {recommendation && (
         <CardContent className="space-y-6">
+          {/* CIF Method Recommendation - NEW */}
+          {recommendation.recommendedMethod && (
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="pt-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Brain className="h-5 w-5 text-primary" />
+                    <h4 className="font-semibold">Recommended CIF Method</h4>
+                  </div>
+                  <Badge variant="outline" className={getConfidenceColor(recommendation.confidence)}>
+                    {recommendation.confidence} Confidence
+                  </Badge>
+                </div>
+                
+                <div className="flex items-center gap-3 mb-3">
+                  <Badge variant="default" className="text-lg capitalize">
+                    {recommendation.recommendedMethod === 'smartBlend' 
+                      ? `Smart Blend (${((recommendation.blendRatio || 0.7) * 100).toFixed(0)}% weight)`
+                      : recommendation.recommendedMethod === 'proportional'
+                        ? 'Proportional (by Weight)'
+                        : 'Value-Based (by Cost)'
+                    }
+                  </Badge>
+                  {onApplyMethodRecommendation && (
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => onApplyMethodRecommendation(
+                        recommendation.recommendedMethod!,
+                        recommendation.blendRatio
+                      )}
+                    >
+                      <Target className="mr-2 h-4 w-4" />
+                      Apply Method
+                    </Button>
+                  )}
+                </div>
+
+                {recommendation.reasoning && recommendation.reasoning.length > 0 && (
+                  <ul className="text-sm text-muted-foreground space-y-1 mb-3">
+                    {recommendation.reasoning.map((reason, idx) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <span className="text-primary">•</span>
+                        {reason}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {/* Learning Adjustments */}
+                {recommendation.learningAdjustments && recommendation.learningAdjustments.length > 0 && (
+                  <div className="mt-3 pt-3 border-t">
+                    <p className="text-sm font-medium mb-2">Learning-Based Adjustments:</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {recommendation.learningAdjustments.slice(0, 4).map((adj, idx) => (
+                        <div key={idx} className="text-xs bg-background/50 rounded p-2">
+                          <span className="font-medium">{adj.productCode}</span>
+                          <span className={`ml-2 ${adj.recommendedFactor > 1 ? 'text-red-600' : 'text-green-600'}`}>
+                            {adj.recommendedFactor > 1 ? '+' : ''}{((adj.recommendedFactor - 1) * 100).toFixed(1)}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Risk Alerts */}
+          {recommendation.riskAlerts && recommendation.riskAlerts.length > 0 && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <ul className="list-disc list-inside space-y-1">
+                  {recommendation.riskAlerts.map((alert, idx) => (
+                    <li key={idx} className="text-sm">{alert}</li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Analysis Summary */}
           <Alert>
             <div className="flex items-start gap-3">

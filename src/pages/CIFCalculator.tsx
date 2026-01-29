@@ -23,14 +23,18 @@ import {
   CIFProductInput,
   CIFParams,
   CIFResult as BaseCIFResult,
-  DistributionMethod,
+  DistributionMethodV2,
   calculateCIFByMethod,
+  calculateCIFWithLearning,
   calculateTotalFreightFromRates,
   calculateTotalFreightFromActual,
   determineLimitingFactor,
   DEFAULT_WHOLESALE_MULTIPLIER,
   DEFAULT_RETAIL_MULTIPLIER,
-} from '@/lib/cifCalculations';
+  DEFAULT_BLEND_RATIO,
+  getRecommendedBlendRatio,
+} from '@/lib/cifCalculationsV2';
+import { useCIFLearning, type LearningAdjustment } from '@/hooks/useCIFLearning';
 
 interface DatabaseProduct {
   code: string;
@@ -118,8 +122,17 @@ export default function CIFCalculator() {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [calculationName, setCalculationName] = useState('');
   const [notes, setNotes] = useState('');
-  const [selectedMethod, setSelectedMethod] = useState('weight');
+  const [selectedMethod, setSelectedMethod] = useState<DistributionMethodV2>('proportional');
   const [activeTab, setActiveTab] = useState<'estimate' | 'actual'>('estimate');
+  const [blendRatio, setBlendRatio] = useState(DEFAULT_BLEND_RATIO);
+  
+  // Learning hook for CIF patterns
+  const { 
+    loading: learningLoading,
+    patterns: learningPatterns,
+    fetchPatterns,
+    recordActual,
+  } = useCIFLearning();
 
   // Estimate version inputs
   const [estimateProducts, setEstimateProducts] = useState<ProductInput[]>([]);
@@ -556,6 +569,10 @@ export default function CIFCalculator() {
     laborXCG?: number,
     bankChargesUSD?: number
   ): {
+    proportional: CIFResult[], 
+    valueBased: CIFResult[], 
+    smartBlend: CIFResult[],
+    // Legacy methods for backward compatibility
     byWeight: CIFResult[], 
     byCost: CIFResult[], 
     equally: CIFResult[],
@@ -567,12 +584,16 @@ export default function CIFCalculator() {
     totalPallets: number,
     totalActualWeight: number,
     totalVolumetricWeight: number,
-    totalChargeableWeight: number
+    totalChargeableWeight: number,
+    learningApplied: number
   } => {
     // Return empty results if no products have quantity
     const hasValidProducts = products.some(p => p.quantity > 0);
     if (!hasValidProducts) {
       return {
+        proportional: [],
+        valueBased: [],
+        smartBlend: [],
         byWeight: [],
         byCost: [],
         equally: [],
@@ -585,6 +606,7 @@ export default function CIFCalculator() {
         totalActualWeight: 0,
         totalVolumetricWeight: 0,
         totalChargeableWeight: 0,
+        learningApplied: 0,
       };
     }
 
@@ -627,40 +649,57 @@ export default function CIFCalculator() {
     // Convert products to CIFProductInput format
     const cifInputs: CIFProductInput[] = products.map(convertToCIFProductInput);
 
-    // Create CIF params
+    // Get recommended blend ratio from learning patterns
+    const recommendedBlendRatio = learningPatterns.length > 0 
+      ? getRecommendedBlendRatio(learningPatterns)
+      : blendRatio;
+
+    // Create CIF params with blend ratio
     const cifParams: CIFParams = {
       totalFreight,
       exchangeRate,
       limitingFactor,
       wholesaleMultiplier: DEFAULT_WHOLESALE_MULTIPLIER,
       retailMultiplier: DEFAULT_RETAIL_MULTIPLIER,
+      blendRatio: recommendedBlendRatio,
     };
 
-    // Calculate results for each method using shared functions
-    const methods: DistributionMethod[] = ['byWeight', 'byCost', 'equally', 'hybrid', 'strategic', 'volumeOptimized', 'customerTier'];
-    const resultsMap: Record<string, CIFResult[]> = {};
+    // Calculate new V2 methods with learning applied
+    const v2Methods: DistributionMethodV2[] = ['proportional', 'valueBased', 'smartBlend'];
+    const v2ResultsMap: Record<string, CIFResult[]> = {};
+    let learningApplied = 0;
 
-    methods.forEach(method => {
-      const baseResults = calculateCIFByMethod(cifInputs, cifParams, method);
+    v2Methods.forEach(method => {
+      const baseResults = calculateCIFWithLearning(cifInputs, cifParams, method, learningPatterns);
+      // Count how many adjustments were applied
+      baseResults.forEach(r => {
+        if (r.adjustmentApplied) learningApplied++;
+      });
       // Add price comparison data
-      resultsMap[method] = baseResults.map((result, index) => 
+      v2ResultsMap[method] = baseResults.map((result, index) => 
         addPriceComparison(result, products[index].wholesalePriceXCG, products[index].retailPriceXCG)
       );
     });
 
+    // Map legacy methods to new ones for backward compatibility
     return {
-      byWeight: resultsMap.byWeight,
-      byCost: resultsMap.byCost,
-      equally: resultsMap.equally,
-      hybrid: resultsMap.hybrid,
-      strategic: resultsMap.strategic,
-      volumeOptimized: resultsMap.volumeOptimized,
-      customerTier: resultsMap.customerTier,
+      proportional: v2ResultsMap.proportional,
+      valueBased: v2ResultsMap.valueBased,
+      smartBlend: v2ResultsMap.smartBlend,
+      // Legacy mappings
+      byWeight: v2ResultsMap.proportional,
+      byCost: v2ResultsMap.valueBased,
+      equally: v2ResultsMap.proportional,
+      hybrid: v2ResultsMap.smartBlend,
+      strategic: v2ResultsMap.smartBlend,
+      volumeOptimized: v2ResultsMap.smartBlend,
+      customerTier: v2ResultsMap.smartBlend,
       limitingFactor,
       totalPallets,
       totalActualWeight,
       totalVolumetricWeight,
-      totalChargeableWeight
+      totalChargeableWeight,
+      learningApplied: learningApplied / v2Methods.length, // Average across methods
     };
   };
 
@@ -1151,20 +1190,21 @@ export default function CIFCalculator() {
                             </div>
                             <div>
                               <Label>Distribution Method</Label>
-                              <Select value={selectedMethod} onValueChange={setSelectedMethod}>
+                              <Select value={selectedMethod} onValueChange={(v) => setSelectedMethod(v as DistributionMethodV2)}>
                                 <SelectTrigger>
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="weight">By Weight</SelectItem>
-                                  <SelectItem value="cost">By Cost</SelectItem>
-                                  <SelectItem value="equal">Equal Distribution</SelectItem>
-                                  <SelectItem value="hybrid">Hybrid</SelectItem>
-                                  <SelectItem value="strategic">Strategic</SelectItem>
-                                  <SelectItem value="volumeOptimized">Volume-Optimized</SelectItem>
-                                  <SelectItem value="customerTier">Customer Tier</SelectItem>
+                                  <SelectItem value="proportional">Proportional (by Weight)</SelectItem>
+                                  <SelectItem value="valueBased">Value-Based (by Cost)</SelectItem>
+                                  <SelectItem value="smartBlend">Smart Blend (AI-Recommended)</SelectItem>
                                 </SelectContent>
                               </Select>
+                              {selectedMethod === 'smartBlend' && learningPatterns.length > 0 && (
+                                <p className="text-xs text-green-600 mt-1">
+                                  ✓ Using {learningPatterns.length} learned patterns
+                                </p>
+                              )}
                             </div>
                           </div>
                           <DialogFooter>
@@ -1194,39 +1234,58 @@ export default function CIFCalculator() {
                 </Card>
               )}
 
-              <Tabs defaultValue="weight" className="w-full" onValueChange={setSelectedMethod as any}>
-                <TabsList className="grid w-full grid-cols-7 mb-4">
-                  <TabsTrigger value="weight">Weight</TabsTrigger>
-                  <TabsTrigger value="cost">Cost</TabsTrigger>
-                  <TabsTrigger value="equal">Equal</TabsTrigger>
-                  <TabsTrigger value="hybrid">Hybrid</TabsTrigger>
-                  <TabsTrigger value="strategic">Strategic</TabsTrigger>
-                  <TabsTrigger value="volumeOptimized">Vol-Opt</TabsTrigger>
-                  <TabsTrigger value="customerTier">Tier</TabsTrigger>
+              {/* Learning Status Indicator */}
+              {learningPatterns.length > 0 && (
+                <Card className="mb-4 border-green-200 bg-green-50/50">
+                  <CardContent className="pt-4 pb-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-green-600 border-green-600">
+                          Learning Active
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">
+                          {learningPatterns.length} patterns loaded • {estimateResults.learningApplied.toFixed(0)} adjustments applied
+                        </span>
+                      </div>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Badge variant="secondary">
+                              Blend: {((blendRatio) * 100).toFixed(0)}% weight
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Smart Blend uses {(blendRatio * 100).toFixed(0)}% weight-based and {((1 - blendRatio) * 100).toFixed(0)}% cost-based allocation</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Tabs defaultValue="proportional" className="w-full" onValueChange={(v) => setSelectedMethod(v as DistributionMethodV2)}>
+                <TabsList className="grid w-full grid-cols-3 mb-4">
+                  <TabsTrigger value="proportional">Proportional (Weight)</TabsTrigger>
+                  <TabsTrigger value="valueBased">Value-Based (Cost)</TabsTrigger>
+                  <TabsTrigger value="smartBlend" className="relative">
+                    Smart Blend
+                    {learningPatterns.length > 0 && (
+                      <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-green-500" />
+                    )}
+                  </TabsTrigger>
                 </TabsList>
 
                 <div id="cif-results">
 
-                <TabsContent value="weight">
-                  {renderResults(estimateResults.byWeight, 'Distribution by Weight')}
+                <TabsContent value="proportional">
+                  {renderResults(estimateResults.proportional, 'Proportional Distribution (by Weight)')}
                 </TabsContent>
-                <TabsContent value="cost">
-                  {renderResults(estimateResults.byCost, 'Distribution by Cost')}
+                <TabsContent value="valueBased">
+                  {renderResults(estimateResults.valueBased, 'Value-Based Distribution (by Cost)')}
                 </TabsContent>
-                <TabsContent value="equal">
-                  {renderResults(estimateResults.equally, 'Equal Distribution')}
-                </TabsContent>
-                <TabsContent value="hybrid">
-                  {renderResults(estimateResults.hybrid, 'Hybrid Method (50% Weight + 50% Cost)')}
-                </TabsContent>
-                <TabsContent value="strategic">
-                  {renderResults(estimateResults.strategic, 'Strategic Method')}
-                </TabsContent>
-                <TabsContent value="volumeOptimized">
-                  {renderResults(estimateResults.volumeOptimized, 'Volume-Optimized (Penalizes Air Space)')}
-                </TabsContent>
-                <TabsContent value="customerTier">
-                  {renderResults(estimateResults.customerTier, 'Customer Tier Method')}
+                <TabsContent value="smartBlend">
+                  {renderResults(estimateResults.smartBlend, `Smart Blend (${(blendRatio * 100).toFixed(0)}% Weight + ${((1 - blendRatio) * 100).toFixed(0)}% Cost)`)}
                 </TabsContent>
                 </div>
 
@@ -1368,18 +1427,14 @@ export default function CIFCalculator() {
                             </div>
                             <div>
                               <Label>Distribution Method</Label>
-                              <Select value={selectedMethod} onValueChange={setSelectedMethod}>
+                              <Select value={selectedMethod} onValueChange={(v) => setSelectedMethod(v as DistributionMethodV2)}>
                                 <SelectTrigger>
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="weight">By Weight</SelectItem>
-                                  <SelectItem value="cost">By Cost</SelectItem>
-                                  <SelectItem value="equal">Equal Distribution</SelectItem>
-                                  <SelectItem value="hybrid">Hybrid</SelectItem>
-                                  <SelectItem value="strategic">Strategic</SelectItem>
-                                  <SelectItem value="volumeOptimized">Volume-Optimized</SelectItem>
-                                  <SelectItem value="customerTier">Customer Tier</SelectItem>
+                                  <SelectItem value="proportional">Proportional (by Weight)</SelectItem>
+                                  <SelectItem value="valueBased">Value-Based (by Cost)</SelectItem>
+                                  <SelectItem value="smartBlend">Smart Blend (AI-Recommended)</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
@@ -1411,39 +1466,28 @@ export default function CIFCalculator() {
                 </Card>
               )}
 
-              <Tabs defaultValue="weight" className="w-full" onValueChange={setSelectedMethod as any}>
-                <TabsList className="grid w-full grid-cols-7 mb-4">
-                  <TabsTrigger value="weight">Weight</TabsTrigger>
-                  <TabsTrigger value="cost">Cost</TabsTrigger>
-                  <TabsTrigger value="equal">Equal</TabsTrigger>
-                  <TabsTrigger value="hybrid">Hybrid</TabsTrigger>
-                  <TabsTrigger value="strategic">Strategic</TabsTrigger>
-                  <TabsTrigger value="volumeOptimized">Vol-Opt</TabsTrigger>
-                  <TabsTrigger value="customerTier">Tier</TabsTrigger>
+              <Tabs defaultValue="proportional" className="w-full" onValueChange={(v) => setSelectedMethod(v as DistributionMethodV2)}>
+                <TabsList className="grid w-full grid-cols-3 mb-4">
+                  <TabsTrigger value="proportional">Proportional (Weight)</TabsTrigger>
+                  <TabsTrigger value="valueBased">Value-Based (Cost)</TabsTrigger>
+                  <TabsTrigger value="smartBlend" className="relative">
+                    Smart Blend
+                    {learningPatterns.length > 0 && (
+                      <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-green-500" />
+                    )}
+                  </TabsTrigger>
                 </TabsList>
 
                 <div id="cif-results">
 
-                <TabsContent value="weight">
-                  {renderResults(actualResults.byWeight, 'Distribution by Weight')}
+                <TabsContent value="proportional">
+                  {renderResults(actualResults.proportional, 'Proportional Distribution (by Weight)')}
                 </TabsContent>
-                <TabsContent value="cost">
-                  {renderResults(actualResults.byCost, 'Distribution by Cost')}
+                <TabsContent value="valueBased">
+                  {renderResults(actualResults.valueBased, 'Value-Based Distribution (by Cost)')}
                 </TabsContent>
-                <TabsContent value="equal">
-                  {renderResults(actualResults.equally, 'Equal Distribution')}
-                </TabsContent>
-                <TabsContent value="hybrid">
-                  {renderResults(actualResults.hybrid, 'Hybrid Method (50% Weight + 50% Cost)')}
-                </TabsContent>
-                <TabsContent value="strategic">
-                  {renderResults(actualResults.strategic, 'Strategic Method')}
-                </TabsContent>
-                <TabsContent value="volumeOptimized">
-                  {renderResults(actualResults.volumeOptimized, 'Volume-Optimized (Penalizes Air Space)')}
-                </TabsContent>
-                <TabsContent value="customerTier">
-                  {renderResults(actualResults.customerTier, 'Customer Tier Method')}
+                <TabsContent value="smartBlend">
+                  {renderResults(actualResults.smartBlend, `Smart Blend (${(blendRatio * 100).toFixed(0)}% Weight + ${((1 - blendRatio) * 100).toFixed(0)}% Cost)`)}
                 </TabsContent>
                 </div>
               </Tabs>
