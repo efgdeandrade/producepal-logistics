@@ -55,15 +55,50 @@ export const CustomerPackingSlip = ({ order, orderItems, format }: Props) => {
   }, {} as Record<string, OrderItem[]>);
 
   const containerClass = format === 'receipt' ? 'max-w-[80mm]' : 'max-w-[210mm]';
-  const textSize = format === 'receipt' ? 'text-xs' : 'text-sm';
+  const textSize = format === 'receipt' ? 'text-sm' : 'text-base';
 
   return (
     <div className="space-y-8">
+      <style>{`
+        @media print {
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .high-contrast-print {
+            font-family: Arial, Helvetica, sans-serif !important;
+          }
+          .high-contrast-print * {
+            color: #000 !important;
+            font-weight: 600 !important;
+          }
+          .high-contrast-print h1,
+          .high-contrast-print h2,
+          .high-contrast-print .font-bold,
+          .high-contrast-print .font-extrabold,
+          .high-contrast-print th,
+          .high-contrast-print tfoot td {
+            font-weight: 900 !important;
+          }
+          .high-contrast-print table {
+            border-collapse: collapse;
+          }
+          .high-contrast-print tr {
+            border-bottom: 2px solid #000 !important;
+          }
+          .page-break {
+            page-break-after: always;
+          }
+          .page-break:last-child {
+            page-break-after: auto;
+          }
+        }
+      `}</style>
       {Object.entries(groupedByCustomer).map(([customerName, items]) => (
-        <div key={customerName} className={`${containerClass} mx-auto bg-white text-black p-6 page-break`}>
-          <div className="border-b-2 border-black pb-4 mb-4">
-            <h1 className={`${format === 'receipt' ? 'text-lg' : 'text-2xl'} font-bold`}>PACKING SLIP</h1>
-            <div className={`${textSize} mt-2`}>
+        <div key={customerName} className={`${containerClass} mx-auto bg-white text-black p-6 page-break high-contrast-print font-sans`}>
+          <div className="border-b-4 border-black pb-4 mb-4">
+            <h1 className={`${format === 'receipt' ? 'text-xl' : 'text-3xl'} font-extrabold`}>PACKING SLIP</h1>
+            <div className={`${textSize} mt-2 font-bold`}>
               <p><strong>Order #:</strong> {order.order_number}</p>
               <p><strong>Week:</strong> {order.week_number}</p>
               <p><strong>Delivery Date:</strong> {new Date(order.delivery_date).toLocaleDateString()}</p>
@@ -71,13 +106,13 @@ export const CustomerPackingSlip = ({ order, orderItems, format }: Props) => {
           </div>
 
           <div className="mb-4">
-            <h2 className={`${format === 'receipt' ? 'text-base' : 'text-xl'} font-bold mb-2`}>Customer</h2>
-            <p className={`${textSize} font-semibold`}>{customerName}</p>
+            <h2 className={`${format === 'receipt' ? 'text-lg' : 'text-2xl'} font-extrabold mb-2`}>Customer</h2>
+            <p className={`${textSize} font-bold`}>{customerName}</p>
             {items[0].po_number && (
-              <p className={`${textSize}`}><strong>PO #:</strong> {items[0].po_number}</p>
+              <p className={`${textSize} font-bold`}><strong>PO #:</strong> {items[0].po_number}</p>
             )}
             {items[0].customer_notes && (
-              <p className={`${textSize} mt-2 p-2 bg-amber-50 border-l-4 border-amber-400 italic`}>
+              <p className={`${textSize} mt-2 p-2 bg-amber-50 border-l-4 border-black font-bold`}>
                 <strong>Notes:</strong> {items[0].customer_notes}
               </p>
             )}
@@ -85,10 +120,10 @@ export const CustomerPackingSlip = ({ order, orderItems, format }: Props) => {
 
           <table className="w-full border-collapse">
             <thead>
-              <tr className="border-b-2 border-black">
-                <th className={`${textSize} text-left py-2`}>Product</th>
-                <th className={`${textSize} text-right py-2`}>Trays</th>
-                <th className={`${textSize} text-right py-2`}>Units</th>
+              <tr className="border-b-4 border-black">
+                <th className={`${textSize} text-left py-2 font-extrabold`}>Product</th>
+                <th className={`${textSize} text-right py-2 font-extrabold`}>Trays</th>
+                <th className={`${textSize} text-right py-2 font-extrabold`}>Units</th>
               </tr>
             </thead>
             <tbody>
@@ -96,24 +131,24 @@ export const CustomerPackingSlip = ({ order, orderItems, format }: Props) => {
                 const product = getProductInfo(item.product_code);
                 const units = product ? item.quantity * product.pack_size : 0;
                 return (
-                  <tr key={item.id} className="border-b border-gray-300">
+                  <tr key={item.id} className="border-b-2 border-black">
                     <td className={`${textSize} py-2`}>
-                      <div>{item.product_code}</div>
-                      {product && <div className="text-gray-600">{product.name}</div>}
+                      <div className="font-bold">{item.product_code}</div>
+                      {product && <div className="text-black font-bold">{product.name}</div>}
                     </td>
-                    <td className={`${textSize} text-right py-2`}>{item.quantity}</td>
-                    <td className={`${textSize} text-right py-2`}>{units}</td>
+                    <td className={`${textSize} text-right py-2 font-bold`}>{item.quantity}</td>
+                    <td className={`${textSize} text-right py-2 font-bold`}>{units}</td>
                   </tr>
                 );
               })}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-black">
-                <td className={`${textSize} font-bold py-2`}>Total</td>
-                <td className={`${textSize} font-bold text-right py-2`}>
+              <tr className="border-t-4 border-black">
+                <td className={`${textSize} font-extrabold py-2`}>Total</td>
+                <td className={`${textSize} font-extrabold text-right py-2`}>
                   {items.reduce((sum, item) => sum + item.quantity, 0)}
                 </td>
-                <td className={`${textSize} font-bold text-right py-2`}>
+                <td className={`${textSize} font-extrabold text-right py-2`}>
                   {items.reduce((sum, item) => {
                     const product = getProductInfo(item.product_code);
                     return sum + (product ? item.quantity * product.pack_size : 0);
@@ -123,23 +158,12 @@ export const CustomerPackingSlip = ({ order, orderItems, format }: Props) => {
             </tfoot>
           </table>
 
-          <div className={`${textSize} mt-6 pt-4 border-t border-gray-300`}>
-            <p>Signature: _________________________</p>
-            <p className="mt-2">Date: {new Date().toLocaleDateString()}</p>
+          <div className={`${textSize} mt-6 pt-4 border-t-2 border-black`}>
+            <p className="font-bold">Signature: _________________________</p>
+            <p className="mt-2 font-bold">Date: {new Date().toLocaleDateString()}</p>
           </div>
         </div>
       ))}
-      
-      <style>{`
-        @media print {
-          .page-break {
-            page-break-after: always;
-          }
-          .page-break:last-child {
-            page-break-after: auto;
-          }
-        }
-      `}</style>
     </div>
   );
 };
