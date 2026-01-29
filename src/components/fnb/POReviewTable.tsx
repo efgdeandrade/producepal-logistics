@@ -151,12 +151,13 @@ export function POReviewTable({
                   </div>
                 </div>
               </TableCell>
-              <TableCell>
+              <TableCell className="min-w-[280px]">
                 <ProductMatchDropdown
                   products={products}
                   value={item.matched_product_id}
                   confidence={item.confidence}
                   wasManuallyChanged={item.was_manually_changed}
+                  itemDescription={item.description}
                   onChange={(productId) => {
                     const product = products.find(p => p.id === productId);
                     onUpdateItem(index, {

@@ -245,26 +245,106 @@ export function usePOImport() {
         continue;
       }
 
-      // Try fuzzy match by name
-      const normalizedDesc = item.description.toLowerCase().replace(/[^a-z0-9]/g, '');
+      // Try fuzzy match by name with improved algorithm
+      const normalizedDesc = item.description.toLowerCase().replace(/[^a-z0-9\s]/g, '');
+      const descWords = normalizedDesc.split(/\s+/).filter(w => w.length > 2);
       let bestMatch: { product: any; score: number } | null = null;
 
+      // Common translations/variations map
+      const synonyms: Record<string, string[]> = {
+        'banana': ['banaan', 'bakoba'],
+        'spinach': ['spinash', 'spinazie', 'spinash'],
+        'arugula': ['rucula', 'rucola'],
+        'lettuce': ['sla', 'salad'],
+        'celery': ['selder', 'selderij'],
+        'tomato': ['tomatie', 'tomat'],
+        'pineapple': ['ananas'],
+        'orange': ['sinaasappel', 'naranja'],
+        'lemon': ['citroen', 'limón'],
+        'lime': ['limoen', 'berde'],
+        'pepper': ['peper', 'paprika'],
+        'onion': ['ui', 'cebolla'],
+        'carrot': ['wortel', 'carrots'],
+        'cucumber': ['komkommer'],
+        'mushroom': ['champignon', 'paddestoel'],
+        'pumpkin': ['pompoen', 'calabaza'],
+        'melon': ['meloen'],
+        'watermelon': ['watermeloen'],
+        'ginger': ['gember'],
+        'parsley': ['peterselie'],
+        'basil': ['basilicum', 'blachi'],
+        'mint': ['munt'],
+        'thyme': ['tijm'],
+        'rosemary': ['rozemarijn'],
+        'sage': ['salie', 'sali'],
+        'chives': ['bieslook'],
+        'coriander': ['koriander', 'cilantro'],
+        'fennel': ['venkel'],
+        'zucchini': ['courgette'],
+        'squash': ['pompoen'],
+        'bunch': ['bos', 'tros'],
+        'piece': ['stuk', 'stuks', 'st'],
+      };
+
       for (const product of products) {
-        const normalizedName = product.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const normalizedName = product.name.toLowerCase().replace(/[^a-z0-9\s]/g, '');
+        const nameWords = normalizedName.split(/\s+/).filter(w => w.length > 2);
         const normalizedCode = product.code.toLowerCase().replace(/[^a-z0-9]/g, '');
 
         // Exact match
-        if (normalizedName === normalizedDesc || normalizedCode === item.sku.toLowerCase()) {
+        if (normalizedName.replace(/\s/g, '') === normalizedDesc.replace(/\s/g, '') || 
+            normalizedCode === item.sku.toLowerCase().replace(/[^a-z0-9]/g, '')) {
           bestMatch = { product, score: 1 };
           break;
         }
 
-        // Partial match
-        if (normalizedDesc.includes(normalizedName) || normalizedName.includes(normalizedDesc)) {
-          const score = Math.min(normalizedName.length, normalizedDesc.length) / 
-                       Math.max(normalizedName.length, normalizedDesc.length);
-          if (!bestMatch || score > bestMatch.score) {
-            bestMatch = { product, score };
+        // Calculate word-based match score
+        let matchScore = 0;
+        let matchedWords = 0;
+
+        for (const descWord of descWords) {
+          // Direct word match
+          if (nameWords.some(nw => nw.includes(descWord) || descWord.includes(nw))) {
+            matchedWords++;
+            continue;
+          }
+
+          // Synonym matching
+          for (const [english, variations] of Object.entries(synonyms)) {
+            const allVariants = [english, ...variations];
+            const descMatches = allVariants.some(v => descWord.includes(v) || v.includes(descWord));
+            const nameMatches = nameWords.some(nw => allVariants.some(v => nw.includes(v) || v.includes(nw)));
+            
+            if (descMatches && nameMatches) {
+              matchedWords++;
+              break;
+            }
+          }
+        }
+
+        if (matchedWords > 0) {
+          matchScore = matchedWords / Math.max(descWords.length, nameWords.length);
+          
+          // Boost score if product name appears anywhere in description
+          if (normalizedDesc.includes(normalizedName.replace(/\s/g, '')) || 
+              normalizedName.includes(normalizedDesc.replace(/\s/g, ''))) {
+            matchScore = Math.max(matchScore, 0.7);
+          }
+          
+          if (!bestMatch || matchScore > bestMatch.score) {
+            bestMatch = { product, score: matchScore };
+          }
+        }
+
+        // Partial string match as fallback
+        if (!bestMatch || bestMatch.score < 0.5) {
+          if (normalizedDesc.includes(normalizedName.replace(/\s/g, '')) || 
+              normalizedName.replace(/\s/g, '').includes(normalizedDesc.replace(/\s/g, ''))) {
+            const score = Math.min(normalizedName.length, normalizedDesc.length) / 
+                         Math.max(normalizedName.length, normalizedDesc.length);
+            if (!bestMatch || score > bestMatch.score) {
+              bestMatch = { product, score: Math.max(score, 0.4) };
+            }
           }
         }
       }
