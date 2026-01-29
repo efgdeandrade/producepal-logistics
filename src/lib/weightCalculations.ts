@@ -217,6 +217,8 @@ export interface SupplierPalletConfig {
   totalChargeableWeight: number;
   utilizationPct: number;
   limitingFactor: 'weight' | 'volume' | 'balanced';
+  // NEW: Include actual pallet dimensions used for this supplier
+  palletDimensions: PalletConfig;
 }
 
 /**
@@ -313,7 +315,9 @@ export function calculateSupplierPalletConfig(
     totalVolumetricWeight,
     totalChargeableWeight,
     utilizationPct: Math.min(utilizationPct, 100),
-    limitingFactor
+    limitingFactor,
+    // Include actual pallet dimensions used
+    palletDimensions: palletConfig
   };
 }
 

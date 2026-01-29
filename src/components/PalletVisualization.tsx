@@ -10,10 +10,102 @@ import {
   Package, Layers, Weight, TrendingUp, Box, ChevronDown, ChevronUp,
   Scale, Maximize, AlertTriangle, CheckCircle, Info
 } from 'lucide-react';
-import { OrderPalletConfig, SupplierPalletConfig, ProductWeightInfo } from '@/lib/weightCalculations';
+import { 
+  OrderPalletConfig, 
+  SupplierPalletConfig, 
+  ProductWeightInfo,
+  STANDARD_EUROPALLET,
+  PalletConfig
+} from '@/lib/weightCalculations';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 
+// Calculate how cases fit on a pallet footprint
+interface CaseFitResult {
+  casesAcross: number;
+  casesDeep: number;
+  casesPerLayer: number;
+  maxLayers: number;
+  totalCapacity: number;
+  caseWidth: number;
+  caseLength: number;
+  caseHeight: number;
+  palletWidth: number;
+  palletLength: number;
+  hasDimensions: boolean;
+}
+
+const calculateCaseFit = (
+  products: ProductWeightInfo[],
+  palletConfig: PalletConfig = STANDARD_EUROPALLET
+): CaseFitResult => {
+  // Find a product with dimensions to use as representative
+  const productWithDims = products.find(p => 
+    p.lengthCm && p.widthCm && p.heightCm && 
+    p.lengthCm > 0 && p.widthCm > 0 && p.heightCm > 0
+  );
+
+  if (!productWithDims || !productWithDims.lengthCm || !productWithDims.widthCm || !productWithDims.heightCm) {
+    // No dimensions available - show estimated layout
+    return {
+      casesAcross: 2,
+      casesDeep: 2,
+      casesPerLayer: 4,
+      maxLayers: 5,
+      totalCapacity: 20,
+      caseWidth: 40,
+      caseLength: 60,
+      caseHeight: 20,
+      palletWidth: palletConfig.widthCm,
+      palletLength: palletConfig.lengthCm,
+      hasDimensions: false
+    };
+  }
+
+  const caseLength = productWithDims.lengthCm;
+  const caseWidth = productWithDims.widthCm;
+  const caseHeight = productWithDims.heightCm;
+
+  // Add 2cm tolerance for pallet placement
+  const effectiveLength = palletConfig.lengthCm + 2;
+  const effectiveWidth = palletConfig.widthCm + 2;
+
+  // Try both orientations
+  // Pattern 1: Case length along pallet length
+  const casesAcross1 = Math.floor(effectiveLength / caseLength);
+  const casesDeep1 = Math.floor(effectiveWidth / caseWidth);
+
+  // Pattern 2: Case length along pallet width (rotated)
+  const casesAcross2 = Math.floor(effectiveLength / caseWidth);
+  const casesDeep2 = Math.floor(effectiveWidth / caseLength);
+
+  // Use better orientation
+  const pattern1Total = casesAcross1 * casesDeep1;
+  const pattern2Total = casesAcross2 * casesDeep2;
+  
+  const usePat1 = pattern1Total >= pattern2Total;
+  const casesAcross = usePat1 ? casesAcross1 : casesAcross2;
+  const casesDeep = usePat1 ? casesDeep1 : casesDeep2;
+  const casesPerLayer = casesAcross * casesDeep;
+
+  // Calculate vertical layers
+  const availableHeight = palletConfig.maxCargoHeightCm - palletConfig.heightCm;
+  const maxLayers = Math.max(1, Math.floor(availableHeight / caseHeight));
+
+  return {
+    casesAcross,
+    casesDeep,
+    casesPerLayer,
+    maxLayers,
+    totalCapacity: casesPerLayer * maxLayers,
+    caseWidth: usePat1 ? caseWidth : caseLength,
+    caseLength: usePat1 ? caseLength : caseWidth,
+    caseHeight,
+    palletWidth: palletConfig.widthCm,
+    palletLength: palletConfig.lengthCm,
+    hasDimensions: true
+  };
+};
 interface PalletVisualizationProps {
   palletConfig: OrderPalletConfig | null;
 }
@@ -210,61 +302,147 @@ const LimitingFactorBadge = ({ factor }: { factor: 'weight' | 'volume' | 'balanc
   }
 };
 
-// Case Stacking View
+// Case Stacking View - Now with actual dimensions!
 const CaseStackingView = ({ 
   products, 
   layer, 
-  onLayerChange 
+  onLayerChange,
+  palletConfig
 }: { 
   products: ProductWeightInfo[];
   layer: number;
   onLayerChange: (layer: number) => void;
+  palletConfig?: PalletConfig;
 }) => {
-  const casesPerLayer = 4;
-  const totalLayers = Math.min(Math.ceil(products.length / casesPerLayer), 5);
+  const caseFit = calculateCaseFit(products, palletConfig || STANDARD_EUROPALLET);
+  const totalLayers = caseFit.maxLayers;
+  const { casesAcross, casesDeep, casesPerLayer } = caseFit;
   
-  // Get products for current layer
-  const startIdx = layer * casesPerLayer;
-  const layerProducts = products.slice(startIdx, startIdx + casesPerLayer);
+  // Calculate total cases needed for all products
+  const totalCasesNeeded = products.reduce((sum, p) => {
+    return sum + Math.ceil(p.quantity / p.packSize);
+  }, 0);
+
+  // Build case slots for current layer
+  const getLayerCases = () => {
+    const startCase = layer * casesPerLayer;
+    const endCase = Math.min(startCase + casesPerLayer, totalCasesNeeded);
+    const casesThisLayer = endCase - startCase;
+    
+    // Map products to case positions
+    const caseSlots: (ProductWeightInfo | null)[] = [];
+    let caseCounter = 0;
+    
+    for (const product of products) {
+      const casesForProduct = Math.ceil(product.quantity / product.packSize);
+      for (let i = 0; i < casesForProduct; i++) {
+        if (caseCounter >= startCase && caseCounter < endCase) {
+          caseSlots.push(product);
+        }
+        caseCounter++;
+      }
+    }
+    
+    // Fill remaining slots with null
+    while (caseSlots.length < casesPerLayer) {
+      caseSlots.push(null);
+    }
+    
+    return caseSlots;
+  };
+
+  const layerCases = getLayerCases();
+  const casesOnThisLayer = layerCases.filter(c => c !== null).length;
+  
+  // Calculate aspect ratio based on pallet dimensions
+  const aspectRatio = caseFit.palletLength / caseFit.palletWidth;
   
   return (
     <div className="space-y-4">
-      <div className="text-sm text-muted-foreground">
-        Layer {layer + 1} of {totalLayers} (Top-down view)
+      {/* Pallet info header */}
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <Badge variant="outline" className="font-mono">
+          Pallet: {caseFit.palletLength}×{caseFit.palletWidth} cm
+        </Badge>
+        {caseFit.hasDimensions ? (
+          <Badge variant="outline" className="font-mono">
+            Case: {caseFit.caseLength}×{caseFit.caseWidth}×{caseFit.caseHeight} cm
+          </Badge>
+        ) : (
+          <Badge variant="secondary" className="text-yellow-600 dark:text-yellow-400">
+            ⚠️ No case dimensions - estimated layout
+          </Badge>
+        )}
+        <span className="text-muted-foreground">
+          {casesAcross}×{casesDeep} = {casesPerLayer} cases/layer × {totalLayers} layers = {caseFit.totalCapacity} capacity
+        </span>
       </div>
       
-      {/* Pallet footprint visualization */}
-      <div className="relative aspect-[3/2] bg-amber-100 dark:bg-amber-900/30 rounded-lg border-2 border-amber-300 dark:border-amber-700 p-2">
-        {/* Pallet base pattern */}
-        <div className="absolute inset-0 opacity-20">
-          <div className="grid grid-cols-6 h-full">
-            {Array.from({ length: 6 }).map((_, i) => (
+      <div className="text-sm text-muted-foreground">
+        Layer {layer + 1} of {totalLayers} — {casesOnThisLayer} case{casesOnThisLayer !== 1 ? 's' : ''} on this layer
+      </div>
+      
+      {/* Pallet footprint visualization - TRUE TO SCALE */}
+      <div 
+        className="relative bg-amber-100 dark:bg-amber-900/30 rounded-lg border-2 border-amber-300 dark:border-amber-700 p-2 overflow-hidden"
+        style={{ 
+          aspectRatio: `${aspectRatio}`,
+          maxWidth: '100%'
+        }}
+      >
+        {/* Pallet base slats pattern */}
+        <div className="absolute inset-0 opacity-20 pointer-events-none">
+          <div className="grid h-full" style={{ gridTemplateColumns: `repeat(${Math.ceil(caseFit.palletLength / 20)}, 1fr)` }}>
+            {Array.from({ length: Math.ceil(caseFit.palletLength / 20) }).map((_, i) => (
               <div key={i} className="border-r border-amber-600 last:border-r-0" />
             ))}
           </div>
         </div>
         
-        {/* Cases on this layer */}
-        <div className="relative grid grid-cols-2 grid-rows-2 gap-2 h-full">
-          {layerProducts.map((product, idx) => {
-            const hue = (product.code.charCodeAt(0) * 137) % 360;
+        {/* Cases grid - matches actual arrangement */}
+        <div 
+          className="relative grid gap-1 h-full w-full"
+          style={{ 
+            gridTemplateColumns: `repeat(${casesAcross}, 1fr)`,
+            gridTemplateRows: `repeat(${casesDeep}, 1fr)`
+          }}
+        >
+          {layerCases.map((product, idx) => {
+            if (!product) {
+              return (
+                <div 
+                  key={`empty-${idx}`}
+                  className="rounded border border-dashed border-muted-foreground/20 flex items-center justify-center text-muted-foreground/30 text-[10px]"
+                >
+                  –
+                </div>
+              );
+            }
+            
+            const hue = (product.code.charCodeAt(0) * 137 + product.code.charCodeAt(1) * 73) % 360;
             return (
               <TooltipProvider key={idx}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div 
-                      className="rounded-md flex items-center justify-center text-white font-bold text-xs transition-transform hover:scale-105 cursor-pointer shadow-md"
-                      style={{ backgroundColor: `hsl(${hue}, 60%, 45%)` }}
+                      className="rounded flex items-center justify-center text-white font-bold text-[10px] sm:text-xs transition-all hover:scale-[1.02] hover:z-10 cursor-pointer shadow-sm border border-white/20"
+                      style={{ backgroundColor: `hsl(${hue}, 55%, 45%)` }}
                     >
-                      {product.code}
+                      <span className="truncate px-0.5">{product.code}</span>
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent>
+                  <TooltipContent side="top" className="max-w-xs">
                     <div className="text-xs space-y-1">
                       <p className="font-semibold">{product.name || product.code}</p>
-                      <p>Qty: {product.quantity}</p>
-                      {product.lengthCm && product.widthCm && product.heightCm && (
-                        <p>{product.lengthCm}×{product.widthCm}×{product.heightCm} cm</p>
+                      <p>Total order: {product.quantity} units ({Math.ceil(product.quantity / product.packSize)} cases)</p>
+                      {product.lengthCm && product.widthCm && product.heightCm ? (
+                        <p className="text-green-600 dark:text-green-400">
+                          ✓ Case: {product.lengthCm}×{product.widthCm}×{product.heightCm} cm
+                        </p>
+                      ) : (
+                        <p className="text-yellow-600 dark:text-yellow-400">
+                          ⚠️ No case dimensions in database
+                        </p>
                       )}
                     </div>
                   </TooltipContent>
@@ -272,25 +450,23 @@ const CaseStackingView = ({
               </TooltipProvider>
             );
           })}
-          
-          {/* Empty slots */}
-          {Array.from({ length: Math.max(0, casesPerLayer - layerProducts.length) }).map((_, idx) => (
-            <div 
-              key={`empty-${idx}`}
-              className="rounded-md border-2 border-dashed border-muted-foreground/30 flex items-center justify-center text-muted-foreground/50 text-xs"
-            >
-              Empty
-            </div>
-          ))}
+        </div>
+        
+        {/* Dimension labels */}
+        <div className="absolute -bottom-5 left-0 right-0 text-center text-[10px] text-muted-foreground font-mono">
+          {caseFit.palletLength} cm
+        </div>
+        <div className="absolute -right-8 top-0 bottom-0 flex items-center text-[10px] text-muted-foreground font-mono writing-mode-vertical">
+          <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>{caseFit.palletWidth} cm</span>
         </div>
       </div>
       
       {/* Layer slider */}
       {totalLayers > 1 && (
-        <div className="space-y-2">
+        <div className="space-y-2 mt-8">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Bottom</span>
-            <span>Top</span>
+            <span>Layer 1 (Bottom)</span>
+            <span>Layer {totalLayers} (Top)</span>
           </div>
           <Slider
             value={[layer]}
@@ -398,15 +574,16 @@ const SupplierPalletCard = ({
           {/* Expanded content */}
           <CollapsibleContent className="pt-4 space-y-4">
             {/* Case stacking visualization */}
-            <div className="border rounded-lg p-4">
+            <div className="border rounded-lg p-4 overflow-hidden">
               <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
                 <Layers className="h-4 w-4" />
-                Case Arrangement
+                Case Arrangement (Top-Down View)
               </h4>
               <CaseStackingView 
                 products={config.products}
                 layer={viewLayer}
                 onLayerChange={setViewLayer}
+                palletConfig={config.palletDimensions}
               />
             </div>
             
