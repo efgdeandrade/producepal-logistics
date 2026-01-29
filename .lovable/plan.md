@@ -1,129 +1,149 @@
 
+# Enhanced Pallet Configuration Visualization
 
-# Optimize Receipt Printing for Thermal Printers
+## Current Issues
 
-## Overview
+The existing PalletVisualization component has several problems that affect both functionality and user experience:
 
-This plan addresses the light ink output issue on thermal receipt printers by enhancing font weight, increasing text contrast, and improving border visibility across all receipt components.
+| Issue | Impact |
+|-------|--------|
+| CSS variables in Canvas don't resolve | Colors render as black instead of theme colors |
+| Fixed 800px canvas width | Breaks on mobile devices |
+| No interactivity | Users can't explore pallet details |
+| Isometric calculations complex | Hard to maintain and debug |
+| Missing product placement details | Can't see how cases are arranged |
 
-## Components to Update
+## Proposed Solution
 
-| Component | Location |
-|-----------|----------|
-| CustomerReceipt | `src/components/CustomerReceipt.tsx` |
-| CustomerPackingSlip | `src/components/CustomerPackingSlip.tsx` |
-| ProductionReceipt | `src/components/ProductionReceipt.tsx` |
+Replace the Canvas-based approach with a modern React component architecture using styled divs and SVG elements for better compatibility, responsiveness, and interactivity.
 
-## Optimization Strategy
+## New Features
 
-### 1. Font Weight Improvements
-- Change all product names, quantities, and totals from regular to **bold** (`font-bold`)
-- Use `font-extrabold` for critical values like totals and headers
+### 1. Overview Dashboard
+- Visual progress bars showing weight utilization
+- Actual vs Volumetric weight comparison gauges
+- Chargeable weight indicator with color coding
 
-### 2. Font Size Increases
-- Upgrade `text-xs` (12px) to `text-sm` (14px) for better legibility
-- Keep receipt format slightly smaller but still readable
+### 2. Interactive Pallet Grid
+- Responsive grid of pallet cards
+- Color-coded by supplier
+- Hover to see detailed metrics
+- Click to expand and see case arrangement
 
-### 3. Border Enhancements
-- Replace `border-b` (1px) with `border-b-2` (2px) for table rows
-- Use `border-b-4` for major section dividers
-- Replace gray borders (`border-gray-300`) with black (`border-black`)
+### 3. Weight Distribution Chart
+- Horizontal bar chart showing actual vs volumetric per supplier
+- Highlight the "gap" (air being paid for)
+- Show limiting factor with visual indicator
 
-### 4. Eliminate Gray Text
-- Replace all gray text colors (`text-gray-600`, `text-gray-500`, `text-gray-400`) with `text-black`
-- Ensure maximum contrast for thermal printing
+### 4. Case Stacking Visualization
+- 2D top-down view of pallet footprint
+- Layer-by-layer slider to see stacking
+- Product codes displayed on each case position
 
-### 5. Font Family
-- Switch from thin monospace (`Courier New`) to heavier sans-serif for receipt format
-- Use `font-sans` with explicit bold weights
-
-### 6. Print-Specific High Contrast Mode
-- Add `@media print` CSS rules to force maximum contrast
-- Ensure bold text is properly rendered during printing
-
----
+### 5. Optimization Alerts
+- Inline warnings for underutilized pallets
+- Suggestions to improve weight balance
+- Link to Dito Advisor for AI recommendations
 
 ## Technical Changes
 
-### CustomerReceipt.tsx
+### PalletVisualization.tsx - Complete Rewrite
 
-| Line | Change |
-|------|--------|
-| 102-103 | Add print-optimized class and high-contrast styles |
-| 116-122 | Replace `text-gray-700` with `text-black`, add `font-medium` |
-| 160-170 | Make product codes `font-bold`, remove gray text colors |
-| 173-178 | Use `font-extrabold` for totals |
-| Add | Include print-specific CSS for high contrast |
+The new component will be structured as follows:
 
-### CustomerPackingSlip.tsx
-
-| Line | Change |
-|------|--------|
-| 60-63 | Add high-contrast print class |
-| 88-92 | Replace 1px borders with 2px, use black color |
-| 99-107 | Make product codes `font-bold`, replace gray with black |
-| 110-124 | Use `font-extrabold` for totals |
-| 133-142 | Enhance print CSS with high-contrast rules |
-
-### ProductionReceipt.tsx
-
-| Line | Change |
-|------|--------|
-| 48-70 | Switch to sans-serif font family, add high-contrast print CSS |
-| 75-78 | Make date text `font-bold` and upgrade from `text-xs` to `text-sm` |
-| 82-85 | Replace `border-gray-400` with `border-black`, use `font-bold` |
-| 92-115 | Make all table text bold, replace gray borders with black |
-| 129-142 | Use `font-bold` for signature labels |
-
----
-
-## New Print CSS Block (to be added to each component)
-
-```css
-@media print {
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-  .high-contrast-print {
-    font-family: Arial, Helvetica, sans-serif !important;
-  }
-  .high-contrast-print * {
-    color: #000 !important;
-    font-weight: 600 !important;
-  }
-  .high-contrast-print h1,
-  .high-contrast-print h2,
-  .high-contrast-print .font-bold,
-  .high-contrast-print .font-extrabold,
-  .high-contrast-print th,
-  .high-contrast-print tfoot td {
-    font-weight: 900 !important;
-  }
-  .high-contrast-print table {
-    border-collapse: collapse;
-  }
-  .high-contrast-print tr {
-    border-bottom: 2px solid #000 !important;
-  }
-}
+```text
+PalletVisualization
+├── PalletOverviewStats (KPI cards)
+├── PalletWeightGauge (visual weight comparison)
+├── PalletGrid (responsive pallet cards)
+│   └── PalletCard (individual pallet)
+│       ├── PalletHeader (supplier, weight)
+│       ├── PalletMetrics (utilization, limiting factor)
+│       └── PalletStackView (case arrangement)
+└── SupplierBreakdown (detailed tables)
 ```
 
----
+### Key Technical Improvements
+
+**1. Replace Canvas with React Components**
+- Use flexbox/grid for responsive layouts
+- Use CSS transitions for animations
+- Use proper React state for interactivity
+
+**2. Fix Color Resolution**
+- Use Tailwind classes (`bg-primary`, `text-muted-foreground`)
+- For dynamic colors, use `getComputedStyle()` to resolve CSS variables
+
+**3. Add Progress Bars for Utilization**
+- Visual representation of capacity usage
+- Color gradient from green (optimal) to red (overloaded)
+
+**4. Mobile-First Responsive Design**
+- Stack cards vertically on mobile
+- Grid layout on desktop
+- Collapsible details for touch interfaces
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/components/PalletVisualization.tsx` | Complete rewrite with new component architecture |
+
+## New Sub-Components (within same file)
+
+| Component | Purpose |
+|-----------|---------|
+| `PalletOverviewCards` | Summary stats (total pallets, weight, utilization) |
+| `WeightComparisonBars` | Visual actual vs volumetric comparison |
+| `PalletGridView` | Responsive grid of pallet cards |
+| `PalletDetailCard` | Individual pallet with expandable details |
+| `UtilizationGauge` | Circular/linear gauge for capacity |
+| `SupplierWeightTable` | Detailed breakdown per supplier |
+
+## Visual Design
+
+### Color Scheme
+- **Actual Weight**: Blue shade (`bg-blue-500`)
+- **Volumetric Weight**: Orange shade (`bg-orange-500`)  
+- **Chargeable Weight**: Purple shade (`bg-purple-500`)
+- **Gap/Air**: Red shade with pattern (`bg-red-200 with stripes`)
+
+### Limiting Factor Indicators
+- **Weight Limited**: Blue badge with weight icon
+- **Volume Limited**: Orange badge with box icon
+- **Balanced**: Green badge with checkmark
+
+### Utilization Colors
+- 0-50%: Red (underutilized)
+- 50-80%: Yellow (acceptable)
+- 80-95%: Green (optimal)
+- 95%+: Blue (near capacity)
+
+## Additional Enhancements
+
+### Export Functionality
+- Download pallet plan as PDF
+- Print-optimized layout
+- Include for warehouse receiving team
+
+### Animation
+- Smooth transitions when switching tabs
+- Progress bar fill animations
+- Card expand/collapse animations
 
 ## Expected Results
 
 | Before | After |
 |--------|-------|
-| Light, thin text | Bold, heavy text |
-| Gray secondary text | Pure black text |
-| 1px gray borders | 2px black borders |
-| Courier New (thin) | Arial/Sans-serif (heavier) |
-| Mixed font weights | Consistent bold/extrabold |
+| Black/broken colors | Proper theme colors |
+| Fixed width breaks mobile | Responsive at all sizes |
+| Static display | Interactive hover/click |
+| Just numbers | Visual gauges and charts |
+| Hard to understand | Clear visual hierarchy |
 
-## Files to Modify
+## Implementation Notes
 
-1. `src/components/CustomerReceipt.tsx`
-2. `src/components/CustomerPackingSlip.tsx`
-3. `src/components/ProductionReceipt.tsx`
-
+- Will use existing Radix UI components (Progress, Tooltip, Collapsible)
+- Leverage Tailwind CSS for all styling
+- Maintain compatibility with existing `OrderPalletConfig` interface
+- No new dependencies required
