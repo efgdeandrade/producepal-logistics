@@ -87,6 +87,7 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format, recei
   };
 
   const containerClass = format === 'receipt' ? 'max-w-[80mm]' : 'max-w-[210mm]';
+  const printClass = format === 'receipt' ? 'receipt-print-content format-receipt' : 'receipt-print-content format-a4';
   const textSize = format === 'receipt' ? 'text-xs' : 'text-sm';
 
   if (loading) {
@@ -98,7 +99,7 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format, recei
   }
 
   return (
-    <div className={`${containerClass} mx-auto bg-white text-black p-6`}>
+    <div className={`${containerClass} ${printClass} mx-auto bg-white text-black p-6 print:p-0`}>
       {/* Company Header */}
       {companyInfo && (
         <div className="text-center mb-4 pb-4 border-b border-gray-300">

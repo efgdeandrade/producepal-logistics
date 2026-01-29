@@ -145,6 +145,84 @@ All colors MUST be HSL.
   .print\:page-break-after-always {
     page-break-after: always;
   }
+
+  /* Hide everything except print content */
+  body > *:not(.print-container),
+  header,
+  nav,
+  aside,
+  footer,
+  .no-print,
+  [role="dialog"] > div:first-child, /* Dialog overlay */
+  [data-radix-dialog-overlay],
+  button,
+  .fixed,
+  .sticky {
+    display: none !important;
+  }
+
+  /* Show print container and its contents */
+  .print-container,
+  .print-container * {
+    visibility: visible !important;
+  }
+
+  /* Reset dialog positioning for print */
+  [role="dialog"],
+  [data-radix-dialog-content] {
+    position: static !important;
+    transform: none !important;
+    max-height: none !important;
+    max-width: none !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: white !important;
+  }
+
+  /* Ensure receipt content fills the page properly */
+  .receipt-print-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 10mm !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  /* A4 format specific */
+  .receipt-print-content.format-a4 {
+    width: 210mm !important;
+    padding: 15mm !important;
+  }
+
+  /* 80mm receipt format specific */
+  .receipt-print-content.format-receipt {
+    width: 80mm !important;
+    padding: 5mm !important;
+    font-size: 10pt !important;
+  }
+
+  /* Ensure tables print properly */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  /* Page setup */
+  @page {
+    margin: 10mm;
+  }
+
+  /* Ensure colors print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
 }
 
 /* Safe area insets for notched devices */
