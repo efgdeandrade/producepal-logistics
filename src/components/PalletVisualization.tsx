@@ -530,22 +530,22 @@ const SupplierPalletCard = ({
               </div>
             </div>
             
-            {/* Weight breakdown - compact */}
+            {/* Weight breakdown - proper stacking layout */}
             <div className={cn(
-              "grid gap-2 text-sm",
+              "grid gap-2 text-xs",
               isMobile ? "grid-cols-1" : "grid-cols-3"
             )}>
-              <div className="flex justify-between p-2 rounded bg-blue-50 dark:bg-blue-900/20">
-                <span className="text-muted-foreground">Actual</span>
-                <span className="font-medium">{config.totalActualWeight.toFixed(1)} kg</span>
+              <div className="flex flex-col items-center p-2 rounded bg-blue-50 dark:bg-blue-900/20 min-w-0">
+                <span className="text-muted-foreground text-[10px] uppercase tracking-wide">Actual</span>
+                <span className="font-semibold text-sm">{config.totalActualWeight.toFixed(1)} kg</span>
               </div>
-              <div className="flex justify-between p-2 rounded bg-orange-50 dark:bg-orange-900/20">
-                <span className="text-muted-foreground">Volumetric</span>
-                <span className="font-medium">{config.totalVolumetricWeight.toFixed(1)} kg</span>
+              <div className="flex flex-col items-center p-2 rounded bg-orange-50 dark:bg-orange-900/20 min-w-0">
+                <span className="text-muted-foreground text-[10px] uppercase tracking-wide">Volumetric</span>
+                <span className="font-semibold text-sm">{config.totalVolumetricWeight.toFixed(1)} kg</span>
               </div>
-              <div className="flex justify-between p-2 rounded bg-purple-50 dark:bg-purple-900/20">
-                <span className="text-muted-foreground">Chargeable</span>
-                <span className="font-bold">{config.totalChargeableWeight.toFixed(1)} kg</span>
+              <div className="flex flex-col items-center p-2 rounded bg-purple-50 dark:bg-purple-900/20 min-w-0">
+                <span className="text-muted-foreground text-[10px] uppercase tracking-wide">Chargeable</span>
+                <span className="font-bold text-sm">{config.totalChargeableWeight.toFixed(1)} kg</span>
               </div>
             </div>
           </div>
