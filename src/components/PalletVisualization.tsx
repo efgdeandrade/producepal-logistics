@@ -506,29 +506,62 @@ const SupplierPalletCard = ({
         <CardContent className="pt-0">
           {/* Weight metrics - always visible */}
           <div className="space-y-3">
-            {/* Utilization bar */}
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Utilization</span>
-                <span className={cn(
-                  "font-medium",
-                  config.utilizationPct < 50 && "text-red-500",
-                  config.utilizationPct >= 50 && config.utilizationPct < 80 && "text-yellow-500",
-                  config.utilizationPct >= 80 && "text-green-500"
-                )}>
-                  {config.utilizationPct.toFixed(1)}% - {getUtilizationLabel(config.utilizationPct)}
-                </span>
-              </div>
-              <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                <div 
-                  className={cn(
-                    "h-full transition-all duration-500 rounded-full",
-                    getUtilizationColor(config.utilizationPct)
+            {/* Show total cases vs capacity instead of misleading utilization */}
+            {(() => {
+              const totalCases = config.products.reduce((sum, p) => 
+                sum + Math.ceil(p.quantity / p.packSize), 0
+              );
+              // Estimate capacity from first product with dimensions
+              const productWithDims = config.products.find(p => 
+                p.lengthCm && p.widthCm && p.heightCm
+              );
+              const palletDims = config.palletDimensions || STANDARD_EUROPALLET;
+              
+              let casesPerPallet = 0;
+              if (productWithDims?.lengthCm && productWithDims?.widthCm && productWithDims?.heightCm) {
+                const availableHeight = palletDims.maxCargoHeightCm - palletDims.heightCm;
+                const layers = Math.floor(availableHeight / productWithDims.heightCm);
+                const casesAcross = Math.floor((palletDims.lengthCm + 2) / productWithDims.lengthCm);
+                const casesDeep = Math.floor((palletDims.widthCm + 2) / productWithDims.widthCm);
+                casesPerPallet = casesAcross * casesDeep * layers;
+              }
+              
+              const totalCapacity = casesPerPallet * config.pallets;
+              const fillPct = totalCapacity > 0 ? (totalCases / totalCapacity) * 100 : 0;
+              
+              return (
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">
+                      Pallet Fill ({totalCases} of {totalCapacity || '?'} cases)
+                    </span>
+                    <span className={cn(
+                      "font-medium",
+                      fillPct < 30 && "text-orange-500",
+                      fillPct >= 30 && fillPct < 70 && "text-yellow-500",
+                      fillPct >= 70 && "text-green-500"
+                    )}>
+                      {totalCapacity > 0 ? `${fillPct.toFixed(0)}% filled` : 'Dimensions unknown'}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                    <div 
+                      className={cn(
+                        "h-full transition-all duration-500 rounded-full",
+                        fillPct < 30 ? "bg-orange-500" : fillPct < 70 ? "bg-yellow-500" : "bg-green-500"
+                      )}
+                      style={{ width: `${Math.min(fillPct, 100)}%` }}
+                    />
+                  </div>
+                  {fillPct < 30 && totalCapacity > 0 && (
+                    <p className="text-[10px] text-orange-600 dark:text-orange-400 flex items-center gap-1 mt-1">
+                      <AlertTriangle className="h-3 w-3" />
+                      Low fill - consider consolidating or adding more products
+                    </p>
                   )}
-                  style={{ width: `${Math.min(config.utilizationPct, 100)}%` }}
-                />
-              </div>
-            </div>
+                </div>
+              );
+            })()}
             
             {/* Weight breakdown - proper stacking layout */}
             <div className={cn(
