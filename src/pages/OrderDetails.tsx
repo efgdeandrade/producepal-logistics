@@ -1045,7 +1045,7 @@ const OrderDetails = () => {
               )}
             </div>
           </DialogHeader>
-          <div ref={printRef} className="print:block">
+          <div ref={printRef} className="print-container print:block">
             {viewDialog === 'packing' && order && (
               <CustomerPackingSlip 
                 order={order} 
