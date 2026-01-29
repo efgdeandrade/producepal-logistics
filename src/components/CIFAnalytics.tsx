@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import { TrendingUp, TrendingDown, Sparkles, Loader2, DollarSign } from 'lucide-react';
+import { TrendingUp, TrendingDown, Sparkles, Loader2, DollarSign, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -16,6 +16,15 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
+import {
+  calculateCIFByMethod,
+  calculateAllMethods,
+  type CIFProductInput,
+  type CIFResult,
+  DEFAULT_EXCHANGE_RATE,
+  DEFAULT_LOCAL_LOGISTICS_USD,
+  DEFAULT_LABOR_XCG,
+} from '@/lib/cifCalculationsV2';
 
 interface OrderItem {
   product_code: string;
@@ -24,8 +33,9 @@ interface OrderItem {
 }
 
 interface AIRecommendation {
-  recommendedMethod: string;
-  confidence: string;
+  recommendedMethod: 'proportional' | 'valueBased' | 'smartBlend';
+  confidence: 'HIGH' | 'MEDIUM' | 'LOW';
+  blendRatio?: number;
   reasoning: string[];
   profitAnalysis: {
     totalProfit: string;
@@ -53,14 +63,16 @@ interface AIRecommendation {
     whenToUse: string;
   };
   profitComparison: {
-    byWeight: string;
-    byCost: string;
-    equal: string;
-    hybrid?: string;
-    strategic?: string;
-    volumeOptimized?: string;
-    customerTier?: string;
+    proportional: string;
+    valueBased: string;
+    smartBlend: string;
   };
+  riskAlerts?: string[];
+  learningAdjustments?: Array<{
+    productCode: string;
+    adjustmentFactor: number;
+    confidence: number;
+  }>;
   concerns: string;
 }
 
@@ -244,86 +256,27 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
       const totalFreightCost = totalWeight * combinedTariffPerKg;
       const totalFreight = LOCAL_LOGISTICS_USD + totalFreightCost;
 
-      // Calculate all 7 methods
-      const calculateResults = (distributionMethod: 'weight' | 'cost' | 'equal' | 'hybrid' | 'strategic' | 'volumeOptimized' | 'customerTier') => {
-        return productsWithWeight.map(product => {
-          const productCost = product.totalUnits * product.costPerUnit;
+      // Use shared calculation functions from cifCalculationsV2
+      const cifInputs: CIFProductInput[] = productsWithWeight.map(p => ({
+        productCode: p.code,
+        productName: p.name,
+        quantity: p.totalUnits,
+        costPerUnit: p.costPerUnit,
+        actualWeight: p.totalWeight,
+        volumetricWeight: p.totalWeight, // Use same as actual for now
+        orderFrequency: p.orderFrequency,
+        wasteRate: p.wasteRate,
+        wholesalePriceXCG: p.wholesalePriceXCG,
+      }));
 
-          let freightShare = 0;
-          
-          switch (distributionMethod) {
-            case 'weight':
-              freightShare = totalWeight > 0 ? (product.totalWeight / totalWeight) * totalFreight : 0;
-              break;
-            case 'cost':
-              freightShare = totalCost > 0 ? (productCost / totalCost) * totalFreight : 0;
-              break;
-            case 'equal':
-              freightShare = totalFreight / productsWithWeight.length;
-              break;
-            case 'hybrid':
-              const weightShare = totalWeight > 0 ? (product.totalWeight / totalWeight) * totalFreight : 0;
-              const costShare = totalCost > 0 ? (productCost / totalCost) * totalFreight : 0;
-              freightShare = (weightShare + costShare) / 2;
-              break;
-            case 'volumeOptimized':
-              const totalFrequency = productsWithWeight.reduce((sum, p) => sum + p.orderFrequency, 0);
-              const frequencyWeight = totalFrequency > 0 ? (product.orderFrequency / totalFrequency) : 1 / productsWithWeight.length;
-              const invertedWeight = 1 - (frequencyWeight / 2);
-              freightShare = invertedWeight * (totalFreight / productsWithWeight.length);
-              break;
-            case 'strategic':
-              const riskFactor = 1 + (product.wasteRate / 100);
-              const velocityFactor = 1 / Math.sqrt(product.orderFrequency || 1);
-              const strategicWeight = riskFactor * velocityFactor;
-              const totalStrategicWeight = productsWithWeight.reduce((sum, p) => {
-                const rf = 1 + (p.wasteRate / 100);
-                const vf = 1 / Math.sqrt(p.orderFrequency || 1);
-                return sum + (rf * vf);
-              }, 0);
-              freightShare = totalStrategicWeight > 0 ? (strategicWeight / totalStrategicWeight) * totalFreight : totalFreight / productsWithWeight.length;
-              break;
-            case 'customerTier':
-              const isWholesaleHeavy = product.orderFrequency > 5;
-              const tierMultiplier = isWholesaleHeavy ? 0.85 : 1.15;
-              const baseShare = totalFreight / productsWithWeight.length;
-              freightShare = baseShare * tierMultiplier;
-              break;
-          }
-
-          const cifUSD = productCost + freightShare;
-          const cifXCG = cifUSD * exchangeRate + LABOR_XCG / productsWithWeight.length;
-          const cifPerUnit = product.totalUnits > 0 ? cifXCG / product.totalUnits : 0;
-          const wholesalePrice = product.wholesalePriceXCG || (cifPerUnit * 1.25);
-          const wholesaleMargin = wholesalePrice - cifPerUnit;
-
-          return {
-            productCode: product.code,
-            productName: product.name,
-            quantity: product.totalUnits,
-            totalWeight: product.totalWeight,
-            costUSD: productCost,
-            freightCost: freightShare,
-            cifUSD,
-            cifXCG,
-            cifPerUnit,
-            wholesalePrice,
-            retailPrice: cifPerUnit * 1.786,
-            wholesaleMargin,
-            retailMargin: (cifPerUnit * 1.786) - cifPerUnit,
-          };
-        });
+      const cifParams = {
+        totalFreight,
+        exchangeRate,
+        limitingFactor: 'actual' as const,
       };
 
-      const cifResults = {
-        byWeight: calculateResults('weight'),
-        byCost: calculateResults('cost'),
-        equally: calculateResults('equal'),
-        hybrid: calculateResults('hybrid'),
-        strategic: calculateResults('strategic'),
-        volumeOptimized: calculateResults('volumeOptimized'),
-        customerTier: calculateResults('customerTier'),
-      };
+      // Calculate all 3 core methods using shared functions
+      const cifResults = calculateAllMethods(cifInputs, cifParams);
 
       // Build market intelligence context
       const marketIntelligence = {
@@ -366,11 +319,31 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
         })
       };
 
-      // Call edge function with comprehensive context
-      const { data, error } = await supabase.functions.invoke('cif-advisor', {
+      // Call unified advisor with comprehensive context
+      const { data, error } = await supabase.functions.invoke('dito-unified-advisor', {
         body: { 
-          cifResults,
-          orderItems: consolidatedItems,
+          products: productsWithWeight.map(p => ({
+            code: p.code,
+            name: p.name,
+            quantity: p.totalUnits,
+            actualWeight: p.totalWeight,
+            volumetricWeight: p.totalWeight,
+            costUSD: p.totalUnits * p.costPerUnit,
+            wholesalePriceXCG: p.wholesalePriceXCG,
+          })),
+          totalFreight,
+          exchangeRate,
+          cifMethodResults: Object.entries(cifResults).map(([method, results]) => ({
+            method,
+            totalProfit: results.reduce((sum, r) => sum + r.wholesaleMargin * r.quantity, 0),
+            avgMargin: results.length > 0 ? results.reduce((sum, r) => sum + r.wholesaleMargin, 0) / results.length : 0,
+            products: results.map(r => ({
+              productCode: r.productCode,
+              cifPerUnit: r.cifPerUnit,
+              wholesaleMargin: r.wholesaleMargin,
+              freightShare: r.freightCost,
+            })),
+          })),
           marketIntelligence,
           historicalPerformance
         }
@@ -768,17 +741,41 @@ export const CIFAnalytics = ({ orderItems, onRecommendation }: CIFAnalyticsProps
                     </div>
                   )}
 
+                  {/* Blend Ratio Indicator */}
+                  {aiRecommendation.blendRatio && (
+                    <div className="bg-primary/10 rounded p-2 mb-3">
+                      <p className="text-xs font-medium">Recommended Blend Ratio</p>
+                      <p className="text-sm">
+                        {(aiRecommendation.blendRatio * 100).toFixed(0)}% weight + {((1 - aiRecommendation.blendRatio) * 100).toFixed(0)}% cost
+                      </p>
+                    </div>
+                  )}
+
                   {/* Profit Comparison Grid */}
-                  <div className="grid grid-cols-4 gap-2 mb-3">
+                  <div className="grid grid-cols-3 gap-2 mb-3">
                     {Object.entries(aiRecommendation.profitComparison).map(([method, profit]) => (
                       <div key={method} className="bg-background/50 rounded p-2 text-center">
                         <p className="text-[10px] text-muted-foreground capitalize">
-                          {method.replace(/([A-Z])/g, ' $1').trim()}
+                          {method === 'proportional' ? 'Proportional' : 
+                           method === 'valueBased' ? 'Value-Based' : 'Smart Blend'}
                         </p>
                         <p className="text-xs font-semibold">{profit}</p>
                       </div>
                     ))}
                   </div>
+
+                  {/* Learning Adjustments Applied */}
+                  {aiRecommendation.learningAdjustments && aiRecommendation.learningAdjustments.length > 0 && (
+                    <div className="bg-green-50 rounded p-2 mb-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Brain className="h-3 w-3 text-green-600" />
+                        <p className="text-xs font-medium text-green-700">Learning Applied</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {aiRecommendation.learningAdjustments.length} products adjusted based on historical patterns
+                      </p>
+                    </div>
+                  )}
 
                   {/* Alternative Recommendation */}
                   {aiRecommendation.alternativeRecommendation && (
