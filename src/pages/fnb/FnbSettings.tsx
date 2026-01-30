@@ -5,13 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, MessageSquare, Webhook, Key, AlertCircle, Brain, Settings, CheckCircle } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Webhook, Key, AlertCircle, Brain, Settings, CheckCircle, Bell } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { GlobalAliasManager } from '@/components/fnb/GlobalAliasManager';
 import { UnmatchedItemsQueue } from '@/components/fnb/UnmatchedItemsQueue';
 import { CustomerMappingsViewer } from '@/components/fnb/CustomerMappingsViewer';
+import { TeamNotificationSettings } from '@/components/fnb/TeamNotificationSettings';
 
 export default function FnbSettings() {
   const [whatsappConfig, setWhatsappConfig] = useState({
@@ -44,8 +45,12 @@ export default function FnbSettings() {
           </div>
         </div>
 
-        <Tabs defaultValue="ai-learning" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 h-12">
+        <Tabs defaultValue="team-notifications" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3 h-12">
+            <TabsTrigger value="team-notifications" className="text-sm h-10">
+              <Bell className="h-4 w-4 mr-2" />
+              Team Alerts
+            </TabsTrigger>
             <TabsTrigger value="ai-learning" className="text-sm h-10">
               <Brain className="h-4 w-4 mr-2" />
               AI Learning
@@ -55,6 +60,11 @@ export default function FnbSettings() {
               Integrations
             </TabsTrigger>
           </TabsList>
+
+          {/* Team Notifications Tab */}
+          <TabsContent value="team-notifications" className="space-y-6">
+            <TeamNotificationSettings />
+          </TabsContent>
 
           {/* Integrations Tab */}
           <TabsContent value="integrations" className="space-y-6">
