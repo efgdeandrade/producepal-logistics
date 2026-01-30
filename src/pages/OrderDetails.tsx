@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -65,6 +65,7 @@ interface Order {
 const OrderDetails = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [order, setOrder] = useState<Order | null>(null);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,7 +93,7 @@ const OrderDetails = () => {
       fetchFreightSettings();
       checkActualCosts();
     }
-  }, [orderId]);
+  }, [orderId, location.state]);
 
   const checkActualCosts = async () => {
     if (!orderId) return;
