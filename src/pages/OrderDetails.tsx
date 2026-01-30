@@ -583,17 +583,22 @@ const OrderDetails = () => {
       
       try {
         const customerDivs = printRef.current.querySelectorAll('[data-customer]');
+        console.log('Found customer divs:', customerDivs.length);
         
-        if (customerDivs.length > 1) {
+        // Always use multi-page approach if we have customer divs
+        if (customerDivs.length >= 1) {
           // Multiple customers - create multi-page PDF
           const customers = Array.from(customerDivs).map((div) => {
             const customerName = div.getAttribute('data-customer') || 'Unknown';
+            console.log('Processing customer:', customerName);
             return {
               element: div as HTMLElement,
               receiptNumber: `${order.order_number}-${customerName.replace(/\s+/g, '-')}`,
               customerName
             };
           });
+          
+          console.log('Total customers to generate:', customers.length);
           
           // Generate multi-page PDF with each customer on their own page
           const pdfBlob = await generateMultipleReceiptsPDF(
@@ -612,7 +617,8 @@ const OrderDetails = () => {
           
           toast.success(`Downloaded ${customers.length} packing slips as multi-page PDF`);
         } else {
-          // Single customer - download as single PDF
+          // Fallback - no customer divs found, use entire container
+          console.warn('No customer divs found, falling back to single PDF');
           const opt = {
             margin: printFormat === 'receipt' ? 0.2 : 0.5,
             filename: `packing-${order.order_number}.pdf`,
