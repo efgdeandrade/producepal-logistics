@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { formatCuracao } from '@/lib/dateUtils';
 
 interface OrderItem {
   id: string;
@@ -156,7 +157,7 @@ export const RoundupTable = ({ order, orderItems, format }: Props) => {
         <div className={`${textSize} mt-2`}>
           <p><strong>Order #:</strong> {order.order_number}</p>
           <p><strong>Week:</strong> {order.week_number}</p>
-          <p><strong>Delivery Date:</strong> {new Date(order.delivery_date).toLocaleDateString()}</p>
+          <p><strong>Delivery Date:</strong> {formatCuracao(order.delivery_date, 'PPP')}</p>
           <p><strong>Placed by:</strong> {order.placed_by}</p>
         </div>
       </div>

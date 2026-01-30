@@ -40,6 +40,7 @@ import {
   ReceiptData 
 } from '@/utils/receiptGenerator';
 import { calculateOrderPalletConfig, ProductWeightInfo } from '@/lib/weightCalculations';
+import { formatCuracao } from '@/lib/dateUtils';
 
 interface OrderItem {
   id: string;
@@ -698,7 +699,7 @@ const OrderDetails = () => {
                   <CardTitle className="text-2xl">{order.order_number}</CardTitle>
                   <div className="mt-2 space-y-1">
                     <p className="text-sm text-muted-foreground">
-                      Week {order.week_number} • Delivery: {new Date(order.delivery_date).toLocaleDateString()}
+                      Week {order.week_number} • Delivery: {formatCuracao(order.delivery_date, 'PPP')}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       Placed by: {order.placed_by} • Created: {new Date(order.created_at).toLocaleDateString()}

@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import LoadingBox from '@/components/LoadingBox';
+import { formatCuracao, parseDateCuracao } from '@/lib/dateUtils';
 
 interface Order {
   id: string;
@@ -73,8 +74,9 @@ const History = () => {
       order.order_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.placed_by.toLowerCase().includes(searchQuery.toLowerCase());
     
-    const matchesDate = !selectedDate || 
-      format(new Date(order.delivery_date), 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
+    const matchesDate =
+      !selectedDate ||
+      format(parseDateCuracao(order.delivery_date), 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
     
     return matchesSearch && matchesDate;
   });
@@ -178,7 +180,7 @@ const History = () => {
                       </span>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Week {order.week_number} • Delivery: {new Date(order.delivery_date).toLocaleDateString()} • Placed by {order.placed_by}
+                      Week {order.week_number} • Delivery: {formatCuracao(order.delivery_date, 'PPP')} • Placed by {order.placed_by}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       Total Items: <span className="font-semibold text-foreground">{order.totalItems} items</span>
