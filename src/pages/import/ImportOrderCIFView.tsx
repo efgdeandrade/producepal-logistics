@@ -20,6 +20,7 @@ interface OrderItem {
   customer_name: string;
   product_code: string;
   quantity: number;
+  is_from_stock?: boolean;
 }
 
 interface Order {
@@ -112,7 +113,10 @@ const ImportOrderCIFView = () => {
 
   const calculateWeightData = async (items: OrderItem[]) => {
     try {
-      const consolidated = items.reduce((acc, item) => {
+      // Filter out stock items - they don't need CIF calculation (already in warehouse)
+      const importItems = items.filter(item => !item.is_from_stock);
+      
+      const consolidated = importItems.reduce((acc, item) => {
         const existing = acc.find(i => i.product_code === item.product_code);
         if (existing) {
           existing.quantity += item.quantity;
@@ -265,63 +269,80 @@ const ImportOrderCIFView = () => {
             <TabsTrigger value="learning">AI Learning</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="items" className="space-y-4">
-            <OrderCIFTable 
-              orderItems={orderItems} 
-              recommendedMethod={recommendedCIFMethod}
-            />
-          </TabsContent>
+          {/* Filter out stock items for CIF calculations - they're already in warehouse */}
+          {(() => {
+            const cifOrderItems = orderItems.filter(item => !item.is_from_stock);
+            const stockItemCount = orderItems.length - cifOrderItems.length;
+            
+            return (
+              <>
+                {stockItemCount > 0 && (
+                  <div className="mb-4 p-3 bg-muted/50 rounded-lg border text-sm">
+                    <span className="font-medium">{stockItemCount} item{stockItemCount !== 1 ? 's' : ''} from stock</span>
+                    <span className="text-muted-foreground"> excluded from CIF calculations (already in warehouse)</span>
+                  </div>
+                )}
+                
+                <TabsContent value="items" className="space-y-4">
+                  <OrderCIFTable 
+                    orderItems={cifOrderItems} 
+                    recommendedMethod={recommendedCIFMethod}
+                  />
+                </TabsContent>
 
-          <TabsContent value="pallets" className="space-y-4">
-            <PalletVisualization palletConfig={palletConfig} />
-          </TabsContent>
+                <TabsContent value="pallets" className="space-y-4">
+                  <PalletVisualization palletConfig={palletConfig} />
+                </TabsContent>
 
-          <TabsContent value="cif-analytics" className="space-y-4">
-            <CIFAnalytics 
-              orderItems={orderItems} 
-              onRecommendation={setRecommendedCIFMethod}
-            />
-          </TabsContent>
+                <TabsContent value="cif-analytics" className="space-y-4">
+                  <CIFAnalytics 
+                    orderItems={cifOrderItems} 
+                    onRecommendation={setRecommendedCIFMethod}
+                  />
+                </TabsContent>
 
-          <TabsContent value="advisor" className="space-y-4">
-            {productWeightData.length > 0 && palletConfig && (
-              <DitoAdvisor
-                orderItems={productWeightData}
-                palletConfiguration={palletConfig}
-                freightCostPerKg={freightSettings.freightCostPerKg}
-                exchangeRate={freightSettings.exchangeRate}
-                onApplySuggestion={(productCode, quantity) => {
-                  toast.success(`Suggestion: Add ${quantity} units of ${productCode} to order`, {
-                    description: 'You can manually add this product to improve weight utilization',
-                  });
-                }}
-              />
-            )}
-          </TabsContent>
+                <TabsContent value="advisor" className="space-y-4">
+                  {productWeightData.length > 0 && palletConfig && (
+                    <DitoAdvisor
+                      orderItems={productWeightData}
+                      palletConfiguration={palletConfig}
+                      freightCostPerKg={freightSettings.freightCostPerKg}
+                      exchangeRate={freightSettings.exchangeRate}
+                      onApplySuggestion={(productCode, quantity) => {
+                        toast.success(`Suggestion: Add ${quantity} units of ${productCode} to order`, {
+                          description: 'You can manually add this product to improve weight utilization',
+                        });
+                      }}
+                    />
+                  )}
+                </TabsContent>
 
-          <TabsContent value="actual" className="space-y-4">
-            <ActualCIFForm
-              orderId={orderId!}
-              orderItems={orderItems}
-              estimatedFreightExterior={palletConfig?.totalChargeableWeight * freightSettings.freightCostPerKg * 0.85 || 0}
-              estimatedFreightLocal={palletConfig?.totalChargeableWeight * freightSettings.freightCostPerKg * 0.15 || 0}
-              onSaved={() => {
-                checkActualCosts();
-                toast.success("Actual costs saved! Check the Comparison tab.");
-              }}
-            />
-          </TabsContent>
+                <TabsContent value="actual" className="space-y-4">
+                  <ActualCIFForm
+                    orderId={orderId!}
+                    orderItems={cifOrderItems}
+                    estimatedFreightExterior={palletConfig?.totalChargeableWeight * freightSettings.freightCostPerKg * 0.85 || 0}
+                    estimatedFreightLocal={palletConfig?.totalChargeableWeight * freightSettings.freightCostPerKg * 0.15 || 0}
+                    onSaved={() => {
+                      checkActualCosts();
+                      toast.success("Actual costs saved! Check the Comparison tab.");
+                    }}
+                  />
+                </TabsContent>
 
-          <TabsContent value="comparison" className="space-y-4">
-            <CIFComparison
-              orderId={orderId!}
-              orderItems={orderItems}
-            />
-          </TabsContent>
+                <TabsContent value="comparison" className="space-y-4">
+                  <CIFComparison
+                    orderId={orderId!}
+                    orderItems={cifOrderItems}
+                  />
+                </TabsContent>
 
-          <TabsContent value="learning" className="space-y-4">
-            <CIFLearningInsights />
-          </TabsContent>
+                <TabsContent value="learning" className="space-y-4">
+                  <CIFLearningInsights />
+                </TabsContent>
+              </>
+            );
+          })()}
         </Tabs>
       </div>
     </div>
