@@ -32,7 +32,12 @@ export function parseDateCuracao(dateString: string): Date {
  * Format a date for display in Curaçao timezone
  */
 export function formatCuracao(date: Date | string, formatStr: string): string {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  const dateObj =
+    typeof date === 'string'
+      ? /^\d{4}-\d{2}-\d{2}$/.test(date)
+        ? parseDateCuracao(date)
+        : new Date(date)
+      : date;
   return formatInTimeZone(dateObj, CURACAO_TIMEZONE, formatStr);
 }
 
