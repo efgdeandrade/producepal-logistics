@@ -78,7 +78,7 @@ export const generateReceiptPDF = async (
 };
 
 /**
- * Generates multiple receipt PDFs and packages them in a ZIP file
+ * Generates a single multi-page PDF with each receipt on a separate page
  */
 export const generateMultipleReceiptsPDF = async (
   receipts: Array<{
@@ -90,29 +90,62 @@ export const generateMultipleReceiptsPDF = async (
   orderNumber: string,
   onProgress?: (current: number, total: number) => void
 ): Promise<Blob> => {
-  const zip = new JSZip();
+  // Dynamic import for jsPDF to access addPage functionality
+  const html2pdf = (await import('html2pdf.js')).default;
+  
+  const pageFormat = format === 'a4' ? 'a4' : [80, 297] as [number, number];
+  const margin = format === 'a4' ? 10 : 5;
+  
+  // Create a container with all receipts for proper page breaking
+  const container = document.createElement('div');
+  container.style.cssText = 'position: absolute; left: -9999px; top: 0;';
   
   for (let i = 0; i < receipts.length; i++) {
     const receipt = receipts[i];
     
-    // Notify progress
     if (onProgress) {
       onProgress(i + 1, receipts.length);
     }
     
-    // Clean customer name for filename
-    const cleanCustomerName = receipt.customerName.replace(/[^a-zA-Z0-9]/g, '-');
-    const filename = `${receipt.receiptNumber}-${cleanCustomerName}.pdf`;
+    // Clone the element
+    const clone = receipt.element.cloneNode(true) as HTMLElement;
     
-    // Generate PDF blob
-    const pdfBlob = await generateReceiptPDF(receipt.element, filename, format);
+    // Add page break after each receipt except the last
+    if (i < receipts.length - 1) {
+      clone.style.pageBreakAfter = 'always';
+      clone.style.breakAfter = 'page';
+    }
     
-    // Add to ZIP
-    zip.file(filename, pdfBlob);
+    container.appendChild(clone);
   }
   
-  // Generate ZIP file
-  return await zip.generateAsync({ type: 'blob' });
+  document.body.appendChild(container);
+  
+  try {
+    const opt = {
+      margin,
+      filename: `Receipts-${orderNumber}.pdf`,
+      image: { type: 'jpeg' as const, quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+      jsPDF: {
+        unit: 'mm' as const,
+        format: pageFormat,
+        orientation: 'portrait' as const
+      },
+      pagebreak: { mode: ['css', 'legacy'], before: '.page-break-before', after: '.page-break-after', avoid: '.avoid-break' }
+    };
+    
+    return new Promise((resolve, reject) => {
+      html2pdf()
+        .set(opt)
+        .from(container)
+        .outputPdf('blob')
+        .then((blob: Blob) => resolve(blob))
+        .catch((error: Error) => reject(error));
+    });
+  } finally {
+    document.body.removeChild(container);
+  }
 };
 
 /**
