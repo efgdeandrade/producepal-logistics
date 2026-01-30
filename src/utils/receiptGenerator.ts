@@ -227,9 +227,9 @@ export const generateMultipleReceiptsPDF = async (
 };
 
 /**
- * Generates multiple supplier order PDFs and packages them in a ZIP file
+ * Generates and downloads each supplier order as a separate PDF file
  */
-export const generateMultipleSupplierOrdersPDF = async (
+export const generateAndDownloadSupplierPDFs = async (
   suppliers: Array<{
     element: HTMLElement;
     supplierName: string;
@@ -237,16 +237,16 @@ export const generateMultipleSupplierOrdersPDF = async (
   format: 'a4' | 'receipt' = 'a4',
   orderNumber: string,
   onProgress?: (current: number, total: number) => void
-): Promise<Blob> => {
-  const zip = new JSZip();
-  
+): Promise<void> => {
   for (let i = 0; i < suppliers.length; i++) {
     const supplier = suppliers[i];
     
-    // Notify progress
     if (onProgress) {
       onProgress(i + 1, suppliers.length);
     }
+    
+    // Wait for images to load
+    await waitForImages(supplier.element);
     
     // Clean supplier name for filename
     const cleanSupplierName = supplier.supplierName.replace(/[^a-zA-Z0-9]/g, '-');
@@ -255,12 +255,14 @@ export const generateMultipleSupplierOrdersPDF = async (
     // Generate PDF blob
     const pdfBlob = await generateReceiptPDF(supplier.element, filename, format);
     
-    // Add to ZIP
-    zip.file(filename, pdfBlob);
+    // Download immediately
+    downloadBlob(pdfBlob, filename);
+    
+    // Small delay between downloads to prevent browser issues
+    if (i < suppliers.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
   }
-  
-  // Generate ZIP file
-  return await zip.generateAsync({ type: 'blob' });
 };
 
 /**
