@@ -52,6 +52,8 @@ interface OrderProduct {
   salePriceXcg: number | null;
   defaultPriceXcg: number | null;
   isFromStock: boolean;
+  lastEditedField: 'trays' | 'units' | null;
+  unitsQuantity: number | null; // explicit units from DB when user edits units directly
 }
 
 interface CustomerOrderItem {
@@ -159,10 +161,12 @@ const NewOrder = () => {
             productName: product.name,
             packSize: product.pack_size,
             trays: item.quantity,
-            units: item.quantity * product.pack_size,
+            units: item.units_quantity ?? (item.quantity * product.pack_size),
             salePriceXcg: item.sale_price_xcg ?? null,
             defaultPriceXcg: product.wholesale_price_xcg_per_unit ?? product.retail_price_xcg_per_unit ?? null,
             isFromStock: item.is_from_stock ?? false,
+            lastEditedField: item.units_quantity ? 'units' : null,
+            unitsQuantity: item.units_quantity ?? null,
           };
           
           if (existingCustomer) {
@@ -253,6 +257,8 @@ const NewOrder = () => {
           salePriceXcg: defaultPrice ?? null,
           defaultPriceXcg: defaultPrice ?? null,
           isFromStock: false,
+          lastEditedField: null,
+          unitsQuantity: null,
         }]
       };
     }));
@@ -288,7 +294,7 @@ const NewOrder = () => {
             ...co,
             products: co.products.map(p =>
               p.id === productId 
-                ? { ...p, trays, units: trays * p.packSize }
+                ? { ...p, trays, units: trays * p.packSize, lastEditedField: 'trays' as const, unitsQuantity: null }
                 : p
             )
           }
@@ -303,7 +309,7 @@ const NewOrder = () => {
             ...co,
             products: co.products.map(p =>
               p.id === productId 
-                ? { ...p, units, trays: Math.ceil(units / p.packSize) }
+                ? { ...p, units, trays: Math.ceil(units / p.packSize), lastEditedField: 'units' as const, unitsQuantity: units }
                 : p
             )
           }
@@ -347,6 +353,8 @@ const NewOrder = () => {
           salePriceXcg: defaultPrice ?? null,
           defaultPriceXcg: defaultPrice ?? null,
           isFromStock: false,
+          lastEditedField: null,
+          unitsQuantity: null,
         };
       });
 
@@ -571,6 +579,7 @@ const NewOrder = () => {
             customer_name: co.customerName,
             product_code: p.productCode,
             quantity: p.trays,
+            units_quantity: p.lastEditedField === 'units' ? p.units : null,
             sale_price_xcg: p.salePriceXcg,
             is_from_stock: p.isFromStock,
             po_number: null,
@@ -610,6 +619,7 @@ const NewOrder = () => {
             customer_name: co.customerName,
             product_code: p.productCode,
             quantity: p.trays,
+            units_quantity: p.lastEditedField === 'units' ? p.units : null,
             sale_price_xcg: p.salePriceXcg,
             is_from_stock: p.isFromStock,
             po_number: null,
