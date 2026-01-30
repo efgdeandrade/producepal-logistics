@@ -1,175 +1,126 @@
-# CIF Module Hardening & Verification Plan
 
-## Executive Summary
+# Plan: Enable Editable Units with Persistence in Import Orders
 
-This plan outlines a comprehensive approach to making the CIF calculation system bulletproof. Given that this is the core of your business, I've designed a multi-layered defense strategy with validation gates, audit trails, and fail-safes.
-
----
-
-## Implementation Status
-
-| Phase | Description | Status |
-|-------|-------------|--------|
-| 1 | Input Validation Layer | ✅ COMPLETE |
-| 2.1 | Freight Checksum | ✅ COMPLETE |
-| 3 | Audit Trail | ✅ COMPLETE |
-| 4.1 | Learning Caps | ✅ COMPLETE |
-| 5.1 | Calculation Breakdown Panel | ✅ COMPLETE |
-| 5.2 | Verification Badges | ✅ COMPLETE |
-| 6 | Test Expansion | ✅ COMPLETE (100 tests passing) |
+## Summary
+This plan adds a new `units_quantity` column to the `order_items` table so that when you edit "Units" directly (even for less than a full case), the exact value you enter is saved and persists correctly. Both "Trays/Cases" and "Units" will remain editable - whichever you change last will be saved as the source of truth.
 
 ---
 
-## Phase 1: Input Validation Layer ✅ COMPLETE
+## What Changes
 
-### Created Files
-- `src/lib/cifValidator.ts` - Comprehensive validation module with:
-  - `validateCIFInput()` - Main validation gate
-  - `validateProduct()` - Per-product checks (supplier, weight, cost, quantity)
-  - `validateOrderParams()` - Order-level checks (freight, exchange rate staleness)
-  - `verifyFreightAllocation()` - Checksum verification
-  - `verifyMargins()` - Margin consistency checks
-  - `safeAdjustmentFactor()` - Learning cap enforcement
+### 1. Database Schema Update
+Add a new column `units_quantity` to the `order_items` table to store the exact unit count you enter.
 
-### Validation Rules Implemented
-✓ Every product MUST have valid supplier assignment
-✓ Every product MUST have positive weight data
-✓ Every product MUST have valid quantity (> 0)
-✓ Exchange rate staleness check (< 24 hours)
-✓ Duplicate product code detection
-✓ Zero cost warnings
+- Column: `units_quantity` (integer, nullable, default null)
+- When `units_quantity` is set, it becomes the saved truth for quantity
+- When null, the system falls back to the existing `quantity` (trays) * pack_size calculation
 
----
+### 2. Edit Order Screen (`src/pages/NewOrder.tsx`)
 
-## Phase 2: Calculation Verification Layer ✅ COMPLETE
+**Current behavior:**
+- When you load an order, Units = `quantity * pack_size`
+- When you edit Units, it recalculates trays as `ceil(units / pack_size)`
+- On save, only `trays` is saved to the database
+- On reload, Units is recalculated, losing your exact value
 
-### Freight Allocation Checksum
-- `verifyFreightAllocation()` function validates freight sums to total
-- Tolerance configurable (default 0.01 USD)
-- Returns allocation percentage and difference
+**New behavior:**
+- Track which field was last edited (Units or Trays/Cases)
+- When saving:
+  - If Units was last edited: save `units_quantity` = your Units value, `quantity` = ceil(units / pack_size)
+  - If Trays was last edited: save `quantity` = trays, `units_quantity` = null (calculated on load)
+- On load: if `units_quantity` exists, use it; otherwise calculate from `quantity * pack_size`
 
-### Margin Consistency Check
-- `verifyMargins()` detects negative margins (errors)
-- Flags low margins below target (warnings)
-- Returns structured issue list by product
+### 3. Order Details and CIF Views
 
----
+Update these pages to use `units_quantity` when available:
+- `src/pages/OrderDetails.tsx`
+- `src/pages/import/ImportOrderCIFView.tsx`
+- `src/components/OrderCIFTable.tsx`
 
-## Phase 3: Audit Trail System ✅ COMPLETE
-
-### Database Tables Created
-- `cif_audit_log` - Full calculation history
-  - order_id, calculation_type, timestamp
-  - exchange_rate_used, total_freight_usd, distribution_method
-  - products_input (JSONB), products_output (JSONB)
-  - validation_status, validation_messages, learning_adjustments_applied
-  - created_by (user id)
-
-- `cif_anomalies` - Flagged suspicious variances
-  - product_code, estimated vs actual CIF
-  - variance_percentage, anomaly_type, severity
-  - reviewed status, review notes
-
-### Hook Created
-- `src/hooks/useCIFAudit.ts` - Provides:
-  - `logCalculation()` - Log CIF calculation to audit trail
-  - `logAnomaly()` / `logAnomalies()` - Log anomalies
-  - `getOrderAuditHistory()` - Fetch history for order
-  - `getUnreviewedAnomalies()` - Fetch unreviewed issues
-  - `markAnomalyReviewed()` - Mark as reviewed
+The logic: `totalUnits = item.units_quantity ?? (item.quantity * pack_size)`
 
 ---
 
-## Phase 4: Learning Engine Safety Gates ✅ COMPLETE
+## Files to Modify
 
-### Safety Caps Applied
-- Adjustment factor capped between 0.85 and 1.15 (±15% max)
-- Minimum sample size: 5 data points
-- Minimum confidence score: 60%
-- Anomaly threshold: 25% variance (excluded from learning)
-
-### Updated Files
-- `supabase/functions/cif-learning-engine/index.ts` - Added:
-  - `applyAdjustmentCaps()` function
-  - Anomaly detection and logging
-  - Minimum requirements enforcement
+| File | Change |
+|------|--------|
+| Database migration | Add `units_quantity` column to `order_items` |
+| `src/pages/NewOrder.tsx` | Track last-edited field, save `units_quantity`, load correctly |
+| `src/pages/OrderDetails.tsx` | Use `units_quantity` when calculating total units |
+| `src/pages/import/ImportOrderCIFView.tsx` | Use `units_quantity` when calculating total units |
+| `src/components/OrderCIFTable.tsx` | Use `units_quantity` when present |
 
 ---
 
-## Phase 5: UI Transparency Enhancements ✅ COMPLETE
+## Technical Details
 
-### Created Components
-- `src/components/CIFBreakdownPanel.tsx` - Expandable calculation breakdown:
-  - Step-by-step calculation display per product
-  - Product Cost → Freight Share → CIF USD → CIF XCG → Per Unit
-  - Learning adjustment indicators with confidence
-  - Margin summary with color-coded status
+### Database Migration SQL
+```sql
+ALTER TABLE public.order_items 
+ADD COLUMN units_quantity integer DEFAULT NULL;
 
-- `src/components/CIFVerificationBadges.tsx` - Status badges for:
-  - Freight verification status
-  - Stock items excluded count
-  - Exchange rate freshness
-  - Learning adjustments applied
+COMMENT ON COLUMN public.order_items.units_quantity IS 
+  'Explicit unit quantity when user edits units directly. 
+   When null, calculate as quantity * product.pack_size';
+```
 
----
+### State Tracking in NewOrder.tsx
+Add a field to track which was last edited:
+```typescript
+interface OrderProduct {
+  // existing fields...
+  lastEditedField: 'trays' | 'units' | null;
+  unitsQuantity: number | null; // explicit units from DB
+}
+```
 
-## Phase 6: Test Coverage ✅ COMPLETE
+### Save Logic Update
+```typescript
+// When saving order items:
+const orderItems = customerOrders.flatMap(co => 
+  co.products.map(p => ({
+    order_id: orderId,
+    customer_name: co.customerName,
+    product_code: p.productCode,
+    quantity: p.trays,
+    units_quantity: p.lastEditedField === 'units' ? p.units : null,
+    sale_price_xcg: p.salePriceXcg,
+    is_from_stock: p.isFromStock,
+    // ...
+  }))
+);
+```
 
-### Test Files
-- `src/lib/__tests__/cifHardening.test.ts` - 42 tests
-  - Validator blocking on missing data
-  - Safety cap enforcement
-  - Anomaly detection
-  - Margin verification
-  - Core formula verification
-
-- `src/lib/__tests__/cifIntegration.test.ts` - 8 tests
-  - Stock item filtering
-  - Supplier grouping
-  - Full flow simulation
-  - Edge cases (single product, small freight, high exchange rate)
-
-- `src/lib/__tests__/cifEdgeCases.test.ts` - 18 tests (updated)
-- `src/lib/__tests__/cifCalculations.test.ts` - 32 tests
-
-**Total: 100 tests passing**
-
----
-
-## Design System Updates
-
-### Added Tokens
-- `--warning` / `--warning-foreground` - Amber warning color for margin alerts
-
----
-
-## Files Created/Modified
-
-| File | Action | Purpose |
-|------|--------|---------|
-| `src/lib/cifValidator.ts` | Created | Input validation module |
-| `src/components/CIFVerificationBadges.tsx` | Created | Verification status display |
-| `src/components/CIFBreakdownPanel.tsx` | Created | Calculation transparency |
-| `src/hooks/useCIFAudit.ts` | Created | Audit trail logging |
-| `src/lib/__tests__/cifHardening.test.ts` | Created | Validator + safety tests |
-| `src/lib/__tests__/cifIntegration.test.ts` | Updated | Integration flow tests |
-| `src/lib/__tests__/cifEdgeCases.test.ts` | Updated | Fixed edge case expectations |
-| `supabase/functions/cif-learning-engine/index.ts` | Modified | Added safety caps |
-| `src/index.css` | Modified | Added warning color tokens |
-| `tailwind.config.ts` | Modified | Added warning color class |
-| Database migration | Applied | cif_audit_log + cif_anomalies tables |
+### Load Logic Update
+```typescript
+// When loading order items:
+const orderProduct = {
+  trays: item.quantity,
+  units: item.units_quantity ?? (item.quantity * product.pack_size),
+  unitsQuantity: item.units_quantity,
+  lastEditedField: item.units_quantity ? 'units' : null,
+};
+```
 
 ---
 
-## Next Steps (Optional)
+## Validation and Edge Cases
 
-### Integration into Components
-The validator, badges, and breakdown panel are ready but need to be integrated into:
-- `OrderCIFTable.tsx` - Add validation call + badges
-- `ActualCIFForm.tsx` - Add validation + audit logging on save
-- `ImportOrderCIFView.tsx` - Add validation + breakdown
+1. **Partial cases**: When units < pack_size, trays will be calculated as 1 (rounded up) but exact units are preserved
+2. **Mixed editing**: If you edit trays first, then units - the last edit wins
+3. **Backward compatibility**: Existing orders without `units_quantity` continue working (calculated from trays)
+4. **CIF calculations**: Will use the correct unit count for weight and cost calculations
+5. **Roundup table**: Will show correct totals based on actual units ordered
 
-### Remaining Enhancements
-- Automatic exchange rate refresh reminder
-- Email alerts for critical anomalies
-- Dashboard for unreviewed anomalies
+---
+
+## Testing Checklist
+
+After implementation:
+- [ ] Create new order with partial case (e.g., 5 units when pack size is 12)
+- [ ] Save and reopen - verify units still shows 5
+- [ ] Edit trays field, save, reopen - verify units recalculates correctly
+- [ ] Check CIF calculations use correct unit values
+- [ ] Verify roundup totals are accurate
+- [ ] Test editing by another staff member (management role)
