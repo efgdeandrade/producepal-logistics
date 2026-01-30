@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlusCircle, Pencil, Trash2, ArrowLeft, Search, History } from 'lucide-react';
+import { PlusCircle, Pencil, Trash2, ArrowLeft, Search, History, Copy } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
@@ -204,6 +204,59 @@ const Products = () => {
       });
     }
     setIsDialogOpen(true);
+  };
+
+  // Duplicate a product - copies all data with new code, opens dialog for editing
+  const handleDuplicateProduct = async (product: Product) => {
+    const generatedCode = await generateProductCode();
+    
+    setEditingProduct(null); // This will be a new product
+    setFormData({
+      code: generatedCode,
+      name: `${product.name} (Copy)`,
+      pack_size: product.pack_size.toString(),
+      supplier_id: product.supplier_id || '',
+      case_size: product.case_size || '',
+      consolidation_group: product.consolidation_group || '',
+      netto_weight_per_unit: product.netto_weight_per_unit?.toString() || '',
+      gross_weight_per_unit: product.gross_weight_per_unit?.toString() || '',
+      empty_case_weight: product.empty_case_weight?.toString() || '',
+      price_usd_per_unit: product.price_usd_per_unit?.toString() || '',
+      price_usd_per_case: '',
+      price_xcg_per_unit: product.price_xcg_per_unit?.toString() || '',
+      price_xcg_per_case: '',
+      wholesale_price_usd_per_unit: product.wholesale_price_usd_per_unit?.toString() || '',
+      wholesale_price_xcg_per_unit: product.wholesale_price_xcg_per_unit?.toString() || '',
+      retail_price_usd_per_unit: product.retail_price_usd_per_unit?.toString() || '',
+      retail_price_xcg_per_unit: product.retail_price_xcg_per_unit?.toString() || '',
+      unit: product.unit || '',
+      length_cm: product.length_cm?.toString() || '',
+      width_cm: product.width_cm?.toString() || '',
+      height_cm: product.height_cm?.toString() || '',
+    });
+    
+    // Copy supplier prices from original product
+    const { data: existingPrices, error } = await supabase
+      .from('product_supplier_prices')
+      .select('*')
+      .eq('product_id', product.id);
+    
+    if (!error && existingPrices) {
+      setSupplierPrices(existingPrices.map(sp => ({
+        id: undefined, // New entries, no ID yet
+        supplier_id: sp.supplier_id,
+        cost_price_usd: sp.cost_price_usd?.toString() || '',
+        cost_price_xcg: sp.cost_price_xcg?.toString() || '',
+        lead_time_days: sp.lead_time_days?.toString() || '',
+        min_order_qty: sp.min_order_qty?.toString() || '',
+        notes: sp.notes || '',
+      })));
+    } else {
+      setSupplierPrices([]);
+    }
+    
+    setIsDialogOpen(true);
+    toast({ title: 'Product duplicated', description: 'Edit the details and save as a new product.' });
   };
 
 
@@ -665,6 +718,15 @@ const Products = () => {
                   </Button>
                   {canManage && (
                     <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDuplicateProduct(product)}
+                        title="Duplicate this product"
+                      >
+                        <Copy className="h-4 w-4 mr-1" />
+                        Duplicate
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
