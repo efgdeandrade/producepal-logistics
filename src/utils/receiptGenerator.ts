@@ -63,6 +63,7 @@ export const generateReceiptPDF = async (
   const canvas = await html2canvas(element, {
     scale: 2,
     useCORS: true,
+    allowTaint: false,
     logging: false,
     backgroundColor: '#ffffff'
   });
@@ -146,6 +147,7 @@ export const generateMultipleReceiptsPDF = async (
     const canvas = await html2canvas(receipt.element, {
       scale: 2,
       useCORS: true,
+      allowTaint: false,
       logging: false,
       backgroundColor: '#ffffff'
     });

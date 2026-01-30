@@ -129,54 +129,55 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format, recei
           }
         }
       `}</style>
-      <div className={`${containerClass} ${printClass} mx-auto bg-white text-black p-6 print:p-0 font-sans`}>
-        {/* Company Header */}
+      <div className={`${containerClass} ${printClass} mx-auto bg-white text-black ${format === 'receipt' ? 'p-3' : 'p-6'} print:p-0 font-sans`}>
+        {/* Company Header - Ultra Compact for Receipt */}
         {companyInfo && (
-          <div className="text-center mb-4 pb-4 border-b-2 border-black">
+          <div className={`text-center ${format === 'receipt' ? 'mb-2 pb-1' : 'mb-4 pb-4'} border-b-2 border-black`}>
             {companyInfo.logo_url && (
               <img 
                 src={companyInfo.logo_url} 
                 alt="Company Logo" 
                 crossOrigin="anonymous"
-                className={`mx-auto mb-1 ${format === 'receipt' ? 'h-6' : 'h-16'} object-contain`}
+                className={`mx-auto ${format === 'receipt' ? 'h-5 mb-0' : 'h-16 mb-1'} object-contain`}
               />
             )}
-            <h2 className={`font-extrabold ${format === 'receipt' ? 'text-lg' : 'text-2xl'}`}>
+            <h2 className={`font-extrabold ${format === 'receipt' ? 'text-base leading-tight' : 'text-2xl'}`}>
               {companyInfo.company_name}
             </h2>
-            <div className={`${format === 'receipt' ? 'text-xs' : textSize} text-black mt-1 font-medium`}>
-              <p>{companyInfo.address_line1}{companyInfo.address_line2 ? `, ${companyInfo.address_line2}` : ''}</p>
-              <p>{companyInfo.city}, {companyInfo.postal_code}</p>
-              <p>Tel: {companyInfo.phone} | {companyInfo.email}</p>
-              {companyInfo.tax_info && <p className="text-xs mt-1 font-bold">{companyInfo.tax_info}</p>}
-            </div>
+            {format !== 'receipt' && (
+              <div className={`${textSize} text-black mt-1 font-medium`}>
+                <p>{companyInfo.address_line1}{companyInfo.address_line2 ? `, ${companyInfo.address_line2}` : ''}</p>
+                <p>{companyInfo.city}, {companyInfo.postal_code}</p>
+                <p>Tel: {companyInfo.phone} | {companyInfo.email}</p>
+                {companyInfo.tax_info && <p className="text-xs mt-1 font-bold">{companyInfo.tax_info}</p>}
+              </div>
+            )}
+            {format === 'receipt' && (
+              <p className="text-xs leading-tight">{companyInfo.phone}</p>
+            )}
           </div>
         )}
 
-        <div className="border-b-4 border-black pb-4 mb-4">
-          <h1 className={`${format === 'receipt' ? 'text-xl' : 'text-3xl'} font-extrabold text-center`}>RECEIPT</h1>
-          <div className={`${textSize} mt-2 font-bold`}>
-            <p><strong>Receipt #:</strong> {receiptNumber || `${order.order_number}-${customerName.replace(/\s+/g, '-').substring(0, 10)}`}</p>
-            <p><strong>Date:</strong> {new Date().toLocaleDateString()}</p>
-            <p><strong>Order #:</strong> {order.order_number}</p>
+        <div className={`border-b-2 border-black ${format === 'receipt' ? 'pb-1 mb-2' : 'pb-4 mb-4'}`}>
+          <h1 className={`${format === 'receipt' ? 'text-lg' : 'text-3xl'} font-extrabold text-center`}>RECEIPT</h1>
+          <div className={`${format === 'receipt' ? 'text-xs' : textSize} font-bold leading-tight`}>
+            <p>#: {receiptNumber || `${order.order_number}-${customerName.replace(/\s+/g, '-').substring(0, 8)}`} | {new Date().toLocaleDateString()}</p>
           </div>
         </div>
 
-        <div className="mb-4">
-          <h2 className={`${format === 'receipt' ? 'text-lg' : 'text-xl'} font-extrabold mb-2`}>Bill To</h2>
-          <p className={`${textSize} font-bold`}>{customerName}</p>
-          {customerItems[0]?.po_number && (
+        <div className={format === 'receipt' ? 'mb-1' : 'mb-4'}>
+          <p className={`${format === 'receipt' ? 'text-sm' : textSize} font-extrabold`}>{customerName}</p>
+          {customerItems[0]?.po_number && format !== 'receipt' && (
             <p className={`${textSize} font-bold`}><strong>PO #:</strong> {customerItems[0].po_number}</p>
           )}
         </div>
 
-        <table className="w-full border-collapse mb-4">
+        <table className={`w-full border-collapse ${format === 'receipt' ? 'mb-1' : 'mb-4'}`}>
           <thead>
-            <tr className="border-b-4 border-black">
-              <th className={`${textSize} text-left py-2 font-extrabold`}>Item</th>
-              <th className={`${textSize} text-right py-2 font-extrabold`}>Qty</th>
-              <th className={`${textSize} text-right py-2 font-extrabold`}>Price</th>
-              <th className={`${textSize} text-right py-2 font-extrabold`}>Total</th>
+            <tr className="border-b-2 border-black">
+              <th className={`${format === 'receipt' ? 'text-xs' : textSize} text-left py-1 font-extrabold`}>Item</th>
+              <th className={`${format === 'receipt' ? 'text-xs' : textSize} text-right py-1 font-extrabold`}>Qty</th>
+              <th className={`${format === 'receipt' ? 'text-xs' : textSize} text-right py-1 font-extrabold`}>Total</th>
             </tr>
           </thead>
           <tbody>
@@ -187,29 +188,27 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format, recei
               const lineTotal = units * price;
               
               return (
-                <tr key={item.id} className="border-b-2 border-black">
-                  <td className={`${textSize} py-1`}>
-                    {product && <div className="font-bold">{product.name}</div>}
-                    <div className="text-black text-xs font-medium">{item.quantity} trays × {product?.pack_size}</div>
+                <tr key={item.id} className="border-b border-black">
+                  <td className={`${format === 'receipt' ? 'text-xs py-0.5' : `${textSize} py-1`}`}>
+                    {product && <div className="font-bold leading-tight">{product.name}</div>}
+                    {format !== 'receipt' && <div className="text-xs font-medium">{item.quantity}×{product?.pack_size}</div>}
                   </td>
-                  <td className={`${textSize} text-right py-1 font-bold`}>{units}</td>
-                  <td className={`${textSize} text-right py-1 font-bold`}>Cg {price.toFixed(2)}</td>
-                  <td className={`${textSize} text-right py-1 font-bold`}>Cg {lineTotal.toFixed(2)}</td>
+                  <td className={`${format === 'receipt' ? 'text-xs py-0.5' : `${textSize} py-1`} text-right font-bold`}>{units}</td>
+                  <td className={`${format === 'receipt' ? 'text-xs py-0.5' : `${textSize} py-1`} text-right font-bold`}>{lineTotal.toFixed(2)}</td>
                 </tr>
               );
             })}
           </tbody>
           <tfoot>
-            <tr className="border-t-4 border-black">
-              <td colSpan={3} className={`${textSize} font-extrabold py-2 text-right`}>Total Amount Due:</td>
-              <td className={`${textSize} font-extrabold text-right py-2`}>Cg {calculateTotal().toFixed(2)}</td>
+            <tr className="border-t-2 border-black">
+              <td colSpan={2} className={`${format === 'receipt' ? 'text-xs py-1' : `${textSize} py-2`} font-extrabold text-right`}>Total:</td>
+              <td className={`${format === 'receipt' ? 'text-sm py-1' : `${textSize} py-2`} font-extrabold text-right`}>Cg {calculateTotal().toFixed(2)}</td>
             </tr>
           </tfoot>
         </table>
 
-        <div className={`${textSize} mt-4 pt-2 border-t-2 border-black`}>
-          <p className="font-bold">Signature: _________________________</p>
-          <p className="mt-2 text-center text-xs font-bold">Thank you!</p>
+        <div className={`${format === 'receipt' ? 'mt-1 pt-1 text-xs' : 'mt-4 pt-2'} border-t border-black`}>
+          <p className="font-bold">Sig: _______________</p>
         </div>
       </div>
     </>
