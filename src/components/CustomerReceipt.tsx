@@ -42,6 +42,7 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format, recei
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [logoLoaded, setLogoLoaded] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -138,7 +139,8 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format, recei
                 src={companyInfo.logo_url} 
                 alt="Company Logo" 
                 crossOrigin="anonymous"
-                className={`mx-auto ${format === 'receipt' ? 'h-5 mb-0' : 'h-16 mb-1'} object-contain`}
+                onLoad={() => setLogoLoaded(true)}
+                className={`mx-auto ${format === 'receipt' ? 'h-6 mb-1' : 'h-16 mb-1'} object-contain`}
               />
             )}
             <h2 className={`font-extrabold ${format === 'receipt' ? 'text-base leading-tight' : 'text-2xl'}`}>
@@ -153,7 +155,10 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format, recei
               </div>
             )}
             {format === 'receipt' && (
-              <p className="text-xs leading-tight">{companyInfo.phone}</p>
+              <div className="text-xs leading-tight">
+                <p>{companyInfo.address_line1}, {companyInfo.city}</p>
+                <p>Tel: {companyInfo.phone} | {companyInfo.email}</p>
+              </div>
             )}
           </div>
         )}
@@ -189,12 +194,12 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format, recei
               
               return (
                 <tr key={item.id} className="border-b border-black">
-                  <td className={`${format === 'receipt' ? 'text-xs py-0.5' : `${textSize} py-1`}`}>
+                  <td className={`${format === 'receipt' ? 'text-sm py-1' : `${textSize} py-1`}`}>
                     {product && <div className="font-bold leading-tight">{product.name}</div>}
                     {format !== 'receipt' && <div className="text-xs font-medium">{item.quantity}×{product?.pack_size}</div>}
                   </td>
-                  <td className={`${format === 'receipt' ? 'text-xs py-0.5' : `${textSize} py-1`} text-right font-bold`}>{units}</td>
-                  <td className={`${format === 'receipt' ? 'text-xs py-0.5' : `${textSize} py-1`} text-right font-bold`}>{lineTotal.toFixed(2)}</td>
+                  <td className={`${format === 'receipt' ? 'text-sm py-1' : `${textSize} py-1`} text-right font-bold`}>{units}</td>
+                  <td className={`${format === 'receipt' ? 'text-sm py-1' : `${textSize} py-1`} text-right font-bold`}>{lineTotal.toFixed(2)}</td>
                 </tr>
               );
             })}
