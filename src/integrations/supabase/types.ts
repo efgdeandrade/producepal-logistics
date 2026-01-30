@@ -331,6 +331,122 @@ export type Database = {
           },
         ]
       }
+      cif_anomalies: {
+        Row: {
+          actual_cif_xcg: number
+          anomaly_type: string
+          created_at: string
+          estimated_cif_xcg: number
+          excluded_from_learning: boolean
+          id: string
+          order_id: string
+          product_code: string
+          review_notes: string | null
+          reviewed: boolean
+          reviewed_at: string | null
+          reviewed_by: string | null
+          severity: string
+          supplier_id: string | null
+          variance_percentage: number
+        }
+        Insert: {
+          actual_cif_xcg: number
+          anomaly_type: string
+          created_at?: string
+          estimated_cif_xcg: number
+          excluded_from_learning?: boolean
+          id?: string
+          order_id: string
+          product_code: string
+          review_notes?: string | null
+          reviewed?: boolean
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          severity?: string
+          supplier_id?: string | null
+          variance_percentage: number
+        }
+        Update: {
+          actual_cif_xcg?: number
+          anomaly_type?: string
+          created_at?: string
+          estimated_cif_xcg?: number
+          excluded_from_learning?: boolean
+          id?: string
+          order_id?: string
+          product_code?: string
+          review_notes?: string | null
+          reviewed?: boolean
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          severity?: string
+          supplier_id?: string | null
+          variance_percentage?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cif_anomalies_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cif_audit_log: {
+        Row: {
+          blend_ratio: number | null
+          calculation_timestamp: string
+          calculation_type: string
+          created_at: string
+          created_by: string | null
+          distribution_method: string
+          exchange_rate_used: number
+          id: string
+          learning_adjustments_applied: Json | null
+          order_id: string
+          products_input: Json
+          products_output: Json
+          total_freight_usd: number
+          validation_messages: Json | null
+          validation_status: string
+        }
+        Insert: {
+          blend_ratio?: number | null
+          calculation_timestamp?: string
+          calculation_type: string
+          created_at?: string
+          created_by?: string | null
+          distribution_method: string
+          exchange_rate_used: number
+          id?: string
+          learning_adjustments_applied?: Json | null
+          order_id: string
+          products_input: Json
+          products_output: Json
+          total_freight_usd: number
+          validation_messages?: Json | null
+          validation_status?: string
+        }
+        Update: {
+          blend_ratio?: number | null
+          calculation_timestamp?: string
+          calculation_type?: string
+          created_at?: string
+          created_by?: string | null
+          distribution_method?: string
+          exchange_rate_used?: number
+          id?: string
+          learning_adjustments_applied?: Json | null
+          order_id?: string
+          products_input?: Json
+          products_output?: Json
+          total_freight_usd?: number
+          validation_messages?: Json | null
+          validation_status?: string
+        }
+        Relationships: []
+      }
       cif_calculations: {
         Row: {
           bank_charges_usd: number | null
