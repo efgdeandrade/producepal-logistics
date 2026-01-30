@@ -4293,6 +4293,7 @@ export type Database = {
           product_code: string
           quantity: number
           sale_price_xcg: number | null
+          units_quantity: number | null
         }
         Insert: {
           created_at?: string
@@ -4305,6 +4306,7 @@ export type Database = {
           product_code: string
           quantity?: number
           sale_price_xcg?: number | null
+          units_quantity?: number | null
         }
         Update: {
           created_at?: string
@@ -4317,6 +4319,7 @@ export type Database = {
           product_code?: string
           quantity?: number
           sale_price_xcg?: number | null
+          units_quantity?: number | null
         }
         Relationships: [
           {

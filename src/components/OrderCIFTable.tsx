@@ -39,6 +39,7 @@ import {
 interface OrderItem {
   product_code: string;
   quantity: number;
+  units_quantity?: number | null;
 }
 
 interface CIFResult {
@@ -124,11 +125,15 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
     try {
       setLoading(true);
 
-      // Consolidate products by code
+      // Consolidate products by code - use units_quantity when available
       const consolidatedItems = orderItems.reduce((acc, item) => {
         const existing = acc.find(i => i.product_code === item.product_code);
         if (existing) {
           existing.quantity += item.quantity;
+          // Sum units_quantity if present
+          if (item.units_quantity != null) {
+            existing.units_quantity = (existing.units_quantity || 0) + item.units_quantity;
+          }
         } else {
           acc.push({ ...item });
         }
@@ -266,7 +271,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
       const productsWithData = consolidatedItems.map(item => {
         const productData = productMap.get(item.product_code);
         const packSize = productData?.packSize || 1;
-        const totalUnits = item.quantity * packSize;
+        const totalUnits = item.units_quantity ?? (item.quantity * packSize);
         const demand = demandMap.get(item.product_code);
         
         return {

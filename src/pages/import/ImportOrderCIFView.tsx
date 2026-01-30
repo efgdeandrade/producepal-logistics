@@ -21,6 +21,7 @@ interface OrderItem {
   customer_name: string;
   product_code: string;
   quantity: number;
+  units_quantity?: number | null;
   is_from_stock?: boolean;
 }
 
@@ -117,10 +118,15 @@ const ImportOrderCIFView = () => {
       // Filter out stock items - they don't need CIF calculation (already in warehouse)
       const importItems = items.filter(item => !item.is_from_stock);
       
+      // Consolidate items by product code - use units_quantity when available
       const consolidated = importItems.reduce((acc, item) => {
         const existing = acc.find(i => i.product_code === item.product_code);
         if (existing) {
           existing.quantity += item.quantity;
+          // Sum units_quantity if present
+          if (item.units_quantity != null) {
+            existing.units_quantity = (existing.units_quantity || 0) + item.units_quantity;
+          }
         } else {
           acc.push({ ...item });
         }
@@ -157,7 +163,7 @@ const ImportOrderCIFView = () => {
             lengthCm: product.length_cm || 0,
             widthCm: product.width_cm || 0,
             heightCm: product.height_cm || 0,
-            quantity: item.quantity * (product.pack_size || 1),
+            quantity: item.units_quantity ?? (item.quantity * (product.pack_size || 1)),
             supplierId: product.supplier_id || 'unknown',
             supplierName: supplier?.name || 'Unknown Supplier',
           };
@@ -175,7 +181,7 @@ const ImportOrderCIFView = () => {
         if (!product) return null;
 
         const packSize = product.pack_size || 1;
-        const totalUnits = item.quantity * packSize;
+        const totalUnits = item.units_quantity ?? (item.quantity * packSize);
         const weightPerUnit = (product.gross_weight_per_unit || product.netto_weight_per_unit || 0) / 1000;
         const volumetricWeightPerUnit = (product.volumetric_weight_kg || 
           (product.length_cm && product.width_cm && product.height_cm 
