@@ -182,6 +182,7 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format, recei
             <tr className="border-b-2 border-black">
               <th className={`${format === 'receipt' ? 'text-xs' : textSize} text-left py-1 font-extrabold`}>Item</th>
               <th className={`${format === 'receipt' ? 'text-xs' : textSize} text-right py-1 font-extrabold`}>Qty</th>
+              <th className={`${format === 'receipt' ? 'text-xs' : textSize} text-right py-1 font-extrabold`}>Price</th>
               <th className={`${format === 'receipt' ? 'text-xs' : textSize} text-right py-1 font-extrabold`}>Total</th>
             </tr>
           </thead>
@@ -194,20 +195,21 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format, recei
               
               return (
                 <tr key={item.id} className="border-b border-black">
-                  <td className={`${format === 'receipt' ? 'text-sm py-1' : `${textSize} py-1`}`}>
+                  <td className={`${format === 'receipt' ? 'text-sm py-2' : `${textSize} py-2`}`}>
                     {product && <div className="font-bold leading-tight">{product.name}</div>}
                     {format !== 'receipt' && <div className="text-xs font-medium">{item.quantity}×{product?.pack_size}</div>}
                   </td>
-                  <td className={`${format === 'receipt' ? 'text-sm py-1' : `${textSize} py-1`} text-right font-bold`}>{units}</td>
-                  <td className={`${format === 'receipt' ? 'text-sm py-1' : `${textSize} py-1`} text-right font-bold`}>{lineTotal.toFixed(2)}</td>
+                  <td className={`${format === 'receipt' ? 'text-sm py-2' : `${textSize} py-2`} text-right font-bold`}>{units}</td>
+                  <td className={`${format === 'receipt' ? 'text-sm py-2' : `${textSize} py-2`} text-right font-bold`}>{price.toFixed(2)}</td>
+                  <td className={`${format === 'receipt' ? 'text-sm py-2' : `${textSize} py-2`} text-right font-bold`}>{lineTotal.toFixed(2)}</td>
                 </tr>
               );
             })}
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-black">
-              <td colSpan={2} className={`${format === 'receipt' ? 'text-xs py-1' : `${textSize} py-2`} font-extrabold text-right`}>Total:</td>
-              <td className={`${format === 'receipt' ? 'text-sm py-1' : `${textSize} py-2`} font-extrabold text-right`}>Cg {calculateTotal().toFixed(2)}</td>
+              <td colSpan={3} className={`${format === 'receipt' ? 'text-xs py-2' : `${textSize} py-2`} font-extrabold text-right`}>Total:</td>
+              <td className={`${format === 'receipt' ? 'text-sm py-2' : `${textSize} py-2`} font-extrabold text-right`}>Cg {calculateTotal().toFixed(2)}</td>
             </tr>
           </tfoot>
         </table>
