@@ -6,6 +6,7 @@ interface OrderItem {
   customer_name: string;
   product_code: string;
   quantity: number;
+  units_quantity?: number | null;
   is_from_stock?: boolean;
 }
 
@@ -99,21 +100,26 @@ export const SupplierOrderList = ({ order, orderItems, format }: Props) => {
     const groupMap = new Map<string, ConsolidatedGroup>();
     const individual: Array<{ code: string; name: string; quantity: number; units: number }> = [];
 
-    // STEP 1: First aggregate quantities by product code
+    // STEP 1: First aggregate quantities by product code, respecting units_quantity
     const productTotals = items.reduce((acc, item) => {
       if (!acc[item.product_code]) {
-        acc[item.product_code] = 0;
+        acc[item.product_code] = { quantity: 0, unitsQuantity: null as number | null };
       }
-      acc[item.product_code] += item.quantity;
+      acc[item.product_code].quantity += item.quantity;
+      // Sum units_quantity if present
+      if (item.units_quantity != null) {
+        acc[item.product_code].unitsQuantity = (acc[item.product_code].unitsQuantity || 0) + item.units_quantity;
+      }
       return acc;
-    }, {} as Record<string, number>);
+    }, {} as Record<string, { quantity: number; unitsQuantity: number | null }>);
 
     // STEP 2: Process aggregated totals
-    Object.entries(productTotals).forEach(([productCode, quantity]) => {
+    Object.entries(productTotals).forEach(([productCode, totals]) => {
       const product = getProductInfo(productCode);
       if (!product) return;
 
-      const units = quantity * product.pack_size;
+      // Use units_quantity if available, otherwise calculate from quantity * pack_size
+      const units = totals.unitsQuantity ?? (totals.quantity * product.pack_size);
 
       if (product.consolidation_group) {
         const groupKey = `${product.consolidation_group}-${product.pack_size}`;
@@ -136,7 +142,7 @@ export const SupplierOrderList = ({ order, orderItems, format }: Props) => {
         individual.push({
           code: product.code,
           name: product.name,
-          quantity,
+          quantity: totals.quantity,
           units
         });
       }
