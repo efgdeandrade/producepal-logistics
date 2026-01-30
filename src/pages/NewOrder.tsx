@@ -594,7 +594,7 @@ const NewOrder = () => {
         if (itemsError) throw itemsError;
 
         toast({ title: 'Success', description: 'Order updated successfully!' });
-        setTimeout(() => navigate(`/import/orders/${orderId}`), 1000);
+        setTimeout(() => navigate(`/import/orders/${orderId}`, { state: { updated: Date.now() } }), 1000);
       } else {
         // Create new order
         const { data: order, error: orderError } = await supabase
