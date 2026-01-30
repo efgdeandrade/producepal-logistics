@@ -28,6 +28,7 @@ interface Product {
   name: string;
   pack_size: number;
   supplier_id?: string;
+  consolidation_group?: string | null;
 }
 
 interface Supplier {
@@ -36,6 +37,14 @@ interface Supplier {
   contact?: string;
   email?: string;
   phone?: string;
+}
+
+interface ConsolidatedGroup {
+  groupName: string;
+  packSize: number;
+  products: Array<{ code: string; name: string; units: number }>;
+  totalUnits: number;
+  totalCases: number;
 }
 
 export const SupplierOrderList = ({ order, orderItems, format }: Props) => {
@@ -49,7 +58,7 @@ export const SupplierOrderList = ({ order, orderItems, format }: Props) => {
   const fetchData = async () => {
     const { data: productsData } = await supabase
       .from('products')
-      .select('code, name, pack_size, supplier_id');
+      .select('code, name, pack_size, supplier_id, consolidation_group');
     
     const { data: suppliersData } = await supabase
       .from('suppliers')
@@ -82,20 +91,66 @@ export const SupplierOrderList = ({ order, orderItems, format }: Props) => {
     return acc;
   }, {} as Record<string, { supplier?: Supplier; items: OrderItem[] }>);
 
+  // Calculate consolidated groups for a set of items
+  const getConsolidatedGroups = (items: OrderItem[]): { 
+    consolidated: ConsolidatedGroup[]; 
+    individual: Array<{ code: string; name: string; quantity: number; units: number }> 
+  } => {
+    const groupMap = new Map<string, ConsolidatedGroup>();
+    const individual: Array<{ code: string; name: string; quantity: number; units: number }> = [];
+
+    items.forEach(item => {
+      const product = getProductInfo(item.product_code);
+      if (!product) return;
+
+      const units = item.quantity * product.pack_size;
+
+      if (product.consolidation_group) {
+        const groupKey = `${product.consolidation_group}-${product.pack_size}`;
+        
+        if (!groupMap.has(groupKey)) {
+          groupMap.set(groupKey, {
+            groupName: product.consolidation_group,
+            packSize: product.pack_size,
+            products: [],
+            totalUnits: 0,
+            totalCases: 0
+          });
+        }
+        
+        const group = groupMap.get(groupKey)!;
+        group.products.push({ code: product.code, name: product.name, units });
+        group.totalUnits += units;
+        group.totalCases = Math.ceil(group.totalUnits / group.packSize);
+      } else {
+        individual.push({
+          code: product.code,
+          name: product.name,
+          quantity: item.quantity,
+          units
+        });
+      }
+    });
+
+    return {
+      consolidated: Array.from(groupMap.values()),
+      individual
+    };
+  };
+
   const containerClass = format === 'receipt' ? 'max-w-[80mm]' : 'max-w-[210mm]';
   const textSize = format === 'receipt' ? 'text-xs' : 'text-sm';
 
   return (
     <div className="space-y-8">
       {Object.entries(groupedBySupplier).map(([supplierName, { supplier, items }]) => {
-        // Calculate totals per product
-        const productTotals = items.reduce((acc, item) => {
-          if (!acc[item.product_code]) {
-            acc[item.product_code] = 0;
-          }
-          acc[item.product_code] += item.quantity;
-          return acc;
-        }, {} as Record<string, number>);
+        const { consolidated, individual } = getConsolidatedGroups(items);
+        
+        // Calculate grand totals
+        const totalConsolidatedCases = consolidated.reduce((sum, g) => sum + g.totalCases, 0);
+        const totalIndividualTrays = individual.reduce((sum, p) => sum + p.quantity, 0);
+        const totalUnits = consolidated.reduce((sum, g) => sum + g.totalUnits, 0) + 
+                          individual.reduce((sum, p) => sum + p.units, 0);
 
         return (
           <div key={supplierName} data-supplier={supplierName} className={`${containerClass} mx-auto bg-white text-black p-6 supplier-page`}>
@@ -120,37 +175,55 @@ export const SupplierOrderList = ({ order, orderItems, format }: Props) => {
               <thead>
                 <tr className="border-b-2 border-black">
                   <th className={`${textSize} text-left py-2`}>Product</th>
-                  <th className={`${textSize} text-right py-2`}>Trays</th>
+                  <th className={`${textSize} text-right py-2`}>Cases/Trays</th>
                   <th className={`${textSize} text-right py-2`}>Units</th>
                 </tr>
               </thead>
               <tbody>
-                {Object.entries(productTotals).map(([productCode, quantity]) => {
-                  const product = getProductInfo(productCode);
-                  const units = product ? quantity * product.pack_size : 0;
-                  return (
-                    <tr key={productCode} className="border-b border-gray-300">
-                      <td className={`${textSize} py-2`}>
-                        <div>{productCode}</div>
-                        {product && <div className="text-gray-600">{product.name}</div>}
-                      </td>
-                      <td className={`${textSize} text-right py-2`}>{quantity}</td>
-                      <td className={`${textSize} text-right py-2`}>{units}</td>
-                    </tr>
-                  );
-                })}
+                {/* Consolidated Groups */}
+                {consolidated.map((group) => (
+                  <tr key={group.groupName} className="border-b border-gray-300 bg-green-50">
+                    <td className={`${textSize} py-2`} colSpan={3}>
+                      <div className="font-bold text-green-800">
+                        {group.groupName} ({group.packSize}/case) — {group.totalCases} CASES
+                      </div>
+                      <div className="pl-4 mt-1 space-y-0.5">
+                        {group.products.map(p => (
+                          <div key={p.code} className="text-gray-600 flex justify-between">
+                            <span>↳ {p.name}</span>
+                            <span>{p.units} units</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="pl-4 mt-1 text-gray-800 font-medium border-t border-green-200 pt-1">
+                        Total: {group.totalUnits} units → {group.totalCases} cases
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+
+                {/* Individual Products (no consolidation group) */}
+                {individual.map((product) => (
+                  <tr key={product.code} className="border-b border-gray-300">
+                    <td className={`${textSize} py-2`}>
+                      <div>{product.code}</div>
+                      <div className="text-gray-600">{product.name}</div>
+                    </td>
+                    <td className={`${textSize} text-right py-2`}>{product.quantity}</td>
+                    <td className={`${textSize} text-right py-2`}>{product.units}</td>
+                  </tr>
+                ))}
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-black">
-                  <td className={`${textSize} font-bold py-2`}>Total</td>
+                  <td className={`${textSize} font-bold py-2`}>Grand Total</td>
                   <td className={`${textSize} font-bold text-right py-2`}>
-                    {Object.values(productTotals).reduce((sum, qty) => sum + qty, 0)}
+                    {totalConsolidatedCases > 0 && `${totalConsolidatedCases} cases`}
+                    {totalConsolidatedCases > 0 && totalIndividualTrays > 0 && ' + '}
+                    {totalIndividualTrays > 0 && `${totalIndividualTrays} trays`}
                   </td>
                   <td className={`${textSize} font-bold text-right py-2`}>
-                    {Object.entries(productTotals).reduce((sum, [code, qty]) => {
-                      const product = getProductInfo(code);
-                      return sum + (product ? qty * product.pack_size : 0);
-                    }, 0)}
+                    {totalUnits}
                   </td>
                 </tr>
               </tfoot>
