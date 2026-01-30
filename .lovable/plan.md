@@ -1,175 +1,281 @@
 
-# Fix: Exclude "From Stock" Items from CIF Calculations
+# CIF Module Hardening & Verification Plan
 
-## Problem Identified
+## Executive Summary
 
-Items marked as `is_from_stock = true` in the order are incorrectly being included in CIF calculations. These items:
-- Are **already in your warehouse** (not being imported)
-- Should **NOT incur freight costs**
-- Should **NOT affect CIF calculations**
-- Should **NOT appear** in supplier groupings within the CIF tables
-
-### Example
-In order `ORD-1769616092581`, the BLB_125 (Blueberries 125g) items were marked as "from stock" but are still appearing under NAU supplier in the CIF view because the filtering is not applied.
-
-### Current Behavior vs Expected
-
-| Component | Current | Expected |
-|-----------|---------|----------|
-| Supplier Order List | Correctly filters stock items | No change needed |
-| Roundup Table | Correctly filters stock items | No change needed |
-| OrderCIFTable | Includes ALL items | Filter out stock items |
-| CIFAnalytics | Includes ALL items | Filter out stock items |
-| DitoAdvisor | Includes ALL items | Filter out stock items |
-| ActualCIFForm | Includes ALL items | Filter out stock items |
-| CIFComparison | Includes ALL items | Filter out stock items |
-| ImportOrderCIFView | Includes ALL items | Filter out stock items |
+This plan outlines a comprehensive approach to making the CIF calculation system bulletproof. Given that this is the core of your business, I've designed a multi-layered defense strategy with validation gates, audit trails, and fail-safes.
 
 ---
 
-## Solution
+## Current State Assessment
 
-Apply the same filtering pattern used for `SupplierOrderList` and `RoundupTable` to all CIF-related components.
+### What's Working Well
+- **Dual calculation engines** (V1: `cifCalculations.ts`, V2: `cifCalculationsV2.ts`) with consistent formulas
+- **Comprehensive test coverage** - 491 lines of edge case tests
+- **Learning engine** with historical pattern analysis
+- **Unified Dito Advisor** integrating AI recommendations
+- **Freight allocation verification** function already exists
 
-### Files to Modify
-
-#### 1. `src/pages/OrderDetails.tsx`
-
-**Changes:**
-- Create a filtered array for CIF calculations: `const cifOrderItems = orderItems.filter(item => !item.is_from_stock);`
-- Pass `cifOrderItems` instead of `orderItems` to:
-  - `OrderCIFTable`
-  - `CIFAnalytics`
-  - `ActualCIFForm`
-  - `CIFComparison`
-- Update `calculateWeightData()` to filter stock items before processing
-
-#### 2. `src/pages/import/ImportOrderCIFView.tsx`
-
-**Changes:**
-- Update `OrderItem` interface to include `is_from_stock?: boolean`
-- Fetch `is_from_stock` column from database when querying order items
-- Filter items before passing to components:
-  - `const cifOrderItems = orderItems.filter(item => !item.is_from_stock);`
-- Update `calculateWeightData()` to filter stock items
+### Identified Gaps
+| Area | Issue | Risk Level |
+|------|-------|------------|
+| Input Validation | No pre-calculation checks for missing data | High |
+| "From Stock" Filtering | Recently fixed, but needs broader application | Medium |
+| Audit Trail | No record of calculation inputs/outputs | High |
+| Learning Safety | Adjustment factors have no safety caps | Medium |
+| UI Transparency | Users can't verify calculation steps | Medium |
+| Exchange Rate | No staleness check or source validation | Medium |
 
 ---
 
-## Technical Implementation
+## Phase 1: Input Validation Layer (Critical)
 
-### OrderDetails.tsx Changes
+### 1.1 Create CIF Validator Module
 
+Create a new file: `src/lib/cifValidator.ts`
+
+**Purpose**: Gate all CIF calculations with mandatory pre-checks
+
+**Validation Rules**:
 ```text
-Location: Line ~157 (calculateWeightData function)
+1. Every product MUST have:
+   ├─ Valid supplier assignment (not null/empty)
+   ├─ Positive weight data (gross_weight > 0 OR netto_weight > 0)
+   ├─ Valid cost per unit (≥ 0)
+   └─ Valid quantity (> 0)
 
-Before:
-  const consolidated = items.reduce(...)
+2. Order-level checks:
+   ├─ Exchange rate is current (< 24 hours old)
+   ├─ Total freight is positive
+   ├─ At least one import item exists (after stock filtering)
+   └─ No duplicate product codes in input
 
-After:
-  // Filter out stock items - they don't need CIF calculation
-  const importItems = items.filter(item => !item.is_from_stock);
-  const consolidated = importItems.reduce(...)
+3. Returns:
+   ├─ { valid: true, warnings: [] } → Proceed with calculation
+   ├─ { valid: false, errors: [], warnings: [] } → Block calculation
+   └─ Show user-friendly error messages
 ```
 
+### 1.2 Integrate Validator into Components
+
+**Files to modify**:
+- `src/components/OrderCIFTable.tsx`
+- `src/components/ActualCIFForm.tsx`
+- `src/pages/import/ImportOrderCIFView.tsx`
+
+**Changes**:
+- Add validation call before `calculateCIFByMethod`
+- Display warning badges for products with issues
+- Show blocking modal if critical data missing
+
+---
+
+## Phase 2: Calculation Verification Layer
+
+### 2.1 Freight Allocation Checksum
+
+Implement automatic verification that freight shares sum to 100%:
+
 ```text
-Location: Lines ~957-1006 (CIF component props)
-
-Before:
-  <OrderCIFTable orderItems={orderItems} .../>
-  <CIFAnalytics orderItems={orderItems} .../>
-  <ActualCIFForm orderItems={orderItems} .../>
-  <CIFComparison orderItems={orderItems} .../>
-
-After:
-  // Create filtered list for CIF (exclude stock items)
-  const cifOrderItems = orderItems.filter(item => !item.is_from_stock);
-
-  <OrderCIFTable orderItems={cifOrderItems} .../>
-  <CIFAnalytics orderItems={cifOrderItems} .../>
-  <ActualCIFForm orderItems={cifOrderItems} .../>
-  <CIFComparison orderItems={cifOrderItems} .../>
+After every CIF calculation:
+  1. Sum all freightCost values
+  2. Compare to totalFreight input
+  3. If |difference| > 0.01 USD → Log error + alert user
+  4. Display verification badge: ✓ Freight verified (100.00%)
 ```
 
-### ImportOrderCIFView.tsx Changes
+**Existing function to leverage**: `verifyFreightAllocation()` in `cifCalculations.ts`
 
+### 2.2 Dual-Path Verification (Optional Advanced)
+
+For high-value orders (> $5,000 freight):
+- Calculate using both V1 and V2 engines
+- Compare results for each product
+- Flag any CIF per unit variance > 1%
+
+### 2.3 Margin Consistency Check
+
+After calculating CIF, verify:
 ```text
-Location: Line ~18 (OrderItem interface)
-
-Before:
-  interface OrderItem {
-    id: string;
-    customer_name: string;
-    product_code: string;
-    quantity: number;
-  }
-
-After:
-  interface OrderItem {
-    id: string;
-    customer_name: string;
-    product_code: string;
-    quantity: number;
-    is_from_stock?: boolean;
-  }
-```
-
-```text
-Location: Line ~94 (fetchOrderDetails query)
-
-Before:
-  .select('*')
-
-After:
-  .select('id, customer_name, product_code, quantity, is_from_stock')
-  // (or keep '*' which already includes is_from_stock)
-```
-
-```text
-Location: Line ~113 (calculateWeightData)
-
-Before:
-  const consolidated = items.reduce(...)
-
-After:
-  // Filter out stock items from CIF calculations
-  const importItems = items.filter(item => !item.is_from_stock);
-  const consolidated = importItems.reduce(...)
-```
-
-```text
-Location: Lines ~268-319 (component rendering)
-
-Before:
-  <OrderCIFTable orderItems={orderItems} .../>
-  <CIFAnalytics orderItems={orderItems} .../>
-
-After:
-  const cifOrderItems = orderItems.filter(item => !item.is_from_stock);
-
-  <OrderCIFTable orderItems={cifOrderItems} .../>
-  <CIFAnalytics orderItems={cifOrderItems} .../>
+For each product:
+  wholesaleMargin = wholesalePrice - cifPerUnit
+  retailMargin = retailPrice - cifPerUnit
+  
+  If wholesaleMargin < 0 → Alert: "Negative margin on {product}"
+  If retailMargin < targetRetailMargin * 0.5 → Warning: "Low margin on {product}"
 ```
 
 ---
 
-## Expected Result After Fix
+## Phase 3: Audit Trail System
 
-For order `ORD-1769616092581`:
-- BLB_125 (Blueberries) marked as "from stock" will **NOT appear** in:
-  - CIF calculations
-  - Supplier groupings (NAU will not show if all its products are from stock)
-  - Weight/freight calculations
-  - Pallet configurations
-  - Dito Advisor recommendations
-- Only imported items will be included in CIF analysis
-- Total freight costs will be calculated only on imported goods
+### 3.1 Database Table
+
+Create new table: `cif_audit_log`
+
+```text
+Columns:
+  id: uuid (primary key)
+  order_id: text
+  calculation_type: text ('estimate' | 'actual')
+  calculation_timestamp: timestamp
+  exchange_rate_used: numeric
+  total_freight_usd: numeric
+  distribution_method: text
+  blend_ratio: numeric (nullable)
+  products_input: jsonb (array of inputs)
+  products_output: jsonb (array of results)
+  validation_status: text ('passed' | 'warnings' | 'failed')
+  validation_messages: jsonb
+  learning_adjustments_applied: jsonb
+  created_by: uuid (user id)
+```
+
+### 3.2 Automatic Logging
+
+**Where to log**:
+- When "Save Actual CIF" is clicked
+- When CIF estimates are generated for an order
+- When learning adjustments are applied
+
+**What to log**:
+- All input parameters
+- Complete output results
+- Which warnings were shown
+- User who performed the action
 
 ---
 
-## Visual Indicator (Optional Enhancement)
+## Phase 4: Learning Engine Safety Gates
 
-Consider adding a badge in the order summary showing:
-- **X items from stock** (excluded from CIF)
-- **Y items imported** (included in CIF)
+### 4.1 Adjustment Factor Caps
 
-This provides transparency about what's being calculated.
+Modify `supabase/functions/cif-learning-engine/index.ts`:
+
+```text
+Before storing adjustment_factor:
+  1. Cap between 0.85 and 1.15 (±15% max)
+  2. If pattern suggests > ±15%, flag for manual review
+  3. Require minimum 5 data points before applying
+  4. Require confidence score ≥ 60% before applying
+```
+
+### 4.2 Anomaly Detection
+
+Add checks to learning engine:
+```text
+If variance > 25% between estimate and actual:
+  1. Log to cif_anomalies table
+  2. Do NOT include in pattern calculation
+  3. Alert admin for manual review
+```
+
+### 4.3 Seasonal Awareness
+
+Track patterns by quarter (already exists as `season_quarter` column):
+- Compare current quarter patterns to annual average
+- Alert if seasonal adjustment > 10%
+
+---
+
+## Phase 5: UI Transparency Enhancements
+
+### 5.1 Calculation Breakdown Panel
+
+Add expandable "How was this calculated?" section:
+
+```text
+For each product:
+  ├─ Product Cost: 100 units × $1.50 = $150.00
+  ├─ Freight Share: 25.5% of $500 = $127.50
+  │   └─ Method: Proportional (by weight)
+  │   └─ Weight contribution: 127.5 kg of 500 kg total
+  ├─ CIF USD: $150.00 + $127.50 = $277.50
+  ├─ CIF XCG: $277.50 × 1.82 = Cg 505.05
+  ├─ CIF per Unit: Cg 505.05 ÷ 100 = Cg 5.05
+  └─ Learning Adjustment: +3.2% applied (85% confidence)
+```
+
+### 5.2 Verification Badges
+
+Display at top of CIF table:
+- ✓ **Freight Verified**: 100.00% allocated
+- ⚠️ **5 items from stock excluded**
+- ✓ **Exchange Rate**: 1.82 (updated 2h ago)
+- ⚠️ **Learning Applied**: 3 products adjusted
+
+### 5.3 Side-by-Side Comparison
+
+In `CIFComparison.tsx`, add:
+- Highlight variance > 5% in yellow
+- Highlight variance > 10% in red
+- Show exact $ and % difference per product
+
+---
+
+## Phase 6: Expanded Test Coverage
+
+### 6.1 New Test Categories
+
+Add to `src/lib/__tests__/cifHardening.test.ts`:
+
+```text
+Test Cases:
+  1. Real order patterns (use anonymized production data)
+  2. Multi-supplier order with stock items excluded
+  3. Exchange rate edge cases (0, negative, very high)
+  4. Learning adjustment cap enforcement
+  5. Audit log creation verification
+  6. Validator blocking on missing data
+  7. Concurrent calculation consistency
+```
+
+### 6.2 Integration Tests
+
+Create `src/lib/__tests__/cifIntegration.test.ts`:
+- Test full flow from order items → CIF table display
+- Verify stock items never appear in CIF output
+- Verify supplier groupings are correct
+
+---
+
+## Implementation Priority
+
+| Phase | Description | Effort | Impact |
+|-------|-------------|--------|--------|
+| 1 | Input Validation Layer | 2-3 hours | Prevents bad data entering system |
+| 2.1 | Freight Checksum | 30 min | Catches calculation errors |
+| 3 | Audit Trail | 2 hours | Enables debugging + compliance |
+| 4.1 | Learning Caps | 1 hour | Prevents runaway adjustments |
+| 5.2 | Verification Badges | 1 hour | User confidence + transparency |
+| 5.1 | Calculation Breakdown | 2 hours | Full transparency |
+| 6 | Test Expansion | 3 hours | Long-term reliability |
+
+---
+
+## Expected Outcomes
+
+After implementation:
+- **Zero undetected calculation errors** through multi-layer verification
+- **Full transparency** on every CIF value with step-by-step breakdown
+- **Confidence indicators** on all AI-adjusted values
+- **Audit trail** for compliance and debugging
+- **Automated safety nets** preventing bad data from affecting calculations
+- **Clear user feedback** when issues are detected
+
+---
+
+## Technical Files to Create/Modify
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `src/lib/cifValidator.ts` | Create | Input validation module |
+| `src/lib/cifCalculations.ts` | Modify | Add checksum verification |
+| `src/components/OrderCIFTable.tsx` | Modify | Add validation + badges |
+| `src/components/ActualCIFForm.tsx` | Modify | Add validation + audit logging |
+| `src/components/CIFVerificationBadges.tsx` | Create | Reusable verification display |
+| `src/components/CIFBreakdownPanel.tsx` | Create | Calculation transparency |
+| `supabase/functions/cif-learning-engine/index.ts` | Modify | Add safety caps |
+| Database migration | Create | Add cif_audit_log table |
+| `src/lib/__tests__/cifHardening.test.ts` | Create | New test suite |
+
