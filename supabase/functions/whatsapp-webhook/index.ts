@@ -6,6 +6,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Message types that should be stored in the database
+const STORABLE_MESSAGE_TYPES = [
+  'text', 'image', 'audio', 'video', 'document', 
+  'location', 'contact', 'order', 'template', 'interactive', 'button'
+];
+
+// Message types we acknowledge but don't store (reactions, stickers, etc.)
+const ACKNOWLEDGE_ONLY_TYPES = ['reaction', 'sticker', 'ephemeral', 'unsupported'];
+
 // Verify WhatsApp webhook signature (Meta/Facebook webhook security)
 function verifyWebhookSignature(signature: string | null, body: string, appSecret: string): boolean {
   if (!signature || !appSecret) return false;
@@ -29,57 +38,49 @@ function verifyWebhookSignature(signature: string | null, body: string, appSecre
   }
 }
 
-// Input validation for webhook payload
-function validateWebhookPayload(body: Record<string, unknown>): { 
-  valid: boolean; 
-  error?: string;
-  data?: { phone_number: string; message_text: string; message_id: string; message_type: string };
-} {
-  const { phone_number, message_text, message_id, message_type = 'text' } = body;
+// Extract message text from various message types
+function extractMessageContent(msg: Record<string, unknown>): { text: string; metadata: Record<string, unknown> | null } {
+  const messageType = msg.type as string || 'text';
+  let text = '';
+  let metadata: Record<string, unknown> | null = null;
   
-  // Validate phone number format (E.164 format: +[country code][number])
-  if (!phone_number || typeof phone_number !== 'string') {
-    return { valid: false, error: 'Missing phone_number' };
+  switch (messageType) {
+    case 'text':
+      text = (msg.text as { body?: string })?.body || '';
+      break;
+    case 'image':
+    case 'video':
+    case 'document':
+    case 'audio':
+      text = (msg[messageType] as { caption?: string })?.caption || `[${messageType}]`;
+      metadata = { 
+        media_id: (msg[messageType] as { id?: string })?.id,
+        mime_type: (msg[messageType] as { mime_type?: string })?.mime_type
+      };
+      break;
+    case 'location':
+      const loc = msg.location as { latitude?: number; longitude?: number; name?: string; address?: string } | undefined;
+      text = loc ? `📍 Location: ${loc.name || loc.address || `${loc.latitude}, ${loc.longitude}`}` : '[location]';
+      metadata = loc ? { latitude: loc.latitude, longitude: loc.longitude, name: loc.name } : null;
+      break;
+    case 'contact':
+      const contacts = msg.contacts as Array<{ name?: { formatted_name?: string } }> | undefined;
+      text = contacts?.[0]?.name?.formatted_name ? `📇 Contact: ${contacts[0].name.formatted_name}` : '[contact]';
+      break;
+    case 'interactive':
+    case 'button':
+      const interactive = msg.interactive as { button_reply?: { title?: string }; list_reply?: { title?: string } } | undefined;
+      text = interactive?.button_reply?.title || interactive?.list_reply?.title || '[button response]';
+      break;
+    case 'order':
+      text = '[order message]';
+      metadata = msg.order as Record<string, unknown> | null;
+      break;
+    default:
+      text = `[${messageType}]`;
   }
   
-  const phoneRegex = /^\+?[1-9]\d{1,14}$/;
-  if (!phoneRegex.test(phone_number.replace(/[\s\-()]/g, ''))) {
-    return { valid: false, error: 'Invalid phone number format' };
-  }
-  
-  // Validate message text
-  if (!message_text || typeof message_text !== 'string') {
-    return { valid: false, error: 'Missing message_text' };
-  }
-  
-  // Limit message length to prevent abuse (WhatsApp max is 65536 but we limit to 4096 for orders)
-  if (message_text.length > 4096) {
-    return { valid: false, error: 'Message text too long (max 4096 characters)' };
-  }
-  
-  // Validate message_id if provided
-  if (message_id !== undefined && message_id !== null) {
-    if (typeof message_id !== 'string' || message_id.length > 255) {
-      return { valid: false, error: 'Invalid message_id format' };
-    }
-  }
-  
-  // Validate message_type
-  const validTypes = ['text', 'image', 'audio', 'video', 'document', 'location', 'contact'];
-  const type = typeof message_type === 'string' ? message_type : 'text';
-  if (!validTypes.includes(type)) {
-    return { valid: false, error: 'Invalid message_type' };
-  }
-  
-  return { 
-    valid: true, 
-    data: { 
-      phone_number: phone_number.replace(/[\s\-()]/g, ''),
-      message_text: message_text.trim(),
-      message_id: message_id ? String(message_id) : '',
-      message_type: type
-    }
-  };
+  return { text, metadata };
 }
 
 Deno.serve(async (req) => {
@@ -162,9 +163,8 @@ Deno.serve(async (req) => {
     console.log('WhatsApp webhook received:', JSON.stringify(body));
 
     // Handle Meta's webhook format - extract message from nested structure
-    // Meta sends: { object: 'whatsapp_business_account', entry: [{ changes: [{ value: { messages: [...] } }] }] }
     if (body.object === 'whatsapp_business_account' && Array.isArray(body.entry)) {
-      const entry = body.entry[0];
+      const entry = (body.entry as Array<{ changes?: Array<{ value?: { messages?: unknown[]; statuses?: unknown; contacts?: unknown[] } }> }>)[0];
       const changes = entry?.changes?.[0];
       const value = changes?.value;
       
@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
       }
       
       // Handle incoming messages
-      const messages = value?.messages;
+      const messages = value?.messages as Array<Record<string, unknown>> | undefined;
       if (!messages || messages.length === 0) {
         console.log('No messages in webhook payload');
         return new Response(JSON.stringify({ success: true, type: 'no_messages' }), {
@@ -186,16 +186,29 @@ Deno.serve(async (req) => {
       }
       
       const msg = messages[0];
-      const contact = value?.contacts?.[0];
+      const contacts = value?.contacts as Array<{ profile?: { name?: string } }> | undefined;
+      const contact = contacts?.[0];
       
       // Extract message details from Meta format
-      const phone_number = msg.from;
-      const message_id = msg.id;
-      const message_type = msg.type || 'text';
-      const message_text = msg.text?.body || msg.caption || '';
+      const phone_number = msg.from as string;
+      const message_id = msg.id as string;
+      const message_type = (msg.type as string) || 'text';
       const customer_name = contact?.profile?.name || null;
       
-      console.log(`Processing message from ${phone_number}: "${message_text}" (type: ${message_type})`);
+      console.log(`Processing ${message_type} message from ${phone_number}`);
+      
+      // Check if this is an acknowledge-only type (reactions, stickers)
+      if (ACKNOWLEDGE_ONLY_TYPES.includes(message_type)) {
+        console.log(`Acknowledging ${message_type} message without storing`);
+        return new Response(JSON.stringify({ success: true, type: 'acknowledged', message_type }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      // Extract message content based on type
+      const { text: message_text, metadata } = extractMessageContent(msg);
+      
+      console.log(`Message content: "${message_text.substring(0, 100)}..." (type: ${message_type})`);
       
       const supabase = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
@@ -209,31 +222,42 @@ Deno.serve(async (req) => {
         .eq('whatsapp_phone', phone_number)
         .single();
 
+      // Prepare message data - use null for message_type if not in storable list
+      const messageData = {
+        direction: 'inbound' as const,
+        phone_number,
+        message_id,
+        message_text,
+        message_type: STORABLE_MESSAGE_TYPES.includes(message_type) ? message_type : 'text',
+        customer_id: customer?.id || null,
+        status: 'delivered',
+        metadata: metadata || null
+      };
+
       // Store message
       const { data: message, error: msgError } = await supabase
         .from('whatsapp_messages')
-        .insert({
-          direction: 'inbound',
-          phone_number,
-          message_id,
-          message_text,
-          message_type,
-          customer_id: customer?.id || null,
-          status: 'delivered',
-        })
+        .insert(messageData)
         .select()
         .single();
 
       if (msgError) {
         console.error('Error storing message:', msgError);
-        throw msgError;
+        // Don't throw - acknowledge the webhook but log the error
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: 'Message storage failed',
+          details: msgError.message 
+        }), {
+          status: 200, // Return 200 to prevent WhatsApp from retrying
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
       console.log(`Message stored with ID: ${message.id}`);
 
-      // Invoke AI agent for full conversation handling with auto-reply
-      // For unknown customers, orders are created without customer_id - manager assigns later
-      if (message_type === 'text') {
+      // Invoke AI agent for text messages only
+      if (message_type === 'text' && message_text.trim().length > 0) {
         try {
           console.log('Invoking AI agent for customer:', customer?.id || 'new/unknown');
           const { data: agentResult, error: agentError } = await supabase.functions.invoke('whatsapp-ai-agent', {
@@ -255,72 +279,27 @@ Deno.serve(async (req) => {
         } catch (e) {
           console.error('AI agent invocation failed:', e);
         }
+      } else if (message_type !== 'text') {
+        // For non-text messages, send a friendly response
+        console.log(`Non-text message (${message_type}) - not processing with AI`);
       }
 
-      return new Response(JSON.stringify({ success: true, message_id: message.id }), {
+      return new Response(JSON.stringify({ success: true, message_id: message.id, message_type }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Fallback for legacy/custom format - validate input
-    const validation = validateWebhookPayload(body);
-    if (!validation.valid || !validation.data) {
-      return new Response(JSON.stringify({ error: validation.error || 'Invalid payload' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const { phone_number, message_text, message_id, message_type } = validation.data;
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    // Find customer by phone
-    const { data: customer } = await supabase
-      .from('distribution_customers')
-      .select('id, name')
-      .eq('whatsapp_phone', phone_number)
-      .single();
-
-    // Store message
-    const { data: message, error: msgError } = await supabase
-      .from('whatsapp_messages')
-      .insert({
-        direction: 'inbound',
-        phone_number,
-        message_id: message_id || null,
-        message_text,
-        message_type,
-        customer_id: customer?.id || null,
-        status: 'delivered',
-      })
-      .select()
-      .single();
-
-    if (msgError) throw msgError;
-
-    // Try to parse as order
-    if (message_type === 'text' && customer) {
-      try {
-        await supabase.functions.invoke('parse-whatsapp-order', {
-          body: { message_text, customer_id: customer.id },
-        });
-      } catch (e) {
-        console.log('Order parsing skipped:', e);
-      }
-    }
-
-    return new Response(JSON.stringify({ success: true, message_id: message.id }), {
+    // Fallback for unrecognized format
+    console.log('Unrecognized webhook format, acknowledging');
+    return new Response(JSON.stringify({ success: true, type: 'unrecognized_format' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+
   } catch (error: unknown) {
     console.error('WhatsApp webhook error:', error);
-    // Return generic error message to avoid information leakage
+    // Return 200 to prevent WhatsApp from retrying on errors
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500,
+      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

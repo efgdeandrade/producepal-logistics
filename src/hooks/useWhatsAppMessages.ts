@@ -135,12 +135,12 @@ export function useWhatsAppUnreadCount() {
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ['whatsapp-unread-count'],
     queryFn: async () => {
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      // Use read_at column for accurate unread count (null means unread)
       const { count, error } = await supabase
         .from('whatsapp_messages')
         .select('*', { count: 'exact', head: true })
         .eq('direction', 'inbound')
-        .gte('created_at', oneHourAgo);
+        .is('read_at', null);
 
       if (error) throw error;
       return count || 0;
@@ -155,7 +155,7 @@ export function useWhatsAppUnreadCount() {
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'whatsapp_messages',
         },

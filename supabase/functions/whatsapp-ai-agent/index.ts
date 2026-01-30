@@ -650,6 +650,10 @@ ${escalation_reason}
           `[${new Date(m.created_at).toLocaleTimeString()}] ${m.direction === 'inbound' ? '👤' : '🤖'}: ${m.message_text}`
         ).join('\n');
         
+        // Check if customer requested specific delivery time
+        const deliveryTimeMatch = message_text.match(/(?:before|by|at|around|voor|om)\s*(\d{1,2}(?::\d{2})?\s*(?:am|pm|u|uur)?)/i);
+        const requestedDeliveryTime = deliveryTimeMatch ? deliveryTimeMatch[0] : null;
+        
         const { data: order, error: orderError } = await supabase
           .from('distribution_orders')
           .insert({
@@ -660,6 +664,8 @@ ${escalation_reason}
             source: 'whatsapp',
             total_xcg: totalAmount,
             source_conversation: snapshot,
+            requested_delivery_time: requestedDeliveryTime,
+            has_special_requirements: !!requestedDeliveryTime,
             notes: isNewCustomer ? `New WhatsApp customer - needs assignment. Phone: ${customer_phone}` : null
           })
           .select()
@@ -679,6 +685,32 @@ ${escalation_reason}
           await supabase.from('distribution_order_items').insert(orderItems);
           
           console.log('Order created:', order.id);
+          
+          // NOTIFY TEAM MEMBERS IMMEDIATELY
+          try {
+            console.log('Notifying team about new order...');
+            await supabase.functions.invoke('notify-team-order', {
+              body: {
+                order_id: order.id,
+                order_number: orderNumber,
+                customer_name: customer_name || null,
+                customer_phone: customer_phone,
+                total_xcg: totalAmount,
+                items: previousItems.map(item => ({
+                  product_name: item.product_name,
+                  quantity: item.quantity,
+                  unit_price_xcg: item.unit_price
+                })),
+                requested_delivery_time: requestedDeliveryTime,
+                has_special_requirements: !!requestedDeliveryTime,
+                notification_type: 'new_order'
+              }
+            });
+            console.log('Team notification sent');
+          } catch (notifyError) {
+            console.error('Failed to notify team:', notifyError);
+            // Don't fail the order if notification fails
+          }
           
           // Send confirmation
           await sendWhatsAppMessage(customer_phone, responseMessage);
@@ -714,7 +746,9 @@ ${escalation_reason}
             order_id: order.id,
             order_number: orderNumber,
             total: totalAmount,
-            is_new_customer: isNewCustomer
+            is_new_customer: isNewCustomer,
+            requested_delivery_time: requestedDeliveryTime,
+            team_notified: true
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
