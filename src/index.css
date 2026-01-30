@@ -146,30 +146,53 @@ All colors MUST be HSL.
     page-break-after: always;
   }
 
-  /* Hide everything except print content */
-  body > *:not(.print-container),
+  /* Hide everything by default */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Hide UI chrome elements completely */
   header,
   nav,
   aside,
   footer,
   .no-print,
-  [role="dialog"] > div:first-child, /* Dialog overlay */
   [data-radix-dialog-overlay],
   button,
-  .fixed,
+  .fixed:not([role="dialog"]),
   .sticky {
     display: none !important;
   }
 
-  /* Show print container and its contents */
+  /* Show print container and ALL its descendants */
+  .print-container {
+    visibility: visible !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+  }
+
   .print-container,
   .print-container * {
     visibility: visible !important;
   }
 
-  /* Reset dialog positioning for print */
-  [role="dialog"],
+  /* Reset dialog positioning for print - make it fill the page */
+  [role="dialog"] {
+    visibility: visible !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
   [data-radix-dialog-content] {
+    visibility: visible !important;
     position: static !important;
     transform: none !important;
     max-height: none !important;
@@ -184,8 +207,14 @@ All colors MUST be HSL.
     background: white !important;
   }
 
+  /* Hide dialog header when printing */
+  [data-radix-dialog-content] > div:first-child:has(button) {
+    display: none !important;
+  }
+
   /* Ensure receipt content fills the page properly */
   .receipt-print-content {
+    visibility: visible !important;
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;
