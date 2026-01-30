@@ -94,8 +94,12 @@ export const CustomerPackingSlip = ({ order, orderItems, format }: Props) => {
           }
         }
       `}</style>
-      {Object.entries(groupedByCustomer).map(([customerName, items]) => (
-        <div key={customerName} className={`${containerClass} mx-auto bg-white text-black p-6 page-break high-contrast-print font-sans`}>
+      {Object.entries(groupedByCustomer).map(([customerName, items], index) => (
+        <div 
+          key={customerName} 
+          data-customer={customerName}
+          className={`${containerClass} mx-auto bg-white text-black p-6 page-break high-contrast-print font-sans`}
+        >
           <div className="border-b-4 border-black pb-4 mb-4">
             <h1 className={`${format === 'receipt' ? 'text-xl' : 'text-3xl'} font-extrabold`}>PACKING SLIP</h1>
             <div className={`${textSize} mt-2 font-bold`}>
