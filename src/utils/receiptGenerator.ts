@@ -51,37 +51,71 @@ export const saveReceiptRecord = async (receiptData: ReceiptData): Promise<void>
 
 /**
  * Generates a single receipt PDF as a blob
+ * For receipts, uses auto-height to fit all content on one page (continuous thermal paper)
+ * For A4, scales content to fit if needed
  */
 export const generateReceiptPDF = async (
   element: HTMLElement,
   filename: string,
   format: 'a4' | 'receipt' = 'a4'
 ): Promise<Blob> => {
-  const opt = {
-    margin: format === 'a4' ? 10 : 5,
-    filename,
-    image: { type: 'jpeg' as const, quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-    jsPDF: {
-      unit: 'mm' as const,
-      format: format === 'a4' ? 'a4' as const : [80, 297] as [number, number],
-      orientation: 'portrait' as const
-    }
-  };
-
-  return new Promise((resolve, reject) => {
-    html2pdf()
-      .set(opt)
-      .from(element)
-      .outputPdf('blob')
-      .then((blob: Blob) => resolve(blob))
-      .catch((error: Error) => reject(error));
+  // First render to canvas to measure content
+  const canvas = await html2canvas(element, {
+    scale: 2,
+    useCORS: true,
+    logging: false,
+    backgroundColor: '#ffffff'
   });
+  
+  const margin = format === 'a4' ? 10 : 5;
+  const pageWidth = format === 'a4' ? 210 : 80;
+  const contentWidth = pageWidth - (margin * 2);
+  
+  // Calculate actual content height based on aspect ratio
+  const imgHeight = (canvas.height * contentWidth) / canvas.width;
+  
+  // For receipts: use content height + margins (continuous paper)
+  // For A4: use standard height but scale if content is too tall
+  let pageHeight: number;
+  let finalImgHeight = imgHeight;
+  let finalImgWidth = contentWidth;
+  
+  if (format === 'receipt') {
+    // Thermal receipt: page height matches content (continuous roll)
+    pageHeight = imgHeight + (margin * 2);
+  } else {
+    // A4: fixed height, scale down content if it exceeds page
+    pageHeight = 297;
+    const maxContentHeight = pageHeight - (margin * 2);
+    
+    if (imgHeight > maxContentHeight) {
+      // Scale down to fit on one page
+      const scale = maxContentHeight / imgHeight;
+      finalImgHeight = maxContentHeight;
+      finalImgWidth = contentWidth * scale;
+    }
+  }
+  
+  // Create PDF with calculated dimensions
+  const pdf = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: format === 'a4' ? 'a4' : [pageWidth, pageHeight]
+  });
+  
+  const imgData = canvas.toDataURL('image/jpeg', 0.98);
+  
+  // Center content horizontally if scaled down
+  const xOffset = format === 'a4' ? margin + (contentWidth - finalImgWidth) / 2 : margin;
+  pdf.addImage(imgData, 'JPEG', xOffset, margin, finalImgWidth, finalImgHeight);
+  
+  return pdf.output('blob');
 };
 
 /**
  * Generates a single multi-page PDF with each receipt on a separate page
- * Uses jsPDF directly for reliable page breaks with custom page sizes (80mm receipts)
+ * For receipts: each page auto-sizes to fit content (continuous thermal paper simulation)
+ * For A4: scales content to fit on standard pages
  */
 export const generateMultipleReceiptsPDF = async (
   receipts: Array<{
@@ -93,29 +127,19 @@ export const generateMultipleReceiptsPDF = async (
   orderNumber: string,
   onProgress?: (current: number, total: number) => void
 ): Promise<Blob> => {
-  // Page dimensions in mm
-  const pageWidth = format === 'a4' ? 210 : 80;
-  const pageHeight = format === 'a4' ? 297 : 297;
   const margin = format === 'a4' ? 10 : 5;
+  const pageWidth = format === 'a4' ? 210 : 80;
   const contentWidth = pageWidth - (margin * 2);
+  const a4PageHeight = 297;
+  const a4MaxContentHeight = a4PageHeight - (margin * 2);
   
-  // Create jsPDF instance
-  const pdf = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: format === 'a4' ? 'a4' : [pageWidth, pageHeight]
-  });
+  let pdf: jsPDF | null = null;
   
   for (let i = 0; i < receipts.length; i++) {
     const receipt = receipts[i];
     
     if (onProgress) {
       onProgress(i + 1, receipts.length);
-    }
-    
-    // Add new page for each receipt after the first
-    if (i > 0) {
-      pdf.addPage();
     }
     
     // Render element to canvas
@@ -126,17 +150,46 @@ export const generateMultipleReceiptsPDF = async (
       backgroundColor: '#ffffff'
     });
     
-    // Calculate dimensions to fit on page
+    // Calculate content dimensions
     const imgWidth = contentWidth;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
     
-    // Add image to PDF
+    let pageHeight: number;
+    let finalImgHeight = imgHeight;
+    let finalImgWidth = imgWidth;
+    
+    if (format === 'receipt') {
+      // Thermal receipt: page height matches content
+      pageHeight = imgHeight + (margin * 2);
+    } else {
+      // A4: fixed height, scale down if needed
+      pageHeight = a4PageHeight;
+      if (imgHeight > a4MaxContentHeight) {
+        const scale = a4MaxContentHeight / imgHeight;
+        finalImgHeight = a4MaxContentHeight;
+        finalImgWidth = imgWidth * scale;
+      }
+    }
+    
+    if (i === 0) {
+      // Create PDF with first page dimensions
+      pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: format === 'a4' ? 'a4' : [pageWidth, pageHeight]
+      });
+    } else {
+      // Add new page with custom dimensions for this receipt
+      pdf!.addPage(format === 'a4' ? 'a4' : [pageWidth, pageHeight]);
+    }
+    
     const imgData = canvas.toDataURL('image/jpeg', 0.98);
-    pdf.addImage(imgData, 'JPEG', margin, margin, imgWidth, imgHeight);
+    const xOffset = format === 'a4' ? margin + (contentWidth - finalImgWidth) / 2 : margin;
+    pdf!.addImage(imgData, 'JPEG', xOffset, margin, finalImgWidth, finalImgHeight);
   }
   
   // Return as blob
-  return pdf.output('blob');
+  return pdf!.output('blob');
 };
 
 /**
