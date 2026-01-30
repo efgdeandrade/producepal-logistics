@@ -50,6 +50,23 @@ export const saveReceiptRecord = async (receiptData: ReceiptData): Promise<void>
 };
 
 /**
+ * Waits for all images in an element to finish loading
+ * Times out after specified duration to prevent hanging
+ */
+const waitForImages = async (element: HTMLElement, timeout = 5000): Promise<void> => {
+  const images = element.querySelectorAll('img');
+  const loadPromises = Array.from(images).map((img) => {
+    if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      const timeoutId = setTimeout(resolve, timeout);
+      img.onload = () => { clearTimeout(timeoutId); resolve(); };
+      img.onerror = () => { clearTimeout(timeoutId); resolve(); };
+    });
+  });
+  await Promise.all(loadPromises);
+};
+
+/**
  * Generates a single receipt PDF as a blob
  * For receipts, uses auto-height to fit all content on one page (continuous thermal paper)
  * For A4, scales content to fit if needed
@@ -59,58 +76,73 @@ export const generateReceiptPDF = async (
   filename: string,
   format: 'a4' | 'receipt' = 'a4'
 ): Promise<Blob> => {
-  // First render to canvas to measure content
-  const canvas = await html2canvas(element, {
-    scale: 2,
-    useCORS: true,
-    allowTaint: false,
-    logging: false,
-    backgroundColor: '#ffffff'
-  });
-  
-  const margin = format === 'a4' ? 10 : 5;
-  const pageWidth = format === 'a4' ? 210 : 80;
-  const contentWidth = pageWidth - (margin * 2);
-  
-  // Calculate actual content height based on aspect ratio
-  const imgHeight = (canvas.height * contentWidth) / canvas.width;
-  
-  // For receipts: use content height + margins (continuous paper)
-  // For A4: use standard height but scale if content is too tall
-  let pageHeight: number;
-  let finalImgHeight = imgHeight;
-  let finalImgWidth = contentWidth;
-  
-  if (format === 'receipt') {
-    // Thermal receipt: page height matches content (continuous roll)
-    pageHeight = imgHeight + (margin * 2);
-  } else {
-    // A4: fixed height, scale down content if it exceeds page
-    pageHeight = 297;
-    const maxContentHeight = pageHeight - (margin * 2);
+  try {
+    // Wait for all images to load before capturing
+    await waitForImages(element);
     
-    if (imgHeight > maxContentHeight) {
-      // Scale down to fit on one page
-      const scale = maxContentHeight / imgHeight;
-      finalImgHeight = maxContentHeight;
-      finalImgWidth = contentWidth * scale;
+    // First render to canvas to measure content
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      onclone: (clonedDoc) => {
+        // Ensure images are visible in cloned document
+        const images = clonedDoc.querySelectorAll('img');
+        images.forEach(img => {
+          (img as HTMLElement).style.visibility = 'visible';
+        });
+      }
+    });
+    
+    const margin = format === 'a4' ? 10 : 5;
+    const pageWidth = format === 'a4' ? 210 : 80;
+    const contentWidth = pageWidth - (margin * 2);
+    
+    // Calculate actual content height based on aspect ratio
+    const imgHeight = (canvas.height * contentWidth) / canvas.width;
+    
+    // For receipts: use content height + margins (continuous paper)
+    // For A4: use standard height but scale if content is too tall
+    let pageHeight: number;
+    let finalImgHeight = imgHeight;
+    let finalImgWidth = contentWidth;
+    
+    if (format === 'receipt') {
+      // Thermal receipt: page height matches content (continuous roll)
+      pageHeight = imgHeight + (margin * 2);
+    } else {
+      // A4: fixed height, scale down content if it exceeds page
+      pageHeight = 297;
+      const maxContentHeight = pageHeight - (margin * 2);
+      
+      if (imgHeight > maxContentHeight) {
+        // Scale down to fit on one page
+        const scale = maxContentHeight / imgHeight;
+        finalImgHeight = maxContentHeight;
+        finalImgWidth = contentWidth * scale;
+      }
     }
+    
+    // Create PDF with calculated dimensions
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: format === 'a4' ? 'a4' : [pageWidth, pageHeight]
+    });
+    
+    const imgData = canvas.toDataURL('image/jpeg', 0.98);
+    
+    // Center content horizontally if scaled down
+    const xOffset = format === 'a4' ? margin + (contentWidth - finalImgWidth) / 2 : margin;
+    pdf.addImage(imgData, 'JPEG', xOffset, margin, finalImgWidth, finalImgHeight);
+    
+    return pdf.output('blob');
+  } catch (error) {
+    console.error('PDF generation failed:', error);
+    throw new Error('Failed to generate PDF. Please try again.');
   }
-  
-  // Create PDF with calculated dimensions
-  const pdf = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: format === 'a4' ? 'a4' : [pageWidth, pageHeight]
-  });
-  
-  const imgData = canvas.toDataURL('image/jpeg', 0.98);
-  
-  // Center content horizontally if scaled down
-  const xOffset = format === 'a4' ? margin + (contentWidth - finalImgWidth) / 2 : margin;
-  pdf.addImage(imgData, 'JPEG', xOffset, margin, finalImgWidth, finalImgHeight);
-  
-  return pdf.output('blob');
 };
 
 /**

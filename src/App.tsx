@@ -193,6 +193,15 @@ const OfflineWrapper = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Global handler to prevent unhandled promise rejections from crashing the app
+if (typeof window !== 'undefined') {
+  window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
+    console.error('Unhandled promise rejection:', event.reason);
+    // Prevent the default browser behavior (showing error in console as uncaught)
+    event.preventDefault();
+  });
+}
+
 const App = () => (
   <ThemeProvider>
     <QueryClientProvider client={queryClient}>

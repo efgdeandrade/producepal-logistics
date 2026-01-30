@@ -407,11 +407,21 @@ const OrderDetails = () => {
   const handlePrintFromPreview = async () => {
     if (!printRef.current || !order) return;
 
+    setGeneratingPDF(true);
+    
     try {
+      // Small delay to ensure DOM is fully rendered
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       // Generate a PDF from the preview DOM and print that PDF.
       // This avoids blank-page issues caused by print CSS + dialog/portal rendering.
       const filename = `${viewDialog || 'document'}-${order.order_number}.pdf`;
       const pdfBlob = await generateReceiptPDF(printRef.current, filename, printFormat);
+      
+      if (!pdfBlob || pdfBlob.size === 0) {
+        throw new Error('Generated PDF is empty');
+      }
+      
       const url = URL.createObjectURL(pdfBlob);
 
       const printWindow = window.open(url, '_blank');
@@ -434,7 +444,9 @@ const OrderDetails = () => {
       );
     } catch (error) {
       console.error('Print failed:', error);
-      toast.error('Failed to generate printable PDF');
+      toast.error('Failed to generate PDF. Please try again.');
+    } finally {
+      setGeneratingPDF(false);
     }
   };
 
