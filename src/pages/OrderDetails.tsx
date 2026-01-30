@@ -487,11 +487,11 @@ const OrderDetails = () => {
         // Dismiss progress toast
         toast.dismiss('receipt-progress');
         
-        // Download ZIP file
-        const zipFilename = `Receipts-${order.order_number}.zip`;
+        // Download as single multi-page PDF
+        const zipFilename = `Receipts-${order.order_number}.pdf`;
         downloadBlob(zipBlob, zipFilename);
         
-        toast.success(`Downloaded ${receipts.length} receipts in ZIP file`);
+        toast.success(`Downloaded ${receipts.length} receipts as multi-page PDF`);
         setViewDialog(null);
         setPendingAction(null);
         setSelectedCustomers([]);
