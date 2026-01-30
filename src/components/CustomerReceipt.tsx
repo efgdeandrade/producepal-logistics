@@ -181,9 +181,9 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format, recei
           <thead>
             <tr className="border-b-2 border-black">
               <th className={`${format === 'receipt' ? 'text-xs' : textSize} text-left py-1 font-extrabold`}>Item</th>
-              <th className={`${format === 'receipt' ? 'text-xs' : textSize} text-right py-1 font-extrabold`}>Qty</th>
-              <th className={`${format === 'receipt' ? 'text-xs' : textSize} text-right py-1 font-extrabold`}>Price</th>
-              <th className={`${format === 'receipt' ? 'text-xs' : textSize} text-right py-1 font-extrabold`}>Total</th>
+              <th className={`${format === 'receipt' ? 'text-xs' : textSize} text-right py-1 font-extrabold border-l border-black pl-2`}>Qty</th>
+              <th className={`${format === 'receipt' ? 'text-xs' : textSize} text-right py-1 font-extrabold border-l border-black pl-2`}>Price</th>
+              <th className={`${format === 'receipt' ? 'text-xs' : textSize} text-right py-1 font-extrabold border-l border-black pl-2`}>Total</th>
             </tr>
           </thead>
           <tbody>
@@ -199,9 +199,9 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format, recei
                     {product && <div className="font-bold leading-tight">{product.name}</div>}
                     {format !== 'receipt' && <div className="text-xs font-medium">{item.quantity}×{product?.pack_size}</div>}
                   </td>
-                  <td className={`${format === 'receipt' ? 'text-sm py-2' : `${textSize} py-2`} text-right font-bold`}>{units}</td>
-                  <td className={`${format === 'receipt' ? 'text-sm py-2' : `${textSize} py-2`} text-right font-bold`}>{price.toFixed(2)}</td>
-                  <td className={`${format === 'receipt' ? 'text-sm py-2' : `${textSize} py-2`} text-right font-bold`}>{lineTotal.toFixed(2)}</td>
+                  <td className={`${format === 'receipt' ? 'text-sm py-2' : `${textSize} py-2`} text-right font-bold border-l border-black pl-2`}>{units}</td>
+                  <td className={`${format === 'receipt' ? 'text-sm py-2' : `${textSize} py-2`} text-right font-bold border-l border-black pl-2`}>{price.toFixed(2)}</td>
+                  <td className={`${format === 'receipt' ? 'text-sm py-2' : `${textSize} py-2`} text-right font-bold border-l border-black pl-2`}>{lineTotal.toFixed(2)}</td>
                 </tr>
               );
             })}
@@ -209,7 +209,7 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format, recei
           <tfoot>
             <tr className="border-t-2 border-black">
               <td colSpan={3} className={`${format === 'receipt' ? 'text-xs py-2' : `${textSize} py-2`} font-extrabold text-right`}>Total:</td>
-              <td className={`${format === 'receipt' ? 'text-sm py-2' : `${textSize} py-2`} font-extrabold text-right`}>Cg {calculateTotal().toFixed(2)}</td>
+              <td className={`${format === 'receipt' ? 'text-sm py-2' : `${textSize} py-2`} font-extrabold text-right border-l border-black pl-2`}>Cg {calculateTotal().toFixed(2)}</td>
             </tr>
           </tfoot>
         </table>
