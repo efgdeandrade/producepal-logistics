@@ -12,6 +12,7 @@ import { ActualCIFForm } from '@/components/ActualCIFForm';
 import { CIFComparison } from '@/components/CIFComparison';
 import { CIFLearningInsights } from '@/components/CIFLearningInsights';
 import { PalletVisualization } from '@/components/PalletVisualization';
+import { CIFVerificationBadges } from '@/components/CIFVerificationBadges';
 import { calculateOrderPalletConfig, ProductWeightInfo } from '@/lib/weightCalculations';
 import { format } from 'date-fns';
 
@@ -276,6 +277,15 @@ const ImportOrderCIFView = () => {
             
             return (
               <>
+                {/* Top-level Verification Badges */}
+                <div className="mb-4">
+                  <CIFVerificationBadges
+                    stockItemsExcluded={stockItemCount}
+                    exchangeRate={{ rate: freightSettings.exchangeRate }}
+                    showCompact={true}
+                  />
+                </div>
+                
                 {stockItemCount > 0 && (
                   <div className="mb-4 p-3 bg-muted/50 rounded-lg border text-sm">
                     <span className="font-medium">{stockItemCount} item{stockItemCount !== 1 ? 's' : ''} from stock</span>
