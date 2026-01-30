@@ -49,6 +49,29 @@ function getCurrentQuarter(): number {
   return Math.floor(month / 3) + 1;
 }
 
+// Safety constants for learning adjustments
+const ADJUSTMENT_FACTOR_MIN = 0.85;
+const ADJUSTMENT_FACTOR_MAX = 1.15;
+const MIN_SAMPLE_SIZE = 5;
+const MIN_CONFIDENCE_SCORE = 60;
+const ANOMALY_VARIANCE_THRESHOLD = 25;
+
+// Apply safety caps to adjustment factor
+function safeAdjustmentFactor(rawFactor: number): { factor: number; wasCapped: boolean; cappedDirection?: string } {
+  if (rawFactor < ADJUSTMENT_FACTOR_MIN) {
+    return { factor: ADJUSTMENT_FACTOR_MIN, wasCapped: true, cappedDirection: 'min' };
+  }
+  if (rawFactor > ADJUSTMENT_FACTOR_MAX) {
+    return { factor: ADJUSTMENT_FACTOR_MAX, wasCapped: true, cappedDirection: 'max' };
+  }
+  return { factor: rawFactor, wasCapped: false };
+}
+
+// Check if variance is an anomaly (should be excluded from learning)
+function isAnomalyVariance(variancePercent: number): boolean {
+  return Math.abs(variancePercent) > ANOMALY_VARIANCE_THRESHOLD;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -95,42 +118,79 @@ Deno.serve(async (req) => {
     const analysisData: any[] = [];
     const currentQuarter = getCurrentQuarter();
 
+    const anomalies: any[] = [];
+    
     for (const [productCode, productEstimates] of Object.entries(productGroups)) {
       if (productEstimates.length < 2) continue;
 
-      // Calculate variance from CIF values
-      const variances = productEstimates.map(e => {
+      // Calculate variance from CIF values, filtering out anomalies
+      const variancesWithData = productEstimates.map(e => {
         if (e.estimated_cif_xcg && e.actual_cif_xcg) {
-          return ((e.actual_cif_xcg - e.estimated_cif_xcg) / e.estimated_cif_xcg) * 100;
+          return {
+            variance: ((e.actual_cif_xcg - e.estimated_cif_xcg) / e.estimated_cif_xcg) * 100,
+            data: e
+          };
         }
-        return e.variance_percentage || 0;
-      }).filter(v => !isNaN(v) && isFinite(v));
+        return { variance: e.variance_percentage || 0, data: e };
+      }).filter(v => !isNaN(v.variance) && isFinite(v.variance));
 
-      if (variances.length < 2) continue;
+      // Separate anomalies from normal variances
+      const normalVariances: number[] = [];
+      variancesWithData.forEach(v => {
+        if (isAnomalyVariance(v.variance)) {
+          anomalies.push({
+            product_code: productCode,
+            variance: v.variance,
+            estimated_date: v.data.estimated_date,
+            flagged_reason: `Variance ${v.variance.toFixed(1)}% exceeds ${ANOMALY_VARIANCE_THRESHOLD}% threshold`
+          });
+        } else {
+          normalVariances.push(v.variance);
+        }
+      });
 
-      const avgVariance = variances.reduce((sum, v) => sum + v, 0) / variances.length;
+      // Skip if not enough normal data points
+      if (normalVariances.length < MIN_SAMPLE_SIZE) {
+        console.log(`${productCode}: Insufficient normal data points (${normalVariances.length}/${MIN_SAMPLE_SIZE}), skipping learning`);
+        continue;
+      }
+
+      const avgVariance = normalVariances.reduce((sum, v) => sum + v, 0) / normalVariances.length;
       
       // Calculate standard deviation
-      const squaredDiffs = variances.map(v => Math.pow(v - avgVariance, 2));
+      const squaredDiffs = normalVariances.map(v => Math.pow(v - avgVariance, 2));
       const variance = squaredDiffs.reduce((sum, sd) => sum + sd, 0) / squaredDiffs.length;
       const stdDev = Math.sqrt(variance);
 
       // Adjustment factor: if we consistently under-estimate (negative variance), 
       // we need to increase estimates (factor > 1)
-      const adjustmentFactor = 1 + (avgVariance / 100);
+      const rawAdjustmentFactor = 1 + (avgVariance / 100);
+      
+      // Apply safety caps
+      const { factor: adjustmentFactor, wasCapped, cappedDirection } = safeAdjustmentFactor(rawAdjustmentFactor);
+      
+      if (wasCapped) {
+        console.log(`${productCode}: Adjustment factor capped from ${rawAdjustmentFactor.toFixed(3)} to ${adjustmentFactor} (${cappedDirection} cap)`);
+      }
 
       // Confidence score based on sample size and consistency
-      const sampleSizeScore = Math.min(productEstimates.length / 10, 1) * 0.5;
+      const sampleSizeScore = Math.min(normalVariances.length / 10, 1) * 0.5;
       const consistencyScore = Math.max(0, 1 - (stdDev / 50)) * 0.5;
       const confidenceScore = (sampleSizeScore + consistencyScore) * 100;
+      
+      // Only create pattern if confidence meets minimum threshold
+      if (confidenceScore < MIN_CONFIDENCE_SCORE) {
+        console.log(`${productCode}: Confidence ${confidenceScore.toFixed(1)}% below minimum ${MIN_CONFIDENCE_SCORE}%, skipping`);
+        continue;
+      }
 
       const pattern: LearningPattern = {
         pattern_key: `product_${productCode}`,
         pattern_type: 'product_freight',
-        sample_size: productEstimates.length,
+        sample_size: normalVariances.length,
         avg_variance_percentage: avgVariance,
         std_deviation: stdDev,
-        adjustment_factor: Math.max(0.5, Math.min(2.0, adjustmentFactor)), // Clamp between 0.5 and 2.0
+        adjustment_factor: adjustmentFactor,
         confidence_score: confidenceScore,
         season_quarter: currentQuarter,
       };
@@ -139,14 +199,20 @@ Deno.serve(async (req) => {
       
       analysisData.push({
         product_code: productCode,
-        sample_size: productEstimates.length,
+        sample_size: normalVariances.length,
+        anomalies_excluded: productEstimates.length - normalVariances.length,
         avg_variance: avgVariance.toFixed(2),
         std_deviation: stdDev.toFixed(2),
+        raw_adjustment_factor: rawAdjustmentFactor.toFixed(3),
         adjustment_factor: adjustmentFactor.toFixed(3),
+        was_capped: wasCapped,
         confidence: confidenceScore.toFixed(1),
         weight_types: [...new Set(productEstimates.map(e => e.weight_type_used))].join(', ')
       });
     }
+    
+    console.log(`Anomalies detected and excluded: ${anomalies.length}`);
+    console.log(`Valid patterns generated: ${patterns.length}`);
 
     // Use AI to generate insights
     const aiPrompt = `You are a freight cost analysis expert. Analyze this historical CIF data and provide actionable insights:
