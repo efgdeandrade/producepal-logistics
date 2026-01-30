@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Printer, Ban, Edit, Eye, Download, Receipt, ChevronDown, FileEdit } from 'lucide-react';
+import { ArrowLeft, Printer, Ban, Edit, Eye, Download, Receipt, ChevronDown, FileEdit, ExternalLink } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -862,19 +862,30 @@ const OrderDetails = () => {
             </Card>
           </Collapsible>
 
-        <Tabs defaultValue="items" className="w-full">
-          <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="items">Order Items</TabsTrigger>
-            <TabsTrigger value="pallets">Pallets</TabsTrigger>
-            <TabsTrigger value="cif-analytics">CIF Analytics</TabsTrigger>
-            <TabsTrigger value="advisor">Dito Advisor</TabsTrigger>
-            <TabsTrigger value="actual">Enter Actual Costs</TabsTrigger>
-            <TabsTrigger value="comparison">
-              Comparison
-              {hasActualCosts && <span className="ml-1 text-xs">✓</span>}
-            </TabsTrigger>
-            <TabsTrigger value="learning">AI Learning</TabsTrigger>
-          </TabsList>
+        <div className="flex items-center justify-between">
+          <Tabs defaultValue="items" className="w-full">
+            <div className="flex items-center justify-between mb-4">
+              <TabsList className="grid grid-cols-7">
+                <TabsTrigger value="items">Order Items</TabsTrigger>
+                <TabsTrigger value="pallets">Pallets</TabsTrigger>
+                <TabsTrigger value="cif-analytics">CIF Analytics</TabsTrigger>
+                <TabsTrigger value="advisor">Dito Advisor</TabsTrigger>
+                <TabsTrigger value="actual">Enter Actual Costs</TabsTrigger>
+                <TabsTrigger value="comparison">
+                  Comparison
+                  {hasActualCosts && <span className="ml-1 text-xs">✓</span>}
+                </TabsTrigger>
+                <TabsTrigger value="learning">AI Learning</TabsTrigger>
+              </TabsList>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => window.open(`/import/orders/${orderId}/cif`, '_blank')}
+              >
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Open in New Tab
+              </Button>
+            </div>
 
           <TabsContent value="items" className="space-y-4">
             <OrderCIFTable 
@@ -933,7 +944,8 @@ const OrderDetails = () => {
           <TabsContent value="learning" className="space-y-4">
             <CIFLearningInsights />
           </TabsContent>
-        </Tabs>
+          </Tabs>
+        </div>
         </div>
 
       <Dialog open={showFormatDialog} onOpenChange={setShowFormatDialog}>
