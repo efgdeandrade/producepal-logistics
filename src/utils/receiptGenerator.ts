@@ -1,4 +1,6 @@
 import html2pdf from 'html2pdf.js';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import JSZip from 'jszip';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -79,6 +81,7 @@ export const generateReceiptPDF = async (
 
 /**
  * Generates a single multi-page PDF with each receipt on a separate page
+ * Uses jsPDF directly for reliable page breaks with custom page sizes (80mm receipts)
  */
 export const generateMultipleReceiptsPDF = async (
   receipts: Array<{
@@ -90,15 +93,18 @@ export const generateMultipleReceiptsPDF = async (
   orderNumber: string,
   onProgress?: (current: number, total: number) => void
 ): Promise<Blob> => {
-  // Dynamic import for jsPDF to access addPage functionality
-  const html2pdf = (await import('html2pdf.js')).default;
-  
-  const pageFormat = format === 'a4' ? 'a4' : [80, 297] as [number, number];
+  // Page dimensions in mm
+  const pageWidth = format === 'a4' ? 210 : 80;
+  const pageHeight = format === 'a4' ? 297 : 297;
   const margin = format === 'a4' ? 10 : 5;
+  const contentWidth = pageWidth - (margin * 2);
   
-  // Create a container with all receipts for proper page breaking
-  const container = document.createElement('div');
-  container.style.cssText = 'position: absolute; left: -9999px; top: 0;';
+  // Create jsPDF instance
+  const pdf = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: format === 'a4' ? 'a4' : [pageWidth, pageHeight]
+  });
   
   for (let i = 0; i < receipts.length; i++) {
     const receipt = receipts[i];
@@ -107,45 +113,30 @@ export const generateMultipleReceiptsPDF = async (
       onProgress(i + 1, receipts.length);
     }
     
-    // Clone the element
-    const clone = receipt.element.cloneNode(true) as HTMLElement;
-    
-    // Add page break after each receipt except the last
-    if (i < receipts.length - 1) {
-      clone.style.pageBreakAfter = 'always';
-      clone.style.breakAfter = 'page';
+    // Add new page for each receipt after the first
+    if (i > 0) {
+      pdf.addPage();
     }
     
-    container.appendChild(clone);
-  }
-  
-  document.body.appendChild(container);
-  
-  try {
-    const opt = {
-      margin,
-      filename: `Receipts-${orderNumber}.pdf`,
-      image: { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-      jsPDF: {
-        unit: 'mm' as const,
-        format: pageFormat,
-        orientation: 'portrait' as const
-      },
-      pagebreak: { mode: ['css', 'legacy'], before: '.page-break-before', after: '.page-break-after', avoid: '.avoid-break' }
-    };
-    
-    return new Promise((resolve, reject) => {
-      html2pdf()
-        .set(opt)
-        .from(container)
-        .outputPdf('blob')
-        .then((blob: Blob) => resolve(blob))
-        .catch((error: Error) => reject(error));
+    // Render element to canvas
+    const canvas = await html2canvas(receipt.element, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff'
     });
-  } finally {
-    document.body.removeChild(container);
+    
+    // Calculate dimensions to fit on page
+    const imgWidth = contentWidth;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    // Add image to PDF
+    const imgData = canvas.toDataURL('image/jpeg', 0.98);
+    pdf.addImage(imgData, 'JPEG', margin, margin, imgWidth, imgHeight);
   }
+  
+  // Return as blob
+  return pdf.output('blob');
 };
 
 /**
