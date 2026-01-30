@@ -1,158 +1,117 @@
 
+# Fix Supplier Order List Product Consolidation
 
-# Fix Blank Page During Print
+## Problem
+When generating the Supplier Order List, the same product appears multiple times on the page - once for each customer who ordered it. Instead, products should be consolidated so each product appears only once with the total quantity across all customers.
 
-## Problem Analysis
+**Example of current (incorrect) behavior:**
+- STB_500: 12 cases (FUIK SHOP)
+- STB_500: 5 cases (CARREFOUR)
+- STB_500: 2 cases (VREUGDENHIL)
+- STB_500: 15 cases (MANGUSA HYPER)
 
-When you click Print, the page goes blank because an unhandled error crashes the React application. This happens during PDF generation when:
+**Expected (correct) behavior:**
+- STB_500: 52 cases / 520 units
 
-1. The logo image hasn't fully loaded when `html2canvas` tries to capture it
-2. Canvas operations fail silently and crash the app
-3. No global error handler catches these promise rejections
+## Root Cause
+In `SupplierOrderList.tsx`, the `getConsolidatedGroups` function iterates through order items and:
+1. For consolidated groups: pushes each item occurrence to `group.products` without aggregating same product codes
+2. For individual products: pushes each order item as a separate entry without aggregating
+
+The function needs to aggregate quantities by product code BEFORE calculating units and cases.
 
 ## Solution
 
-We need to implement three fixes:
+### File: `src/components/SupplierOrderList.tsx`
 
-1. **Add robust error handling** to the print and download functions
-2. **Wait for images to load** before capturing the page
-3. **Add a global unhandled rejection handler** as a safety net
+**Step 1: Aggregate items by product code first**
 
----
+Before processing items into consolidated groups or individual products, first sum up all quantities for each product code within the supplier's items.
 
-## Technical Implementation
+**Step 2: Update `getConsolidatedGroups` function**
 
-### File 1: `src/utils/receiptGenerator.ts`
+```text
+Current flow:
+  items.forEach(item => ...) → directly processes each item
 
-**Changes:**
-- Add image preloading before `html2canvas` capture
-- Wrap canvas operations in try-catch
-- Add timeout protection for image loading
-
-```typescript
-// Add helper function to wait for all images to load
-const waitForImages = async (element: HTMLElement, timeout = 5000): Promise<void> => {
-  const images = element.querySelectorAll('img');
-  const loadPromises = Array.from(images).map((img) => {
-    if (img.complete) return Promise.resolve();
-    return new Promise<void>((resolve) => {
-      const timeoutId = setTimeout(resolve, timeout);
-      img.onload = () => { clearTimeout(timeoutId); resolve(); };
-      img.onerror = () => { clearTimeout(timeoutId); resolve(); };
-    });
-  });
-  await Promise.all(loadPromises);
-};
-
-// Update generateReceiptPDF to wait for images
-export const generateReceiptPDF = async (...) => {
-  try {
-    // Wait for images to load first
-    await waitForImages(element);
-    
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: true, // Changed: allow tainted canvas as fallback
-      logging: false,
-      backgroundColor: '#ffffff',
-      onclone: (clonedDoc) => {
-        // Ensure images are visible in cloned document
-        const images = clonedDoc.querySelectorAll('img');
-        images.forEach(img => {
-          img.style.visibility = 'visible';
-        });
-      }
-    });
-    // ... rest of the function
-  } catch (error) {
-    console.error('PDF generation failed:', error);
-    throw new Error('Failed to generate PDF. Please try again.');
-  }
-};
+New flow:
+  1. Aggregate: sum quantities by product_code
+  2. Process aggregated totals into consolidated groups or individual products
 ```
 
-### File 2: `src/pages/OrderDetails.tsx`
+**Step 3: Fix consolidated group product tracking**
 
-**Changes to `handlePrintFromPreview`:**
-- Add loading indicator during PDF generation
-- Improve error handling with user-friendly messages
-- Add small delay before capture to ensure render is complete
+Within consolidated groups, ensure each product code appears only once with its total units (not duplicated per customer).
+
+## Technical Changes
 
 ```typescript
-const handlePrintFromPreview = async () => {
-  if (!printRef.current || !order) return;
+// In getConsolidatedGroups function:
 
-  // Add loading state
-  setGeneratingPDF(true);
-  
-  try {
-    // Small delay to ensure DOM is fully rendered
-    await new Promise(resolve => setTimeout(resolve, 100));
+// STEP 1: First aggregate quantities by product code
+const productTotals = items.reduce((acc, item) => {
+  if (!acc[item.product_code]) {
+    acc[item.product_code] = 0;
+  }
+  acc[item.product_code] += item.quantity;
+  return acc;
+}, {} as Record<string, number>);
+
+// STEP 2: Process aggregated totals
+Object.entries(productTotals).forEach(([productCode, quantity]) => {
+  const product = getProductInfo(productCode);
+  if (!product) return;
+
+  const units = quantity * product.pack_size;
+
+  if (product.consolidation_group) {
+    // Handle consolidated groups
+    const groupKey = `${product.consolidation_group}-${product.pack_size}`;
     
-    const filename = `${viewDialog || 'document'}-${order.order_number}.pdf`;
-    const pdfBlob = await generateReceiptPDF(printRef.current, filename, printFormat);
-    
-    if (!pdfBlob || pdfBlob.size === 0) {
-      throw new Error('Generated PDF is empty');
+    if (!groupMap.has(groupKey)) {
+      groupMap.set(groupKey, {
+        groupName: product.consolidation_group,
+        packSize: product.pack_size,
+        products: [],
+        totalUnits: 0,
+        totalCases: 0
+      });
     }
     
-    const url = URL.createObjectURL(pdfBlob);
-    const printWindow = window.open(url, '_blank');
-    
-    if (!printWindow) {
-      toast.error('Pop-up blocked. Please allow pop-ups to print.');
-      URL.revokeObjectURL(url);
-      return;
-    }
-    
-    printWindow.addEventListener('load', () => {
-      printWindow.focus();
-      printWindow.print();
-      setTimeout(() => URL.revokeObjectURL(url), 10_000);
-    }, { once: true });
-    
-  } catch (error) {
-    console.error('Print failed:', error);
-    toast.error('Failed to generate PDF. Please try again.');
-  } finally {
-    setGeneratingPDF(false);
+    const group = groupMap.get(groupKey)!;
+    // Each product appears once with its total
+    group.products.push({ code: product.code, name: product.name, units });
+    group.totalUnits += units;
+    group.totalCases = Math.ceil(group.totalUnits / group.packSize);
+  } else {
+    // Individual product - add once with total quantity
+    individual.push({
+      code: product.code,
+      name: product.name,
+      quantity,
+      units
+    });
   }
-};
+});
 ```
-
-### File 3: `src/App.tsx`
-
-**Add global unhandled rejection handler:**
-
-```typescript
-// Inside App component or as a useEffect in a wrapper
-useEffect(() => {
-  const handleRejection = (event: PromiseRejectionEvent) => {
-    console.error("Unhandled promise rejection:", event.reason);
-    // Don't crash the app, just log and show error
-    event.preventDefault();
-  };
-
-  window.addEventListener("unhandledrejection", handleRejection);
-  return () => window.removeEventListener("unhandledrejection", handleRejection);
-}, []);
-```
-
----
-
-## Summary of Changes
-
-| File | Change |
-|------|--------|
-| `src/utils/receiptGenerator.ts` | Add `waitForImages` helper, improve `html2canvas` options, add try-catch |
-| `src/pages/OrderDetails.tsx` | Add loading state, delay before capture, better error messages |
-| `src/App.tsx` | Add global `unhandledrejection` handler |
 
 ## Expected Result
 
-- Print button will show loading state while generating
-- If images haven't loaded, will wait up to 5 seconds
-- Errors will show a toast message instead of crashing
-- No more blank pages
+After this fix, the Supplier Order List will show:
 
+| Product | Cases/Trays | Units |
+|---------|-------------|-------|
+| STB_500 (Strawberries 500g) | 52 | 520 |
+| STB_250 (Strawberries 250g) | 3 | 60 |
+| CTO_250 (Cherry Tomatoes 250g) | 25 | 500 |
+
+For consolidated groups (e.g., HERBS_500G):
+```
+HERBS_500G (12/case) — 3 CASES
+  ↳ Basil 500g             12 units
+  ↳ Mint 500g               8 units  
+  ↳ Cilantro 500g          16 units
+  Total: 36 units → 3 cases
+```
+
+Each product appears exactly once with aggregated totals across all customers.
