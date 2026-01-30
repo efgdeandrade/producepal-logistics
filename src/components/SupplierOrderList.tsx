@@ -99,11 +99,21 @@ export const SupplierOrderList = ({ order, orderItems, format }: Props) => {
     const groupMap = new Map<string, ConsolidatedGroup>();
     const individual: Array<{ code: string; name: string; quantity: number; units: number }> = [];
 
-    items.forEach(item => {
-      const product = getProductInfo(item.product_code);
+    // STEP 1: First aggregate quantities by product code
+    const productTotals = items.reduce((acc, item) => {
+      if (!acc[item.product_code]) {
+        acc[item.product_code] = 0;
+      }
+      acc[item.product_code] += item.quantity;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // STEP 2: Process aggregated totals
+    Object.entries(productTotals).forEach(([productCode, quantity]) => {
+      const product = getProductInfo(productCode);
       if (!product) return;
 
-      const units = item.quantity * product.pack_size;
+      const units = quantity * product.pack_size;
 
       if (product.consolidation_group) {
         const groupKey = `${product.consolidation_group}-${product.pack_size}`;
@@ -126,7 +136,7 @@ export const SupplierOrderList = ({ order, orderItems, format }: Props) => {
         individual.push({
           code: product.code,
           name: product.name,
-          quantity: item.quantity,
+          quantity,
           units
         });
       }
