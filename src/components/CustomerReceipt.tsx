@@ -37,6 +37,8 @@ interface Customer {
   name: string;
 }
 
+const LOCAL_LOGO_PATH = '/images/fuik-logo.png';
+
 export const CustomerReceipt = ({ order, orderItems, customerName, format, receiptNumber }: Props) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -134,15 +136,12 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format, recei
         {/* Company Header - Ultra Compact for Receipt */}
         {companyInfo && (
           <div className={`text-center ${format === 'receipt' ? 'mb-2 pb-1' : 'mb-4 pb-4'} border-b-2 border-black`}>
-            {companyInfo.logo_url && (
-              <img 
-                src={companyInfo.logo_url} 
-                alt="Company Logo" 
-                crossOrigin="anonymous"
-                onLoad={() => setLogoLoaded(true)}
-                className={`mx-auto ${format === 'receipt' ? 'h-6 mb-1' : 'h-16 mb-1'} object-contain`}
-              />
-            )}
+            <img 
+              src={LOCAL_LOGO_PATH}
+              alt="Company Logo" 
+              onLoad={() => setLogoLoaded(true)}
+              className={`mx-auto ${format === 'receipt' ? 'h-8 mb-1' : 'h-16 mb-1'} object-contain`}
+            />
             <h2 className={`font-extrabold ${format === 'receipt' ? 'text-base leading-tight' : 'text-2xl'}`}>
               {companyInfo.company_name}
             </h2>
@@ -195,21 +194,21 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format, recei
               
               return (
                 <tr key={item.id} className="border-b border-black">
-                  <td className={`${format === 'receipt' ? 'text-sm py-2' : `${textSize} py-2`}`}>
+                  <td className={`${format === 'receipt' ? 'text-sm py-3' : `${textSize} py-3`}`}>
                     {product && <div className="font-bold leading-tight">{product.name}</div>}
                     {format !== 'receipt' && <div className="text-xs font-medium">{item.quantity}×{product?.pack_size}</div>}
                   </td>
-                  <td className={`${format === 'receipt' ? 'text-sm py-2' : `${textSize} py-2`} text-right font-bold border-l border-black pl-2`}>{units}</td>
-                  <td className={`${format === 'receipt' ? 'text-sm py-2' : `${textSize} py-2`} text-right font-bold border-l border-black pl-2`}>{price.toFixed(2)}</td>
-                  <td className={`${format === 'receipt' ? 'text-sm py-2' : `${textSize} py-2`} text-right font-bold border-l border-black pl-2`}>{lineTotal.toFixed(2)}</td>
+                  <td className={`${format === 'receipt' ? 'text-sm py-3' : `${textSize} py-3`} text-right font-bold border-l border-black pl-2`}>{units}</td>
+                  <td className={`${format === 'receipt' ? 'text-sm py-3' : `${textSize} py-3`} text-right font-bold border-l border-black pl-2`}>{price.toFixed(2)}</td>
+                  <td className={`${format === 'receipt' ? 'text-sm py-3' : `${textSize} py-3`} text-right font-bold border-l border-black pl-2`}>{lineTotal.toFixed(2)}</td>
                 </tr>
               );
             })}
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-black">
-              <td colSpan={3} className={`${format === 'receipt' ? 'text-xs py-2' : `${textSize} py-2`} font-extrabold text-right`}>Total:</td>
-              <td className={`${format === 'receipt' ? 'text-sm py-2' : `${textSize} py-2`} font-extrabold text-right border-l border-black pl-2`}>Cg {calculateTotal().toFixed(2)}</td>
+              <td colSpan={3} className={`${format === 'receipt' ? 'text-xs py-3' : `${textSize} py-3`} font-extrabold text-right`}>Total:</td>
+              <td className={`${format === 'receipt' ? 'text-sm py-3' : `${textSize} py-3`} font-extrabold text-right border-l border-black pl-2`}>Cg {calculateTotal().toFixed(2)}</td>
             </tr>
           </tfoot>
         </table>
