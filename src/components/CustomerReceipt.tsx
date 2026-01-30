@@ -213,8 +213,21 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format, recei
           </tfoot>
         </table>
 
-        <div className={`${format === 'receipt' ? 'mt-1 pt-1 text-xs' : 'mt-4 pt-2'} border-t border-black`}>
-          <p className="font-bold">Sig: _______________</p>
+        {/* Signature/Stamp Box */}
+        <div className={`${format === 'receipt' ? 'mt-2' : 'mt-4'}`}>
+          <div 
+            className={`border-2 border-black ${format === 'receipt' ? 'h-20' : 'h-28'} w-full flex flex-col justify-between p-2`}
+          >
+            <p className={`${format === 'receipt' ? 'text-xs' : 'text-sm'} font-bold text-center`}>
+              SIGNATURE / STAMP
+            </p>
+            <div className="flex-1"></div>
+            <div className="border-t border-dashed border-gray-400 mt-2 pt-1">
+              <p className={`${format === 'receipt' ? 'text-[10px]' : 'text-xs'} text-gray-600 text-center`}>
+                Received in good condition
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </>
