@@ -15,6 +15,15 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DitoAdvisor } from "./DitoAdvisor";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { CIFVerificationBadges } from "./CIFVerificationBadges";
+import { useCIFAudit } from "@/hooks/useCIFAudit";
+import {
+  validateCIFInput,
+  verifyFreightAllocation,
+  verifyMargins,
+  type ValidationResult,
+  type MarginIssue,
+} from "@/lib/cifValidator";
 
 interface SupplierWeightData {
   supplierId: string;
@@ -97,6 +106,19 @@ export function ActualCIFForm({
   // Upload keys to force remount on document upload
   const [consolidatedUploadKey, setConsolidatedUploadKey] = useState(0);
   const [freightUploadKey, setFreightUploadKey] = useState(0);
+  
+  // Validation and verification state
+  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
+  const [freightVerification, setFreightVerification] = useState<{
+    valid: boolean;
+    allocatedTotal: number;
+    totalFreight: number;
+    percentageDifference: number;
+  } | null>(null);
+  const [marginIssues, setMarginIssues] = useState<MarginIssue[]>([]);
+  
+  // Audit hook
+  const { logCalculation, logAnomaly } = useCIFAudit();
 
   // Initialize supplier data grouped by supplier
   useEffect(() => {
@@ -440,6 +462,57 @@ export function ActualCIFForm({
     };
   }, [actualFreightExterior, actualFreightLocal, actualOtherCosts, supplierWeights, exchangeRate, demandPatterns, localLogisticsUSD, laborXCG, bankChargesUSD]);
 
+  // Run validation when calculations change
+  useEffect(() => {
+    if (cifCalculations.byWeight.length > 0) {
+      const totalFreight = parseFloat(actualFreightExterior || "0") + parseFloat(actualFreightLocal || "0") + localLogisticsUSD + bankChargesUSD;
+      
+      // Create CIF inputs for validation
+      const cifInputs = cifCalculations.byWeight.map(calc => ({
+        productCode: calc.productCode,
+        productName: calc.productName,
+        quantity: calc.quantity,
+        costPerUnit: calc.costUSD / calc.quantity,
+        actualWeight: calc.actualWeight,
+        volumetricWeight: calc.volumetricWeight,
+        wholesalePriceXCG: calc.wholesalePrice,
+        retailPriceXCG: calc.retailPrice,
+        supplier: calc.suppliers.split(', ')[0]
+      }));
+      
+      const validation = validateCIFInput({
+        products: cifInputs,
+        totalFreight,
+        exchangeRate
+      });
+      setValidationResult(validation);
+      
+      // Verify freight allocation
+      const freightVerify = verifyFreightAllocation(
+        cifCalculations.byWeight.map(r => r.freightCost),
+        totalFreight
+      );
+      setFreightVerification({
+        valid: freightVerify.valid,
+        allocatedTotal: freightVerify.allocatedTotal,
+        totalFreight,
+        percentageDifference: freightVerify.percentageDifference
+      });
+      
+      // Check margins
+      const margins = verifyMargins(
+        cifCalculations.byWeight.map(r => ({
+          productCode: r.productCode,
+          productName: r.productName,
+          cifPerUnit: r.cifPerUnit,
+          wholesalePrice: r.wholesalePrice,
+          retailPrice: r.retailPrice
+        }))
+      );
+      setMarginIssues(margins);
+    }
+  }, [cifCalculations, actualFreightExterior, actualFreightLocal, localLogisticsUSD, bankChargesUSD, exchangeRate]);
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -447,7 +520,7 @@ export function ActualCIFForm({
         parseFloat(actualFreightExterior || "0") + 
         parseFloat(actualFreightLocal || "0");
       const totalEstimatedFreight = estimatedFreightExterior + estimatedFreightLocal;
-      const calculations = cifCalculations.byWeight; // Save "by weight" as default
+      const calculations = cifCalculations.byWeight;
 
       // Save each product's actual CIF data using UPSERT
       for (const calc of calculations) {
@@ -480,6 +553,50 @@ export function ActualCIFForm({
         );
 
         if (error) throw error;
+      }
+      
+      // Log to audit trail
+      await logCalculation({
+        orderId,
+        calculationType: 'actual',
+        distributionMethod: 'byWeight',
+        exchangeRateUsed: exchangeRate,
+        totalFreightUsd: totalActualFreight + localLogisticsUSD + bankChargesUSD,
+        productsInput: calculations.map(c => ({
+          productCode: c.productCode,
+          quantity: c.quantity,
+          costPerUnit: c.costUSD / c.quantity,
+          actualWeight: c.actualWeight,
+          volumetricWeight: c.volumetricWeight
+        })),
+        productsOutput: calculations.map(c => ({
+          productCode: c.productCode,
+          freightCost: c.freightCost,
+          cifUSD: c.cifUSD,
+          cifXCG: c.cifXCG,
+          cifPerUnit: c.cifPerUnit
+        })),
+        validationStatus: validationResult?.valid ? 'passed' : (validationResult?.warnings.length ? 'warnings' : 'failed'),
+        validationMessages: [...(validationResult?.errors || []), ...(validationResult?.warnings || [])]
+      });
+      
+      // Log anomalies for high-variance items
+      const variancePercent = totalEstimatedFreight > 0 
+        ? ((totalActualFreight - totalEstimatedFreight) / totalEstimatedFreight) * 100 
+        : 0;
+        
+      for (const calc of calculations) {
+        if (Math.abs(variancePercent) > 25) {
+          await logAnomaly({
+            orderId,
+            productCode: calc.productCode,
+            anomalyType: 'high_variance',
+            estimatedCifXcg: calc.cifXCG * (1 - variancePercent/100),
+            actualCifXcg: calc.cifXCG,
+            variancePercentage: variancePercent,
+            severity: Math.abs(variancePercent) > 50 ? 'critical' : 'warning'
+          });
+        }
       }
 
       toast.success("Actual CIF costs saved successfully");
@@ -1055,6 +1172,17 @@ export function ActualCIFForm({
             </Card>
 
             <Separator />
+            
+            {/* Verification Badges */}
+            <div className="py-4">
+              <CIFVerificationBadges
+                validationResult={validationResult || undefined}
+                freightVerification={freightVerification || undefined}
+                marginIssues={marginIssues}
+                exchangeRate={{ rate: exchangeRate }}
+                showCompact={false}
+              />
+            </div>
 
             {/* 7 Allocation Methods Tabs */}
             <Tabs defaultValue="byWeight">

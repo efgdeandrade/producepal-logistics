@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Calculator, Award, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { VolumetricWeightAlert } from './VolumetricWeightAlert';
+import { CIFVerificationBadges } from './CIFVerificationBadges';
+import { CIFBreakdownPanel } from './CIFBreakdownPanel';
 import {
   TableBody,
   TableCell,
@@ -26,6 +28,13 @@ import {
   DEFAULT_RETAIL_MULTIPLIER,
   DEFAULT_LOCAL_LOGISTICS_USD,
 } from '@/lib/cifCalculations';
+import {
+  validateCIFInput,
+  verifyFreightAllocation,
+  verifyMargins,
+  type ValidationResult,
+  type MarginIssue,
+} from '@/lib/cifValidator';
 
 interface OrderItem {
   product_code: string;
@@ -94,6 +103,18 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
     totalVolumetricWeight: number;
     totalChargeableWeight: number;
   } | null>(null);
+  
+  // Validation and verification state
+  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
+  const [freightVerification, setFreightVerification] = useState<{
+    valid: boolean;
+    allocatedTotal: number;
+    totalFreight: number;
+    percentageDifference: number;
+  } | null>(null);
+  const [marginIssues, setMarginIssues] = useState<MarginIssue[]>([]);
+  const [totalFreight, setTotalFreight] = useState(0);
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
   useEffect(() => {
     calculateCIF();
@@ -329,7 +350,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
       });
       
       // Total freight using shared calculation
-      const totalFreight = calculateTotalFreightFromRates(
+      const totalFreightCalc = calculateTotalFreightFromRates(
         totalChargeableWeight,
         freightExteriorPerKg,
         freightLocalPerKg,
@@ -351,10 +372,21 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
         retailPriceXCG: product.retailPriceXCG,
         supplier: product.supplier,
       }));
+      
+      // Store freight for verification
+      setTotalFreight(totalFreightCalc);
+      
+      // Run validation before calculation
+      const validation = validateCIFInput({
+        products: cifInputs,
+        totalFreight: totalFreightCalc,
+        exchangeRate: exchangeRateValue
+      });
+      setValidationResult(validation);
 
       // Create CIF params
       const cifParams: CIFParams = {
-        totalFreight,
+        totalFreight: totalFreightCalc,
         exchangeRate: exchangeRateValue,
         limitingFactor: determineLimitingFactor(totalActualWeight, totalVolumetricWeight),
         wholesaleMultiplier: DEFAULT_WHOLESALE_MULTIPLIER,
@@ -404,7 +436,7 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
         });
       };
 
-      setCifResults({
+      const allResults = {
         byWeight: calculateResultsWithExtras('byWeight'),
         byCost: calculateResultsWithExtras('byCost'),
         equally: calculateResultsWithExtras('equally'),
@@ -412,7 +444,35 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
         strategic: calculateResultsWithExtras('strategic'),
         volumeOptimized: calculateResultsWithExtras('volumeOptimized'),
         customerTier: calculateResultsWithExtras('customerTier'),
+      };
+      
+      setCifResults(allResults);
+      
+      // Verify freight allocation (using byWeight as reference)
+      const freightVerify = verifyFreightAllocation(
+        allResults.byWeight.map(r => r.freightCost),
+        totalFreightCalc
+      );
+      setFreightVerification({
+        valid: freightVerify.valid,
+        allocatedTotal: freightVerify.allocatedTotal,
+        totalFreight: totalFreightCalc,
+        percentageDifference: freightVerify.percentageDifference
       });
+      
+      // Check margins
+      const margins = verifyMargins(
+        allResults.byWeight.map(r => ({
+          productCode: r.productCode,
+          productName: r.productName,
+          cifPerUnit: r.cifPerUnit,
+          wholesalePrice: r.wholesalePrice,
+          retailPrice: r.retailPrice
+        })),
+        targetWholesale,
+        targetRetail
+      );
+      setMarginIssues(margins);
       
       // Store weight data for display
       setProductsWeightData(productsWithWeight);
@@ -731,6 +791,17 @@ export const OrderCIFTable = ({ orderItems, recommendedMethod }: OrderCIFTablePr
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {/* Verification Badges */}
+        <div className="mb-4">
+          <CIFVerificationBadges
+            validationResult={validationResult || undefined}
+            freightVerification={freightVerification || undefined}
+            marginIssues={marginIssues}
+            exchangeRate={{ rate: exchangeRate }}
+            showCompact={true}
+          />
+        </div>
+        
         {recommendedMethod && cifResults && (
           <div className="mb-4 p-3 bg-primary/5 border border-primary/20 rounded-lg">
             <div className="flex items-center gap-2 mb-2">
