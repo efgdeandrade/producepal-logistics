@@ -577,8 +577,68 @@ const OrderDetails = () => {
       } finally {
         setGeneratingPDF(false);
       }
+    } else if (viewDialog === 'packing') {
+      // Handle packing slips with multiple customers - each customer on separate page
+      setGeneratingPDF(true);
+      
+      try {
+        const customerDivs = printRef.current.querySelectorAll('[data-customer]');
+        
+        if (customerDivs.length > 1) {
+          // Multiple customers - create multi-page PDF
+          const customers = Array.from(customerDivs).map((div) => {
+            const customerName = div.getAttribute('data-customer') || 'Unknown';
+            return {
+              element: div as HTMLElement,
+              receiptNumber: `${order.order_number}-${customerName.replace(/\s+/g, '-')}`,
+              customerName
+            };
+          });
+          
+          // Generate multi-page PDF with each customer on their own page
+          const pdfBlob = await generateMultipleReceiptsPDF(
+            customers,
+            printFormat,
+            order.order_number,
+            (current, total) => {
+              toast.loading(`Generating packing slip ${current} of ${total}...`, { id: 'packing-progress' });
+            }
+          );
+          
+          toast.dismiss('packing-progress');
+          
+          const pdfFilename = `PackingSlips-${order.order_number}.pdf`;
+          downloadBlob(pdfBlob, pdfFilename);
+          
+          toast.success(`Downloaded ${customers.length} packing slips as multi-page PDF`);
+        } else {
+          // Single customer - download as single PDF
+          const opt = {
+            margin: printFormat === 'receipt' ? 0.2 : 0.5,
+            filename: `packing-${order.order_number}.pdf`,
+            image: { type: 'jpeg' as const, quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { 
+              unit: 'in', 
+              format: printFormat === 'receipt' ? [3.15, 11] as [number, number] : 'a4',
+              orientation: 'portrait' as const
+            }
+          };
+          
+          await html2pdf().set(opt).from(printRef.current).save();
+          toast.success('PDF downloaded successfully');
+        }
+        
+        setViewDialog(null);
+        setPendingAction(null);
+      } catch (error) {
+        console.error('Error generating packing slip PDFs:', error);
+        toast.error('Failed to generate packing slip PDFs');
+      } finally {
+        setGeneratingPDF(false);
+      }
     } else {
-      // Single document download (packing slip, supplier list, roundup, or single receipt)
+      // Single document download (supplier list, roundup, or single receipt)
       const opt = {
         margin: printFormat === 'receipt' ? 0.2 : 0.5,
         filename: `${viewDialog}-${order.order_number}.pdf`,
