@@ -33,6 +33,7 @@ import html2pdf from 'html2pdf.js';
 import { 
   generateReceiptNumber, 
   saveReceiptRecord, 
+  generateReceiptPDF,
   generateMultipleReceiptsPDF,
   generateMultipleSupplierOrdersPDF,
   downloadBlob,
@@ -403,10 +404,38 @@ const OrderDetails = () => {
     }
   };
 
-  const handlePrintFromPreview = () => {
-    setTimeout(() => {
-      window.print();
-    }, 100);
+  const handlePrintFromPreview = async () => {
+    if (!printRef.current || !order) return;
+
+    try {
+      // Generate a PDF from the preview DOM and print that PDF.
+      // This avoids blank-page issues caused by print CSS + dialog/portal rendering.
+      const filename = `${viewDialog || 'document'}-${order.order_number}.pdf`;
+      const pdfBlob = await generateReceiptPDF(printRef.current, filename, printFormat);
+      const url = URL.createObjectURL(pdfBlob);
+
+      const printWindow = window.open(url, '_blank');
+      if (!printWindow) {
+        toast.error('Pop-up blocked. Please allow pop-ups to print.');
+        URL.revokeObjectURL(url);
+        return;
+      }
+
+      // Wait for the PDF to load, then open the print dialog.
+      printWindow.addEventListener(
+        'load',
+        () => {
+          printWindow.focus();
+          printWindow.print();
+          // Revoke later to allow the print dialog to complete.
+          setTimeout(() => URL.revokeObjectURL(url), 10_000);
+        },
+        { once: true }
+      );
+    } catch (error) {
+      console.error('Print failed:', error);
+      toast.error('Failed to generate printable PDF');
+    }
   };
 
   const handleDownloadFromPreview = async () => {
