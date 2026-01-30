@@ -2145,12 +2145,14 @@ export type Database = {
           cod_reconciled_by: string | null
           created_at: string | null
           customer_id: string | null
+          customer_phone: string | null
           delivered_at: string | null
           delivery_date: string | null
           delivery_station: string | null
           dre_outreach_id: string | null
           driver_id: string | null
           driver_name: string | null
+          has_special_requirements: boolean | null
           id: string
           invoice_id: string | null
           is_pickup: boolean | null
@@ -2175,6 +2177,8 @@ export type Database = {
           receipt_photo_url: string | null
           receipt_verified_at: string | null
           receipt_verified_by: string | null
+          requested_delivery_time: string | null
+          source: string | null
           source_conversation: string | null
           source_email_id: string | null
           standing_order_template_id: string | null
@@ -2194,12 +2198,14 @@ export type Database = {
           cod_reconciled_by?: string | null
           created_at?: string | null
           customer_id?: string | null
+          customer_phone?: string | null
           delivered_at?: string | null
           delivery_date?: string | null
           delivery_station?: string | null
           dre_outreach_id?: string | null
           driver_id?: string | null
           driver_name?: string | null
+          has_special_requirements?: boolean | null
           id?: string
           invoice_id?: string | null
           is_pickup?: boolean | null
@@ -2224,6 +2230,8 @@ export type Database = {
           receipt_photo_url?: string | null
           receipt_verified_at?: string | null
           receipt_verified_by?: string | null
+          requested_delivery_time?: string | null
+          source?: string | null
           source_conversation?: string | null
           source_email_id?: string | null
           standing_order_template_id?: string | null
@@ -2243,12 +2251,14 @@ export type Database = {
           cod_reconciled_by?: string | null
           created_at?: string | null
           customer_id?: string | null
+          customer_phone?: string | null
           delivered_at?: string | null
           delivery_date?: string | null
           delivery_station?: string | null
           dre_outreach_id?: string | null
           driver_id?: string | null
           driver_name?: string | null
+          has_special_requirements?: boolean | null
           id?: string
           invoice_id?: string | null
           is_pickup?: boolean | null
@@ -2273,6 +2283,8 @@ export type Database = {
           receipt_photo_url?: string | null
           receipt_verified_at?: string | null
           receipt_verified_by?: string | null
+          requested_delivery_time?: string | null
+          source?: string | null
           source_conversation?: string | null
           source_email_id?: string | null
           standing_order_template_id?: string | null
@@ -5578,6 +5590,56 @@ export type Database = {
         }
         Relationships: []
       }
+      team_notification_settings: {
+        Row: {
+          created_at: string | null
+          display_name: string | null
+          id: string
+          is_active: boolean | null
+          notify_on_complaints: boolean | null
+          notify_on_escalations: boolean | null
+          notify_on_new_orders: boolean | null
+          role: string | null
+          updated_at: string | null
+          user_id: string | null
+          whatsapp_phone: string
+        }
+        Insert: {
+          created_at?: string | null
+          display_name?: string | null
+          id?: string
+          is_active?: boolean | null
+          notify_on_complaints?: boolean | null
+          notify_on_escalations?: boolean | null
+          notify_on_new_orders?: boolean | null
+          role?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          whatsapp_phone: string
+        }
+        Update: {
+          created_at?: string | null
+          display_name?: string | null
+          id?: string
+          is_active?: boolean | null
+          notify_on_complaints?: boolean | null
+          notify_on_escalations?: boolean | null
+          notify_on_new_orders?: boolean | null
+          role?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          whatsapp_phone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_notification_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       time_entries: {
         Row: {
           approved_by: string | null
@@ -6103,6 +6165,8 @@ export type Database = {
           metadata: Json | null
           order_id: string | null
           phone_number: string
+          read_at: string | null
+          read_by: string | null
           sent_by_user_id: string | null
           status: string
         }
@@ -6121,6 +6185,8 @@ export type Database = {
           metadata?: Json | null
           order_id?: string | null
           phone_number: string
+          read_at?: string | null
+          read_by?: string | null
           sent_by_user_id?: string | null
           status?: string
         }
@@ -6139,6 +6205,8 @@ export type Database = {
           metadata?: Json | null
           order_id?: string | null
           phone_number?: string
+          read_at?: string | null
+          read_by?: string | null
           sent_by_user_id?: string | null
           status?: string
         }
@@ -6155,6 +6223,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "distribution_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_read_by_fkey"
+            columns: ["read_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
