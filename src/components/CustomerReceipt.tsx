@@ -137,18 +137,18 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format, recei
               <img 
                 src={companyInfo.logo_url} 
                 alt="Company Logo" 
-                className={`mx-auto mb-2 ${format === 'receipt' ? 'h-12' : 'h-16'} object-contain`}
+                crossOrigin="anonymous"
+                className={`mx-auto mb-1 ${format === 'receipt' ? 'h-6' : 'h-16'} object-contain`}
               />
             )}
             <h2 className={`font-extrabold ${format === 'receipt' ? 'text-lg' : 'text-2xl'}`}>
               {companyInfo.company_name}
             </h2>
-            <div className={`${textSize} text-black mt-1 font-medium`}>
-              <p>{companyInfo.address_line1}</p>
-              {companyInfo.address_line2 && <p>{companyInfo.address_line2}</p>}
+            <div className={`${format === 'receipt' ? 'text-xs' : textSize} text-black mt-1 font-medium`}>
+              <p>{companyInfo.address_line1}{companyInfo.address_line2 ? `, ${companyInfo.address_line2}` : ''}</p>
               <p>{companyInfo.city}, {companyInfo.postal_code}</p>
-              <p>Tel: {companyInfo.phone} | Email: {companyInfo.email}</p>
-              {companyInfo.tax_info && <p className="text-sm mt-1 font-bold">{companyInfo.tax_info}</p>}
+              <p>Tel: {companyInfo.phone} | {companyInfo.email}</p>
+              {companyInfo.tax_info && <p className="text-xs mt-1 font-bold">{companyInfo.tax_info}</p>}
             </div>
           </div>
         )}
@@ -188,14 +188,13 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format, recei
               
               return (
                 <tr key={item.id} className="border-b-2 border-black">
-                  <td className={`${textSize} py-2`}>
-                    <div className="font-bold">{item.product_code}</div>
-                    {product && <div className="text-black text-sm font-bold">{product.name}</div>}
-                    <div className="text-black text-sm font-medium">{item.quantity} trays × {product?.pack_size} = {units} units</div>
+                  <td className={`${textSize} py-1`}>
+                    {product && <div className="font-bold">{product.name}</div>}
+                    <div className="text-black text-xs font-medium">{item.quantity} trays × {product?.pack_size}</div>
                   </td>
-                  <td className={`${textSize} text-right py-2 font-bold`}>{units}</td>
-                  <td className={`${textSize} text-right py-2 font-bold`}>Cg {price.toFixed(2)}</td>
-                  <td className={`${textSize} text-right py-2 font-bold`}>Cg {lineTotal.toFixed(2)}</td>
+                  <td className={`${textSize} text-right py-1 font-bold`}>{units}</td>
+                  <td className={`${textSize} text-right py-1 font-bold`}>Cg {price.toFixed(2)}</td>
+                  <td className={`${textSize} text-right py-1 font-bold`}>Cg {lineTotal.toFixed(2)}</td>
                 </tr>
               );
             })}
@@ -208,11 +207,9 @@ export const CustomerReceipt = ({ order, orderItems, customerName, format, recei
           </tfoot>
         </table>
 
-        <div className={`${textSize} mt-6 pt-4 border-t-2 border-black`}>
-          <p className="text-center font-extrabold mb-2">Payment Information</p>
-          <p className="font-bold">Payment Method: _________________________</p>
-          <p className="mt-2 font-bold">Signature: _________________________</p>
-          <p className="mt-4 text-center text-sm font-bold">Thank you for your business!</p>
+        <div className={`${textSize} mt-4 pt-2 border-t-2 border-black`}>
+          <p className="font-bold">Signature: _________________________</p>
+          <p className="mt-2 text-center text-xs font-bold">Thank you!</p>
         </div>
       </div>
     </>
