@@ -86,6 +86,9 @@ const OrderDetails = () => {
   const [orderItemsExpanded, setOrderItemsExpanded] = useState(false);
   const [showEditReceiptDialog, setShowEditReceiptDialog] = useState(false);
   const [editableReceiptItems, setEditableReceiptItems] = useState<OrderItem[]>([]);
+  const [showSupplierSelectDialog, setShowSupplierSelectDialog] = useState(false);
+  const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([]);
+  const [availableSuppliers, setAvailableSuppliers] = useState<string[]>([]);
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -336,6 +339,72 @@ const OrderDetails = () => {
     return [...new Set(orderItems.map(item => item.customer_name))];
   };
 
+  const fetchAvailableSuppliers = async () => {
+    try {
+      // Get unique product codes from order items (excluding stock items)
+      const productCodes = [...new Set(orderItems.filter(item => !item.is_from_stock).map(item => item.product_code))];
+      
+      if (productCodes.length === 0) {
+        setAvailableSuppliers([]);
+        return;
+      }
+      
+      // Fetch products with their suppliers
+      const { data: products } = await supabase
+        .from('products')
+        .select('code, suppliers:supplier_id(id, name)')
+        .in('code', productCodes);
+      
+      if (!products) {
+        setAvailableSuppliers([]);
+        return;
+      }
+      
+      // Extract unique supplier names
+      const supplierNames = products
+        .map(p => (p.suppliers as any)?.name)
+        .filter(Boolean);
+      
+      const uniqueSuppliers = [...new Set(supplierNames)].sort();
+      setAvailableSuppliers(uniqueSuppliers);
+      setSelectedSuppliers(uniqueSuppliers); // Select all by default
+    } catch (error) {
+      console.error('Error fetching suppliers:', error);
+      setAvailableSuppliers([]);
+    }
+  };
+
+  const handleSupplierToggle = (supplierName: string) => {
+    setSelectedSuppliers(prev => 
+      prev.includes(supplierName) 
+        ? prev.filter(s => s !== supplierName)
+        : [...prev, supplierName]
+    );
+  };
+
+  const handleSelectAllSuppliers = () => {
+    if (selectedSuppliers.length === availableSuppliers.length) {
+      setSelectedSuppliers([]);
+    } else {
+      setSelectedSuppliers([...availableSuppliers]);
+    }
+  };
+
+  const handleSupplierDownloadClick = async () => {
+    await fetchAvailableSuppliers();
+    setShowSupplierSelectDialog(true);
+  };
+
+  const handleConfirmSupplierDownload = () => {
+    if (selectedSuppliers.length === 0) {
+      toast.error('Please select at least one supplier');
+      return;
+    }
+    setShowSupplierSelectDialog(false);
+    setPendingAction({ type: 'supplier', action: 'download' });
+    setShowFormatDialog(true);
+  };
+
   const handleConfirmFormat = async (actionOverride?: 'view' | 'print' | 'download') => {
     setShowFormatDialog(false);
     
@@ -533,14 +602,22 @@ const OrderDetails = () => {
         // Find all supplier divs
         const supplierDivs = printRef.current.querySelectorAll('[data-supplier]');
         
-        // Gather all suppliers
-        const suppliers = Array.from(supplierDivs).map((div) => {
-          const supplierName = div.getAttribute('data-supplier') || 'Unknown';
-          return {
-            element: div as HTMLElement,
-            supplierName
-          };
-        });
+        // Filter to only selected suppliers
+        const suppliers = Array.from(supplierDivs)
+          .filter(div => selectedSuppliers.includes(div.getAttribute('data-supplier') || ''))
+          .map((div) => {
+            const supplierName = div.getAttribute('data-supplier') || 'Unknown';
+            return {
+              element: div as HTMLElement,
+              supplierName
+            };
+          });
+        
+        if (suppliers.length === 0) {
+          toast.error('No matching suppliers found');
+          setGeneratingPDF(false);
+          return;
+        }
         
         // Download each as separate PDF
         await generateAndDownloadSupplierPDFs(
@@ -559,6 +636,7 @@ const OrderDetails = () => {
         
         setViewDialog(null);
         setPendingAction(null);
+        setSelectedSuppliers([]);
       } catch (error) {
         console.error('Error generating supplier PDFs:', error);
         toast.error('Failed to generate supplier PDFs');
@@ -823,7 +901,7 @@ const OrderDetails = () => {
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => handleAction('supplier', 'download')}
+                      onClick={handleSupplierDownloadClick}
                     >
                       <Download className="mr-2 h-4 w-4" />
                       Download
@@ -1120,6 +1198,61 @@ const OrderDetails = () => {
             </div>
             <p className="text-xs text-muted-foreground text-center">
               {selectedCustomers.length} customer{selectedCustomers.length !== 1 ? 's' : ''} selected
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showSupplierSelectDialog} onOpenChange={setShowSupplierSelectDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Select Suppliers to Download</DialogTitle>
+            <DialogDescription>
+              Choose which suppliers to download as separate PDFs
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2 p-2 border rounded-lg hover:bg-accent">
+              <Checkbox
+                id="select-all-suppliers"
+                checked={selectedSuppliers.length === availableSuppliers.length && availableSuppliers.length > 0}
+                onCheckedChange={handleSelectAllSuppliers}
+              />
+              <label
+                htmlFor="select-all-suppliers"
+                className="text-sm font-semibold leading-none cursor-pointer flex-1"
+              >
+                Select All
+              </label>
+            </div>
+            <div className="space-y-2 max-h-[300px] overflow-y-auto border-t pt-2">
+              {availableSuppliers.map((supplierName) => (
+                <div key={supplierName} className="flex items-center space-x-2 p-2 border rounded-lg hover:bg-accent">
+                  <Checkbox
+                    id={`supplier-${supplierName}`}
+                    checked={selectedSuppliers.includes(supplierName)}
+                    onCheckedChange={() => handleSupplierToggle(supplierName)}
+                  />
+                  <label
+                    htmlFor={`supplier-${supplierName}`}
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
+                  >
+                    {supplierName}
+                  </label>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={() => setShowSupplierSelectDialog(false)} variant="outline" className="flex-1">
+                Cancel
+              </Button>
+              <Button onClick={handleConfirmSupplierDownload} className="flex-1">
+                <Download className="mr-2 h-4 w-4" />
+                Download PDFs
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              {selectedSuppliers.length} supplier{selectedSuppliers.length !== 1 ? 's' : ''} selected
             </p>
           </div>
         </DialogContent>
