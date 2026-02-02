@@ -23,6 +23,7 @@ interface Props {
   order: Order;
   orderItems: OrderItem[];
   format: 'a4' | 'receipt';
+  selectedSuppliers?: string[];
 }
 
 interface Product {
@@ -49,7 +50,7 @@ interface ConsolidatedGroup {
   totalCases: number;
 }
 
-export const SupplierOrderList = ({ order, orderItems, format }: Props) => {
+export const SupplierOrderList = ({ order, orderItems, format, selectedSuppliers }: Props) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
@@ -158,9 +159,18 @@ export const SupplierOrderList = ({ order, orderItems, format }: Props) => {
   const containerClass = format === 'receipt' ? 'max-w-[80mm]' : 'max-w-[210mm]';
   const textSize = format === 'receipt' ? 'text-xs' : 'text-sm';
 
+  // Filter grouped suppliers if selectedSuppliers is provided
+  const filteredGroupedBySupplier = selectedSuppliers && selectedSuppliers.length > 0
+    ? Object.fromEntries(
+        Object.entries(groupedBySupplier).filter(([supplierName]) => 
+          selectedSuppliers.includes(supplierName)
+        )
+      )
+    : groupedBySupplier;
+
   return (
     <div className="space-y-8">
-      {Object.entries(groupedBySupplier).map(([supplierName, { supplier, items }]) => {
+      {Object.entries(filteredGroupedBySupplier).map(([supplierName, { supplier, items }]) => {
         const { consolidated, individual } = getConsolidatedGroups(items);
         
         // Calculate grand totals
