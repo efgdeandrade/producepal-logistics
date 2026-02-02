@@ -1316,6 +1316,7 @@ const OrderDetails = () => {
                 order={order} 
                 orderItems={orderItems.filter(item => !item.is_from_stock)} 
                 format={printFormat}
+                selectedSuppliers={selectedSuppliers}
               />
             )}
             {viewDialog === 'roundup' && order && (
