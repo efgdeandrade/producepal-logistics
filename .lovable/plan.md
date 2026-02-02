@@ -1,107 +1,116 @@
 
-# Fix: Supplier Order List Showing Stale Data After Order Update
 
-## Problem Summary
-When editing an order and saving, the printed supplier order list shows old data (previous items and wrong delivery date) instead of the updated values. This happens because:
+# Plan: Add Supplier Selection for Downloading Supplier Order Lists
 
-1. **Navigation doesn't trigger refetch**: When navigating from edit page back to order details, the `useEffect` may not re-run since `orderId` hasn't changed
-2. **Missing dependency on navigation state**: The component doesn't know it needs to refresh after an update
-
----
+## Problem
+Currently, when downloading supplier order lists, the system either downloads only 1 supplier or all suppliers without giving the user a choice. The user wants:
+1. **Download All**: Each supplier as a separate PDF file (already works when multiple suppliers exist)
+2. **Download Selected**: Ability to choose specific suppliers to download
 
 ## Solution Overview
-
-Two complementary fixes are needed:
-
-### Fix 1: Force Refetch on Navigation Back from Edit Page
-Add a navigation state or use React Router's `useLocation` to detect when returning from an edit action and force a data refetch.
-
-### Fix 2: Use a Key to Force Remount on Navigation
-Pass a unique key based on navigation to force the OrderDetails component to completely remount when returning from the edit page.
+Add a supplier selection dialog (similar to the existing customer selection for receipts) that appears before downloading supplier order lists. Users can select all or specific suppliers, then each selected supplier generates as a separate PDF file.
 
 ---
 
-## Technical Implementation
+## Implementation Details
 
-### 1. Update NewOrder.tsx - Pass State When Navigating
+### 1. Add New State Variables
+Add state to track:
+- `showSupplierSelectDialog` - Controls visibility of supplier selection dialog
+- `selectedSuppliers` - Array of selected supplier names
 
-After saving an order, pass state to indicate the page should refresh:
+### 2. Create Supplier Selection Dialog
+Create a new dialog component similar to the receipt customer selection dialog that:
+- Lists all suppliers from the order
+- Allows multi-select via checkboxes
+- Has "Select All" / "Deselect All" options
+- Shows count of selected suppliers
 
-```typescript
-// Line 597 in NewOrder.tsx - change navigate call
-navigate(`/import/orders/${orderId}`, { state: { updated: Date.now() } });
-```
+### 3. Update Download Flow
+Modify the supplier download workflow:
+1. When user clicks "Download" for supplier orders, show the selection dialog first
+2. Filter supplier divs based on selected suppliers
+3. Generate separate PDF for each selected supplier
 
-### 2. Update OrderDetails.tsx - Detect Navigation State and Refetch
-
-Add `useLocation` hook and update the useEffect to trigger refetch when state changes:
-
-```typescript
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
-
-// Inside component
-const location = useLocation();
-
-useEffect(() => {
-  if (orderId) {
-    fetchOrderDetails();
-    fetchFreightSettings();
-    checkActualCosts();
-  }
-}, [orderId, location.state]); // Add location.state as dependency
-```
-
-### 3. Alternative: Force Component Remount via Route Key
-
-If the above doesn't work reliably, use a key on the route in App.tsx:
-
-```tsx
-<Route 
-  path="/import/orders/:orderId" 
-  element={
-    <ProtectedImport>
-      <OrderDetailsWrapper />
-    </ProtectedImport>
-  } 
-/>
-```
-
-Where `OrderDetailsWrapper` passes a key from location state:
-
-```typescript
-const OrderDetailsWrapper = () => {
-  const location = useLocation();
-  return <OrderDetails key={location.state?.updated || 'default'} />;
-};
-```
+### 4. Update SupplierOrderList Component
+Ensure the component properly exposes which suppliers are available so the parent can list them for selection.
 
 ---
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `src/pages/NewOrder.tsx` | Pass `{ state: { updated: Date.now() } }` in navigate call |
-| `src/pages/OrderDetails.tsx` | Add `useLocation` and include `location.state` in useEffect dependency |
+| File | Changes |
+|------|---------|
+| `src/pages/OrderDetails.tsx` | Add supplier selection state, dialog, and updated download logic |
+
+---
+
+## UI Flow
+
+```
+User clicks "Download" on Supplier Order Lists
+         │
+         ▼
+┌─────────────────────────────────┐
+│  Select Suppliers to Download   │
+│  ☑ Select All                   │
+│  ─────────────────────────────  │
+│  ☑ Supplier A                   │
+│  ☑ Supplier B                   │
+│  ☐ Supplier C                   │
+│  ─────────────────────────────  │
+│  2 suppliers selected           │
+│  ┌─────────┐  ┌───────────────┐ │
+│  │ Cancel  │  │ Download PDFs │ │
+│  └─────────┘  └───────────────┘ │
+└─────────────────────────────────┘
+         │
+         ▼
+Downloads separate PDF for each selected supplier:
+- Supplier-WK5-001-SupplierA.pdf
+- Supplier-WK5-001-SupplierB.pdf
+```
+
+---
+
+## Technical Details
+
+### New State Variables
+```typescript
+const [showSupplierSelectDialog, setShowSupplierSelectDialog] = useState(false);
+const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([]);
+const [availableSuppliers, setAvailableSuppliers] = useState<string[]>([]);
+```
+
+### Supplier Discovery Function
+Extract unique suppliers from order items by looking up product supplier relationships:
+```typescript
+const getUniqueSuppliers = async () => {
+  // Fetch products with their suppliers
+  // Return unique supplier names from order items
+};
+```
+
+### Updated Download Logic
+```typescript
+// Filter to only selected suppliers
+const suppliers = Array.from(supplierDivs)
+  .filter(div => selectedSuppliers.includes(div.getAttribute('data-supplier') || ''))
+  .map((div) => ({
+    element: div as HTMLElement,
+    supplierName: div.getAttribute('data-supplier') || 'Unknown'
+  }));
+```
 
 ---
 
 ## Testing Steps
+1. Navigate to an order with items from multiple suppliers
+2. Click "Download" for Supplier Order Lists
+3. Verify the supplier selection dialog appears
+4. Select specific suppliers
+5. Click "Download PDFs"
+6. Verify only selected suppliers are downloaded as separate PDFs
+7. Test "Select All" functionality
+8. Test downloading with only one supplier selected
 
-1. Open an existing order
-2. Click Edit
-3. Change the delivery date (e.g., from Feb 2 to Feb 3)
-4. Modify order items (add/remove products)
-5. Save the order
-6. Click "View" for Supplier Order List
-7. **Verify**: The new delivery date and updated items appear
-8. Download/Print the supplier order PDF
-9. **Verify**: The PDF contains the correct updated data
-
----
-
-## Why This Works
-
-- Passing `state` with a timestamp ensures React Router treats this as a "new" navigation
-- Including `location.state` in the useEffect dependencies forces the fetch functions to re-run
-- The timestamp changes every time, guaranteeing fresh data after each save
