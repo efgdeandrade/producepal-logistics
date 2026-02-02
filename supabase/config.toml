@@ -158,3 +158,6 @@ verify_jwt = true
 
 [functions.notify-team-order]
 verify_jwt = false
+
+[functions.send-template-message]
+verify_jwt = true

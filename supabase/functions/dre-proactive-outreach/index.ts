@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,8 +10,8 @@ const DC_LATITUDE = 12.126232;
 const DC_LONGITUDE = -68.897127;
 const CLOSE_PROXIMITY_METERS = 2000; // 2km radius for extended same-day cutoff
 
-// Dre's proactive outreach message templates
-const OUTREACH_TEMPLATES = {
+// Fallback message templates (used if WhatsApp templates not approved yet)
+const FALLBACK_TEMPLATES = {
   same_day_early: {
     pap: "Bon mainta {customer}! Dre aki 👋 Order promé ku 7am pa entrega awe! Bo ta kla pa ordena? 🐟🥬",
     en: "Good morning {customer}! Dre here 👋 Orders before 7am get same-day delivery! Ready to order? 🐟🥬",
@@ -57,6 +57,16 @@ const DAY_NAMES: Record<string, Record<number, string>> = {
   es: { 0: 'Domingo', 1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sábado' }
 };
 
+// Map template keys to database purpose values
+const TEMPLATE_PURPOSE_MAP: Record<string, string> = {
+  'same_day_early': 'order_reminder',
+  'next_day_planning': 'order_reminder',
+  'mahaai_extended': 'order_reminder',
+  'missing_order': 'order_reminder',
+  'missing_item': 'order_reminder',
+  'inactive_customer': 'reengagement'
+};
+
 // Calculate distance between two points using Haversine formula
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371000; // Earth's radius in meters
@@ -95,16 +105,178 @@ function getOutreachWindow(curacaoTime: Date): 'same_day_early' | 'mahaai_extend
   return null;
 }
 
-// Send WhatsApp message via Meta API
-async function sendWhatsAppMessage(phoneNumber: string, message: string): Promise<boolean> {
+interface SendResult {
+  success: boolean;
+  usedTemplate: boolean;
+  templateName?: string;
+  error?: string;
+}
+
+// Send WhatsApp message - try template first, fall back to regular message if within 24-hour window
+async function sendWhatsAppMessage(
+  supabase: SupabaseClient,
+  phoneNumber: string, 
+  message: string,
+  customerId: string | null,
+  templateKey: string,
+  preferredLanguage: string,
+  variables: Record<string, string>
+): Promise<SendResult> {
   const accessToken = Deno.env.get('WHATSAPP_ACCESS_TOKEN');
   const phoneNumberId = Deno.env.get('WHATSAPP_PHONE_NUMBER_ID');
   
   if (!accessToken || !phoneNumberId) {
     console.error('WhatsApp credentials not configured');
-    return false;
+    return { success: false, usedTemplate: false, error: 'WhatsApp credentials not configured' };
   }
   
+  const cleanPhone = phoneNumber.replace(/\D/g, '');
+  
+  // Check if we're within the 24-hour messaging window
+  const { data: lastIncoming } = await supabase
+    .from('whatsapp_messages')
+    .select('created_at')
+    .eq('phone_number', cleanPhone)
+    .eq('direction', 'inbound')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const withinWindow = lastIncoming && new Date(lastIncoming.created_at) > twentyFourHoursAgo;
+
+  console.log(`Customer ${cleanPhone} - Within 24h window: ${withinWindow}`);
+
+  // If outside the 24-hour window, we MUST use templates
+  if (!withinWindow) {
+    const purpose = TEMPLATE_PURPOSE_MAP[templateKey] || 'order_reminder';
+    
+    // Find approved templates
+    const { data: templates } = await supabase
+      .from('whatsapp_message_templates')
+      .select('*')
+      .eq('purpose', purpose)
+      .eq('is_active', true)
+      .eq('is_approved', true)
+      .order('usage_count', { ascending: true });
+
+    if (!templates || templates.length === 0) {
+      console.log(`No approved templates for purpose: ${purpose}. Cannot send outside 24-hour window.`);
+      return { 
+        success: false, 
+        usedTemplate: false, 
+        error: `No approved templates available. Please create and approve templates in Meta Business Manager for: ${purpose}` 
+      };
+    }
+
+    // Find template matching customer's language
+    let langTemplates = templates.filter(t => t.language === preferredLanguage);
+    if (langTemplates.length === 0) langTemplates = templates;
+
+    // Pick least-used for variety
+    const template = langTemplates[0];
+
+    // Build template parameters
+    const templateVariables = (template.variables || []) as Array<{name: string, position: number}>;
+    const components: any[] = [];
+    
+    if (templateVariables.length > 0) {
+      const parameters = templateVariables
+        .sort((a, b) => a.position - b.position)
+        .map(v => ({
+          type: 'text',
+          text: variables[v.name] || `{{${v.position}}}`
+        }));
+
+      components.push({
+        type: 'body',
+        parameters
+      });
+    }
+
+    const messagePayload: any = {
+      messaging_product: 'whatsapp',
+      to: cleanPhone,
+      type: 'template',
+      template: {
+        name: template.meta_template_name,
+        language: {
+          code: template.language === 'pap' ? 'en' : template.language
+        }
+      }
+    };
+
+    if (components.length > 0) {
+      messagePayload.template.components = components;
+    }
+
+    console.log('Sending template message:', JSON.stringify(messagePayload, null, 2));
+
+    try {
+      const response = await fetch(
+        `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(messagePayload),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error('Template message failed:', result);
+        
+        // Log the failed attempt
+        await supabase.from('whatsapp_template_sends').insert({
+          template_id: template.id,
+          phone_number: cleanPhone,
+          customer_id: customerId,
+          variables_used: variables,
+          status: 'failed',
+          error_message: JSON.stringify(result.error || result)
+        });
+
+        return { 
+          success: false, 
+          usedTemplate: true, 
+          templateName: template.template_name,
+          error: result.error?.message || 'Template not approved'
+        };
+      }
+
+      console.log('Template message sent:', result);
+
+      // Update template usage
+      await supabase
+        .from('whatsapp_message_templates')
+        .update({ 
+          usage_count: template.usage_count + 1,
+          last_used_at: new Date().toISOString()
+        })
+        .eq('id', template.id);
+
+      // Log successful send
+      await supabase.from('whatsapp_template_sends').insert({
+        template_id: template.id,
+        phone_number: cleanPhone,
+        customer_id: customerId,
+        variables_used: variables,
+        status: 'sent',
+        message_id: result.messages?.[0]?.id
+      });
+
+      return { success: true, usedTemplate: true, templateName: template.template_name };
+    } catch (error) {
+      console.error('Error sending template message:', error);
+      return { success: false, usedTemplate: true, error: String(error) };
+    }
+  }
+
+  // Within 24-hour window - send regular text message
   try {
     const response = await fetch(
       `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
@@ -116,7 +288,7 @@ async function sendWhatsAppMessage(phoneNumber: string, message: string): Promis
         },
         body: JSON.stringify({
           messaging_product: 'whatsapp',
-          to: phoneNumber.replace(/\D/g, ''),
+          to: cleanPhone,
           type: 'text',
           text: { body: message }
         }),
@@ -126,13 +298,13 @@ async function sendWhatsAppMessage(phoneNumber: string, message: string): Promis
     if (!response.ok) {
       const errorText = await response.text();
       console.error('WhatsApp API error:', errorText);
-      return false;
+      return { success: false, usedTemplate: false, error: errorText };
     }
     
-    return true;
+    return { success: true, usedTemplate: false };
   } catch (error) {
     console.error('Error sending WhatsApp message:', error);
-    return false;
+    return { success: false, usedTemplate: false, error: String(error) };
   }
 }
 
@@ -281,28 +453,48 @@ Deno.serve(async (req) => {
 
       // Build personalized message
       const language = customer.preferred_language || 'pap';
-      const templates = OUTREACH_TEMPLATES[templateKey as keyof typeof OUTREACH_TEMPLATES] || OUTREACH_TEMPLATES.missing_order;
-      let message = templates[language as keyof typeof templates] || templates.en;
+      const fallbackTemplates = FALLBACK_TEMPLATES[templateKey as keyof typeof FALLBACK_TEMPLATES] || FALLBACK_TEMPLATES.missing_order;
+      let message = fallbackTemplates[language as keyof typeof fallbackTemplates] || fallbackTemplates.en;
 
-      // Replace placeholders
+      // Build template variables for API templates
+      const templateVariables: Record<string, string> = {
+        customer_name: customer.name || 'Customer'
+      };
+
+      // Replace placeholders in fallback message
       message = message.replace('{customer}', customer.name || 'Customer');
       
       if (anomaly.anomaly_type === 'missing_order') {
         const dayName = DAY_NAMES[language]?.[todayDow] || DAY_NAMES.en[todayDow];
         message = message.replace('{day}', dayName);
+        templateVariables.day = dayName;
       } else if (anomaly.anomaly_type === 'missing_item') {
         const details = anomaly.details as any;
-        message = message.replace('{product}', details?.product_name || 'product');
-        message = message.replace('{quantity}', details?.usual_quantity?.toString() || '1');
+        const product = details?.product_name || 'product';
+        const quantity = details?.usual_quantity?.toString() || '1';
+        message = message.replace('{product}', product);
+        message = message.replace('{quantity}', quantity);
+        templateVariables.product = product;
+        templateVariables.quantity = quantity;
       } else if (anomaly.anomaly_type === 'inactive_customer') {
         const details = anomaly.details as any;
-        message = message.replace('{days}', details?.days_since_last_order?.toString() || '14');
+        const days = details?.days_since_last_order?.toString() || '14';
+        message = message.replace('{days}', days);
+        templateVariables.days = days;
       }
 
-      // Send WhatsApp message
-      const sent = await sendWhatsAppMessage(customer.whatsapp_phone, message);
+      // Send WhatsApp message (will use template if outside 24h window)
+      const sendResult = await sendWhatsAppMessage(
+        supabase,
+        customer.whatsapp_phone, 
+        message,
+        customer.id,
+        templateKey,
+        language,
+        templateVariables
+      );
 
-      if (sent) {
+      if (sendResult.success) {
         results.messages_sent++;
         
         // Log the outreach
@@ -406,15 +598,29 @@ Deno.serve(async (req) => {
       results.anomalies_processed++;
 
       const language = customer.preferred_language || 'pap';
-      const templates = OUTREACH_TEMPLATES[templateKey as keyof typeof OUTREACH_TEMPLATES];
-      let message = templates[language as keyof typeof templates] || templates.en;
+      const fallbackTemplates = FALLBACK_TEMPLATES[templateKey as keyof typeof FALLBACK_TEMPLATES];
+      let message = fallbackTemplates[language as keyof typeof fallbackTemplates] || fallbackTemplates.en;
       message = message.replace('{customer}', customer.name || 'Customer');
       const dayName = DAY_NAMES[language]?.[todayDow] || DAY_NAMES.en[todayDow];
       message = message.replace('{day}', dayName);
 
-      const sent = await sendWhatsAppMessage(customer.whatsapp_phone, message);
+      // Build template variables
+      const templateVariables: Record<string, string> = {
+        customer_name: customer.name || 'Customer',
+        day: dayName
+      };
 
-      if (sent) {
+      const sendResult = await sendWhatsAppMessage(
+        supabase,
+        customer.whatsapp_phone,
+        message,
+        customer.id,
+        templateKey,
+        language,
+        templateVariables
+      );
+
+      if (sendResult.success) {
         results.messages_sent++;
         
         // Create anomaly record for tracking
