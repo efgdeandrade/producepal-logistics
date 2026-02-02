@@ -6149,6 +6149,57 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_message_templates: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          is_approved: boolean | null
+          language: string
+          last_used_at: string | null
+          meta_template_name: string
+          preview_text: string
+          purpose: string
+          template_name: string
+          updated_at: string
+          usage_count: number | null
+          variables: Json | null
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          is_approved?: boolean | null
+          language?: string
+          last_used_at?: string | null
+          meta_template_name: string
+          preview_text: string
+          purpose: string
+          template_name: string
+          updated_at?: string
+          usage_count?: number | null
+          variables?: Json | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          is_approved?: boolean | null
+          language?: string
+          last_used_at?: string | null
+          meta_template_name?: string
+          preview_text?: string
+          purpose?: string
+          template_name?: string
+          updated_at?: string
+          usage_count?: number | null
+          variables?: Json | null
+        }
+        Relationships: []
+      }
       whatsapp_messages: {
         Row: {
           created_at: string
@@ -6230,6 +6281,57 @@ export type Database = {
             columns: ["read_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_template_sends: {
+        Row: {
+          customer_id: string | null
+          error_message: string | null
+          id: string
+          message_id: string | null
+          phone_number: string
+          sent_at: string
+          status: string | null
+          template_id: string | null
+          variables_used: Json | null
+        }
+        Insert: {
+          customer_id?: string | null
+          error_message?: string | null
+          id?: string
+          message_id?: string | null
+          phone_number: string
+          sent_at?: string
+          status?: string | null
+          template_id?: string | null
+          variables_used?: Json | null
+        }
+        Update: {
+          customer_id?: string | null
+          error_message?: string | null
+          id?: string
+          message_id?: string | null
+          phone_number?: string
+          sent_at?: string
+          status?: string | null
+          template_id?: string | null
+          variables_used?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_template_sends_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_template_sends_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_message_templates"
             referencedColumns: ["id"]
           },
         ]
