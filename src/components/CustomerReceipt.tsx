@@ -170,28 +170,28 @@ export const CustomerReceipt = ({
           }
         }
       `}</style>
-      <div className={`${containerClass} ${printClass} mx-auto bg-white text-black ${isReceipt ? 'p-2' : 'p-6'} print:p-0 font-sans`}>
+      <div className={`${containerClass} ${printClass} mx-auto bg-white text-black ${isReceipt ? 'p-3' : 'p-6'} print:p-0 font-sans`}>
         {/* Company Header */}
         {companyInfo && (
-          <div className={`text-center ${isReceipt ? 'mb-1 pb-1' : 'mb-4 pb-4'} border-b-2 border-black`}>
+          <div className={`text-center ${isReceipt ? 'mb-2 pb-2' : 'mb-4 pb-4'} border-b-2 border-black`}>
             <img 
               src={LOCAL_LOGO_PATH}
               alt="Company Logo" 
               ref={logoRef}
               onLoad={() => setLogoLoaded(true)}
               onError={() => setLogoLoaded(true)}
-              className={`mx-auto ${isReceipt ? 'h-6 mb-0.5' : 'h-16 mb-1'} object-contain`}
+              className={`mx-auto ${isReceipt ? 'h-8 mb-1' : 'h-16 mb-1'} object-contain`}
             />
-            <h2 className={`font-extrabold ${isReceipt ? 'text-sm leading-tight' : 'text-2xl'}`}>
+            <h2 className={`font-extrabold ${isReceipt ? 'text-sm leading-normal' : 'text-2xl'}`}>
               {companyInfo.company_name}
             </h2>
             {isReceipt ? (
-              <div className="text-[10px] leading-tight">
+              <div className="text-[10px] leading-relaxed mt-1">
                 <p>{companyInfo.address_line1}, {companyInfo.city}</p>
                 <p>{companyInfo.phone} • {companyInfo.email}</p>
               </div>
             ) : (
-              <div className="text-base text-black mt-1 font-medium">
+              <div className="text-base text-black mt-1 font-medium leading-relaxed">
                 <p>{companyInfo.address_line1}{companyInfo.address_line2 ? `, ${companyInfo.address_line2}` : ''}</p>
                 <p>{companyInfo.city}, {companyInfo.postal_code}</p>
                 <p>Tel: {companyInfo.phone} | {companyInfo.email}</p>
@@ -202,15 +202,15 @@ export const CustomerReceipt = ({
         )}
 
         {/* Receipt Title */}
-        <div className={`border-b-2 border-black ${isReceipt ? 'pb-1 mb-1' : 'pb-4 mb-4'}`}>
+        <div className={`border-b-2 border-black ${isReceipt ? 'pb-2 mb-2' : 'pb-4 mb-4'}`}>
           <h1 className={`${isReceipt ? 'text-base' : 'text-3xl'} font-extrabold text-center`}>RECEIPT</h1>
-          <div className={`${isReceipt ? 'text-[10px]' : 'text-base'} font-bold leading-tight text-center`}>
+          <div className={`${isReceipt ? 'text-[10px] mt-1' : 'text-base'} font-bold leading-normal text-center`}>
             <p>#: {receiptNumber || `${order.order_number}-${customerName.replace(/\s+/g, '-').substring(0, 8)}`} | {new Date().toLocaleDateString()}</p>
           </div>
         </div>
 
         {/* Customer Name */}
-        <div className={isReceipt ? 'mb-1' : 'mb-4'}>
+        <div className={isReceipt ? 'mb-2' : 'mb-4'}>
           <p className={`${isReceipt ? 'text-xs' : 'text-base'} font-extrabold`}>{customerName}</p>
           {customerItems[0]?.po_number && !isReceipt && (
             <p className="text-base font-bold"><strong>PO #:</strong> {customerItems[0].po_number}</p>
@@ -218,15 +218,15 @@ export const CustomerReceipt = ({
         </div>
 
         {/* Items Table - 3 columns for receipt, 4 for A4 */}
-        <table className={`w-full border-collapse ${isReceipt ? 'mb-1' : 'mb-4'}`}>
+        <table className={`w-full border-collapse ${isReceipt ? 'mb-2' : 'mb-4'}`}>
           <thead>
             <tr className="border-b-2 border-black">
-              <th className={`${isReceipt ? 'text-[10px]' : 'text-base'} text-left py-1 font-extrabold`}>Product</th>
-              <th className={`${isReceipt ? 'text-[10px]' : 'text-base'} text-right py-1 font-extrabold`}>Qty</th>
+              <th className={`${isReceipt ? 'text-[10px]' : 'text-base'} text-left py-2 font-extrabold`}>Product</th>
+              <th className={`${isReceipt ? 'text-[10px]' : 'text-base'} text-right py-2 font-extrabold`}>Qty</th>
               {!isReceipt && (
-                <th className="text-base text-right py-1 font-extrabold border-l border-black pl-2">Price</th>
+                <th className="text-base text-right py-2 font-extrabold border-l border-black pl-2">Price</th>
               )}
-              <th className={`${isReceipt ? 'text-[10px]' : 'text-base'} text-right py-1 font-extrabold ${!isReceipt ? 'border-l border-black pl-2' : ''}`}>
+              <th className={`${isReceipt ? 'text-[10px]' : 'text-base'} text-right py-2 font-extrabold ${!isReceipt ? 'border-l border-black pl-2' : ''}`}>
                 {isReceipt ? 'Amt' : 'Total'}
               </th>
             </tr>
@@ -240,15 +240,15 @@ export const CustomerReceipt = ({
               
               return (
                 <tr key={item.id} className="border-b border-black">
-                  <td className={`${isReceipt ? 'text-xs py-1' : 'text-base py-3'}`}>
-                    <div className="font-bold leading-tight">{product?.name || item.product_code}</div>
-                    {!isReceipt && <div className="text-xs font-medium">{item.quantity}×{product?.pack_size}</div>}
+                  <td className={`${isReceipt ? 'text-xs py-2' : 'text-base py-3'}`}>
+                    <div className="font-bold leading-normal">{product?.name || item.product_code}</div>
+                    {!isReceipt && <div className="text-xs font-medium mt-0.5">{item.quantity}×{product?.pack_size}</div>}
                   </td>
-                  <td className={`${isReceipt ? 'text-xs py-1' : 'text-base py-3'} text-right font-bold`}>{units}</td>
+                  <td className={`${isReceipt ? 'text-xs py-2' : 'text-base py-3'} text-right font-bold`}>{units}</td>
                   {!isReceipt && (
                     <td className="text-base py-3 text-right font-bold border-l border-black pl-2">{price.toFixed(2)}</td>
                   )}
-                  <td className={`${isReceipt ? 'text-xs py-1' : 'text-base py-3'} text-right font-bold ${!isReceipt ? 'border-l border-black pl-2' : ''}`}>
+                  <td className={`${isReceipt ? 'text-xs py-2' : 'text-base py-3'} text-right font-bold ${!isReceipt ? 'border-l border-black pl-2' : ''}`}>
                     {lineTotal.toFixed(2)}
                   </td>
                 </tr>
@@ -257,8 +257,8 @@ export const CustomerReceipt = ({
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-black">
-              <td colSpan={isReceipt ? 2 : 3} className={`${isReceipt ? 'text-xs py-1' : 'text-base py-3'} font-extrabold text-right`}>Total:</td>
-              <td className={`${isReceipt ? 'text-xs py-1' : 'text-base py-3'} font-extrabold text-right ${!isReceipt ? 'border-l border-black pl-2' : ''}`}>
+              <td colSpan={isReceipt ? 2 : 3} className={`${isReceipt ? 'text-xs py-2' : 'text-base py-3'} font-extrabold text-right`}>Total:</td>
+              <td className={`${isReceipt ? 'text-xs py-2' : 'text-base py-3'} font-extrabold text-right ${!isReceipt ? 'border-l border-black pl-2' : ''}`}>
                 Cg {calculateTotal().toFixed(2)}
               </td>
             </tr>
@@ -266,15 +266,15 @@ export const CustomerReceipt = ({
         </table>
 
         {/* Signature/Stamp Box */}
-        <div className={`${isReceipt ? 'mt-1' : 'mt-4'}`}>
+        <div className={`${isReceipt ? 'mt-3' : 'mt-4'}`}>
           <div 
-            className={`border-2 border-black ${isReceipt ? 'h-16' : 'h-28'} w-full flex flex-col justify-between p-1`}
+            className={`border-2 border-black ${isReceipt ? 'h-20' : 'h-28'} w-full flex flex-col justify-between p-2`}
           >
             <p className={`${isReceipt ? 'text-[9px]' : 'text-sm'} font-bold text-center`}>
               SIGNATURE / STAMP
             </p>
             <div className="flex-1"></div>
-            <div className="border-t border-dashed border-gray-400 pt-0.5">
+            <div className="border-t border-dashed border-gray-400 pt-1">
               <p className={`${isReceipt ? 'text-[8px]' : 'text-xs'} text-gray-600 text-center`}>
                 Received in good condition
               </p>
