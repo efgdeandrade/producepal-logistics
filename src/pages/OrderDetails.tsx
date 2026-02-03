@@ -719,6 +719,69 @@ const OrderDetails = () => {
       } finally {
         setGeneratingPDF(false);
       }
+    } else if (viewDialog === 'driver') {
+      // Handle driver packing slips - each driver on separate page
+      setGeneratingPDF(true);
+      
+      try {
+        const driverDivs = printRef.current.querySelectorAll('[data-driver]');
+        console.log('Found driver divs:', driverDivs.length);
+        
+        if (driverDivs.length >= 1) {
+          const drivers = Array.from(driverDivs).map((div) => {
+            const driverName = div.getAttribute('data-driver') || 'Unknown';
+            console.log('Processing driver:', driverName);
+            return {
+              element: div as HTMLElement,
+              receiptNumber: `${order.order_number}-${driverName.replace(/\s+/g, '-')}`,
+              customerName: driverName
+            };
+          });
+          
+          console.log('Total drivers to generate:', drivers.length);
+          
+          // Generate multi-page PDF with each driver on their own page
+          const pdfBlob = await generateMultipleReceiptsPDF(
+            drivers,
+            printFormat,
+            order.order_number,
+            (current, total) => {
+              toast.loading(`Generating driver slip ${current} of ${total}...`, { id: 'driver-progress' });
+            }
+          );
+          
+          toast.dismiss('driver-progress');
+          
+          const pdfFilename = `DriverPackingSlips-${order.order_number}.pdf`;
+          downloadBlob(pdfBlob, pdfFilename);
+          
+          toast.success(`Downloaded ${drivers.length} driver packing slips as multi-page PDF`);
+        } else {
+          console.warn('No driver divs found, falling back to single PDF');
+          const opt = {
+            margin: printFormat === 'receipt' ? 0.2 : 0.5,
+            filename: `driver-${order.order_number}.pdf`,
+            image: { type: 'jpeg' as const, quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { 
+              unit: 'in', 
+              format: printFormat === 'receipt' ? [3.15, 11] as [number, number] : 'a4',
+              orientation: 'portrait' as const
+            }
+          };
+          
+          await html2pdf().set(opt).from(printRef.current).save();
+          toast.success('PDF downloaded successfully');
+        }
+        
+        setViewDialog(null);
+        setPendingAction(null);
+      } catch (error) {
+        console.error('Error generating driver packing slip PDFs:', error);
+        toast.error('Failed to generate driver packing slip PDFs');
+      } finally {
+        setGeneratingPDF(false);
+      }
     } else {
       // Single document download (supplier list, roundup, or single receipt)
       const opt = {
