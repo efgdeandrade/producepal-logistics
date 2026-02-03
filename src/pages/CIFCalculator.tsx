@@ -119,7 +119,6 @@ export default function CIFCalculator() {
   const [notes, setNotes] = useState('');
   const [selectedMethod, setSelectedMethod] = useState<DistributionMethod>('byWeight');
   const [activeTab, setActiveTab] = useState<'estimate' | 'actual'>('estimate');
-  const [blendRatio, setBlendRatio] = useState(0.7);
 
   // Estimate version inputs
   const [estimateProducts, setEstimateProducts] = useState<ProductInput[]>([]);
@@ -200,347 +199,132 @@ export default function CIFCalculator() {
     setExchangeRate(rate);
   };
 
-  const addProduct = (isActual: boolean) => {
-    const newProduct: ProductInput = {
+  const addProduct = (isActual: boolean = false) => {
+    const products = isActual ? actualProducts : estimateProducts;
+    const setProducts = isActual ? setActualProducts : setEstimateProducts;
+    
+    setProducts([...products, {
       code: '' as ProductCode,
       name: '',
-      quantity: 0,
-      quantityInputMode: 'cases',
+      quantity: 1,
+      quantityInputMode: 'units',
       costPerUnit: 0,
       weightPerUnit: 0,
-      packSize: undefined,
-      supplierId: undefined,
-      supplierName: undefined,
-      supplierCasesPerPallet: undefined,
-      supplierPalletConfig: undefined,
-    };
-    if (isActual) {
-      setActualProducts([...actualProducts, newProduct]);
-    } else {
-      setEstimateProducts([...estimateProducts, newProduct]);
-    }
+    }]);
   };
 
-  const fetchProductData = async (productCode: string) => {
-    const { data: product, error } = await supabase
-      .from('products')
-      .select(`
-        code, name, price_usd_per_unit, netto_weight_per_unit, gross_weight_per_unit, 
-        pack_size, empty_case_weight, length_cm, width_cm, height_cm, volumetric_weight_kg,
-        wholesale_price_xcg_per_unit, retail_price_xcg_per_unit,
-        supplier_id, suppliers(
-          name, 
-          cases_per_pallet,
-          pallet_length_cm,
-          pallet_width_cm,
-          pallet_height_cm,
-          pallet_weight_kg,
-          pallet_max_height_cm
-        )
-      `)
-      .eq('code', productCode)
-      .maybeSingle();
-    
-    if (error) {
-      console.error('Error fetching product:', error);
-      return null;
-    }
-    
-    if (product) {
-      const weightPerUnit = (product.gross_weight_per_unit || product.netto_weight_per_unit || 0) / 1000;
-      const volumetricWeightPerUnit = product.volumetric_weight_kg || 
-        (product.length_cm && product.width_cm && product.height_cm 
-          ? (product.length_cm * product.width_cm * product.height_cm) / 6000
-          : 0);
-      
-    return {
-      name: product.name,
-      lengthCm: product.length_cm,
-      widthCm: product.width_cm,
-      heightCm: product.height_cm,
-      volumetricWeightPerUnit,
-      chargeableWeightPerUnit: Math.max(weightPerUnit, volumetricWeightPerUnit),
-      emptyCaseWeight: product.empty_case_weight ? product.empty_case_weight / 1000 : 0,
-      packSize: product.pack_size,
-      supplierId: product.supplier_id,
-      supplierName: product.suppliers?.name,
-      supplierCasesPerPallet: product.suppliers?.cases_per_pallet,
-      supplierPalletConfig: product.suppliers ? {
-        pallet_length_cm: product.suppliers.pallet_length_cm,
-        pallet_width_cm: product.suppliers.pallet_width_cm,
-        pallet_height_cm: product.suppliers.pallet_height_cm,
-        pallet_weight_kg: product.suppliers.pallet_weight_kg,
-        pallet_max_height_cm: product.suppliers.pallet_max_height_cm
-      } : undefined,
-      costPerUnit: product.price_usd_per_unit,
-      weightPerUnit,
-      wholesalePriceXCG: product.wholesale_price_xcg_per_unit,
-      retailPriceXCG: product.retail_price_xcg_per_unit,
-    };
-    }
-    return null;
-  };
-
-  const updateProduct = async (index: number, field: keyof ProductInput, value: any, isActual: boolean) => {
+  const updateProduct = (index: number, field: keyof ProductInput, value: any, isActual: boolean = false) => {
     const products = isActual ? actualProducts : estimateProducts;
     const setProducts = isActual ? setActualProducts : setEstimateProducts;
     
     const updated = [...products];
+    
     if (field === 'code') {
-      const dbData = await fetchProductData(value);
-      if (dbData) {
+      const selectedProduct = allProducts.find(p => p.code === value);
+      if (selectedProduct) {
+        const packSize = selectedProduct.pack_size || 1;
+        const grossWeightPerUnit = selectedProduct.gross_weight_per_unit || 0;
+        
+        let volumetricWeightPerUnit = selectedProduct.volumetric_weight_kg || 0;
+        if (!volumetricWeightPerUnit && selectedProduct.length_cm && selectedProduct.width_cm && selectedProduct.height_cm) {
+          volumetricWeightPerUnit = (selectedProduct.length_cm * selectedProduct.width_cm * selectedProduct.height_cm) / 5000;
+        }
+        
+        const chargeableWeightPerUnit = Math.max(grossWeightPerUnit, volumetricWeightPerUnit);
+        
         updated[index] = {
           ...updated[index],
-          code: value as ProductCode,
-          name: dbData.name || value,
-          ...(dbData || {}),
+          code: value,
+          name: selectedProduct.name,
+          costPerUnit: selectedProduct.price_usd_per_unit || 0,
+          weightPerUnit: grossWeightPerUnit,
+          lengthCm: selectedProduct.length_cm || undefined,
+          widthCm: selectedProduct.width_cm || undefined,
+          heightCm: selectedProduct.height_cm || undefined,
+          volumetricWeightPerUnit: volumetricWeightPerUnit || undefined,
+          chargeableWeightPerUnit: chargeableWeightPerUnit,
+          emptyCaseWeight: selectedProduct.empty_case_weight || undefined,
+          packSize: packSize,
+          supplierId: selectedProduct.supplier_id || undefined,
+          supplierName: selectedProduct.suppliers?.name || undefined,
+          supplierCasesPerPallet: selectedProduct.suppliers?.cases_per_pallet || undefined,
+          supplierPalletConfig: selectedProduct.suppliers ? {
+            pallet_length_cm: selectedProduct.suppliers.pallet_length_cm || undefined,
+            pallet_width_cm: selectedProduct.suppliers.pallet_width_cm || undefined,
+            pallet_height_cm: selectedProduct.suppliers.pallet_height_cm || undefined,
+            pallet_weight_kg: selectedProduct.suppliers.pallet_weight_kg || undefined,
+            pallet_max_height_cm: selectedProduct.suppliers.pallet_max_height_cm || undefined,
+          } : undefined,
         };
-      } else {
-        toast({
-          title: "Product not found",
-          description: `Product code "${value}" does not exist in the database.`,
-          variant: "destructive",
-        });
-        return;
       }
+    } else if (field === 'quantityInputMode') {
+      updated[index] = { ...updated[index], [field]: value };
     } else {
       updated[index] = { ...updated[index], [field]: value };
     }
+    
     setProducts(updated);
   };
 
-  const removeProduct = (index: number, isActual: boolean) => {
+  const removeProduct = (index: number, isActual: boolean = false) => {
     const products = isActual ? actualProducts : estimateProducts;
     const setProducts = isActual ? setActualProducts : setEstimateProducts;
     setProducts(products.filter((_, i) => i !== index));
   };
 
-  const loadCalculation = async (calculationId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('cif_calculations')
-        .select('*')
-        .eq('id', calculationId)
-        .single();
-      
-      if (error) throw error;
-      
-      setExchangeRate(data.exchange_rate);
-      setFreightExteriorPerKg(data.freight_exterior_per_kg);
-      setFreightLocalPerKg(data.freight_local_per_kg);
-      
-      if (data.calculation_type === 'estimate') {
-        setEstimateProducts(data.products as unknown as ProductInput[]);
-        if (data.local_logistics_usd !== undefined) setLocalLogisticsUSD(data.local_logistics_usd);
-        if (data.labor_xcg !== undefined) setLaborXCG(data.labor_xcg);
-        if (data.bank_charges_usd !== undefined) setBankChargesUSD(data.bank_charges_usd);
-        setActiveTab('estimate');
-      } else {
-        setActualProducts(data.products as unknown as ProductInput[]);
-        setActualFreightChampion(data.freight_champion_cost || 0);
-        setActualSwissport(data.swissport_cost || 0);
-        if (data.local_logistics_usd !== undefined) setActualLocalLogisticsUSD(data.local_logistics_usd);
-        if (data.labor_xcg !== undefined) setActualLaborXCG(data.labor_xcg);
-        if (data.bank_charges_usd !== undefined) setActualBankChargesUSD(data.bank_charges_usd);
-        setActiveTab('actual');
-      }
-      
-      toast({
-        title: "Loaded",
-        description: `Calculation "${data.calculation_name}" loaded successfully`
-      });
-    } catch (error) {
-      console.error('Error loading calculation:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load calculation",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleSaveCalculation = async () => {
-    if (!calculationName.trim()) {
-      toast({
-        title: "Name Required",
-        description: "Please enter a name for this calculation",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      const calculationType = activeTab;
-      const products = activeTab === 'estimate' ? estimateProducts : actualProducts;
-      const results = activeTab === 'estimate' ? estimateResults : actualResults;
-      
-      // Check if there are valid products with quantity > 0 and product code
-      const hasValidProducts = products.some(p => p.quantity > 0 && p.code);
-      
-      // Check if there are actual calculated results (not just an empty object)
-      const hasCalculatedResults = results && (
-        (results.byWeight && results.byWeight.length > 0) ||
-        (results.byCost && results.byCost.length > 0) ||
-        (results.totalChargeableWeight && results.totalChargeableWeight > 0)
-      );
-      
-      if (!hasValidProducts || !hasCalculatedResults) {
-        toast({
-          title: "No Data",
-          description: "Add products and calculate before saving",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const saveData: any = {
-        calculation_name: calculationName,
-        calculation_type: calculationType,
-        exchange_rate: exchangeRate,
-        freight_exterior_per_kg: freightExteriorPerKg,
-        freight_local_per_kg: freightLocalPerKg,
-        freight_champion_cost: calculationType === 'actual' ? actualFreightChampion : null,
-        swissport_cost: calculationType === 'actual' ? actualSwissport : null,
-        local_logistics_usd: calculationType === 'estimate' ? localLogisticsUSD : actualLocalLogisticsUSD,
-        labor_xcg: calculationType === 'estimate' ? laborXCG : actualLaborXCG,
-        bank_charges_usd: calculationType === 'estimate' ? bankChargesUSD : actualBankChargesUSD,
-        products: products,
-        results: results,
-        total_pallets: results.totalPallets,
-        total_chargeable_weight: results.totalChargeableWeight,
-        limiting_factor: results.limitingFactor,
-        selected_distribution_method: selectedMethod,
-        notes: notes,
-        created_by: (await supabase.auth.getUser()).data.user?.id
-      };
-      
-      const { error } = await supabase
-        .from('cif_calculations')
-        .insert([saveData]);
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Success",
-        description: "Calculation saved successfully"
-      });
-      
-      setShowSaveDialog(false);
-      setCalculationName('');
-      setNotes('');
-    } catch (error) {
-      console.error('Error saving calculation:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save calculation",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleExportExcel = () => {
-    const results = activeTab === 'estimate' ? estimateResults : actualResults;
-    const method = selectedMethod as keyof typeof results;
-    const selectedResults = results[method] as CIFResult[];
-    
-    if (!selectedResults || selectedResults.length === 0) {
-      toast({
-        title: "No Data",
-        description: "Please calculate results before exporting",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const metadata = {
-      calculationType: activeTab,
-      exchangeRate,
-      freightExteriorPerKg,
-      freightLocalPerKg,
-      freightChampionCost: activeTab === 'actual' ? actualFreightChampion : undefined,
-      swissportCost: activeTab === 'actual' ? actualSwissport : undefined,
-      totalPallets: results.totalPallets,
-      totalChargeableWeight: results.totalChargeableWeight,
-      totalActualWeight: results.totalActualWeight,
-      totalVolumetricWeight: results.totalVolumetricWeight,
-      distributionMethod: selectedMethod,
-      limitingFactor: results.limitingFactor
-    };
-
-    const products = selectedResults.map(r => ({
-      code: r.productCode,
-      name: r.productName,
-      quantity: r.quantity,
-      weightPerUnit: r.costUSD / r.quantity || 0,
-      totalWeight: r.costUSD,
-      freightAllocated: r.freightCost,
-      cifPerUnit: r.cifXCG,
-      wholesalePrice: r.wholesalePrice,
-      margin: r.wholesaleMargin
-    }));
-
-    exportToExcel(metadata, products, `CIF_${activeTab}_${new Date().toISOString().split('T')[0]}.xlsx`);
-  };
-
-  const handleExportPDF = () => {
-    exportToPDF('cif-results', `CIF_${activeTab}_${new Date().toISOString().split('T')[0]}.pdf`);
-  };
-
-  // Convert ProductInput to CIFProductInput format for shared calculation functions
   const convertToCIFProductInput = (product: ProductInput): CIFProductInput => {
-    const productActualWeightKg = (product.quantity * product.weightPerUnit) + 
-      (product.quantity / (product.packSize || 1) * (product.emptyCaseWeight || 0));
-    const productVolumetricWeightKg = (product.quantity * (product.volumetricWeightPerUnit || 0)) + 
-      (product.quantity / (product.packSize || 1) * (product.emptyCaseWeight || 0));
+    const totalQuantity = product.quantityInputMode === 'cases' 
+      ? product.quantity * (product.packSize || 1)
+      : product.quantity;
+    
+    const actualWeight = totalQuantity * product.weightPerUnit;
+    const volumetricWeight = product.volumetricWeightPerUnit 
+      ? totalQuantity * product.volumetricWeightPerUnit 
+      : actualWeight;
     
     return {
       productCode: product.code,
       productName: product.name,
-      quantity: product.quantity,
+      quantity: totalQuantity,
       costPerUnit: product.costPerUnit,
-      actualWeight: productActualWeightKg,
-      volumetricWeight: productVolumetricWeightKg,
+      actualWeight,
+      volumetricWeight,
       wholesalePriceXCG: product.wholesalePriceXCG,
       retailPriceXCG: product.retailPriceXCG,
       supplier: product.supplierName,
     };
   };
 
-  // Add price comparison data to CIF results
-  const addPriceComparison = (
-    baseResult: BaseCIFResult,
-    storedWholesale?: number,
-    storedRetail?: number
-  ): CIFResult => {
-    const wholesalePriceDiff = storedWholesale 
-      ? baseResult.wholesalePrice - storedWholesale 
+  const addPriceComparison = (result: BaseCIFResult, storedWholesale?: number, storedRetail?: number): CIFResult => {
+    const wholesalePriceDiff = storedWholesale && storedWholesale > 0 
+      ? result.wholesalePrice - storedWholesale 
       : undefined;
-    const wholesalePriceDiffPercent = storedWholesale && storedWholesale !== 0
-      ? (wholesalePriceDiff! / storedWholesale) * 100
+    const wholesalePriceDiffPercent = storedWholesale && storedWholesale > 0 
+      ? ((result.wholesalePrice - storedWholesale) / storedWholesale) * 100 
       : undefined;
-    const retailPriceDiff = storedRetail 
-      ? baseResult.retailPrice - storedRetail 
+    const retailPriceDiff = storedRetail && storedRetail > 0 
+      ? result.retailPrice - storedRetail 
       : undefined;
-    const retailPriceDiffPercent = storedRetail && storedRetail !== 0
-      ? (retailPriceDiff! / storedRetail) * 100
+    const retailPriceDiffPercent = storedRetail && storedRetail > 0 
+      ? ((result.retailPrice - storedRetail) / storedRetail) * 100 
       : undefined;
 
     return {
-      productCode: baseResult.productCode as ProductCode,
-      productName: baseResult.productName,
-      quantity: baseResult.quantity,
-      costUSD: baseResult.costUSD,
-      freightCost: baseResult.freightCost,
-      cifUSD: baseResult.cifUSD,
-      cifXCG: baseResult.cifXCG,
-      wholesalePrice: baseResult.wholesalePrice,
-      retailPrice: baseResult.retailPrice,
-      wholesaleMargin: baseResult.wholesaleMargin,
-      retailMargin: baseResult.retailMargin,
+      productCode: result.productCode as ProductCode,
+      productName: result.productName,
+      quantity: result.quantity,
+      costUSD: result.costUSD,
+      freightCost: result.freightCost,
+      cifUSD: result.cifUSD,
+      cifXCG: result.cifXCG,
+      wholesalePrice: result.wholesalePrice,
+      retailPrice: result.retailPrice,
+      wholesaleMargin: result.wholesaleMargin,
+      retailMargin: result.retailMargin,
       storedWholesalePrice: storedWholesale,
       storedRetailPrice: storedRetail,
-      calculatedWholesalePrice: baseResult.wholesalePrice,
-      calculatedRetailPrice: baseResult.retailPrice,
+      calculatedWholesalePrice: result.wholesalePrice,
+      calculatedRetailPrice: result.retailPrice,
       wholesalePriceDiff,
       wholesalePriceDiffPercent,
       retailPriceDiff,
@@ -548,39 +332,17 @@ export default function CIFCalculator() {
     };
   };
 
-  const calculateCIF = (
+  const calculateResults = (
     products: ProductInput[],
+    LOCAL_LOGISTICS_USD: number,
+    BANK_CHARGES_USD: number,
     freightChampionCost?: number,
-    swissportCost?: number,
-    localLogisticsUSD?: number,
-    laborXCG?: number,
-    bankChargesUSD?: number
-  ): {
-    proportional: CIFResult[], 
-    valueBased: CIFResult[], 
-    smartBlend: CIFResult[],
-    // Legacy methods for backward compatibility
-    byWeight: CIFResult[], 
-    byCost: CIFResult[], 
-    equally: CIFResult[],
-    hybrid: CIFResult[],
-    strategic: CIFResult[],
-    volumeOptimized: CIFResult[],
-    customerTier: CIFResult[],
-    limitingFactor: string,
-    totalPallets: number,
-    totalActualWeight: number,
-    totalVolumetricWeight: number,
-    totalChargeableWeight: number,
-    learningApplied: number
-  } => {
-    // Return empty results if no products have quantity
-    const hasValidProducts = products.some(p => p.quantity > 0);
-    if (!hasValidProducts) {
+    swissportCost?: number
+  ) => {
+    if (products.length === 0) {
       return {
         proportional: [],
         valueBased: [],
-        smartBlend: [],
         byWeight: [],
         byCost: [],
         equally: [],
@@ -593,30 +355,21 @@ export default function CIFCalculator() {
         totalActualWeight: 0,
         totalVolumetricWeight: 0,
         totalChargeableWeight: 0,
-        learningApplied: 0,
       };
     }
 
-    // Use provided values or fall back to defaults
-    const LOCAL_LOGISTICS_USD = localLogisticsUSD ?? 91;
-    const BANK_CHARGES_USD = bankChargesUSD ?? 0;
-
-    // Convert products to weight info format for pallet calculation
+    // Create weight info for pallet calculation
     const productsWithWeight: ProductWeightInfo[] = products.map(p => ({
       code: p.code,
       name: p.name,
-      quantity: p.quantity,
-      netWeightPerUnit: p.weightPerUnit * 1000,
-      grossWeightPerUnit: p.weightPerUnit * 1000,
-      emptyCaseWeight: (p.emptyCaseWeight || 0) * 1000,
+      packSize: p.packSize || 1,
+      quantity: p.quantityInputMode === 'cases' ? p.quantity * (p.packSize || 1) : p.quantity,
+      grossWeightPerUnit: p.weightPerUnit * 1000, // Convert kg to grams
       lengthCm: p.lengthCm,
       widthCm: p.widthCm,
       heightCm: p.heightCm,
-      supplierId: p.supplierId || 'unknown',
-      supplierName: p.supplierName || 'Unknown',
-      supplierCasesPerPallet: p.supplierCasesPerPallet,
-      supplierPalletConfig: p.supplierPalletConfig,
-      packSize: p.packSize || 1,
+      supplierId: p.supplierId,
+      supplierName: p.supplierName,
     }));
 
     // Calculate order-level pallet configuration (includes pallet weights)
@@ -628,116 +381,352 @@ export default function CIFCalculator() {
     const totalPallets = orderPalletConfig.totalPallets;
     const limitingFactor = determineLimitingFactor(totalActualWeight, totalVolumetricWeight);
 
-    // Calculate total freight using shared functions
+    // Calculate total freight: simple Tariff × Weight
     const totalFreight = freightChampionCost !== undefined && swissportCost !== undefined
-      ? calculateTotalFreightFromActual(freightChampionCost, swissportCost, LOCAL_LOGISTICS_USD, BANK_CHARGES_USD)
+      ? freightChampionCost + swissportCost + LOCAL_LOGISTICS_USD + BANK_CHARGES_USD
       : calculateTotalFreightFromRates(totalChargeableWeight, freightExteriorPerKg, freightLocalPerKg, LOCAL_LOGISTICS_USD, BANK_CHARGES_USD);
 
     // Convert products to CIFProductInput format
     const cifInputs: CIFProductInput[] = products.map(convertToCIFProductInput);
 
-    // Get recommended blend ratio from learning patterns
-    const recommendedBlendRatio = learningPatterns.length > 0 
-      ? getRecommendedBlendRatio(learningPatterns)
-      : blendRatio;
-
-    // Create CIF params with blend ratio
+    // Create CIF params
     const cifParams: CIFParams = {
       totalFreight,
       exchangeRate,
       limitingFactor,
       wholesaleMultiplier: DEFAULT_WHOLESALE_MULTIPLIER,
       retailMultiplier: DEFAULT_RETAIL_MULTIPLIER,
-      blendRatio: recommendedBlendRatio,
     };
 
-    // Calculate new V2 methods with learning applied
-    const v2Methods: DistributionMethodV2[] = ['proportional', 'valueBased', 'smartBlend'];
-    const v2ResultsMap: Record<string, CIFResult[]> = {};
-    let learningApplied = 0;
+    // Calculate using simple methods
+    const methods: DistributionMethod[] = ['byWeight', 'byCost'];
+    const resultsMap: Record<string, CIFResult[]> = {};
 
-    v2Methods.forEach(method => {
-      const baseResults = calculateCIFWithLearning(cifInputs, cifParams, method, learningPatterns);
-      // Count how many adjustments were applied
-      baseResults.forEach(r => {
-        if (r.adjustmentApplied) learningApplied++;
-      });
-      // Add price comparison data
-      v2ResultsMap[method] = baseResults.map((result, index) => 
+    methods.forEach(method => {
+      const baseResults = calculateCIFByMethod(cifInputs, cifParams, method);
+      resultsMap[method] = baseResults.map((result, index) => 
         addPriceComparison(result, products[index].wholesalePriceXCG, products[index].retailPriceXCG)
       );
     });
 
-    // Map legacy methods to new ones for backward compatibility
     return {
-      proportional: v2ResultsMap.proportional,
-      valueBased: v2ResultsMap.valueBased,
-      smartBlend: v2ResultsMap.smartBlend,
-      // Legacy mappings
-      byWeight: v2ResultsMap.proportional,
-      byCost: v2ResultsMap.valueBased,
-      equally: v2ResultsMap.proportional,
-      hybrid: v2ResultsMap.smartBlend,
-      strategic: v2ResultsMap.smartBlend,
-      volumeOptimized: v2ResultsMap.smartBlend,
-      customerTier: v2ResultsMap.smartBlend,
+      proportional: resultsMap.byWeight,
+      valueBased: resultsMap.byCost,
+      byWeight: resultsMap.byWeight,
+      byCost: resultsMap.byCost,
+      equally: resultsMap.byWeight,
+      hybrid: resultsMap.byWeight,
+      strategic: resultsMap.byWeight,
+      volumeOptimized: resultsMap.byWeight,
+      customerTier: resultsMap.byWeight,
       limitingFactor,
       totalPallets,
       totalActualWeight,
       totalVolumetricWeight,
       totalChargeableWeight,
-      learningApplied: learningApplied / v2Methods.length, // Average across methods
     };
   };
 
-  const renderPriceTooltip = (
-    currentPrice: number,
-    storedPrice: number | undefined,
-    priceDiff: number | undefined,
-    priceDiffPercent: number | undefined,
-    priceType: 'Wholesale' | 'Retail'
-  ) => {
-    if (!storedPrice || storedPrice === 0) {
-      return (
-        <div className="text-sm">
-          <p className="font-semibold">{priceType} Price</p>
-          <p>Current (Calculated): <span className="font-medium">Cg {currentPrice.toFixed(2)}</span></p>
-          <p className="text-muted-foreground text-xs mt-1">No stored price in database</p>
-        </div>
-      );
+  const estimateResults = calculateResults(estimateProducts, localLogisticsUSD, bankChargesUSD);
+  const actualResults = calculateResults(actualProducts, actualLocalLogisticsUSD, actualBankChargesUSD, actualFreightChampion, actualSwissport);
+
+  const handleSaveCalculation = async () => {
+    if (!calculationName.trim()) {
+      toast({
+        title: 'Name required',
+        description: 'Please enter a name for this calculation',
+        variant: 'destructive',
+      });
+      return;
     }
 
-    const isHigher = priceDiff && priceDiff > 0;
-    const diffColor = isHigher ? "text-red-500" : "text-green-500";
+    const products = activeTab === 'estimate' ? estimateProducts : actualProducts;
+    const results = activeTab === 'estimate' ? estimateResults : actualResults;
+    const LOCAL_LOGISTICS_USD = activeTab === 'estimate' ? localLogisticsUSD : actualLocalLogisticsUSD;
+    const BANK_CHARGES_USD = activeTab === 'estimate' ? bankChargesUSD : actualBankChargesUSD;
+    const LABOR_XCG = activeTab === 'estimate' ? laborXCG : actualLaborXCG;
 
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: 'Not authenticated',
+          description: 'Please sign in to save calculations',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const insertData = {
+        calculation_name: calculationName,
+        calculation_type: activeTab,
+        created_by: user.id,
+        exchange_rate: exchangeRate,
+        freight_exterior_per_kg: freightExteriorPerKg,
+        freight_local_per_kg: freightLocalPerKg,
+        local_logistics_usd: LOCAL_LOGISTICS_USD,
+        bank_charges_usd: BANK_CHARGES_USD,
+        labor_xcg: LABOR_XCG,
+        selected_distribution_method: selectedMethod,
+        freight_champion_cost: activeTab === 'actual' ? actualFreightChampion : null,
+        swissport_cost: activeTab === 'actual' ? actualSwissport : null,
+        total_pallets: results.totalPallets,
+        total_chargeable_weight: results.totalChargeableWeight,
+        limiting_factor: results.limitingFactor,
+        products: products.map(p => ({
+          code: p.code,
+          name: p.name,
+          quantity: p.quantity,
+          quantityInputMode: p.quantityInputMode,
+          costPerUnit: p.costPerUnit,
+          weightPerUnit: p.weightPerUnit,
+          volumetricWeightPerUnit: p.volumetricWeightPerUnit,
+          packSize: p.packSize,
+          supplierName: p.supplierName,
+        })) as any,
+        results: {
+          byWeight: results.byWeight,
+          byCost: results.byCost,
+          limitingFactor: results.limitingFactor,
+          totalPallets: results.totalPallets,
+          totalActualWeight: results.totalActualWeight,
+          totalVolumetricWeight: results.totalVolumetricWeight,
+          totalChargeableWeight: results.totalChargeableWeight,
+        } as any,
+        notes,
+      };
+
+      const { error } = await supabase.from('cif_calculations').insert(insertData);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Calculation saved',
+        description: `"${calculationName}" has been saved successfully`,
+      });
+      setShowSaveDialog(false);
+      setCalculationName('');
+      setNotes('');
+    } catch (error) {
+      console.error('Error saving calculation:', error);
+      toast({
+        title: 'Save failed',
+        description: 'Could not save the calculation. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const loadCalculation = async (id: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('cif_calculations')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setExchangeRate(data.exchange_rate);
+        setFreightExteriorPerKg(data.freight_exterior_per_kg);
+        setFreightLocalPerKg(data.freight_local_per_kg);
+        
+        const isActual = data.calculation_type === 'actual';
+        setActiveTab(isActual ? 'actual' : 'estimate');
+
+        const loadedProducts = (data.products as any[]).map(p => ({
+          code: p.code as ProductCode,
+          name: p.name,
+          quantity: p.quantity,
+          quantityInputMode: p.quantityInputMode || 'units',
+          costPerUnit: p.costPerUnit,
+          weightPerUnit: p.weightPerUnit,
+          volumetricWeightPerUnit: p.volumetricWeightPerUnit,
+          packSize: p.packSize,
+          supplierName: p.supplierName,
+        }));
+
+        if (isActual) {
+          setActualProducts(loadedProducts);
+          setActualLocalLogisticsUSD(data.local_logistics_usd || 91);
+          setActualBankChargesUSD(data.bank_charges_usd || 0);
+          setActualLaborXCG(data.labor_xcg || 50);
+          setActualFreightChampion(data.freight_champion_cost || 0);
+          setActualSwissport(data.swissport_cost || 0);
+        } else {
+          setEstimateProducts(loadedProducts);
+          setLocalLogisticsUSD(data.local_logistics_usd || 91);
+          setBankChargesUSD(data.bank_charges_usd || 0);
+          setLaborXCG(data.labor_xcg || 50);
+        }
+
+        setSelectedMethod(data.selected_distribution_method as DistributionMethod || 'byWeight');
+        setNotes(data.notes || '');
+
+        toast({
+          title: 'Calculation loaded',
+          description: `Loaded "${data.calculation_name}"`,
+        });
+      }
+    } catch (error) {
+      console.error('Error loading calculation:', error);
+      toast({
+        title: 'Load failed',
+        description: 'Could not load the calculation',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleExportExcel = () => {
+    const results = activeTab === 'estimate' ? estimateResults : actualResults;
+    const products = activeTab === 'estimate' ? estimateProducts : actualProducts;
+    
+    const metadata = {
+      calculationType: activeTab,
+      exchangeRate,
+      freightExteriorPerKg,
+      freightLocalPerKg,
+      freightChampionCost: activeTab === 'actual' ? actualFreightChampion : undefined,
+      swissportCost: activeTab === 'actual' ? actualSwissport : undefined,
+      totalPallets: results.totalPallets || 0,
+      totalChargeableWeight: results.totalChargeableWeight || 0,
+      totalActualWeight: results.totalActualWeight || 0,
+      totalVolumetricWeight: results.totalVolumetricWeight || 0,
+      distributionMethod: selectedMethod,
+      limitingFactor: results.limitingFactor || 'actual',
+    };
+
+    const productExport = results.byWeight.map((r, i) => ({
+      code: r.productCode,
+      name: r.productName,
+      quantity: r.quantity,
+      weightPerUnit: products[i]?.weightPerUnit || 0,
+      totalWeight: r.quantity * (products[i]?.weightPerUnit || 0),
+      freightAllocated: r.freightCost,
+      cifPerUnit: r.cifXCG / r.quantity,
+      wholesalePrice: r.wholesalePrice,
+      margin: r.wholesaleMargin,
+    }));
+
+    exportToExcel(metadata, productExport, 'cif-calculation.xlsx');
+  };
+
+  const handleExportPDF = () => {
+    exportToPDF('cif-results', 'cif-calculation');
+  };
+
+  const renderProductForm = (isActual: boolean = false) => {
+    const products = isActual ? actualProducts : estimateProducts;
+    
     return (
-      <div className="text-sm space-y-1">
-        <p className="font-semibold">{priceType} Price Comparison</p>
-        <div className="space-y-1">
-          <p>Database Price: <span className="font-medium">Cg {storedPrice.toFixed(2)}</span></p>
-          <p>Calculated Price: <span className="font-medium">Cg {currentPrice.toFixed(2)}</span></p>
-        </div>
-        {priceDiff !== undefined && priceDiffPercent !== undefined && (
-          <div className={`pt-1 border-t ${diffColor}`}>
-            <p className="font-semibold">
-              Difference: {isHigher ? '+' : ''}{priceDiff.toFixed(2)} ({priceDiffPercent.toFixed(1)}%)
-            </p>
-            <p className="text-xs">
-              {isHigher ? '⚠️ Calculated price is higher than database' : '✓ Calculated price is lower than database'}
-            </p>
-          </div>
-        )}
+      <div className="space-y-4">
+        {products.map((product, index) => (
+          <Card key={index} className="p-4">
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+              <div className="md:col-span-2">
+                <Label>Product</Label>
+                <Select
+                  value={product.code}
+                  onValueChange={(v) => updateProduct(index, 'code', v, isActual)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select product" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allProducts.map((p) => (
+                      <SelectItem key={p.code} value={p.code}>
+                        {p.name} ({p.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label>Qty Mode</Label>
+                <Select
+                  value={product.quantityInputMode}
+                  onValueChange={(v) => updateProduct(index, 'quantityInputMode', v, isActual)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="units">Units</SelectItem>
+                    <SelectItem value="cases">Cases</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label>Quantity</Label>
+                <Input
+                  type="number"
+                  value={product.quantity}
+                  onChange={(e) => updateProduct(index, 'quantity', parseInt(e.target.value) || 0, isActual)}
+                />
+              </div>
+              
+              <div>
+                <Label>Cost/Unit ($)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={product.costPerUnit}
+                  onChange={(e) => updateProduct(index, 'costPerUnit', parseFloat(e.target.value) || 0, isActual)}
+                />
+              </div>
+              
+              <div>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => removeProduct(index, isActual)}
+                >
+                  Remove
+                </Button>
+              </div>
+            </div>
+            
+            {product.code && (
+              <div className="mt-2 text-sm text-muted-foreground grid grid-cols-2 md:grid-cols-4 gap-2">
+                <span>Weight: {product.weightPerUnit?.toFixed(2)} kg</span>
+                {product.volumetricWeightPerUnit && (
+                  <span>Vol: {product.volumetricWeightPerUnit.toFixed(2)} kg</span>
+                )}
+                {product.packSize && <span>Pack: {product.packSize}</span>}
+                {product.supplierName && <span>Supplier: {product.supplierName}</span>}
+              </div>
+            )}
+          </Card>
+        ))}
+        
+        <Button onClick={() => addProduct(isActual)} variant="outline" className="w-full">
+          + Add Product
+        </Button>
       </div>
     );
   };
 
   const renderResults = (results: CIFResult[], title: string) => {
-    if (results.length === 0 || results.every(r => r.quantity === 0)) {
-      return null;
+    if (results.length === 0) {
+      return (
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center text-muted-foreground">Add products to see CIF calculations</p>
+          </CardContent>
+        </Card>
+      );
     }
 
+    const totalCIF = results.reduce((sum, r) => sum + r.cifXCG, 0);
+    const totalFreight = results.reduce((sum, r) => sum + r.freightCost, 0);
+    const totalCost = results.reduce((sum, r) => sum + r.costUSD, 0);
+
     return (
-      <Card className="mb-4">
+      <Card>
         <CardHeader>
           <CardTitle className="text-lg">{title}</CardTitle>
         </CardHeader>
@@ -746,274 +735,43 @@ export default function CIFCalculator() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left p-2">Product</th>
-                  <th className="text-right p-2">Qty</th>
-                  <th className="text-right p-2">CIF/Unit</th>
-                  <th className="text-right p-2">Wholesale</th>
-                  <th className="text-right p-2">W. Margin</th>
-                  <th className="text-right p-2">W. %</th>
-                  <th className="text-right p-2">Retail</th>
-                  <th className="text-right p-2">R. Margin</th>
-                  <th className="text-right p-2">R. %</th>
+                  <th className="text-left py-2">Product</th>
+                  <th className="text-right py-2">Qty</th>
+                  <th className="text-right py-2">Cost ($)</th>
+                  <th className="text-right py-2">Freight ($)</th>
+                  <th className="text-right py-2">CIF ($)</th>
+                  <th className="text-right py-2">CIF (XCG)</th>
+                  <th className="text-right py-2">Wholesale</th>
+                  <th className="text-right py-2">Retail</th>
                 </tr>
               </thead>
               <tbody>
-                {results.map((result, idx) => {
-                  const cifPerUnit = result.quantity > 0 ? result.cifXCG / result.quantity : 0;
-                  const wholesaleMarginPercent = cifPerUnit > 0 
-                    ? ((result.wholesalePrice - cifPerUnit) / cifPerUnit * 100)
-                    : 0;
-                  const retailMarginPercent = cifPerUnit > 0
-                    ? ((result.retailPrice - cifPerUnit) / cifPerUnit * 100)
-                    : 0;
-                  
-                  return (
-                    <tr key={idx} className="border-b">
-                      <td className="p-2">{result.productName}</td>
-                      <td className="text-right p-2">{result.quantity}</td>
-                      <td className="text-right p-2">cg {cifPerUnit.toFixed(2)}</td>
-                      <td className="text-right p-2">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger className="cursor-help">
-                              cg {result.wholesalePrice.toFixed(2)}
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {renderPriceTooltip(
-                                result.wholesalePrice,
-                                result.storedWholesalePrice,
-                                result.wholesalePriceDiff,
-                                result.wholesalePriceDiffPercent,
-                                'Wholesale'
-                              )}
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </td>
-                      <td className="text-right p-2 text-green-600">cg {result.wholesaleMargin.toFixed(2)}</td>
-                      <td className="text-right p-2 text-green-600 font-semibold">{wholesaleMarginPercent.toFixed(1)}%</td>
-                      <td className="text-right p-2">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger className="cursor-help">
-                              cg {result.retailPrice.toFixed(2)}
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {renderPriceTooltip(
-                                result.retailPrice,
-                                result.storedRetailPrice,
-                                result.retailPriceDiff,
-                                result.retailPriceDiffPercent,
-                                'Retail'
-                              )}
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </td>
-                      <td className="text-right p-2 text-green-600">cg {result.retailMargin.toFixed(2)}</td>
-                      <td className="text-right p-2 text-green-600 font-semibold">{retailMarginPercent.toFixed(1)}%</td>
-                    </tr>
-                  );
-                })}
+                {results.map((result, index) => (
+                  <tr key={index} className="border-b">
+                    <td className="py-2">{result.productName}</td>
+                    <td className="text-right">{result.quantity}</td>
+                    <td className="text-right">${result.costUSD.toFixed(2)}</td>
+                    <td className="text-right">${result.freightCost.toFixed(2)}</td>
+                    <td className="text-right">${result.cifUSD.toFixed(2)}</td>
+                    <td className="text-right">{result.cifXCG.toFixed(2)}</td>
+                    <td className="text-right">{result.wholesalePrice.toFixed(2)}</td>
+                    <td className="text-right">{result.retailPrice.toFixed(2)}</td>
+                  </tr>
+                ))}
               </tbody>
+              <tfoot>
+                <tr className="font-bold">
+                  <td className="py-2">Total</td>
+                  <td></td>
+                  <td className="text-right">${totalCost.toFixed(2)}</td>
+                  <td className="text-right">${totalFreight.toFixed(2)}</td>
+                  <td className="text-right">${(totalCost + totalFreight).toFixed(2)}</td>
+                  <td className="text-right">{totalCIF.toFixed(2)}</td>
+                  <td></td>
+                  <td></td>
+                </tr>
+              </tfoot>
             </table>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
-
-  const renderProductInputs = (products: ProductInput[], isActual: boolean) => {
-    return (
-      <div className="space-y-4">
-        {products.map((product, index) => (
-          <Card key={index}>
-            <CardContent className="pt-6">
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                <div>
-                  <Label>Product</Label>
-                  <Select
-                    value={product.code}
-                    onValueChange={(value) => updateProduct(index, 'code', value as ProductCode, isActual)}
-                  >
-                    <SelectTrigger className="w-full bg-background">
-                      <SelectValue placeholder="Select product">
-                        {product.name} {product.code && `(${product.code})`}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover max-h-[300px] z-50 overflow-y-auto">
-                      {allProducts.map(p => (
-                        <SelectItem key={p.code} value={p.code} className="cursor-pointer hover:bg-accent">
-                          {p.name} ({p.code})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {product.code && !product.costPerUnit && !product.weightPerUnit && (
-                    <div className="text-xs text-muted-foreground mt-1">
-                      Loading product data...
-                    </div>
-                  )}
-                  {!product.code && (
-                    <div className="text-xs text-muted-foreground mt-1">
-                      Please select a product
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <Label>Quantity</Label>
-                    <div className="flex gap-1">
-                      <Button
-                        variant={product.quantityInputMode === 'units' ? 'default' : 'outline'}
-                        size="sm"
-                        className="h-6 px-2 text-xs"
-                        onClick={() => updateProduct(index, 'quantityInputMode', 'units', isActual)}
-                        disabled={!product.code || !product.weightPerUnit}
-                      >
-                        Units
-                      </Button>
-                      <Button
-                        variant={product.quantityInputMode === 'cases' ? 'default' : 'outline'}
-                        size="sm"
-                        className="h-6 px-2 text-xs"
-                        onClick={() => updateProduct(index, 'quantityInputMode', 'cases', isActual)}
-                        disabled={!product.code || !product.packSize}
-                      >
-                        Cases
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  {product.quantityInputMode === 'units' ? (
-                    <div className="space-y-1">
-                      <Input
-                        type="number"
-                        value={product.quantity || ''}
-                        onChange={(e) => updateProduct(index, 'quantity', parseFloat(e.target.value) || 0, isActual)}
-                        placeholder={product.weightPerUnit ? "Enter units" : "Select product first"}
-                        disabled={!product.weightPerUnit}
-                      />
-                      {product.packSize && product.quantity > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                          = {(product.quantity / product.packSize).toFixed(2)} cases
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      <Input
-                        type="number"
-                        value={product.packSize && product.quantity > 0 ? (product.quantity / product.packSize).toFixed(2) : ''}
-                        onChange={(e) => {
-                          if (!product.packSize) {
-                            return;
-                          }
-                          const cases = parseFloat(e.target.value) || 0;
-                          const units = cases * product.packSize;
-                          updateProduct(index, 'quantity', units, isActual);
-                        }}
-                        placeholder={product.packSize ? "Enter cases" : "Select product first"}
-                        disabled={!product.packSize}
-                      />
-                      {product.packSize && product.quantity > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                          = {product.quantity} units
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <Label>Cost/Unit (USD)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={product.costPerUnit || ''}
-                    onChange={(e) => updateProduct(index, 'costPerUnit', parseFloat(e.target.value) || 0, isActual)}
-                    placeholder="Auto-filled from DB"
-                    className={product.costPerUnit ? "font-medium" : ""}
-                  />
-                  {product.costPerUnit && (
-                    <div className="text-xs text-muted-foreground mt-1">
-                      From database (editable)
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <Label>Weight/Unit (kg)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={product.weightPerUnit || ''}
-                    onChange={(e) => updateProduct(index, 'weightPerUnit', parseFloat(e.target.value) || 0, isActual)}
-                  />
-                  {product.lengthCm && product.widthCm && product.heightCm && (
-                    <div className="text-xs text-muted-foreground mt-1">
-                      Dims: {product.lengthCm}×{product.widthCm}×{product.heightCm}cm
-                      {product.volumetricWeightPerUnit && (
-                        <span> | Vol: {product.volumetricWeightPerUnit.toFixed(3)}kg</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-end">
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => removeProduct(index, isActual)}
-                    disabled={products.length === 1}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-        <Button onClick={() => addProduct(isActual)} variant="outline">
-          Add Product
-        </Button>
-      </div>
-    );
-  };
-
-  const estimateResults = calculateCIF(estimateProducts, undefined, undefined, localLogisticsUSD, laborXCG, bankChargesUSD);
-  const actualResults = calculateCIF(actualProducts, actualFreightChampion, actualSwissport, actualLocalLogisticsUSD, actualLaborXCG, actualBankChargesUSD);
-
-  const renderWeightInfo = (results: ReturnType<typeof calculateCIF>) => {
-    // Don't show weight info if no products have quantity
-    if (!results.totalChargeableWeight || results.totalChargeableWeight === 0) return null;
-
-    return (
-      <Card className="mb-4">
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-            <div>
-              <div className="text-muted-foreground">Actual Weight</div>
-              <div className="font-semibold">{results.totalActualWeight.toFixed(2)} kg</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Volumetric Weight</div>
-              <div className="font-semibold">{results.totalVolumetricWeight.toFixed(2)} kg</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Chargeable Weight</div>
-              <div className="font-semibold">{results.totalChargeableWeight.toFixed(2)} kg</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Total Pallets</div>
-              <div className="font-semibold flex items-center gap-2">
-                <Package className="h-4 w-4" />
-                {results.totalPallets}
-              </div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Charged By</div>
-              <Badge variant={results.limitingFactor === 'volumetric' ? 'destructive' : 'default'}>
-                {results.limitingFactor === 'volumetric' ? 'Volumetric' : 'Actual'}
-              </Badge>
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -1022,464 +780,361 @@ export default function CIFCalculator() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="container mx-auto py-6">
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center">Loading products...</p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
-        <div className="flex items-center gap-4 mb-8">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
-            <ArrowLeft className="h-4 w-4" />
+    <div className="container mx-auto py-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" onClick={() => navigate(-1)}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
           </Button>
-          <div className="flex-1">
-            <h1 className="text-4xl font-bold text-foreground flex items-center gap-2">
-              <Calculator className="h-8 w-8 text-primary" />
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Calculator className="h-6 w-6" />
               CIF Calculator
             </h1>
-            <p className="text-muted-foreground mt-2">Calculate Cost, Insurance, and Freight pricing</p>
-          </div>
-          <div className="w-48 ml-auto">
-            <Label>Exchange Rate (USD to Cg)</Label>
-            <Input
-              type="number"
-              step="0.01"
-              value={exchangeRate}
-              onChange={(e) => handleExchangeRateChange(e.target.value)}
-            />
+            <p className="text-muted-foreground">Calculate landed costs using Tariff × Weight</p>
           </div>
         </div>
+        
+        <Button variant="outline" onClick={() => navigate('/import/cif-history')}>
+          View History
+        </Button>
+      </div>
 
-        <Tabs defaultValue="estimate" className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-2 mb-8">
-            <TabsTrigger value="estimate">Estimate</TabsTrigger>
-            <TabsTrigger value="actual">Actual</TabsTrigger>
-          </TabsList>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'estimate' | 'actual')}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="estimate">Estimate (Pre-Order)</TabsTrigger>
+          <TabsTrigger value="actual">Actual (Post-Arrival)</TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="estimate">
-            <Card className="mb-8">
-              <CardHeader>
-                <CardTitle>Estimate Version</CardTitle>
-                <CardDescription>
-                  Enter estimated product details. Freight costs will be calculated automatically.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {renderProductInputs(estimateProducts, false)}
-              </CardContent>
-            </Card>
-
-            {/* Additional Costs - Estimate */}
-            <Card className="mb-4">
-              <CardHeader>
-                <CardTitle>Additional Costs</CardTitle>
-                <CardDescription>Configure logistics, labor, and bank charges</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label>Local Logistics (USD)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={localLogisticsUSD}
-                      onChange={(e) => setLocalLogisticsUSD(parseFloat(e.target.value) || 0)}
-                      placeholder="Default: $91.00"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      If not applicable, use default $91.00
-                    </p>
-                  </div>
-                  <div>
-                    <Label>Labor Cost (XCG) <span className="text-muted-foreground font-normal">(Optional)</span></Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={laborXCG}
-                      onChange={(e) => setLaborXCG(parseFloat(e.target.value) || 0)}
-                      placeholder="Default: 50 XCG"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Optional: Only for special cases. Usually included in Other Logistics.
-                    </p>
-                  </div>
-                  <div>
-                    <Label>Bank Charges (USD)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={bankChargesUSD}
-                      onChange={(e) => setBankChargesUSD(parseFloat(e.target.value) || 0)}
-                      placeholder="Enter bank charges"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Optional: Enter if applicable
-                    </p>
-                  </div>
+        <TabsContent value="estimate" className="space-y-6">
+          {/* Settings Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Freight Settings</CardTitle>
+              <CardDescription>Configure tariff rates for estimate calculation</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <Label>Exterior Tariff ($/kg)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={freightExteriorPerKg}
+                    onChange={(e) => setFreightExteriorPerKg(parseFloat(e.target.value) || 0)}
+                  />
                 </div>
-              </CardContent>
-            </Card>
+                <div>
+                  <Label>Local Tariff ($/kg)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={freightLocalPerKg}
+                    onChange={(e) => setFreightLocalPerKg(parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+                <div>
+                  <Label>Exchange Rate (XCG/$)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={exchangeRate}
+                    onChange={(e) => handleExchangeRateChange(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>Local Logistics ($)</Label>
+                  <Input
+                    type="number"
+                    value={localLogisticsUSD}
+                    onChange={(e) => setLocalLogisticsUSD(parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-            <div className="space-y-4">
-              <h2 className="text-2xl font-bold mb-4">Results</h2>
-              
-              {renderWeightInfo(estimateResults)}
-              
-              {estimateResults.limitingFactor === 'volumetric' && (
-                <Alert variant="destructive" className="mb-4">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertTitle>Charged by Volumetric Weight</AlertTitle>
-                  <AlertDescription>
-                    You're paying for {estimateResults.totalVolumetricWeight.toFixed(2)} kg but only shipping {estimateResults.totalActualWeight.toFixed(2)} kg.
-                    That's {(estimateResults.totalVolumetricWeight - estimateResults.totalActualWeight).toFixed(2)} kg ({((estimateResults.totalVolumetricWeight - estimateResults.totalActualWeight) / estimateResults.totalActualWeight * 100).toFixed(1)}%) of "air".
-                  </AlertDescription>
-                </Alert>
-              )}
+          {/* Products */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Products</CardTitle>
+              <CardDescription>Add products to calculate estimated CIF</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {renderProductForm(false)}
+            </CardContent>
+          </Card>
 
-              {estimateProducts.some(p => p.quantity > 0) && (
-                <Card className="mb-4">
-                  <CardContent className="pt-6">
-                    <div className="flex gap-2 justify-end flex-wrap">
-                      <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
-                        <DialogTrigger asChild>
-                          <Button variant="default">
-                            <Save className="mr-2 h-4 w-4" />
+          {/* Results */}
+          {estimateProducts.length > 0 && (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Summary</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Weight</p>
+                      <p className="text-xl font-bold">{estimateResults.totalActualWeight?.toFixed(2)} kg</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Chargeable Weight</p>
+                      <p className="text-xl font-bold">{estimateResults.totalChargeableWeight?.toFixed(2)} kg</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Pallets</p>
+                      <p className="text-xl font-bold">{estimateResults.totalPallets}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Limiting Factor</p>
+                      <Badge variant={estimateResults.limitingFactor === 'volumetric' ? 'destructive' : 'secondary'}>
+                        {estimateResults.limitingFactor}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex gap-2 flex-wrap">
+                    <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+                      <DialogTrigger asChild>
+                        <Button>
+                          <Save className="mr-2 h-4 w-4" />
+                          Save Calculation
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Save Calculation</DialogTitle>
+                          <DialogDescription>
+                            Save this CIF calculation for future reference
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div>
+                            <Label htmlFor="calculation-name">Name</Label>
+                            <Input
+                              id="calculation-name"
+                              placeholder="e.g., Weekly Import - Dec 2024"
+                              value={calculationName}
+                              onChange={(e) => setCalculationName(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="notes">Notes (Optional)</Label>
+                            <Textarea
+                              id="notes"
+                              placeholder="Add any notes about this calculation..."
+                              value={notes}
+                              onChange={(e) => setNotes(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Label>Distribution Method</Label>
+                            <Select value={selectedMethod} onValueChange={(v) => setSelectedMethod(v as DistributionMethod)}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="byWeight">By Weight</SelectItem>
+                                <SelectItem value="byCost">By Cost</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
+                            Cancel
+                          </Button>
+                          <Button onClick={handleSaveCalculation}>
                             Save
                           </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Save CIF Calculation</DialogTitle>
-                            <DialogDescription>
-                              Give this calculation a name to save it for later
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-4">
-                            <div>
-                              <Label htmlFor="calculation-name">Calculation Name</Label>
-                              <Input
-                                id="calculation-name"
-                                placeholder="e.g., Weekly Import - Dec 2024"
-                                value={calculationName}
-                                onChange={(e) => setCalculationName(e.target.value)}
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="notes">Notes (Optional)</Label>
-                              <Textarea
-                                id="notes"
-                                placeholder="Add any notes about this calculation..."
-                                value={notes}
-                                onChange={(e) => setNotes(e.target.value)}
-                              />
-                            </div>
-                            <div>
-                              <Label>Distribution Method</Label>
-                              <Select value={selectedMethod} onValueChange={(v) => setSelectedMethod(v as DistributionMethodV2)}>
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="proportional">Proportional (by Weight)</SelectItem>
-                                  <SelectItem value="valueBased">Value-Based (by Cost)</SelectItem>
-                                  <SelectItem value="smartBlend">Smart Blend (AI-Recommended)</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              {selectedMethod === 'smartBlend' && learningPatterns.length > 0 && (
-                                <p className="text-xs text-green-600 mt-1">
-                                  ✓ Using {learningPatterns.length} learned patterns
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <DialogFooter>
-                            <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
-                              Cancel
-                            </Button>
-                            <Button onClick={handleSaveCalculation}>
-                              Save
-                            </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
-                      <Button variant="outline" onClick={printCalculation}>
-                        <Printer className="mr-2 h-4 w-4" />
-                        Print
-                      </Button>
-                      <Button variant="outline" onClick={handleExportPDF}>
-                        <FileText className="mr-2 h-4 w-4" />
-                        PDF
-                      </Button>
-                      <Button variant="outline" onClick={handleExportExcel}>
-                        <Download className="mr-2 h-4 w-4" />
-                        Excel
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                    <Button variant="outline" onClick={printCalculation}>
+                      <Printer className="mr-2 h-4 w-4" />
+                      Print
+                    </Button>
+                    <Button variant="outline" onClick={handleExportPDF}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      PDF
+                    </Button>
+                    <Button variant="outline" onClick={handleExportExcel}>
+                      <Download className="mr-2 h-4 w-4" />
+                      Excel
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
 
-              {/* Learning Status Indicator */}
-              {learningPatterns.length > 0 && (
-                <Card className="mb-4 border-green-200 bg-green-50/50">
-                  <CardContent className="pt-4 pb-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-green-600 border-green-600">
-                          Learning Active
-                        </Badge>
-                        <span className="text-sm text-muted-foreground">
-                          {learningPatterns.length} patterns loaded • {estimateResults.learningApplied.toFixed(0)} adjustments applied
-                        </span>
-                      </div>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <Badge variant="secondary">
-                              Blend: {((blendRatio) * 100).toFixed(0)}% weight
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Smart Blend uses {(blendRatio * 100).toFixed(0)}% weight-based and {((1 - blendRatio) * 100).toFixed(0)}% cost-based allocation</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              <Tabs defaultValue="proportional" className="w-full" onValueChange={(v) => setSelectedMethod(v as DistributionMethodV2)}>
-                <TabsList className="grid w-full grid-cols-3 mb-4">
-                  <TabsTrigger value="proportional">Proportional (Weight)</TabsTrigger>
-                  <TabsTrigger value="valueBased">Value-Based (Cost)</TabsTrigger>
-                  <TabsTrigger value="smartBlend" className="relative">
-                    Smart Blend
-                    {learningPatterns.length > 0 && (
-                      <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-green-500" />
-                    )}
-                  </TabsTrigger>
+              <Tabs defaultValue="byWeight" className="w-full" onValueChange={(v) => setSelectedMethod(v as DistributionMethod)}>
+                <TabsList className="grid w-full grid-cols-2 mb-4">
+                  <TabsTrigger value="byWeight">By Weight</TabsTrigger>
+                  <TabsTrigger value="byCost">By Cost</TabsTrigger>
                 </TabsList>
 
                 <div id="cif-results">
-
-                <TabsContent value="proportional">
-                  {renderResults(estimateResults.proportional, 'Proportional Distribution (by Weight)')}
-                </TabsContent>
-                <TabsContent value="valueBased">
-                  {renderResults(estimateResults.valueBased, 'Value-Based Distribution (by Cost)')}
-                </TabsContent>
-                <TabsContent value="smartBlend">
-                  {renderResults(estimateResults.smartBlend, `Smart Blend (${(blendRatio * 100).toFixed(0)}% Weight + ${((1 - blendRatio) * 100).toFixed(0)}% Cost)`)}
-                </TabsContent>
+                  <TabsContent value="byWeight">
+                    {renderResults(estimateResults.byWeight, 'Distribution by Weight')}
+                  </TabsContent>
+                  <TabsContent value="byCost">
+                    {renderResults(estimateResults.byCost, 'Distribution by Cost')}
+                  </TabsContent>
                 </div>
-
               </Tabs>
-            </div>
-          </TabsContent>
+            </>
+          )}
+        </TabsContent>
 
-          <TabsContent value="actual">
-            <Card className="mb-8">
-              <CardHeader>
-                <CardTitle>Actual Version</CardTitle>
-                <CardDescription>
-                  Enter actual costs from your agents for precise calculations.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {renderProductInputs(actualProducts, true)}
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-6 border-t">
-                  <div>
-                    <Label>Freight Champion Total Cost (USD)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={actualFreightChampion || ''}
-                      onChange={(e) => setActualFreightChampion(parseFloat(e.target.value) || 0)}
-                      placeholder="Enter actual cost from agent"
-                    />
-                  </div>
-                  <div>
-                    <Label>Swissport Total Cost (USD)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={actualSwissport || ''}
-                      onChange={(e) => setActualSwissport(parseFloat(e.target.value) || 0)}
-                      placeholder="Enter actual cost from agent"
-                    />
-                  </div>
-
-                  {/* Additional Costs - Actual */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-6 border-t">
-                    <div>
-                      <Label>Local Logistics (USD)</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={actualLocalLogisticsUSD}
-                        onChange={(e) => setActualLocalLogisticsUSD(parseFloat(e.target.value) || 0)}
-                        placeholder="Default: $91.00"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        If not applicable, use default $91.00
-                      </p>
-                    </div>
-                    <div>
-                      <Label>Labor Cost (XCG) <span className="text-muted-foreground font-normal">(Optional)</span></Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={actualLaborXCG}
-                        onChange={(e) => setActualLaborXCG(parseFloat(e.target.value) || 0)}
-                        placeholder="Default: 50 XCG"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Optional: Only for special cases. Usually included in Other Logistics.
-                      </p>
-                    </div>
-                    <div>
-                      <Label>Bank Charges (USD)</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={actualBankChargesUSD}
-                        onChange={(e) => setActualBankChargesUSD(parseFloat(e.target.value) || 0)}
-                        placeholder="Enter bank charges"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Optional: Enter if applicable
-                      </p>
-                    </div>
-                  </div>
+        <TabsContent value="actual" className="space-y-6">
+          {/* Actual Freight Costs Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Actual Freight Costs</CardTitle>
+              <CardDescription>Enter the actual freight costs from invoices</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <Label>Freight Champion ($)</Label>
+                  <Input
+                    type="number"
+                    value={actualFreightChampion}
+                    onChange={(e) => setActualFreightChampion(parseFloat(e.target.value) || 0)}
+                  />
                 </div>
-              </CardContent>
-            </Card>
+                <div>
+                  <Label>Swissport ($)</Label>
+                  <Input
+                    type="number"
+                    value={actualSwissport}
+                    onChange={(e) => setActualSwissport(parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+                <div>
+                  <Label>Local Logistics ($)</Label>
+                  <Input
+                    type="number"
+                    value={actualLocalLogisticsUSD}
+                    onChange={(e) => setActualLocalLogisticsUSD(parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+                <div>
+                  <Label>Exchange Rate (XCG/$)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={exchangeRate}
+                    onChange={(e) => handleExchangeRateChange(e.target.value)}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-            <div className="space-y-4">
-              <h2 className="text-2xl font-bold mb-4">Results</h2>
-              
-              {renderWeightInfo(actualResults)}
-              
-              {actualResults.limitingFactor === 'volumetric' && (
-                <Alert variant="destructive" className="mb-4">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertTitle>Charged by Volumetric Weight</AlertTitle>
-                  <AlertDescription>
-                    You're paying for {actualResults.totalVolumetricWeight.toFixed(2)} kg but only shipping {actualResults.totalActualWeight.toFixed(2)} kg.
-                    That's {(actualResults.totalVolumetricWeight - actualResults.totalActualWeight).toFixed(2)} kg ({((actualResults.totalVolumetricWeight - actualResults.totalActualWeight) / actualResults.totalActualWeight * 100).toFixed(1)}%) of "air".
-                  </AlertDescription>
-                </Alert>
-              )}
+          {/* Products */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Products</CardTitle>
+              <CardDescription>Add products to calculate actual CIF</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {renderProductForm(true)}
+            </CardContent>
+          </Card>
 
-              {actualProducts.some(p => p.quantity > 0) && (
-                <Card className="mb-4">
-                  <CardContent className="pt-6">
-                    <div className="flex gap-2 justify-end flex-wrap">
-                      <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
-                        <DialogTrigger asChild>
-                          <Button variant="default">
-                            <Save className="mr-2 h-4 w-4" />
-                            Save
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Save CIF Calculation</DialogTitle>
-                            <DialogDescription>
-                              Give this calculation a name to save it for later
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-4">
-                            <div>
-                              <Label htmlFor="calculation-name-actual">Calculation Name</Label>
-                              <Input
-                                id="calculation-name-actual"
-                                placeholder="e.g., Weekly Import - Dec 2024"
-                                value={calculationName}
-                                onChange={(e) => setCalculationName(e.target.value)}
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="notes-actual">Notes (Optional)</Label>
-                              <Textarea
-                                id="notes-actual"
-                                placeholder="Add any notes about this calculation..."
-                                value={notes}
-                                onChange={(e) => setNotes(e.target.value)}
-                              />
-                            </div>
-                            <div>
-                              <Label>Distribution Method</Label>
-                              <Select value={selectedMethod} onValueChange={(v) => setSelectedMethod(v as DistributionMethodV2)}>
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="proportional">Proportional (by Weight)</SelectItem>
-                                  <SelectItem value="valueBased">Value-Based (by Cost)</SelectItem>
-                                  <SelectItem value="smartBlend">Smart Blend (AI-Recommended)</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                          <DialogFooter>
-                            <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
-                              Cancel
-                            </Button>
-                            <Button onClick={handleSaveCalculation}>
-                              Save
-                            </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
-                      <Button variant="outline" onClick={printCalculation}>
-                        <Printer className="mr-2 h-4 w-4" />
-                        Print
-                      </Button>
-                      <Button variant="outline" onClick={handleExportPDF}>
-                        <FileText className="mr-2 h-4 w-4" />
-                        PDF
-                      </Button>
-                      <Button variant="outline" onClick={handleExportExcel}>
-                        <Download className="mr-2 h-4 w-4" />
-                        Excel
-                      </Button>
+          {/* Results */}
+          {actualProducts.length > 0 && (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Summary</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Weight</p>
+                      <p className="text-xl font-bold">{actualResults.totalActualWeight?.toFixed(2)} kg</p>
                     </div>
-                  </CardContent>
-                </Card>
-              )}
+                    <div>
+                      <p className="text-sm text-muted-foreground">Chargeable Weight</p>
+                      <p className="text-xl font-bold">{actualResults.totalChargeableWeight?.toFixed(2)} kg</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Freight</p>
+                      <p className="text-xl font-bold">${(actualFreightChampion + actualSwissport + actualLocalLogisticsUSD).toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Limiting Factor</p>
+                      <Badge variant={actualResults.limitingFactor === 'volumetric' ? 'destructive' : 'secondary'}>
+                        {actualResults.limitingFactor}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-              <Tabs defaultValue="proportional" className="w-full" onValueChange={(v) => setSelectedMethod(v as DistributionMethodV2)}>
-                <TabsList className="grid w-full grid-cols-3 mb-4">
-                  <TabsTrigger value="proportional">Proportional (Weight)</TabsTrigger>
-                  <TabsTrigger value="valueBased">Value-Based (Cost)</TabsTrigger>
-                  <TabsTrigger value="smartBlend" className="relative">
-                    Smart Blend
-                    {learningPatterns.length > 0 && (
-                      <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-green-500" />
-                    )}
-                  </TabsTrigger>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex gap-2 flex-wrap">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button onClick={() => setShowSaveDialog(true)}>
+                          <Save className="mr-2 h-4 w-4" />
+                          Save Calculation
+                        </Button>
+                      </DialogTrigger>
+                    </Dialog>
+                    <Button variant="outline" onClick={printCalculation}>
+                      <Printer className="mr-2 h-4 w-4" />
+                      Print
+                    </Button>
+                    <Button variant="outline" onClick={handleExportPDF}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      PDF
+                    </Button>
+                    <Button variant="outline" onClick={handleExportExcel}>
+                      <Download className="mr-2 h-4 w-4" />
+                      Excel
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Tabs defaultValue="byWeight" className="w-full" onValueChange={(v) => setSelectedMethod(v as DistributionMethod)}>
+                <TabsList className="grid w-full grid-cols-2 mb-4">
+                  <TabsTrigger value="byWeight">By Weight</TabsTrigger>
+                  <TabsTrigger value="byCost">By Cost</TabsTrigger>
                 </TabsList>
 
                 <div id="cif-results">
-
-                <TabsContent value="proportional">
-                  {renderResults(actualResults.proportional, 'Proportional Distribution (by Weight)')}
-                </TabsContent>
-                <TabsContent value="valueBased">
-                  {renderResults(actualResults.valueBased, 'Value-Based Distribution (by Cost)')}
-                </TabsContent>
-                <TabsContent value="smartBlend">
-                  {renderResults(actualResults.smartBlend, `Smart Blend (${(blendRatio * 100).toFixed(0)}% Weight + ${((1 - blendRatio) * 100).toFixed(0)}% Cost)`)}
-                </TabsContent>
+                  <TabsContent value="byWeight">
+                    {renderResults(actualResults.byWeight, 'Distribution by Weight')}
+                  </TabsContent>
+                  <TabsContent value="byCost">
+                    {renderResults(actualResults.byCost, 'Distribution by Cost')}
+                  </TabsContent>
                 </div>
               </Tabs>
-            </div>
-          </TabsContent>
+            </>
+          )}
+        </TabsContent>
       </Tabs>
     </div>
   );

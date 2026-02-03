@@ -1193,11 +1193,6 @@ const OrderDetails = () => {
               <TabsTrigger value="cif">CIF Calculator</TabsTrigger>
               <TabsTrigger value="advisor">Dito Advisor</TabsTrigger>
             </TabsList>
-                Comparison
-                {hasActualCosts && <span className="ml-1 text-xs">✓</span>}
-              </TabsTrigger>
-              <TabsTrigger value="learning">AI Learning</TabsTrigger>
-            </TabsList>
 
           {/* Filter out stock items for CIF calculations - they're already in warehouse */}
           {(() => {
