@@ -23,11 +23,8 @@ import { SupplierOrderList } from '@/components/SupplierOrderList';
 import { RoundupTable } from '@/components/RoundupTable';
 import { CustomerReceipt } from '@/components/CustomerReceipt';
 import { OrderCIFTable } from '@/components/OrderCIFTable';
-import { CIFAnalytics } from '@/components/CIFAnalytics';
+import { SimpleCIFPanel } from '@/components/import/SimpleCIFPanel';
 import { DitoAdvisor } from '@/components/DitoAdvisor';
-import { ActualCIFForm } from '@/components/ActualCIFForm';
-import { CIFComparison } from '@/components/CIFComparison';
-import { CIFLearningInsights } from '@/components/CIFLearningInsights';
 import { PalletVisualization } from '@/components/PalletVisualization';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import html2pdf from 'html2pdf.js';
@@ -44,7 +41,6 @@ import {
 } from '@/utils/receiptGenerator';
 import { calculateOrderPalletConfig, ProductWeightInfo } from '@/lib/weightCalculations';
 import { formatCuracao } from '@/lib/dateUtils';
-import { useGenerateCIFEstimate, useCIFSnapshots } from '@/hooks/useCIFAutoEstimate';
 
 interface OrderItem {
   id: string;
@@ -109,9 +105,7 @@ const OrderDetails = () => {
   const [receiptsReady, setReceiptsReady] = useState<Set<string>>(new Set());
   const [allReceiptsRendered, setAllReceiptsRendered] = useState(false);
 
-  // CIF Estimate hooks
-  const { data: cifSnapshots, isLoading: snapshotsLoading } = useCIFSnapshots(orderId);
-  const generateEstimate = useGenerateCIFEstimate();
+  // CIF simplified - no longer using auto-estimate hooks
 
   useEffect(() => {
     if (orderId) {
@@ -1192,68 +1186,13 @@ const OrderDetails = () => {
         </div>
 
         <div className="space-y-4">
-          {/* CIF Status & Actions Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-muted/30 rounded-lg border">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-medium text-muted-foreground">CIF Status:</span>
-              {cifSnapshots?.estimate ? (
-                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
-                  <Check className="h-3 w-3 mr-1" />
-                  Estimate Ready
-                </Badge>
-              ) : generateEstimate.isPending ? (
-                <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30">
-                  <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                  Generating...
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  No Estimate
-                </Badge>
-              )}
-              
-              {cifSnapshots?.actual && (
-                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                  <Check className="h-3 w-3 mr-1" />
-                  Actuals Entered
-                </Badge>
-              )}
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => orderId && generateEstimate.mutate({ orderId, forceRecalculate: true })}
-                disabled={generateEstimate.isPending}
-              >
-                {generateEstimate.isPending ? (
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Calculator className="h-4 w-4 mr-2" />
-                )}
-                Recalculate Estimate
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => window.open(`/import/orders/${orderId}/cif`, '_blank')}
-              >
-                <ExternalLink className="mr-2 h-4 w-4" />
-                Full View
-              </Button>
-            </div>
-          </div>
-
           <Tabs defaultValue="items" className="w-full">
-            <TabsList className="grid grid-cols-7 w-full">
+            <TabsList className="grid grid-cols-4 w-full">
               <TabsTrigger value="items">Order Items</TabsTrigger>
               <TabsTrigger value="pallets">Pallets</TabsTrigger>
-              <TabsTrigger value="cif-analytics">CIF Analytics</TabsTrigger>
+              <TabsTrigger value="cif">CIF Calculator</TabsTrigger>
               <TabsTrigger value="advisor">Dito Advisor</TabsTrigger>
-              <TabsTrigger value="actual">Enter Actual Costs</TabsTrigger>
-              <TabsTrigger value="comparison">
+            </TabsList>
                 Comparison
                 {hasActualCosts && <span className="ml-1 text-xs">✓</span>}
               </TabsTrigger>
@@ -1285,10 +1224,10 @@ const OrderDetails = () => {
                   <PalletVisualization palletConfig={palletConfig} />
                 </TabsContent>
 
-                <TabsContent value="cif-analytics" className="space-y-4">
-                  <CIFAnalytics 
-                    orderItems={cifOrderItems} 
-                    onRecommendation={setRecommendedCIFMethod}
+                <TabsContent value="cif" className="space-y-4">
+                  <SimpleCIFPanel
+                    orderId={orderId!}
+                    orderItems={cifOrderItems}
                   />
                 </TabsContent>
 
@@ -1307,33 +1246,9 @@ const OrderDetails = () => {
                     />
                   )}
                 </TabsContent>
-
-                <TabsContent value="actual" className="space-y-4">
-                  <ActualCIFForm
-                    orderId={orderId!}
-                    orderItems={cifOrderItems}
-                    estimatedFreightExterior={palletConfig?.totalChargeableWeight * freightSettings.freightCostPerKg * 0.85 || 0}
-                    estimatedFreightLocal={palletConfig?.totalChargeableWeight * freightSettings.freightCostPerKg * 0.15 || 0}
-                    onSaved={() => {
-                      checkActualCosts();
-                      toast.success("Actual costs saved! Check the Comparison tab.");
-                    }}
-                  />
-                </TabsContent>
-
-                <TabsContent value="comparison" className="space-y-4">
-                  <CIFComparison
-                    orderId={orderId!}
-                    orderItems={cifOrderItems}
-                  />
-                </TabsContent>
               </>
             );
           })()}
-
-          <TabsContent value="learning" className="space-y-4">
-            <CIFLearningInsights />
-          </TabsContent>
           </Tabs>
         </div>
 
