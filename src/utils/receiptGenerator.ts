@@ -118,8 +118,8 @@ export const generateReceiptPDF = async (
     
     const imgData = canvas.toDataURL('image/jpeg', 0.98);
     
-    // Center content horizontally if scaled down
-    const xOffset = format === 'a4' ? margin + (contentWidth - finalImgWidth) / 2 : margin;
+    // Center content horizontally for both formats
+    const xOffset = margin + (contentWidth - finalImgWidth) / 2;
     pdf.addImage(imgData, 'JPEG', xOffset, margin, finalImgWidth, finalImgHeight);
     
     return pdf.output('blob');
@@ -214,7 +214,8 @@ export const generateMultipleReceiptsPDF = async (
     }
     
     const imgData = canvas.toDataURL('image/jpeg', 0.98);
-    const xOffset = format === 'a4' ? margin + (contentWidth - finalImgWidth) / 2 : margin;
+    // Center content horizontally for both formats
+    const xOffset = margin + (contentWidth - finalImgWidth) / 2;
     pdf!.addImage(imgData, 'JPEG', xOffset, margin, finalImgWidth, finalImgHeight);
   }
   
