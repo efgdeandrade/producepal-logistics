@@ -139,6 +139,9 @@ export const CustomerReceipt = ({
     );
   }
 
+  // For PDF capture: use fixed width that matches the expected output
+  const fixedWidth = isReceipt ? '80mm' : '210mm';
+
   return (
     <>
       <style>{`
@@ -170,7 +173,10 @@ export const CustomerReceipt = ({
           }
         }
       `}</style>
-      <div className={`${containerClass} ${printClass} mx-auto bg-white text-black ${isReceipt ? 'p-3' : 'p-6'} print:p-0 font-sans`}>
+      <div 
+        className={`${printClass} bg-white text-black ${isReceipt ? 'p-3' : 'p-6'} print:p-0 font-sans`}
+        style={{ width: fixedWidth, margin: '0 auto' }}
+      >
         {/* Company Header */}
         {companyInfo && (
           <div className={`text-center ${isReceipt ? 'mb-2 pb-2' : 'mb-4 pb-4'} border-b-2 border-black`}>
