@@ -1108,7 +1108,7 @@ const OrderDetails = () => {
             </TabsContent>
 
             <TabsContent value="costs" className="space-y-4">
-              <LandedCostPanel orderId={orderId!} orderItems={orderItems} />
+              <LandedCostPanel orderId={orderId!} />
             </TabsContent>
           </Tabs>
         </div>
