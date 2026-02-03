@@ -1097,41 +1097,11 @@ const OrderDetails = () => {
         </div>
 
         <div className="space-y-4">
-          <Tabs defaultValue="items" className="w-full">
-            <TabsList className="grid grid-cols-3 w-full">
-              <TabsTrigger value="items">Order Items</TabsTrigger>
+          <Tabs defaultValue="pallets" className="w-full">
+            <TabsList className="grid grid-cols-2 w-full">
               <TabsTrigger value="pallets">Pallets</TabsTrigger>
               <TabsTrigger value="costs">Landed Cost</TabsTrigger>
             </TabsList>
-
-            <TabsContent value="items" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Order Items ({orderItems.length})</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {orderItems.map((item, idx) => (
-                      <div key={item.id || idx} className="flex justify-between items-center py-2 border-b last:border-0">
-                        <div className="flex-1">
-                          <span className="font-medium">{item.product_code}</span>
-                          <span className="text-muted-foreground ml-2">for {item.customer_name}</span>
-                          {item.is_from_stock && (
-                            <Badge variant="secondary" className="ml-2 text-xs">Stock</Badge>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <span className="font-semibold">{item.quantity}</span>
-                          {item.units_quantity != null && (
-                            <span className="text-muted-foreground text-sm ml-1">({item.units_quantity} units)</span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
 
             <TabsContent value="pallets" className="space-y-4">
               <PalletVisualization palletConfig={palletConfig} />
