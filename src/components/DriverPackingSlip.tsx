@@ -17,10 +17,21 @@ interface Order {
   placed_by: string;
 }
 
+interface DistributionOrderItem {
+  customer_id: string;
+  customer_name: string;
+  product_code: string;
+  product_name: string;
+  quantity: number;
+  distribution_product_id: string;
+}
+
 interface DriverAssignment {
   driver_name: string;
   customer_names: string[];
+  distribution_customer_ids?: string[];
   sequence_number: number;
+  include_distribution?: boolean;
 }
 
 interface Props {
@@ -28,6 +39,7 @@ interface Props {
   orderItems: OrderItem[];
   driverAssignments: DriverAssignment[];
   format: 'a4' | 'receipt';
+  distributionOrderItems?: DistributionOrderItem[];
 }
 
 interface Product {
@@ -36,27 +48,76 @@ interface Product {
   pack_size: number;
 }
 
-export const DriverPackingSlip = ({ order, orderItems, driverAssignments, format }: Props) => {
+interface ProductMapping {
+  import_product_code: string;
+  distribution_product_id: string;
+  conversion_factor: number;
+}
+
+interface DistributionCustomerInfo {
+  id: string;
+  name: string;
+}
+
+export const DriverPackingSlip = ({ 
+  order, 
+  orderItems, 
+  driverAssignments, 
+  format,
+  distributionOrderItems = []
+}: Props) => {
   const [products, setProducts] = useState<Product[]>([]);
+  const [productMappings, setProductMappings] = useState<ProductMapping[]>([]);
+  const [distributionCustomers, setDistributionCustomers] = useState<DistributionCustomerInfo[]>([]);
 
   useEffect(() => {
     fetchProducts();
-  }, []);
+    fetchProductMappings();
+    if (distributionOrderItems.length > 0) {
+      fetchDistributionCustomers();
+    }
+  }, [distributionOrderItems]);
 
   const fetchProducts = async () => {
     const { data } = await supabase.from('products').select('code, name, pack_size');
     if (data) setProducts(data);
   };
 
+  const fetchProductMappings = async () => {
+    const { data } = await supabase
+      .from('cross_department_product_mappings')
+      .select('import_product_code, distribution_product_id, conversion_factor');
+    if (data) setProductMappings(data);
+  };
+
+  const fetchDistributionCustomers = async () => {
+    const customerIds = [...new Set(distributionOrderItems.map(item => item.customer_id))];
+    if (customerIds.length === 0) return;
+    
+    const { data } = await supabase
+      .from('distribution_customers')
+      .select('id, name')
+      .in('id', customerIds);
+    if (data) setDistributionCustomers(data);
+  };
+
   const getProductInfo = (code: string) => {
     return products.find(p => p.code === code);
   };
 
-  const getAggregatedProducts = (customerNames: string[]) => {
+  const getDistributionCustomerName = (id: string) => {
+    return distributionCustomers.find(c => c.id === id)?.name || 'Unknown';
+  };
+
+  const getAggregatedProducts = (
+    importCustomerNames: string[], 
+    distributionCustomerIds: string[] = []
+  ) => {
     const totals: Record<string, { code: string; name: string; cases: number; units: number }> = {};
     
+    // Add Import order items
     orderItems
-      .filter(item => customerNames.includes(item.customer_name))
+      .filter(item => importCustomerNames.includes(item.customer_name))
       .forEach(item => {
         const product = getProductInfo(item.product_code);
         const packSize = product?.pack_size || 1;
@@ -73,11 +134,43 @@ export const DriverPackingSlip = ({ order, orderItems, driverAssignments, format
         totals[item.product_code].units += item.quantity * packSize;
       });
     
+    // Add Distribution order items (converted to Import equivalents)
+    distributionOrderItems
+      .filter(item => distributionCustomerIds.includes(item.customer_id))
+      .forEach(item => {
+        // Find mapping for this distribution product
+        const mapping = productMappings.find(
+          m => m.distribution_product_id === item.distribution_product_id
+        );
+        
+        if (mapping) {
+          const importCode = mapping.import_product_code;
+          const importProduct = getProductInfo(importCode);
+          const packSize = importProduct?.pack_size || 1;
+          const convertedQty = item.quantity * (mapping.conversion_factor || 1);
+          
+          if (!totals[importCode]) {
+            totals[importCode] = {
+              code: importCode,
+              name: importProduct?.name || importCode,
+              cases: 0,
+              units: 0
+            };
+          }
+          totals[importCode].cases += convertedQty;
+          totals[importCode].units += convertedQty * packSize;
+        }
+      });
+    
     return Object.values(totals).sort((a, b) => a.name.localeCompare(b.name));
   };
 
   const containerClass = format === 'receipt' ? 'max-w-[80mm]' : 'max-w-[210mm]';
   const textSize = format === 'receipt' ? 'text-sm' : 'text-base';
+
+  const hasDistribution = driverAssignments.some(
+    a => a.include_distribution && (a.distribution_customer_ids?.length || 0) > 0
+  );
 
   return (
     <div className="space-y-8">
@@ -118,9 +211,14 @@ export const DriverPackingSlip = ({ order, orderItems, driverAssignments, format
       `}</style>
       
       {driverAssignments.map((assignment, index) => {
-        const aggregatedProducts = getAggregatedProducts(assignment.customer_names);
+        const distCustomerIds = assignment.distribution_customer_ids || [];
+        const aggregatedProducts = getAggregatedProducts(
+          assignment.customer_names, 
+          distCustomerIds
+        );
         const totalCases = aggregatedProducts.reduce((sum, p) => sum + p.cases, 0);
         const totalUnits = aggregatedProducts.reduce((sum, p) => sum + p.units, 0);
+        const totalStops = assignment.customer_names.length + distCustomerIds.length;
 
         return (
           <div 
@@ -146,21 +244,42 @@ export const DriverPackingSlip = ({ order, orderItems, driverAssignments, format
                 Driver: {assignment.driver_name}
               </h2>
               <p className={`${textSize} font-bold`}>
-                Route #{assignment.sequence_number + 1} • {assignment.customer_names.length} Stop{assignment.customer_names.length !== 1 ? 's' : ''}
+                Route #{assignment.sequence_number + 1} • {totalStops} Stop{totalStops !== 1 ? 's' : ''}
               </p>
             </div>
 
-            {/* Customer List */}
-            <div className="mb-4">
-              <h3 className={`${format === 'receipt' ? 'text-base' : 'text-lg'} font-bold mb-2`}>
-                Delivery Stops:
-              </h3>
-              <ol className={`${textSize} list-decimal list-inside space-y-1`}>
-                {assignment.customer_names.map((customer, idx) => (
-                  <li key={idx} className="font-bold">{customer}</li>
-                ))}
-              </ol>
-            </div>
+            {/* Import Customer List */}
+            {assignment.customer_names.length > 0 && (
+              <div className="mb-4">
+                <h3 className={`${format === 'receipt' ? 'text-base' : 'text-lg'} font-bold mb-2`}>
+                  {hasDistribution ? '📦 Import Customers (Supermarkets):' : 'Delivery Stops:'}
+                </h3>
+                <ol className={`${textSize} list-decimal list-inside space-y-1`}>
+                  {assignment.customer_names.map((customer, idx) => (
+                    <li key={idx} className="font-bold">{customer}</li>
+                  ))}
+                </ol>
+              </div>
+            )}
+
+            {/* Distribution Customer List */}
+            {distCustomerIds.length > 0 && (
+              <div className="mb-4">
+                <h3 className={`${format === 'receipt' ? 'text-base' : 'text-lg'} font-bold mb-2`}>
+                  🍽️ Distribution Customers (Restaurants/Hotels):
+                </h3>
+                <ol 
+                  className={`${textSize} list-decimal list-inside space-y-1`}
+                  start={assignment.customer_names.length + 1}
+                >
+                  {distCustomerIds.map((customerId, idx) => (
+                    <li key={idx} className="font-bold">
+                      {getDistributionCustomerName(customerId)}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
 
             {/* Aggregated Products Table */}
             <div className="mb-4">

@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { RolePermissionCard } from '@/components/settings/RolePermissionCard';
+import { ProductMappingManager } from '@/components/settings/ProductMappingManager';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -339,6 +340,7 @@ export default function Settings() {
           <TabsList>
             <TabsTrigger value="tariffs">Currency & Tariffs</TabsTrigger>
             <TabsTrigger value="company">Company Information</TabsTrigger>
+            <TabsTrigger value="product-mappings">Product Mappings</TabsTrigger>
             <TabsTrigger value="permissions">Role Permissions</TabsTrigger>
           </TabsList>
 
@@ -518,6 +520,10 @@ export default function Settings() {
                 </Button>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="product-mappings">
+            <ProductMappingManager />
           </TabsContent>
 
           <TabsContent value="permissions">

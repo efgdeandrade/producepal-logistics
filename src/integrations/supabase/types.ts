@@ -729,6 +729,41 @@ export type Database = {
           },
         ]
       }
+      cross_department_product_mappings: {
+        Row: {
+          conversion_factor: number | null
+          created_at: string | null
+          distribution_product_id: string
+          id: string
+          import_product_code: string
+          updated_at: string | null
+        }
+        Insert: {
+          conversion_factor?: number | null
+          created_at?: string | null
+          distribution_product_id: string
+          id?: string
+          import_product_code: string
+          updated_at?: string | null
+        }
+        Update: {
+          conversion_factor?: number | null
+          created_at?: string | null
+          distribution_product_id?: string
+          id?: string
+          import_product_code?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cross_department_product_mappings_distribution_product_id_fkey"
+            columns: ["distribution_product_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_product_prices: {
         Row: {
           created_at: string
@@ -4051,9 +4086,11 @@ export type Database = {
         Row: {
           created_at: string | null
           customer_names: string[]
+          distribution_customer_ids: string[] | null
           driver_id: string | null
           driver_name: string
           id: string
+          include_distribution: boolean | null
           order_id: string
           sequence_number: number | null
           updated_at: string | null
@@ -4061,9 +4098,11 @@ export type Database = {
         Insert: {
           created_at?: string | null
           customer_names?: string[]
+          distribution_customer_ids?: string[] | null
           driver_id?: string | null
           driver_name: string
           id?: string
+          include_distribution?: boolean | null
           order_id: string
           sequence_number?: number | null
           updated_at?: string | null
@@ -4071,9 +4110,11 @@ export type Database = {
         Update: {
           created_at?: string | null
           customer_names?: string[]
+          distribution_customer_ids?: string[] | null
           driver_id?: string | null
           driver_name?: string
           id?: string
+          include_distribution?: boolean | null
           order_id?: string
           sequence_number?: number | null
           updated_at?: string | null

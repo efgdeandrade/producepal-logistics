@@ -92,7 +92,13 @@ const OrderDetails = () => {
   const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([]);
   const [availableSuppliers, setAvailableSuppliers] = useState<string[]>([]);
   const [showDriverAssignmentDialog, setShowDriverAssignmentDialog] = useState(false);
-  const [driverAssignments, setDriverAssignments] = useState<{driver_name: string; customer_names: string[]; sequence_number: number}[]>([]);
+  const [driverAssignments, setDriverAssignments] = useState<{
+    driver_name: string; 
+    customer_names: string[]; 
+    distribution_customer_ids?: string[];
+    sequence_number: number;
+    include_distribution?: boolean;
+  }[]>([]);
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -1423,11 +1429,14 @@ const OrderDetails = () => {
         onOpenChange={setShowDriverAssignmentDialog}
         orderId={orderId!}
         orderItems={orderItems}
+        deliveryDate={order?.delivery_date || ''}
         onConfirm={(assignments) => {
           setDriverAssignments(assignments.map(a => ({
             driver_name: a.driver_name,
             customer_names: a.customer_names,
-            sequence_number: a.sequence_number
+            distribution_customer_ids: a.distribution_customer_ids || [],
+            sequence_number: a.sequence_number,
+            include_distribution: a.include_distribution || false
           })));
           setShowDriverAssignmentDialog(false);
           setPendingAction({ type: 'driver', action: 'view' });
