@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Calculator, DollarSign, Save, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { WarehouseDocumentUpload } from "@/components/WarehouseDocumentUpload";
+
 
 interface OrderItem {
   id: string;
@@ -169,18 +169,6 @@ export function LandedCostPanel({ orderId, orderItems }: LandedCostPanelProps) {
   const actualTotalUSD = actualFreight + actualOther;
   const actualTotalXCG = actualTotalUSD * tariffs.exchangeRate;
 
-  // Handle document upload
-  const handleDocumentData = (data: any[]) => {
-    if (data.length > 0) {
-      // Sum up freight from all suppliers if multiple
-      const totalFreight = data.reduce((sum, d) => {
-        const weight = Math.max(d.actualWeightKg || 0, d.volumetricWeightKg || 0);
-        return sum + (weight * totalTariff);
-      }, 0);
-      setActualFreightUSD(totalFreight.toFixed(2));
-      toast.success("Freight data extracted from document");
-    }
-  };
 
   const handleSaveActual = async () => {
     setSaving(true);
@@ -364,11 +352,6 @@ export function LandedCostPanel({ orderId, orderItems }: LandedCostPanelProps) {
         </Card>
       </div>
 
-      {/* Document Upload (Optional) */}
-      <WarehouseDocumentUpload
-        onDataExtracted={handleDocumentData}
-        consolidated={true}
-      />
     </div>
   );
 }
