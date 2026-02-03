@@ -14,6 +14,7 @@ import { ActualCIFForm } from '@/components/ActualCIFForm';
 import { CIFActualCostEntry } from '@/components/import/CIFActualCostEntry';
 import { CIFComparisonView } from '@/components/import/CIFComparisonView';
 import { CIFLearningInsights } from '@/components/CIFLearningInsights';
+import { CIFAIAdjustmentsPanel } from '@/components/import/CIFAIAdjustmentsPanel';
 import { PalletVisualization } from '@/components/PalletVisualization';
 import { CIFVerificationBadges } from '@/components/CIFVerificationBadges';
 import { calculateOrderPalletConfig, ProductWeightInfo } from '@/lib/weightCalculations';
@@ -452,7 +453,19 @@ const ImportOrderCIFView = () => {
                 </TabsContent>
 
                 <TabsContent value="learning" className="space-y-4">
-                  <CIFLearningInsights />
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <CIFAIAdjustmentsPanel
+                      orderId={orderId}
+                      productCodes={cifOrderItems.map(item => item.product_code)}
+                      onAdjustmentApplied={() => {
+                        // Re-generate estimate after manual adjustment
+                        if (orderId) {
+                          generateEstimate.mutate({ orderId, forceRecalculate: true });
+                        }
+                      }}
+                    />
+                    <CIFLearningInsights />
+                  </div>
                 </TabsContent>
               </>
             );
