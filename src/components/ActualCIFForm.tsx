@@ -414,8 +414,9 @@ export function ActualCIFForm({
 
         const wholesalePrice = product.wholesalePriceXCG || (cifPerUnit * WHOLESALE_MULTIPLIER);
         const retailPrice = product.retailPriceXCG || (cifPerUnit * RETAIL_MULTIPLIER);
-        const wholesaleMargin = cifPerUnit > 0 ? ((wholesalePrice - cifPerUnit) / cifPerUnit * 100) : 0;
-        const retailMargin = cifPerUnit > 0 ? ((retailPrice - cifPerUnit) / cifPerUnit * 100) : 0;
+        // Calculate margins as absolute values (XCG currency), matching cifCalculations.ts
+        const wholesaleMargin = wholesalePrice - cifPerUnit;
+        const retailMargin = retailPrice - cifPerUnit;
 
         // Get price history for this product
         const history = priceHistory.get(product.productCode);
