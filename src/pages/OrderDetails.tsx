@@ -3,7 +3,8 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Printer, Ban, Edit, Eye, Download, Receipt, ChevronDown, FileEdit, ExternalLink, Truck } from 'lucide-react';
+import { ArrowLeft, Printer, Ban, Edit, Eye, Download, Receipt, ChevronDown, FileEdit, ExternalLink, Truck, RefreshCw, Calculator, Check, AlertCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -43,6 +44,7 @@ import {
 } from '@/utils/receiptGenerator';
 import { calculateOrderPalletConfig, ProductWeightInfo } from '@/lib/weightCalculations';
 import { formatCuracao } from '@/lib/dateUtils';
+import { useGenerateCIFEstimate, useCIFSnapshots } from '@/hooks/useCIFAutoEstimate';
 
 interface OrderItem {
   id: string;
@@ -106,6 +108,10 @@ const OrderDetails = () => {
   const [preloadedCompanyInfo, setPreloadedCompanyInfo] = useState<any>(null);
   const [receiptsReady, setReceiptsReady] = useState<Set<string>>(new Set());
   const [allReceiptsRendered, setAllReceiptsRendered] = useState(false);
+
+  // CIF Estimate hooks
+  const { data: cifSnapshots, isLoading: snapshotsLoading } = useCIFSnapshots(orderId);
+  const generateEstimate = useGenerateCIFEstimate();
 
   useEffect(() => {
     if (orderId) {
@@ -1183,31 +1189,76 @@ const OrderDetails = () => {
               </CollapsibleContent>
             </Card>
           </Collapsible>
+        </div>
 
-        <div className="flex items-center justify-between">
-          <Tabs defaultValue="items" className="w-full">
-            <div className="flex items-center justify-between mb-4">
-              <TabsList className="grid grid-cols-7">
-                <TabsTrigger value="items">Order Items</TabsTrigger>
-                <TabsTrigger value="pallets">Pallets</TabsTrigger>
-                <TabsTrigger value="cif-analytics">CIF Analytics</TabsTrigger>
-                <TabsTrigger value="advisor">Dito Advisor</TabsTrigger>
-                <TabsTrigger value="actual">Enter Actual Costs</TabsTrigger>
-                <TabsTrigger value="comparison">
-                  Comparison
-                  {hasActualCosts && <span className="ml-1 text-xs">✓</span>}
-                </TabsTrigger>
-                <TabsTrigger value="learning">AI Learning</TabsTrigger>
-              </TabsList>
+        <div className="space-y-4">
+          {/* CIF Status & Actions Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-muted/30 rounded-lg border">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground">CIF Status:</span>
+              {cifSnapshots?.estimate ? (
+                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+                  <Check className="h-3 w-3 mr-1" />
+                  Estimate Ready
+                </Badge>
+              ) : generateEstimate.isPending ? (
+                <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30">
+                  <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                  Generating...
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  No Estimate
+                </Badge>
+              )}
+              
+              {cifSnapshots?.actual && (
+                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                  <Check className="h-3 w-3 mr-1" />
+                  Actuals Entered
+                </Badge>
+              )}
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => orderId && generateEstimate.mutate({ orderId, forceRecalculate: true })}
+                disabled={generateEstimate.isPending}
+              >
+                {generateEstimate.isPending ? (
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Calculator className="h-4 w-4 mr-2" />
+                )}
+                Recalculate Estimate
+              </Button>
               <Button 
                 variant="outline" 
                 size="sm"
                 onClick={() => window.open(`/import/orders/${orderId}/cif`, '_blank')}
               >
                 <ExternalLink className="mr-2 h-4 w-4" />
-                Open in New Tab
+                Full View
               </Button>
             </div>
+          </div>
+
+          <Tabs defaultValue="items" className="w-full">
+            <TabsList className="grid grid-cols-7 w-full">
+              <TabsTrigger value="items">Order Items</TabsTrigger>
+              <TabsTrigger value="pallets">Pallets</TabsTrigger>
+              <TabsTrigger value="cif-analytics">CIF Analytics</TabsTrigger>
+              <TabsTrigger value="advisor">Dito Advisor</TabsTrigger>
+              <TabsTrigger value="actual">Enter Actual Costs</TabsTrigger>
+              <TabsTrigger value="comparison">
+                Comparison
+                {hasActualCosts && <span className="ml-1 text-xs">✓</span>}
+              </TabsTrigger>
+              <TabsTrigger value="learning">AI Learning</TabsTrigger>
+            </TabsList>
 
           {/* Filter out stock items for CIF calculations - they're already in warehouse */}
           {(() => {
@@ -1284,7 +1335,6 @@ const OrderDetails = () => {
             <CIFLearningInsights />
           </TabsContent>
           </Tabs>
-        </div>
         </div>
 
       <Dialog open={showFormatDialog} onOpenChange={setShowFormatDialog}>
