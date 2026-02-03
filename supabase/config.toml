@@ -1,14 +1,5 @@
 project_id = "dnxzpkbobzwjcuyfgdnh"
 
-[functions.cif-advisor]
-verify_jwt = true
-
-[functions.volumetric-weight-advisor]
-verify_jwt = true
-
-[functions.cif-learning-engine]
-verify_jwt = true
-
 [functions.market-price-advisor]
 verify_jwt = true
 
@@ -150,9 +141,6 @@ verify_jwt = true
 [functions.import-ai-insights]
 verify_jwt = true
 
-[functions.dito-unified-advisor]
-verify_jwt = true
-
 [functions.market-news-intelligence]
 verify_jwt = true
 
@@ -161,6 +149,3 @@ verify_jwt = false
 
 [functions.send-template-message]
 verify_jwt = true
-
-[functions.cif-auto-estimate]
-verify_jwt = false
