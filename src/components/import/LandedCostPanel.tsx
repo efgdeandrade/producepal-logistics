@@ -131,9 +131,9 @@ export function LandedCostPanel({ orderId, orderItems }: LandedCostPanelProps) {
         const weightPerUnitKg = (product.gross_weight_per_unit || product.netto_weight_per_unit || 0) / 1000;
         const actualWeightKg = (totalUnits * weightPerUnitKg) + (item.quantity * (product.empty_case_weight || 0) / 1000);
         
-        // Volumetric weight: L × W × H / 6000
+        // Volumetric weight: L × W × H × cases / 6000 (dimensions are per case, not per unit)
         const volumetricWeightKg = product.length_cm && product.width_cm && product.height_cm
-          ? (product.length_cm * product.width_cm * product.height_cm * totalUnits) / 6000
+          ? (product.length_cm * product.width_cm * product.height_cm * item.quantity) / 6000
           : 0;
         
         const chargeableWeightKg = Math.max(actualWeightKg, volumetricWeightKg);
