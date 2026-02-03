@@ -1,116 +1,160 @@
 
+# Plan: Add Driver Packing Slips to Import Order Details
 
-# Plan: Add Supplier Selection for Downloading Supplier Order Lists
+## Overview
+Add a new document type "Driver Packing Slips" to the Import Order Details page. This feature allows you to:
+1. Plan how many drivers will handle deliveries for an order
+2. Assign customers to specific drivers for their routes
+3. Generate a packing slip per driver showing their assigned customers and **aggregated totals** of all products across those customers
 
-## Problem
-Currently, when downloading supplier order lists, the system either downloads only 1 supplier or all suppliers without giving the user a choice. The user wants:
-1. **Download All**: Each supplier as a separate PDF file (already works when multiple suppliers exist)
-2. **Download Selected**: Ability to choose specific suppliers to download
+## What You'll See
 
-## Solution Overview
-Add a supplier selection dialog (similar to the existing customer selection for receipts) that appears before downloading supplier order lists. Users can select all or specific suppliers, then each selected supplier generates as a separate PDF file.
+### New Document Option
+A new "Driver Packing Slips" section will appear in the Document Options card, alongside the existing Customer Packing Slips, Supplier Order Lists, and Total Roundup Table.
+
+### Driver Planning Flow
+1. Click "View" or "Download" on Driver Packing Slips
+2. A dialog appears where you can:
+   - Add/remove drivers (by name or select from existing drivers)
+   - Drag-and-drop or checkbox-assign customers to each driver
+   - See a preview of product totals for each driver
+3. Generate/download the packing slips
+
+### Driver Packing Slip Output (Per Driver)
+Each driver gets their own slip showing:
+- Driver name and route info
+- List of customers assigned to them
+- **Aggregated product totals** - Example:
+  ```
+  Driver A - 2 Customers:
+  - Customer X
+  - Customer Y
+  
+  Products to Load:
+  ┌─────────────────────┬────────┬───────┐
+  │ Product             │ Cases  │ Units │
+  ├─────────────────────┼────────┼───────┤
+  │ Strawberries 500g   │ 5      │ 50    │
+  │ Blueberries 125g    │ 3      │ 36    │
+  └─────────────────────┴────────┴───────┘
+  Total: 8 cases = 86 units
+  ```
 
 ---
 
 ## Implementation Details
 
-### 1. Add New State Variables
-Add state to track:
-- `showSupplierSelectDialog` - Controls visibility of supplier selection dialog
-- `selectedSuppliers` - Array of selected supplier names
+### 1. Database: Driver Route Assignments for Orders
+Create a new table to store driver-customer assignments per order:
 
-### 2. Create Supplier Selection Dialog
-Create a new dialog component similar to the receipt customer selection dialog that:
-- Lists all suppliers from the order
-- Allows multi-select via checkboxes
-- Has "Select All" / "Deselect All" options
-- Shows count of selected suppliers
+```sql
+CREATE TABLE import_order_driver_assignments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  driver_name TEXT NOT NULL,
+  driver_id UUID REFERENCES profiles(id),
+  customer_names TEXT[] NOT NULL,
+  sequence_number INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+```
 
-### 3. Update Download Flow
-Modify the supplier download workflow:
-1. When user clicks "Download" for supplier orders, show the selection dialog first
-2. Filter supplier divs based on selected suppliers
-3. Generate separate PDF for each selected supplier
+This stores which customers are assigned to which driver for a specific import order.
 
-### 4. Update SupplierOrderList Component
-Ensure the component properly exposes which suppliers are available so the parent can list them for selection.
+### 2. New Component: DriverPackingSlip
+A component similar to `CustomerPackingSlip` but aggregates products:
+
+| Props | Type | Description |
+|-------|------|-------------|
+| order | Order | The order details |
+| orderItems | OrderItem[] | All order items |
+| driverAssignments | Assignment[] | Driver-customer mappings |
+| format | 'a4' \| 'receipt' | Print format |
+
+The component will:
+- Loop through each driver assignment
+- Filter order items to only those customers
+- Aggregate quantities by product code
+- Display totals with cases/units calculation
+
+### 3. New Component: DriverAssignmentDialog
+A dialog for planning routes with:
+- "Add Driver" button (text input or dropdown of existing drivers)
+- List of unassigned customers from the order
+- Per-driver customer list with add/remove capability
+- Real-time preview of product totals per driver
+- Save assignments to database
+
+### 4. Update OrderDetails.tsx
+Add new state and handlers:
+```typescript
+// New state
+const [showDriverAssignmentDialog, setShowDriverAssignmentDialog] = useState(false);
+const [driverAssignments, setDriverAssignments] = useState<DriverAssignment[]>([]);
+
+// New viewDialog type
+type ViewDialogType = 'packing' | 'supplier' | 'roundup' | 'receipt' | 'driver';
+```
+
+Add new document option card for "Driver Packing Slips" with View/Print/Download buttons.
 
 ---
+
+## Files to Create
+
+| File | Purpose |
+|------|---------|
+| `src/components/DriverPackingSlip.tsx` | Renders the aggregated packing slip per driver |
+| `src/components/DriverAssignmentDialog.tsx` | UI for assigning customers to drivers |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/OrderDetails.tsx` | Add supplier selection state, dialog, and updated download logic |
+| `src/pages/OrderDetails.tsx` | Add Driver Packing Slips section, state, handlers, and dialog rendering |
+| Database Migration | Create `import_order_driver_assignments` table |
 
 ---
 
-## UI Flow
+## UI Flow Diagram
 
 ```
-User clicks "Download" on Supplier Order Lists
+Document Options Card
          │
-         ▼
-┌─────────────────────────────────┐
-│  Select Suppliers to Download   │
-│  ☑ Select All                   │
-│  ─────────────────────────────  │
-│  ☑ Supplier A                   │
-│  ☑ Supplier B                   │
-│  ☐ Supplier C                   │
-│  ─────────────────────────────  │
-│  2 suppliers selected           │
-│  ┌─────────┐  ┌───────────────┐ │
-│  │ Cancel  │  │ Download PDFs │ │
-│  └─────────┘  └───────────────┘ │
-└─────────────────────────────────┘
-         │
-         ▼
-Downloads separate PDF for each selected supplier:
-- Supplier-WK5-001-SupplierA.pdf
-- Supplier-WK5-001-SupplierB.pdf
-```
-
----
-
-## Technical Details
-
-### New State Variables
-```typescript
-const [showSupplierSelectDialog, setShowSupplierSelectDialog] = useState(false);
-const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([]);
-const [availableSuppliers, setAvailableSuppliers] = useState<string[]>([]);
-```
-
-### Supplier Discovery Function
-Extract unique suppliers from order items by looking up product supplier relationships:
-```typescript
-const getUniqueSuppliers = async () => {
-  // Fetch products with their suppliers
-  // Return unique supplier names from order items
-};
-```
-
-### Updated Download Logic
-```typescript
-// Filter to only selected suppliers
-const suppliers = Array.from(supplierDivs)
-  .filter(div => selectedSuppliers.includes(div.getAttribute('data-supplier') || ''))
-  .map((div) => ({
-    element: div as HTMLElement,
-    supplierName: div.getAttribute('data-supplier') || 'Unknown'
-  }));
+         ├── Customer Packing Slips
+         ├── Supplier Order Lists  
+         ├── Total Roundup Table
+         └── Driver Packing Slips ← NEW
+                    │
+                    ▼
+     ┌─────────────────────────────────────┐
+     │   Assign Customers to Drivers       │
+     │   ─────────────────────────────     │
+     │   [+ Add Driver]                    │
+     │                                     │
+     │   Driver: Eduardo G.                │
+     │   ☑ Customer X                      │
+     │   ☑ Customer Y                      │
+     │   Preview: 5 cases strawberry...    │
+     │                                     │
+     │   Driver: (Add new driver...)       │
+     │   ☐ Customer Z (unassigned)         │
+     │                                     │
+     │   ┌─────────┐  ┌─────────────────┐  │
+     │   │ Cancel  │  │ View/Download   │  │
+     │   └─────────┘  └─────────────────┘  │
+     └─────────────────────────────────────┘
 ```
 
 ---
 
 ## Testing Steps
-1. Navigate to an order with items from multiple suppliers
-2. Click "Download" for Supplier Order Lists
-3. Verify the supplier selection dialog appears
-4. Select specific suppliers
-5. Click "Download PDFs"
-6. Verify only selected suppliers are downloaded as separate PDFs
-7. Test "Select All" functionality
-8. Test downloading with only one supplier selected
-
+1. Navigate to an Import order with multiple customers
+2. Click "View" on Driver Packing Slips
+3. Add a driver (type a name)
+4. Assign customers to the driver using checkboxes
+5. Verify the product totals update correctly
+6. Add a second driver and split customers
+7. Click "Download" - verify each driver gets a separate PDF
+8. Verify the totals aggregate correctly (e.g., 3 + 2 strawberry cases = 5 total)
