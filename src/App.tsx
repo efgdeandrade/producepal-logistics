@@ -55,8 +55,7 @@ import ImportBills from "./pages/import/ImportBills";
 import ImportShipments from "./pages/import/ImportShipments";
 import ImportDocuments from "./pages/import/ImportDocuments";
 import ImportAnalytics from "./pages/import/ImportAnalytics";
-import ImportCIFLearning from "./pages/import/ImportCIFLearning";
-import ImportOrderCIFView from "./pages/import/ImportOrderCIFView";
+// CIF Learning and dedicated CIF view removed - simplified CIF now in OrderDetails
 
 // Distribution Department
 import DistributionDashboard from "./pages/DistributionDashboard";
@@ -291,8 +290,7 @@ const App = () => (
                   <Route path="/import/documents" element={<ProtectedImport><ImportDocuments /></ProtectedImport>} />
                   <Route path="/import/analytics" element={<ProtectedImport><ImportAnalytics /></ProtectedImport>} />
                   <Route path="/import/email-templates" element={<ProtectedImport><ImportEmailTemplates /></ProtectedImport>} />
-                  <Route path="/import/ai-learning" element={<ProtectedImport><ImportCIFLearning /></ProtectedImport>} />
-                  <Route path="/import/orders/:orderId/cif" element={<ProtectedImport><ImportOrderCIFView /></ProtectedImport>} />
+                  {/* CIF Learning and dedicated CIF view removed - simplified CIF now in OrderDetails */}
 
                   {/* ========== DISTRIBUTION PORTAL ========== */}
                   <Route path="/distribution" element={<ProtectedDistribution><DistributionDashboard /></ProtectedDistribution>} />

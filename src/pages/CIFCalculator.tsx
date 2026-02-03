@@ -23,18 +23,13 @@ import {
   CIFProductInput,
   CIFParams,
   CIFResult as BaseCIFResult,
-  DistributionMethodV2,
+  DistributionMethod,
   calculateCIFByMethod,
-  calculateCIFWithLearning,
   calculateTotalFreightFromRates,
-  calculateTotalFreightFromActual,
   determineLimitingFactor,
   DEFAULT_WHOLESALE_MULTIPLIER,
   DEFAULT_RETAIL_MULTIPLIER,
-  DEFAULT_BLEND_RATIO,
-  getRecommendedBlendRatio,
-} from '@/lib/cifCalculationsV2';
-import { useCIFLearning, type LearningAdjustment } from '@/hooks/useCIFLearning';
+} from '@/lib/cifCalculations';
 
 interface DatabaseProduct {
   code: string;
@@ -122,17 +117,9 @@ export default function CIFCalculator() {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [calculationName, setCalculationName] = useState('');
   const [notes, setNotes] = useState('');
-  const [selectedMethod, setSelectedMethod] = useState<DistributionMethodV2>('proportional');
+  const [selectedMethod, setSelectedMethod] = useState<DistributionMethod>('byWeight');
   const [activeTab, setActiveTab] = useState<'estimate' | 'actual'>('estimate');
-  const [blendRatio, setBlendRatio] = useState(DEFAULT_BLEND_RATIO);
-  
-  // Learning hook for CIF patterns
-  const { 
-    loading: learningLoading,
-    patterns: learningPatterns,
-    fetchPatterns,
-    recordActual,
-  } = useCIFLearning();
+  const [blendRatio, setBlendRatio] = useState(0.7);
 
   // Estimate version inputs
   const [estimateProducts, setEstimateProducts] = useState<ProductInput[]>([]);
