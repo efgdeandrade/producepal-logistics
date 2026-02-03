@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface OrderItem {
@@ -69,12 +69,12 @@ export const CustomerReceipt = ({
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(preloadedCompanyInfo || null);
   const [loading, setLoading] = useState(!preloadedProducts || !preloadedCompanyInfo);
   const [logoLoaded, setLogoLoaded] = useState(false);
+  const logoRef = useRef<HTMLImageElement | null>(null);
 
   useEffect(() => {
     // If data is preloaded, skip fetching
     if (preloadedProducts && preloadedCompanyInfo) {
       setLoading(false);
-      onDataReady?.();
       return;
     }
     fetchData();
@@ -86,6 +86,15 @@ export const CustomerReceipt = ({
       onDataReady?.();
     }
   }, [loading, logoLoaded, onDataReady]);
+
+  // Handle cached logo images (onLoad may not fire reliably in some capture flows)
+  useEffect(() => {
+    const img = logoRef.current;
+    if (!img) return;
+    if (img.complete && img.naturalHeight !== 0) {
+      setLogoLoaded(true);
+    }
+  }, [loading]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -168,7 +177,9 @@ export const CustomerReceipt = ({
             <img 
               src={LOCAL_LOGO_PATH}
               alt="Company Logo" 
+              ref={logoRef}
               onLoad={() => setLogoLoaded(true)}
+              onError={() => setLogoLoaded(true)}
               className={`mx-auto ${isReceipt ? 'h-6 mb-0.5' : 'h-16 mb-1'} object-contain`}
             />
             <h2 className={`font-extrabold ${isReceipt ? 'text-sm leading-tight' : 'text-2xl'}`}>

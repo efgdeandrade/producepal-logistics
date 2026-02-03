@@ -3,6 +3,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import JSZip from 'jszip';
 import { supabase } from '@/integrations/supabase/client';
+import { waitForImages } from '@/utils/pdfDom';
 
 export interface ReceiptData {
   receiptNumber: string;
@@ -47,23 +48,6 @@ export const saveReceiptRecord = async (receiptData: ReceiptData): Promise<void>
     console.error('Error saving receipt record:', error);
     throw new Error('Failed to save receipt record');
   }
-};
-
-/**
- * Waits for all images in an element to finish loading
- * Times out after specified duration to prevent hanging
- */
-const waitForImages = async (element: HTMLElement, timeout = 5000): Promise<void> => {
-  const images = element.querySelectorAll('img');
-  const loadPromises = Array.from(images).map((img) => {
-    if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
-    return new Promise<void>((resolve) => {
-      const timeoutId = setTimeout(resolve, timeout);
-      img.onload = () => { clearTimeout(timeoutId); resolve(); };
-      img.onerror = () => { clearTimeout(timeoutId); resolve(); };
-    });
-  });
-  await Promise.all(loadPromises);
 };
 
 /**
@@ -175,13 +159,25 @@ export const generateMultipleReceiptsPDF = async (
       onProgress(i + 1, receipts.length);
     }
     
+    // Wait for assets (logo, etc.) to load before capturing
+    await waitForImages(receipt.element);
+
     // Render element to canvas
     const canvas = await html2canvas(receipt.element, {
       scale: 2,
       useCORS: true,
-      allowTaint: false,
+      // Some browsers can mark canvases as tainted depending on image load behavior.
+      // We prefer reliability for local/public assets used on receipts.
+      allowTaint: true,
       logging: false,
-      backgroundColor: '#ffffff'
+      backgroundColor: '#ffffff',
+      onclone: (clonedDoc) => {
+        // Ensure images remain visible in cloned document
+        const images = clonedDoc.querySelectorAll('img');
+        images.forEach((img) => {
+          (img as HTMLElement).style.visibility = 'visible';
+        });
+      },
     });
     
     // Calculate content dimensions
