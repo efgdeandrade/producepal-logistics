@@ -292,7 +292,7 @@ const App = () => (
                   <Route path="/import/analytics" element={<ProtectedImport><ImportAnalytics /></ProtectedImport>} />
                   <Route path="/import/email-templates" element={<ProtectedImport><ImportEmailTemplates /></ProtectedImport>} />
                   <Route path="/import/ai-learning" element={<ProtectedImport><ImportCIFLearning /></ProtectedImport>} />
-                  <Route path="/import/orders/:orderId/cif" element={<ImportOrderCIFView />} />
+                  <Route path="/import/orders/:orderId/cif" element={<ProtectedImport><ImportOrderCIFView /></ProtectedImport>} />
 
                   {/* ========== DISTRIBUTION PORTAL ========== */}
                   <Route path="/distribution" element={<ProtectedDistribution><DistributionDashboard /></ProtectedDistribution>} />
