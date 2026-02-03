@@ -46,8 +46,6 @@ import OrderDetails from "./pages/OrderDetails";
 import Suppliers from "./pages/Suppliers";
 import Products from "./pages/Products";
 import Customers from "./pages/Customers";
-import CIFCalculator from "./pages/CIFCalculator";
-import CIFCalculatorHistory from "./pages/CIFCalculatorHistory";
 import ConsolidationGroups from "./pages/ConsolidationGroups";
 import StandingOrders from "./pages/StandingOrders";
 import ImportEmailTemplates from "./pages/import/ImportEmailTemplates";
@@ -55,7 +53,6 @@ import ImportBills from "./pages/import/ImportBills";
 import ImportShipments from "./pages/import/ImportShipments";
 import ImportDocuments from "./pages/import/ImportDocuments";
 import ImportAnalytics from "./pages/import/ImportAnalytics";
-// CIF Learning and dedicated CIF view removed - simplified CIF now in OrderDetails
 
 // Distribution Department
 import DistributionDashboard from "./pages/DistributionDashboard";
@@ -278,8 +275,6 @@ const App = () => (
                   <Route path="/import/orders/edit/:orderId" element={<ProtectedImport><NewOrder /></ProtectedImport>} />
                   <Route path="/import/orders/:orderId" element={<ProtectedImport><OrderDetails /></ProtectedImport>} />
                   <Route path="/import/standing-orders" element={<ProtectedImport><StandingOrders /></ProtectedImport>} />
-                  <Route path="/import/cif" element={<ProtectedImport><CIFCalculator /></ProtectedImport>} />
-                  <Route path="/import/cif-history" element={<ProtectedImport><CIFCalculatorHistory /></ProtectedImport>} />
                   <Route path="/import/suppliers" element={<ProtectedImport><Suppliers /></ProtectedImport>} />
                   <Route path="/import/products" element={<ProtectedImport><Products /></ProtectedImport>} />
                   <Route path="/import/customers" element={<ProtectedImport><Customers /></ProtectedImport>} />
@@ -290,7 +285,6 @@ const App = () => (
                   <Route path="/import/documents" element={<ProtectedImport><ImportDocuments /></ProtectedImport>} />
                   <Route path="/import/analytics" element={<ProtectedImport><ImportAnalytics /></ProtectedImport>} />
                   <Route path="/import/email-templates" element={<ProtectedImport><ImportEmailTemplates /></ProtectedImport>} />
-                  {/* CIF Learning and dedicated CIF view removed - simplified CIF now in OrderDetails */}
 
                   {/* ========== DISTRIBUTION PORTAL ========== */}
                   <Route path="/distribution" element={<ProtectedDistribution><DistributionDashboard /></ProtectedDistribution>} />

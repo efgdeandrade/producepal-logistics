@@ -22,10 +22,8 @@ import { CustomerPackingSlip } from '@/components/CustomerPackingSlip';
 import { SupplierOrderList } from '@/components/SupplierOrderList';
 import { RoundupTable } from '@/components/RoundupTable';
 import { CustomerReceipt } from '@/components/CustomerReceipt';
-import { OrderCIFTable } from '@/components/OrderCIFTable';
-import { SimpleCIFPanel } from '@/components/import/SimpleCIFPanel';
-import { DitoAdvisor } from '@/components/DitoAdvisor';
 import { PalletVisualization } from '@/components/PalletVisualization';
+import { LandedCostPanel } from '@/components/import/LandedCostPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import html2pdf from 'html2pdf.js';
 import { DriverAssignmentDialog } from '@/components/DriverAssignmentDialog';
@@ -76,13 +74,9 @@ const OrderDetails = () => {
   const [pendingAction, setPendingAction] = useState<{type: 'packing' | 'supplier' | 'roundup' | 'receipt' | 'driver', action: 'view' | 'print' | 'download'} | null>(null);
   const [showReceiptCustomerDialog, setShowReceiptCustomerDialog] = useState(false);
   const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
-  const [recommendedCIFMethod, setRecommendedCIFMethod] = useState<string>('');
   const [receiptNumbers, setReceiptNumbers] = useState<Record<string, string>>({});
   const [generatingPDF, setGeneratingPDF] = useState(false);
-  const [productWeightData, setProductWeightData] = useState<any[]>([]);
   const [palletConfig, setPalletConfig] = useState<any>(null);
-  const [freightSettings, setFreightSettings] = useState({ freightCostPerKg: 2.87, exchangeRate: 1.82 });
-  const [hasActualCosts, setHasActualCosts] = useState(false);
   const [orderItemsExpanded, setOrderItemsExpanded] = useState(false);
   const [showEditReceiptDialog, setShowEditReceiptDialog] = useState(false);
   const [editableReceiptItems, setEditableReceiptItems] = useState<OrderItem[]>([]);
@@ -105,46 +99,11 @@ const OrderDetails = () => {
   const [receiptsReady, setReceiptsReady] = useState<Set<string>>(new Set());
   const [allReceiptsRendered, setAllReceiptsRendered] = useState(false);
 
-  // CIF simplified - no longer using auto-estimate hooks
-
   useEffect(() => {
     if (orderId) {
       fetchOrderDetails();
-      fetchFreightSettings();
-      checkActualCosts();
     }
   }, [orderId, location.state]);
-
-  const checkActualCosts = async () => {
-    if (!orderId) return;
-    const { data } = await supabase
-      .from("cif_estimates")
-      .select("id")
-      .eq("order_id", orderId)
-      .not("actual_total_freight_usd", "is", null)
-      .limit(1);
-    
-    setHasActualCosts(data && data.length > 0);
-  };
-
-  const fetchFreightSettings = async () => {
-    try {
-      const { data: settings } = await supabase
-        .from('settings')
-        .select('*')
-        .in('key', ['freight_exterior_tariff', 'freight_local_tariff', 'usd_to_xcg_rate']);
-
-      const settingsMap = new Map(settings?.map(s => [s.key, s.value]) || []);
-      const exchangeRate = (settingsMap.get('usd_to_xcg_rate') as any)?.rate || 1.82;
-      const freightExteriorPerKg = (settingsMap.get('freight_exterior_tariff') as any)?.rate || 2.46;
-      const freightLocalPerKg = (settingsMap.get('freight_local_tariff') as any)?.rate || 0.41;
-      const freightCostPerKg = freightExteriorPerKg + freightLocalPerKg;
-
-      setFreightSettings({ freightCostPerKg, exchangeRate });
-    } catch (error) {
-      console.error('Error fetching freight settings:', error);
-    }
-  };
 
   // Preload data needed for receipt rendering to prevent race conditions
   const preloadReceiptData = async () => {
@@ -201,8 +160,8 @@ const OrderDetails = () => {
       setOrder(orderData);
       setOrderItems(itemsData || []);
       
-      // Calculate weight data for Dito Advisor
-      await calculateWeightData(itemsData || []);
+      // Calculate pallet configuration for display
+      await calculatePalletConfig(itemsData || []);
     } catch (error: any) {
       console.error('Error fetching order details:', error);
       toast.error('Failed to load order details');
@@ -211,17 +170,16 @@ const OrderDetails = () => {
     }
   };
 
-  const calculateWeightData = async (items: OrderItem[]) => {
+  const calculatePalletConfig = async (items: OrderItem[]) => {
     try {
-      // Filter out stock items - they don't need CIF calculation (already in warehouse)
+      // Filter out stock items - they don't need pallet calculation (already in warehouse)
       const importItems = items.filter(item => !item.is_from_stock);
       
-      // Consolidate items by product code - use units_quantity when available
+      // Consolidate items by product code
       const consolidated = importItems.reduce((acc, item) => {
         const existing = acc.find(i => i.product_code === item.product_code);
         if (existing) {
           existing.quantity += item.quantity;
-          // Sum units_quantity if present, otherwise we'll calculate from quantity later
           if (item.units_quantity != null) {
             existing.units_quantity = (existing.units_quantity || 0) + item.units_quantity;
           }
@@ -231,14 +189,13 @@ const OrderDetails = () => {
         return acc;
       }, [] as OrderItem[]);
 
-      // Fetch product details including supplier
+      // Fetch product details
       const productCodes = [...new Set(consolidated.map(item => item.product_code))];
       const { data: products } = await supabase
         .from('products')
         .select(`
-          code, name, price_usd_per_unit, gross_weight_per_unit, netto_weight_per_unit, 
-          pack_size, empty_case_weight, wholesale_price_xcg_per_unit, retail_price_xcg_per_unit, 
-          length_cm, width_cm, height_cm, volumetric_weight_kg, supplier_id,
+          code, name, gross_weight_per_unit, netto_weight_per_unit, 
+          pack_size, empty_case_weight, length_cm, width_cm, height_cm, supplier_id,
           suppliers:supplier_id (id, name)
         `)
         .in('code', productCodes);
@@ -256,71 +213,25 @@ const OrderDetails = () => {
           return {
             code: product.code,
             name: product.name,
-            nettoWeightPerUnit: (product.netto_weight_per_unit || 0) / 1000, // Convert to kg
-            grossWeightPerUnit: (product.gross_weight_per_unit || 0) / 1000, // Convert to kg
+            nettoWeightPerUnit: (product.netto_weight_per_unit || 0) / 1000,
+            grossWeightPerUnit: (product.gross_weight_per_unit || 0) / 1000,
             packSize: product.pack_size || 1,
-            emptyCaseWeight: (product.empty_case_weight || 0) / 1000, // Convert to kg
+            emptyCaseWeight: (product.empty_case_weight || 0) / 1000,
             lengthCm: product.length_cm || 0,
             widthCm: product.width_cm || 0,
             heightCm: product.height_cm || 0,
-            quantity: item.units_quantity ?? (item.quantity * (product.pack_size || 1)), // Use explicit units if available
+            quantity: item.units_quantity ?? (item.quantity * (product.pack_size || 1)),
             supplierId: product.supplier_id || 'unknown',
             supplierName: supplier?.name || 'Unknown Supplier',
           };
         })
         .filter(Boolean) as Array<ProductWeightInfo & { supplierId: string; supplierName: string }>;
 
-      // Calculate proper pallet configuration
+      // Calculate pallet configuration
       const palletConfiguration = calculateOrderPalletConfig(productsWithWeight);
       setPalletConfig(palletConfiguration);
-
-      // Build weight data for display
-      let totalActualWeight = 0;
-      let totalVolumetricWeight = 0;
-      let totalChargeableWeight = 0;
-
-      const weightData = consolidated.map(item => {
-        const product = products.find(p => p.code === item.product_code);
-        if (!product) return null;
-
-        const packSize = product.pack_size || 1;
-        const totalUnits = item.units_quantity ?? (item.quantity * packSize);
-        const weightPerUnit = (product.gross_weight_per_unit || product.netto_weight_per_unit || 0) / 1000;
-        const volumetricWeightPerUnit = (product.volumetric_weight_kg || 
-          (product.length_cm && product.width_cm && product.height_cm 
-            ? (product.length_cm * product.width_cm * product.height_cm) / 6000
-            : 0));
-
-        const actualWeight = (totalUnits * weightPerUnit) + (item.quantity * (product.empty_case_weight || 0) / 1000);
-        const volumetricWeight = (totalUnits * volumetricWeightPerUnit);
-        const chargeableWeight = Math.max(actualWeight, volumetricWeight);
-
-        totalActualWeight += actualWeight;
-        totalVolumetricWeight += volumetricWeight;
-        totalChargeableWeight += chargeableWeight;
-
-        const wholesalePrice = product.wholesale_price_xcg_per_unit || 0;
-        const retailPrice = product.retail_price_xcg_per_unit || 0;
-        const costUSD = totalUnits * (product.price_usd_per_unit || 0);
-
-        return {
-          code: product.code,
-          name: product.name,
-          quantity: totalUnits,
-          actualWeight,
-          volumetricWeight,
-          chargeableWeight,
-          weightType: volumetricWeight > actualWeight ? 'volumetric' as const : 'actual' as const,
-          costUSD,
-          wholesalePriceXCG: wholesalePrice,
-          retailPriceXCG: retailPrice,
-          profitPerUnit: wholesalePrice - (costUSD * freightSettings.exchangeRate / totalUnits),
-        };
-      }).filter(Boolean);
-
-      setProductWeightData(weightData);
     } catch (error) {
-      console.error('Error calculating weight data:', error);
+      console.error('Error calculating pallet config:', error);
     }
   };
 
@@ -1187,63 +1098,48 @@ const OrderDetails = () => {
 
         <div className="space-y-4">
           <Tabs defaultValue="items" className="w-full">
-            <TabsList className="grid grid-cols-4 w-full">
+            <TabsList className="grid grid-cols-3 w-full">
               <TabsTrigger value="items">Order Items</TabsTrigger>
               <TabsTrigger value="pallets">Pallets</TabsTrigger>
-              <TabsTrigger value="cif">CIF Calculator</TabsTrigger>
-              <TabsTrigger value="advisor">Dito Advisor</TabsTrigger>
+              <TabsTrigger value="costs">Landed Cost</TabsTrigger>
             </TabsList>
 
-          {/* Filter out stock items for CIF calculations - they're already in warehouse */}
-          {(() => {
-            const cifOrderItems = orderItems.filter(item => !item.is_from_stock);
-            const stockItemCount = orderItems.length - cifOrderItems.length;
-            
-            return (
-              <>
-                {stockItemCount > 0 && (
-                  <div className="mb-4 p-3 bg-muted/50 rounded-lg border text-sm">
-                    <span className="font-medium">{stockItemCount} item{stockItemCount !== 1 ? 's' : ''} from stock</span>
-                    <span className="text-muted-foreground"> excluded from CIF calculations (already in warehouse)</span>
+            <TabsContent value="items" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Order Items ({orderItems.length})</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {orderItems.map((item, idx) => (
+                      <div key={item.id || idx} className="flex justify-between items-center py-2 border-b last:border-0">
+                        <div className="flex-1">
+                          <span className="font-medium">{item.product_code}</span>
+                          <span className="text-muted-foreground ml-2">for {item.customer_name}</span>
+                          {item.is_from_stock && (
+                            <Badge variant="secondary" className="ml-2 text-xs">Stock</Badge>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <span className="font-semibold">{item.quantity}</span>
+                          {item.units_quantity != null && (
+                            <span className="text-muted-foreground text-sm ml-1">({item.units_quantity} units)</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                )}
-                
-                <TabsContent value="items" className="space-y-4">
-                  <OrderCIFTable 
-                    orderItems={cifOrderItems} 
-                    recommendedMethod={recommendedCIFMethod}
-                  />
-                </TabsContent>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-                <TabsContent value="pallets" className="space-y-4">
-                  <PalletVisualization palletConfig={palletConfig} />
-                </TabsContent>
+            <TabsContent value="pallets" className="space-y-4">
+              <PalletVisualization palletConfig={palletConfig} />
+            </TabsContent>
 
-                <TabsContent value="cif" className="space-y-4">
-                  <SimpleCIFPanel
-                    orderId={orderId!}
-                    orderItems={cifOrderItems}
-                  />
-                </TabsContent>
-
-                <TabsContent value="advisor" className="space-y-4">
-                  {productWeightData.length > 0 && palletConfig && (
-                    <DitoAdvisor
-                      orderItems={productWeightData}
-                      palletConfiguration={palletConfig}
-                      freightCostPerKg={freightSettings.freightCostPerKg}
-                      exchangeRate={freightSettings.exchangeRate}
-                      onApplySuggestion={(productCode, quantity) => {
-                        toast.success(`Suggestion: Add ${quantity} units of ${productCode} to order`, {
-                          description: 'You can manually add this product to improve weight utilization',
-                        });
-                      }}
-                    />
-                  )}
-                </TabsContent>
-              </>
-            );
-          })()}
+            <TabsContent value="costs" className="space-y-4">
+              <LandedCostPanel orderId={orderId!} orderItems={orderItems} />
+            </TabsContent>
           </Tabs>
         </div>
 

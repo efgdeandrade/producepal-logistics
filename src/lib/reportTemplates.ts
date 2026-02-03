@@ -382,57 +382,6 @@ export const builtInReportTemplates: ReportTemplate[] = [
     ],
   },
   {
-    id: "landed-cost-analysis",
-    name: "Landed Cost Analysis",
-    description: "CIF breakdown showing FOB, freight, and other costs with margin analysis",
-    category: "import",
-    icon: "Calculator",
-    queryConfig: {
-      table: "cif_calculations",
-      select: "id, calculation_name, calculation_type, exchange_rate, freight_exterior_per_kg, freight_local_per_kg, total_chargeable_weight, total_pallets, selected_distribution_method, created_at",
-    },
-    parameters: [
-      {
-        key: "dateRange",
-        label: "Date Range",
-        type: "dateRange",
-        required: true,
-      },
-      {
-        key: "calculation_type",
-        label: "Calculation Type",
-        type: "select",
-        options: [
-          { label: "All", value: "" },
-          { label: "Estimate", value: "estimate" },
-          { label: "Actual", value: "actual" },
-        ],
-      },
-    ],
-    visualizations: [
-      {
-        type: "metric",
-        title: "Total Calculations",
-        config: { aggregation: "count" },
-      },
-      {
-        type: "metric",
-        title: "Avg Exchange Rate",
-        config: { aggregation: "avg", field: "exchange_rate" },
-      },
-      {
-        type: "pieChart",
-        title: "By Calculation Type",
-        config: { labelField: "calculation_type", valueField: "id", aggregation: "count" },
-      },
-      {
-        type: "table",
-        title: "CIF Details",
-        config: { columns: ["calculation_name", "calculation_type", "exchange_rate", "total_chargeable_weight", "created_at"] },
-      },
-    ],
-  },
-  {
     id: "bill-aging-report",
     name: "Bill Aging Report",
     description: "Outstanding bills by age bracket with vendor-wise breakdown",

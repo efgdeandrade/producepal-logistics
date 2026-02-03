@@ -13,32 +13,17 @@ import {
 } from "@/components/ui/table";
 import { useNavigate } from "react-router-dom";
 import {
-  Calculator,
   Package,
   Plane,
   ArrowRight,
   Clock,
-  DollarSign,
+  ShoppingCart,
 } from "lucide-react";
 import { format } from "date-fns";
 import { MarketNewsWidget } from "@/components/import/MarketNewsWidget";
 
 export default function ImportDashboard() {
   const navigate = useNavigate();
-
-  // Fetch recent CIF calculations
-  const { data: recentCIF } = useQuery({
-    queryKey: ["recent-cif-calculations"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("cif_calculations")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(5);
-      if (error) throw error;
-      return data;
-    },
-  });
 
   // Fetch active orders in transit
   const { data: ordersInTransit } = useQuery({
@@ -50,6 +35,20 @@ export default function ImportDashboard() {
         .in("status", ["in_transit", "processing"])
         .order("created_at", { ascending: false })
         .limit(10);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch recent orders
+  const { data: recentOrders } = useQuery({
+    queryKey: ["recent-orders"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(5);
       if (error) throw error;
       return data || [];
     },
@@ -68,48 +67,23 @@ export default function ImportDashboard() {
     },
   });
 
-  // Calculate CIF stats
-  const cifStats = {
-    totalCalculations: recentCIF?.length || 0,
-    avgFreight:
-      recentCIF && recentCIF.length > 0
-        ? (
-            recentCIF.reduce(
-              (sum, c) => sum + (c.freight_exterior_per_kg || 0),
-              0
-            ) / recentCIF.length
-          ).toFixed(2)
-        : "0.00",
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Import Dashboard</h1>
           <p className="text-muted-foreground">
-            CIF calculations, supplier orders, and import logistics
+            Supplier orders, shipments, and import logistics
           </p>
         </div>
-        <Button onClick={() => navigate("/import/cif")}>
-          <Calculator className="h-4 w-4 mr-2" />
-          New CIF Calculation
+        <Button onClick={() => navigate("/import/orders/new")}>
+          <ShoppingCart className="h-4 w-4 mr-2" />
+          New Order
         </Button>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">CIF Calculations</CardTitle>
-            <Calculator className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{cifStats.totalCalculations}</div>
-            <p className="text-xs text-muted-foreground">recent calculations</p>
-          </CardContent>
-        </Card>
-
+      <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">In Transit</CardTitle>
@@ -134,12 +108,12 @@ export default function ImportDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Freight Rate</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Recent Orders</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${cifStats.avgFreight}/kg</div>
-            <p className="text-xs text-muted-foreground">exterior freight</p>
+            <div className="text-2xl font-bold">{recentOrders?.length || 0}</div>
+            <p className="text-xs text-muted-foreground">this week</p>
           </CardContent>
         </Card>
       </div>
@@ -148,14 +122,14 @@ export default function ImportDashboard() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card
           className="cursor-pointer hover:bg-accent/50 transition-colors"
-          onClick={() => navigate("/import/cif")}
+          onClick={() => navigate("/import/orders")}
         >
           <CardContent className="pt-6 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Calculator className="h-8 w-8 text-primary" />
+              <ShoppingCart className="h-8 w-8 text-primary" />
               <div>
-                <p className="font-medium">CIF Calculator</p>
-                <p className="text-sm text-muted-foreground">Calculate import costs</p>
+                <p className="font-medium">Orders</p>
+                <p className="text-sm text-muted-foreground">View all orders</p>
               </div>
             </div>
             <ArrowRight className="h-5 w-5 text-muted-foreground" />
@@ -180,14 +154,14 @@ export default function ImportDashboard() {
 
         <Card
           className="cursor-pointer hover:bg-accent/50 transition-colors"
-          onClick={() => navigate("/import/cif/history")}
+          onClick={() => navigate("/import/shipments")}
         >
           <CardContent className="pt-6 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Clock className="h-8 w-8 text-primary" />
+              <Plane className="h-8 w-8 text-primary" />
               <div>
-                <p className="font-medium">CIF History</p>
-                <p className="text-sm text-muted-foreground">Past calculations</p>
+                <p className="font-medium">Shipments</p>
+                <p className="text-sm text-muted-foreground">Track shipments</p>
               </div>
             </div>
             <ArrowRight className="h-5 w-5 text-muted-foreground" />
@@ -195,49 +169,47 @@ export default function ImportDashboard() {
         </Card>
       </div>
 
-      {/* Bottom Row: News + CIF History */}
+      {/* Bottom Row: News + Recent Orders */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Market News Intelligence */}
         <MarketNewsWidget />
 
-        {/* Recent CIF Calculations */}
+        {/* Recent Orders */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Recent CIF Calculations</CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => navigate("/import/cif/history")}>
+            <CardTitle>Recent Orders</CardTitle>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/import/orders")}>
               View All
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           </CardHeader>
           <CardContent>
-            {recentCIF && recentCIF.length > 0 ? (
+            {recentOrders && recentOrders.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Products</TableHead>
+                    <TableHead>Order #</TableHead>
+                    <TableHead>Week</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Created</TableHead>
-                    <TableHead className="text-right">Exchange Rate</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {recentCIF.map((calc) => (
-                    <TableRow key={calc.id}>
+                  {recentOrders.map((order) => (
+                    <TableRow 
+                      key={order.id} 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => navigate(`/import/orders/${order.id}`)}
+                    >
                       <TableCell className="font-medium">
-                        {calc.calculation_name}
+                        {order.order_number}
+                      </TableCell>
+                      <TableCell>Week {order.week_number}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{order.status}</Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{calc.calculation_type}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        {Array.isArray(calc.products) ? calc.products.length : 0}
-                      </TableCell>
-                      <TableCell>
-                        {format(new Date(calc.created_at), "MMM d, yyyy")}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {calc.exchange_rate?.toFixed(2)}
+                        {format(new Date(order.created_at), "MMM d, yyyy")}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -245,7 +217,7 @@ export default function ImportDashboard() {
               </Table>
             ) : (
               <p className="text-center text-muted-foreground py-8">
-                No CIF calculations yet
+                No orders yet
               </p>
             )}
           </CardContent>

@@ -1,11 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, ShoppingCart, Calculator, Package, Mail, FileText } from 'lucide-react';
+import { Home, ShoppingCart, Package, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { path: '/import', label: 'Dashboard', icon: Home },
   { path: '/import/orders', label: 'Orders', icon: ShoppingCart },
-  { path: '/import/cif', label: 'CIF', icon: Calculator, highlight: true },
   { path: '/import/standing-orders', label: 'Templates', icon: FileText },
   { path: '/import/products', label: 'Products', icon: Package },
 ];
@@ -26,23 +25,13 @@ export function ImportNav() {
               to={item.path}
               className={cn(
                 "flex flex-col items-center justify-center min-w-[64px] h-full px-3 transition-colors touch-manipulation",
-                item.highlight && !isActive && "relative",
                 isActive 
                   ? "text-primary" 
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              {item.highlight && !isActive ? (
-                <div className="absolute -top-3 w-12 h-12 rounded-full bg-primary flex items-center justify-center shadow-lg">
-                  <Icon className="h-6 w-6 text-primary-foreground" />
-                </div>
-              ) : (
-                <Icon className={cn("h-6 w-6", isActive && "scale-110")} />
-              )}
-              <span className={cn(
-                "text-xs mt-1",
-                item.highlight && !isActive && "mt-5"
-              )}>
+              <Icon className={cn("h-6 w-6", isActive && "scale-110")} />
+              <span className="text-xs mt-1">
                 {item.label}
               </span>
             </Link>
