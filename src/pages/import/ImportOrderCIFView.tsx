@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import LoadingBox from '@/components/LoadingBox';
@@ -14,7 +16,9 @@ import { CIFLearningInsights } from '@/components/CIFLearningInsights';
 import { PalletVisualization } from '@/components/PalletVisualization';
 import { CIFVerificationBadges } from '@/components/CIFVerificationBadges';
 import { calculateOrderPalletConfig, ProductWeightInfo } from '@/lib/weightCalculations';
+import { useGenerateCIFEstimate, useCIFSnapshots } from '@/hooks/useCIFAutoEstimate';
 import { format } from 'date-fns';
+import { RefreshCw, Calculator, Check, AlertCircle } from 'lucide-react';
 
 interface OrderItem {
   id: string;
@@ -45,6 +49,10 @@ const ImportOrderCIFView = () => {
   const [freightSettings, setFreightSettings] = useState({ freightCostPerKg: 2.87, exchangeRate: 1.82 });
   const [hasActualCosts, setHasActualCosts] = useState(false);
 
+  // CIF Estimate hooks
+  const { data: cifSnapshots, isLoading: snapshotsLoading } = useCIFSnapshots(orderId);
+  const generateEstimate = useGenerateCIFEstimate();
+
   useEffect(() => {
     if (orderId) {
       fetchOrderDetails();
@@ -52,6 +60,17 @@ const ImportOrderCIFView = () => {
       checkActualCosts();
     }
   }, [orderId]);
+
+  // Auto-generate estimate if none exists when order loads
+  useEffect(() => {
+    if (orderId && !snapshotsLoading && order && orderItems.length > 0) {
+      const hasEstimate = !!cifSnapshots?.estimate;
+      if (!hasEstimate && !generateEstimate.isPending) {
+        console.log('[CIF View] Auto-generating estimate for order:', orderId);
+        generateEstimate.mutate({ orderId });
+      }
+    }
+  }, [orderId, snapshotsLoading, cifSnapshots?.estimate, order, orderItems.length]);
 
   const checkActualCosts = async () => {
     if (!orderId) return;
@@ -253,11 +272,91 @@ const ImportOrderCIFView = () => {
                   Week {order.week_number} • Delivery: {format(new Date(order.delivery_date), 'EEEE, MMM d, yyyy')}
                 </p>
               </div>
-              <div className="text-right text-sm text-muted-foreground">
-                <p>Placed by: {order.placed_by}</p>
-                <p>Status: <span className="capitalize font-medium">{order.status}</span></p>
+              <div className="flex items-center gap-4">
+                {/* Estimate Status */}
+                <div className="flex items-center gap-2">
+                  {cifSnapshots?.estimate ? (
+                    <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+                      <Check className="h-3 w-3 mr-1" />
+                      Estimate Generated
+                    </Badge>
+                  ) : generateEstimate.isPending ? (
+                    <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30">
+                      <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                      Generating...
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
+                      <AlertCircle className="h-3 w-3 mr-1" />
+                      No Estimate
+                    </Badge>
+                  )}
+                  
+                  {cifSnapshots?.actual && (
+                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                      <Check className="h-3 w-3 mr-1" />
+                      Actuals Entered
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Recalculate Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => orderId && generateEstimate.mutate({ orderId, forceRecalculate: true })}
+                  disabled={generateEstimate.isPending}
+                >
+                  {generateEstimate.isPending ? (
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Calculator className="h-4 w-4 mr-2" />
+                  )}
+                  Recalculate Estimate
+                </Button>
+
+                <div className="text-right text-sm text-muted-foreground">
+                  <p>Placed by: {order.placed_by}</p>
+                  <p>Status: <span className="capitalize font-medium">{order.status}</span></p>
+                </div>
               </div>
             </div>
+
+            {/* Estimate Summary Bar */}
+            {cifSnapshots?.estimate && (
+              <div className="mt-4 p-3 bg-muted/50 rounded-lg grid grid-cols-5 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Total Freight</p>
+                  <p className="font-semibold text-lg">
+                    ${cifSnapshots.estimate.total_freight_usd?.toFixed(2) || '0.00'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Chargeable Weight</p>
+                  <p className="font-semibold text-lg">
+                    {cifSnapshots.estimate.total_chargeable_weight_kg?.toFixed(2) || '0'} kg
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Method</p>
+                  <p className="font-semibold text-lg capitalize">
+                    {cifSnapshots.estimate.distribution_method || 'Smart Blend'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Exchange Rate</p>
+                  <p className="font-semibold text-lg">
+                    {cifSnapshots.estimate.exchange_rate?.toFixed(2) || '1.82'} XCG
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">AI Adjustments</p>
+                  <p className="font-semibold text-lg">
+                    {cifSnapshots.estimate.ai_adjustments_applied?.filter((a: any) => a.source === 'auto_applied').length || 0} applied
+                  </p>
+                </div>
+              </div>
+            )}
           </CardHeader>
         </Card>
 
