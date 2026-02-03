@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Printer, Ban, Edit, Eye, Download, Receipt, ChevronDown, FileEdit, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Printer, Ban, Edit, Eye, Download, Receipt, ChevronDown, FileEdit, ExternalLink, Truck } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -30,6 +30,8 @@ import { CIFLearningInsights } from '@/components/CIFLearningInsights';
 import { PalletVisualization } from '@/components/PalletVisualization';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import html2pdf from 'html2pdf.js';
+import { DriverAssignmentDialog } from '@/components/DriverAssignmentDialog';
+import { DriverPackingSlip } from '@/components/DriverPackingSlip';
 import { 
   generateReceiptNumber, 
   saveReceiptRecord, 
@@ -70,10 +72,10 @@ const OrderDetails = () => {
   const [order, setOrder] = useState<Order | null>(null);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewDialog, setViewDialog] = useState<'packing' | 'supplier' | 'roundup' | 'receipt' | null>(null);
+  const [viewDialog, setViewDialog] = useState<'packing' | 'supplier' | 'roundup' | 'receipt' | 'driver' | null>(null);
   const [printFormat, setPrintFormat] = useState<'a4' | 'receipt'>('a4');
   const [showFormatDialog, setShowFormatDialog] = useState(false);
-  const [pendingAction, setPendingAction] = useState<{type: 'packing' | 'supplier' | 'roundup' | 'receipt', action: 'view' | 'print' | 'download'} | null>(null);
+  const [pendingAction, setPendingAction] = useState<{type: 'packing' | 'supplier' | 'roundup' | 'receipt' | 'driver', action: 'view' | 'print' | 'download'} | null>(null);
   const [showReceiptCustomerDialog, setShowReceiptCustomerDialog] = useState(false);
   const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
   const [recommendedCIFMethod, setRecommendedCIFMethod] = useState<string>('');
@@ -89,6 +91,8 @@ const OrderDetails = () => {
   const [showSupplierSelectDialog, setShowSupplierSelectDialog] = useState(false);
   const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([]);
   const [availableSuppliers, setAvailableSuppliers] = useState<string[]>([]);
+  const [showDriverAssignmentDialog, setShowDriverAssignmentDialog] = useState(false);
+  const [driverAssignments, setDriverAssignments] = useState<{driver_name: string; customer_names: string[]; sequence_number: number}[]>([]);
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -943,6 +947,55 @@ const OrderDetails = () => {
                     </Button>
                   </div>
                 </div>
+
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h3 className="font-semibold flex items-center gap-2">
+                        <Truck className="h-4 w-4" />
+                        Driver Packing Slips
+                      </h3>
+                      <p className="text-xs text-muted-foreground">Aggregated products per driver route</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowDriverAssignmentDialog(true)}
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      View / Assign
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={async () => {
+                        // Fetch existing assignments and show dialog if none
+                        const { data } = await supabase
+                          .from('import_order_driver_assignments')
+                          .select('*')
+                          .eq('order_id', orderId)
+                          .order('sequence_number');
+                        
+                        if (!data || data.length === 0) {
+                          setShowDriverAssignmentDialog(true);
+                        } else {
+                          setDriverAssignments(data.map(d => ({
+                            driver_name: d.driver_name,
+                            customer_names: d.customer_names || [],
+                            sequence_number: d.sequence_number || 0
+                          })));
+                          setPendingAction({ type: 'driver' as const, action: 'download' });
+                          setShowFormatDialog(true);
+                        }
+                      }}
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Download
+                    </Button>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -1345,6 +1398,14 @@ const OrderDetails = () => {
                 ))}
               </div>
             )}
+            {viewDialog === 'driver' && order && (
+              <DriverPackingSlip
+                order={order}
+                orderItems={orderItems}
+                driverAssignments={driverAssignments}
+                format={printFormat}
+              />
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -1355,6 +1416,23 @@ const OrderDetails = () => {
         orderItems={orderItems}
         selectedCustomers={selectedCustomers}
         onConfirm={handleConfirmEditedReceipt}
+      />
+
+      <DriverAssignmentDialog
+        open={showDriverAssignmentDialog}
+        onOpenChange={setShowDriverAssignmentDialog}
+        orderId={orderId!}
+        orderItems={orderItems}
+        onConfirm={(assignments) => {
+          setDriverAssignments(assignments.map(a => ({
+            driver_name: a.driver_name,
+            customer_names: a.customer_names,
+            sequence_number: a.sequence_number
+          })));
+          setShowDriverAssignmentDialog(false);
+          setPendingAction({ type: 'driver', action: 'view' });
+          setShowFormatDialog(true);
+        }}
       />
     </div>
   );
