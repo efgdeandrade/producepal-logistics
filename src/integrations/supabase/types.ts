@@ -447,6 +447,89 @@ export type Database = {
         }
         Relationships: []
       }
+      cif_calculation_snapshots: {
+        Row: {
+          ai_adjustments_applied: Json | null
+          bank_charges_usd: number | null
+          blend_ratio: number | null
+          created_at: string | null
+          created_by: string | null
+          distribution_method: string | null
+          exchange_rate: number | null
+          freight_exterior_usd: number | null
+          freight_local_usd: number | null
+          id: string
+          labor_xcg: number | null
+          local_logistics_usd: number | null
+          notes: string | null
+          order_id: string | null
+          other_costs_usd: number | null
+          products_data: Json
+          snapshot_type: string
+          supplier_fixed_costs_usd: number | null
+          total_actual_weight_kg: number | null
+          total_chargeable_weight_kg: number | null
+          total_freight_usd: number | null
+          total_volumetric_weight_kg: number | null
+        }
+        Insert: {
+          ai_adjustments_applied?: Json | null
+          bank_charges_usd?: number | null
+          blend_ratio?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          distribution_method?: string | null
+          exchange_rate?: number | null
+          freight_exterior_usd?: number | null
+          freight_local_usd?: number | null
+          id?: string
+          labor_xcg?: number | null
+          local_logistics_usd?: number | null
+          notes?: string | null
+          order_id?: string | null
+          other_costs_usd?: number | null
+          products_data?: Json
+          snapshot_type: string
+          supplier_fixed_costs_usd?: number | null
+          total_actual_weight_kg?: number | null
+          total_chargeable_weight_kg?: number | null
+          total_freight_usd?: number | null
+          total_volumetric_weight_kg?: number | null
+        }
+        Update: {
+          ai_adjustments_applied?: Json | null
+          bank_charges_usd?: number | null
+          blend_ratio?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          distribution_method?: string | null
+          exchange_rate?: number | null
+          freight_exterior_usd?: number | null
+          freight_local_usd?: number | null
+          id?: string
+          labor_xcg?: number | null
+          local_logistics_usd?: number | null
+          notes?: string | null
+          order_id?: string | null
+          other_costs_usd?: number | null
+          products_data?: Json
+          snapshot_type?: string
+          supplier_fixed_costs_usd?: number | null
+          total_actual_weight_kg?: number | null
+          total_chargeable_weight_kg?: number | null
+          total_freight_usd?: number | null
+          total_volumetric_weight_kg?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cif_calculation_snapshots_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cif_calculations: {
         Row: {
           bank_charges_usd: number | null
@@ -521,25 +604,31 @@ export type Database = {
       }
       cif_estimates: {
         Row: {
+          actual_bank_charges_usd: number | null
           actual_cif_xcg: number | null
           actual_freight_exterior_usd: number | null
           actual_freight_local_usd: number | null
+          actual_labor_xcg: number | null
           actual_other_costs_usd: number | null
           actual_total_freight_usd: number | null
           actual_weight_kg: number
           chargeable_weight_kg: number
           created_at: string | null
+          estimated_bank_charges_usd: number | null
           estimated_cif_xcg: number | null
           estimated_date: string | null
           estimated_freight_exterior_usd: number | null
           estimated_freight_local_usd: number | null
+          estimated_labor_xcg: number | null
           estimated_other_costs_usd: number | null
+          estimated_supplier_fixed_costs_usd: number | null
           estimated_total_freight_usd: number | null
           id: string
           order_id: string | null
           pallet_utilization_percentage: number | null
           pallets_used: number | null
           product_code: string
+          supplier_fixed_costs_usd: number | null
           updated_at: string | null
           variance_amount_usd: number | null
           variance_percentage: number | null
@@ -547,25 +636,31 @@ export type Database = {
           weight_type_used: string | null
         }
         Insert: {
+          actual_bank_charges_usd?: number | null
           actual_cif_xcg?: number | null
           actual_freight_exterior_usd?: number | null
           actual_freight_local_usd?: number | null
+          actual_labor_xcg?: number | null
           actual_other_costs_usd?: number | null
           actual_total_freight_usd?: number | null
           actual_weight_kg: number
           chargeable_weight_kg: number
           created_at?: string | null
+          estimated_bank_charges_usd?: number | null
           estimated_cif_xcg?: number | null
           estimated_date?: string | null
           estimated_freight_exterior_usd?: number | null
           estimated_freight_local_usd?: number | null
+          estimated_labor_xcg?: number | null
           estimated_other_costs_usd?: number | null
+          estimated_supplier_fixed_costs_usd?: number | null
           estimated_total_freight_usd?: number | null
           id?: string
           order_id?: string | null
           pallet_utilization_percentage?: number | null
           pallets_used?: number | null
           product_code: string
+          supplier_fixed_costs_usd?: number | null
           updated_at?: string | null
           variance_amount_usd?: number | null
           variance_percentage?: number | null
@@ -573,25 +668,31 @@ export type Database = {
           weight_type_used?: string | null
         }
         Update: {
+          actual_bank_charges_usd?: number | null
           actual_cif_xcg?: number | null
           actual_freight_exterior_usd?: number | null
           actual_freight_local_usd?: number | null
+          actual_labor_xcg?: number | null
           actual_other_costs_usd?: number | null
           actual_total_freight_usd?: number | null
           actual_weight_kg?: number
           chargeable_weight_kg?: number
           created_at?: string | null
+          estimated_bank_charges_usd?: number | null
           estimated_cif_xcg?: number | null
           estimated_date?: string | null
           estimated_freight_exterior_usd?: number | null
           estimated_freight_local_usd?: number | null
+          estimated_labor_xcg?: number | null
           estimated_other_costs_usd?: number | null
+          estimated_supplier_fixed_costs_usd?: number | null
           estimated_total_freight_usd?: number | null
           id?: string
           order_id?: string | null
           pallet_utilization_percentage?: number | null
           pallets_used?: number | null
           product_code?: string
+          supplier_fixed_costs_usd?: number | null
           updated_at?: string | null
           variance_amount_usd?: number | null
           variance_percentage?: number | null
@@ -5530,6 +5631,44 @@ export type Database = {
           value?: Json
         }
         Relationships: []
+      }
+      supplier_cost_config: {
+        Row: {
+          created_at: string | null
+          fixed_cost_per_shipment_usd: number | null
+          handling_notes: string | null
+          id: string
+          is_active: boolean | null
+          supplier_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          fixed_cost_per_shipment_usd?: number | null
+          handling_notes?: string | null
+          id?: string
+          is_active?: boolean | null
+          supplier_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          fixed_cost_per_shipment_usd?: number | null
+          handling_notes?: string | null
+          id?: string
+          is_active?: boolean | null
+          supplier_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_cost_config_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: true
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       supplier_order_items: {
         Row: {

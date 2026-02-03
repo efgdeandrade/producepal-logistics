@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { RolePermissionCard } from '@/components/settings/RolePermissionCard';
 import { ProductMappingManager } from '@/components/settings/ProductMappingManager';
+import { SupplierCostConfig } from '@/components/settings/SupplierCostConfig';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -337,8 +338,9 @@ export default function Settings() {
           </CardContent>
         </Card>
         <Tabs defaultValue="tariffs" className="space-y-4">
-          <TabsList>
+          <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="tariffs">Currency & Tariffs</TabsTrigger>
+            <TabsTrigger value="import-costs">Import Costs</TabsTrigger>
             <TabsTrigger value="company">Company Information</TabsTrigger>
             <TabsTrigger value="product-mappings">Product Mappings</TabsTrigger>
             <TabsTrigger value="permissions">Role Permissions</TabsTrigger>
@@ -417,6 +419,10 @@ export default function Settings() {
                 </Button>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="import-costs">
+            <SupplierCostConfig />
           </TabsContent>
 
           <TabsContent value="company">
