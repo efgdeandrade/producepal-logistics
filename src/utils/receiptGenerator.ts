@@ -15,6 +15,10 @@ export interface ReceiptData {
   deliveryDate: string;
 }
 
+// jsPDF can be finicky with custom page sizes depending on unit handling.
+// For thermal receipts we force unit=pt and provide explicit pt dimensions.
+const mmToPt = (mm: number) => (mm / 25.4) * 72;
+
 /**
  * Generates a unique sequential receipt number
  */
@@ -80,9 +84,11 @@ export const generateReceiptPDF = async (
       }
     });
     
-    const margin = format === 'a4' ? 10 : 5;
-    const pageWidth = format === 'a4' ? 210 : 80;
-    const contentWidth = pageWidth - (margin * 2);
+    // Dimensions in PDF units
+    const unit: 'mm' | 'pt' = format === 'receipt' ? 'pt' : 'mm';
+    const margin = format === 'a4' ? 10 : mmToPt(5);
+    const pageWidth = format === 'a4' ? 210 : mmToPt(80);
+    const contentWidth = pageWidth - margin * 2;
     
     // Calculate actual content height based on aspect ratio
     const imgHeight = (canvas.height * contentWidth) / canvas.width;
@@ -95,7 +101,7 @@ export const generateReceiptPDF = async (
     
     if (format === 'receipt') {
       // Thermal receipt: page height matches content (continuous roll)
-      pageHeight = imgHeight + (margin * 2);
+      pageHeight = imgHeight + margin * 2;
     } else {
       // A4: fixed height, scale down content if it exceeds page
       pageHeight = 297;
@@ -112,9 +118,11 @@ export const generateReceiptPDF = async (
     // Create PDF with calculated dimensions
     const pdf = new jsPDF({
       orientation: 'portrait',
-      unit: 'mm',
-      format: format === 'a4' ? 'a4' : [pageWidth, pageHeight]
-    });
+      unit,
+      format: format === 'a4' ? 'a4' : [pageWidth, pageHeight],
+      // Helps ensure consistent scaling between canvas pixels and PDF units.
+      hotfixes: ['px_scaling'],
+    } as any);
     
     const imgData = canvas.toDataURL('image/jpeg', 0.98);
     
@@ -144,9 +152,10 @@ export const generateMultipleReceiptsPDF = async (
   orderNumber: string,
   onProgress?: (current: number, total: number) => void
 ): Promise<Blob> => {
-  const margin = format === 'a4' ? 10 : 5;
-  const pageWidth = format === 'a4' ? 210 : 80;
-  const contentWidth = pageWidth - (margin * 2);
+  const unit: 'mm' | 'pt' = format === 'receipt' ? 'pt' : 'mm';
+  const margin = format === 'a4' ? 10 : mmToPt(5);
+  const pageWidth = format === 'a4' ? 210 : mmToPt(80);
+  const contentWidth = pageWidth - margin * 2;
   const a4PageHeight = 297;
   const a4MaxContentHeight = a4PageHeight - (margin * 2);
   
@@ -190,7 +199,7 @@ export const generateMultipleReceiptsPDF = async (
     
     if (format === 'receipt') {
       // Thermal receipt: page height matches content
-      pageHeight = imgHeight + (margin * 2);
+      pageHeight = imgHeight + margin * 2;
     } else {
       // A4: fixed height, scale down if needed
       pageHeight = a4PageHeight;
@@ -205,12 +214,14 @@ export const generateMultipleReceiptsPDF = async (
       // Create PDF with first page dimensions
       pdf = new jsPDF({
         orientation: 'portrait',
-        unit: 'mm',
-        format: format === 'a4' ? 'a4' : [pageWidth, pageHeight]
-      });
+        unit,
+        format: format === 'a4' ? 'a4' : [pageWidth, pageHeight],
+        hotfixes: ['px_scaling'],
+      } as any);
     } else {
       // Add new page with custom dimensions for this receipt
-      pdf!.addPage(format === 'a4' ? 'a4' : [pageWidth, pageHeight]);
+      // jsPDF addPage can ignore array sizes unless unit/hotfix are consistent.
+      pdf!.addPage(format === 'a4' ? 'a4' : ([pageWidth, pageHeight] as any));
     }
     
     const imgData = canvas.toDataURL('image/jpeg', 0.98);
