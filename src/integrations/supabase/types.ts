@@ -4047,6 +4047,54 @@ export type Database = {
           },
         ]
       }
+      import_order_driver_assignments: {
+        Row: {
+          created_at: string | null
+          customer_names: string[]
+          driver_id: string | null
+          driver_name: string
+          id: string
+          order_id: string
+          sequence_number: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_names?: string[]
+          driver_id?: string | null
+          driver_name: string
+          id?: string
+          order_id: string
+          sequence_number?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_names?: string[]
+          driver_id?: string | null
+          driver_name?: string
+          id?: string
+          order_id?: string
+          sequence_number?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_order_driver_assignments_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_order_driver_assignments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           adjusted_total: number
