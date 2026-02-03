@@ -1,103 +1,119 @@
 
-# Plan: Add Driver Packing Slips to Import Order Details ✅ IMPLEMENTED
+# Plan: Unified Driver Packing Slips (Import + Distribution)
 
-## Status: Complete
-Add a new document type "Driver Packing Slips" to the Import Order Details page. This feature allows you to:
-1. Plan how many drivers will handle deliveries for an order
-2. Assign customers to specific drivers for their routes
-3. Generate a packing slip per driver showing their assigned customers and **aggregated totals** of all products across those customers
+## The Concept
 
-## What You'll See
+You're absolutely right - this is actually simpler than it sounds! Here's what we're solving:
 
-### New Document Option
-A new "Driver Packing Slips" section will appear in the Document Options card, alongside the existing Customer Packing Slips, Supplier Order Lists, and Total Roundup Table.
+**Current State:**
+- Import orders (Supermarkets) have their own driver packing slips
+- Distribution orders (Restaurants/Hotels) are completely separate
 
-### Driver Planning Flow
-1. Click "View" or "Download" on Driver Packing Slips
-2. A dialog appears where you can:
-   - Add/remove drivers (by name or select from existing drivers)
-   - Drag-and-drop or checkbox-assign customers to each driver
-   - See a preview of product totals for each driver
-3. Generate/download the packing slips
+**Goal:**
+When a driver has BOTH Import customers AND Distribution customers on the same day, generate ONE unified packing slip that shows:
+1. All customers (Import + Distribution) assigned to that driver
+2. Combined product totals - but ONLY for products that exist in Import
 
-### Driver Packing Slip Output (Per Driver)
-Each driver gets their own slip showing:
-- Driver name and route info
-- List of customers assigned to them
-- **Aggregated product totals** - Example:
-  ```
-  Driver A - 2 Customers:
-  - Customer X
-  - Customer Y
-  
-  Products to Load:
-  ┌─────────────────────┬────────┬───────┐
-  │ Product             │ Cases  │ Units │
-  ├─────────────────────┼────────┼───────┤
-  │ Strawberries 500g   │ 5      │ 50    │
-  │ Blueberries 125g    │ 3      │ 36    │
-  └─────────────────────┴────────┴───────┘
-  Total: 8 cases = 86 units
-  ```
+**The Smart Filter:**
+If Import order has: Strawberries, Blueberries
+Distribution can ONLY add: Customers who ordered Strawberries or Blueberries
+Distribution customers ordering Banana? They won't appear (wrong product type)
+
+---
+
+## How It Will Work
+
+### Step 1: Product Mapping Table
+First, we need a way to connect Import products with Distribution products (since they have different codes/names).
+
+Example:
+| Import Product | Distribution Product |
+|----------------|---------------------|
+| STB_500 (Strawberries 500g) | STRAWBERRY_KG |
+| BLB_125 (Blueberries 125g) | BLUEBERRY_125 |
+
+### Step 2: Enhanced Driver Assignment Dialog
+When you open "Driver Packing Slips" for an Import order:
+1. Shows Import customers (as it does now)
+2. NEW: Shows a toggle "Include Distribution orders for this date"
+3. When enabled, automatically finds Distribution orders for the same delivery date
+4. Filters to ONLY show Distribution customers whose orders contain mapped products
+
+### Step 3: Unified Packing Slip Output
+The packing slip will show:
+
+```
+Driver: Eduardo G.
+Route #1 - 5 Stops
+
+=== IMPORT CUSTOMERS (Supermarkets) ===
+1. Centrum Supermarket
+2. Mangusa Hypermarket
+
+=== DISTRIBUTION CUSTOMERS (Restaurants) ===  
+3. Kura Hulanda Restaurant
+4. Blues Bar & Grill
+5. Gouverneur Hotel
+
+----------------------------
+Products to Load:
+┌──────────────────────────────┬────────┬───────┐
+│ Product                      │ Qty    │ Units │
+├──────────────────────────────┼────────┼───────┤
+│ Strawberries 500g            │ 15     │ 150   │
+│ Blueberries 125g             │ 8      │ 96    │
+└──────────────────────────────┴────────┴───────┘
+Total: 23 cases = 246 units
+```
 
 ---
 
 ## Implementation Details
 
-### 1. Database: Driver Route Assignments for Orders
-Create a new table to store driver-customer assignments per order:
+### Database Changes
 
+**New Table: `cross_department_product_mappings`**
+Links Import products to their Distribution equivalents:
 ```sql
-CREATE TABLE import_order_driver_assignments (
+CREATE TABLE cross_department_product_mappings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-  driver_name TEXT NOT NULL,
-  driver_id UUID REFERENCES profiles(id),
-  customer_names TEXT[] NOT NULL,
-  sequence_number INTEGER DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
+  import_product_code TEXT NOT NULL,  -- From 'products' table
+  distribution_product_id UUID NOT NULL, -- From 'distribution_products'
+  conversion_factor NUMERIC DEFAULT 1, -- e.g., 1 Import case = X Distribution units
+  created_at TIMESTAMPTZ DEFAULT now()
 );
 ```
 
-This stores which customers are assigned to which driver for a specific import order.
-
-### 2. New Component: DriverPackingSlip
-A component similar to `CustomerPackingSlip` but aggregates products:
-
-| Props | Type | Description |
-|-------|------|-------------|
-| order | Order | The order details |
-| orderItems | OrderItem[] | All order items |
-| driverAssignments | Assignment[] | Driver-customer mappings |
-| format | 'a4' \| 'receipt' | Print format |
-
-The component will:
-- Loop through each driver assignment
-- Filter order items to only those customers
-- Aggregate quantities by product code
-- Display totals with cases/units calculation
-
-### 3. New Component: DriverAssignmentDialog
-A dialog for planning routes with:
-- "Add Driver" button (text input or dropdown of existing drivers)
-- List of unassigned customers from the order
-- Per-driver customer list with add/remove capability
-- Real-time preview of product totals per driver
-- Save assignments to database
-
-### 4. Update OrderDetails.tsx
-Add new state and handlers:
-```typescript
-// New state
-const [showDriverAssignmentDialog, setShowDriverAssignmentDialog] = useState(false);
-const [driverAssignments, setDriverAssignments] = useState<DriverAssignment[]>([]);
-
-// New viewDialog type
-type ViewDialogType = 'packing' | 'supplier' | 'roundup' | 'receipt' | 'driver';
+**Update: `import_order_driver_assignments`**
+Add columns to track Distribution customers:
+```sql
+ALTER TABLE import_order_driver_assignments
+ADD COLUMN distribution_customer_ids UUID[] DEFAULT '{}',
+ADD COLUMN include_distribution BOOLEAN DEFAULT false;
 ```
 
-Add new document option card for "Driver Packing Slips" with View/Print/Download buttons.
+### UI Changes
+
+**DriverAssignmentDialog.tsx**
+- Add toggle: "Include Distribution orders for this delivery date"
+- When enabled, fetch Distribution orders for the same date
+- Filter Distribution customers to only those with matching products
+- Show Distribution customers in a separate section with visual distinction
+- Allow assigning Distribution customers to drivers alongside Import customers
+
+**DriverPackingSlip.tsx**
+- Accept both Import order items AND Distribution order items
+- Group customers by source (Import vs Distribution)
+- Aggregate products using the mapping table
+- Show unified totals
+
+### New Component
+
+**ProductMappingManager.tsx** (Settings page)
+A simple interface to create/manage product mappings between Import and Distribution products:
+- Left column: Import products
+- Right column: Distribution products
+- Click to link them
 
 ---
 
@@ -105,56 +121,87 @@ Add new document option card for "Driver Packing Slips" with View/Print/Download
 
 | File | Purpose |
 |------|---------|
-| `src/components/DriverPackingSlip.tsx` | Renders the aggregated packing slip per driver |
-| `src/components/DriverAssignmentDialog.tsx` | UI for assigning customers to drivers |
+| `src/components/settings/ProductMappingManager.tsx` | UI to link Import ↔ Distribution products |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/OrderDetails.tsx` | Add Driver Packing Slips section, state, handlers, and dialog rendering |
-| Database Migration | Create `import_order_driver_assignments` table |
+| `src/components/DriverAssignmentDialog.tsx` | Add Distribution toggle, fetch matching orders, show combined customers |
+| `src/components/DriverPackingSlip.tsx` | Support unified output from both sources |
+| `src/pages/Settings.tsx` | Add Product Mapping section |
+| Database Migration | Create mapping table, update assignments table |
 
 ---
 
-## UI Flow Diagram
+## User Flow
 
 ```
-Document Options Card
-         │
-         ├── Customer Packing Slips
-         ├── Supplier Order Lists  
-         ├── Total Roundup Table
-         └── Driver Packing Slips ← NEW
+Import Order (WK5-001) - Delivery Date: Feb 5, 2026
                     │
                     ▼
-     ┌─────────────────────────────────────┐
-     │   Assign Customers to Drivers       │
-     │   ─────────────────────────────     │
-     │   [+ Add Driver]                    │
-     │                                     │
-     │   Driver: Eduardo G.                │
-     │   ☑ Customer X                      │
-     │   ☑ Customer Y                      │
-     │   Preview: 5 cases strawberry...    │
-     │                                     │
-     │   Driver: (Add new driver...)       │
-     │   ☐ Customer Z (unassigned)         │
-     │                                     │
-     │   ┌─────────┐  ┌─────────────────┐  │
-     │   │ Cancel  │  │ View/Download   │  │
-     │   └─────────┘  └─────────────────┘  │
-     └─────────────────────────────────────┘
+        ┌─────────────────────────────────┐
+        │  Assign Customers to Drivers    │
+        │  ═══════════════════════════    │
+        │                                 │
+        │  ☑ Include Distribution orders  │
+        │    for Feb 5, 2026              │
+        │                                 │
+        │  ─── Driver: Eduardo G. ───     │
+        │                                 │
+        │  IMPORT CUSTOMERS:              │
+        │  ☑ Centrum Supermarket          │
+        │  ☑ Mangusa Hypermarket          │
+        │                                 │
+        │  DISTRIBUTION CUSTOMERS:        │
+        │  (matching products only)       │
+        │  ☑ Kura Hulanda (Strawberry)    │
+        │  ☑ Blues Bar (Strawberry,       │
+        │              Blueberry)         │
+        │  ☐ Hotel X (Banana) ← disabled  │
+        │                                 │
+        │  ┌────────────────────────────┐ │
+        │  │ Generate Unified Slips    │ │
+        │  └────────────────────────────┘ │
+        └─────────────────────────────────┘
 ```
+
+---
+
+## Product Mapping Example
+
+To make this work seamlessly, you'll set up mappings once in Settings:
+
+| Import Product | → | Distribution Product |
+|----------------|---|---------------------|
+| STB_500 | → | STRAWBERRY_KG |
+| STB_250 | → | STRAWBERRY_250 |
+| BLB_125 | → | BLUEBERRY_125 |
+| BLB_250 | → | BLUEBERRY_250 |
+
+Then the system automatically knows:
+- If Import order has STB_500, show Distribution customers who ordered STRAWBERRY_KG
+- Convert quantities using the conversion factor if needed
+
+---
+
+## Alternative Approach
+
+If you prefer NOT to manually map products, we could use:
+1. **Auto-matching by name**: System tries to match "Strawberries 500g" to "Strawberry" automatically
+2. **Consolidation groups**: Use the existing `consolidation_group` field to group related products
+
+Would you prefer the manual mapping approach (more accurate) or automatic name matching (easier setup but may have mismatches)?
 
 ---
 
 ## Testing Steps
-1. Navigate to an Import order with multiple customers
-2. Click "View" on Driver Packing Slips
-3. Add a driver (type a name)
-4. Assign customers to the driver using checkboxes
-5. Verify the product totals update correctly
-6. Add a second driver and split customers
-7. Click "Download" - verify each driver gets a separate PDF
-8. Verify the totals aggregate correctly (e.g., 3 + 2 strawberry cases = 5 total)
+1. Create product mappings in Settings (link 2-3 Import products to Distribution)
+2. Create an Import order with those products for a specific date
+3. Ensure there are Distribution orders with matching products on the same date
+4. Open Driver Packing Slips for the Import order
+5. Enable "Include Distribution orders"
+6. Verify only matching Distribution customers appear
+7. Assign customers from both departments to a driver
+8. Generate the unified packing slip
+9. Verify products are aggregated correctly across both sources
