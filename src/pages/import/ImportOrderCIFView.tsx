@@ -11,7 +11,8 @@ import { OrderCIFTable } from '@/components/OrderCIFTable';
 import { CIFAnalytics } from '@/components/CIFAnalytics';
 import { DitoAdvisor } from '@/components/DitoAdvisor';
 import { ActualCIFForm } from '@/components/ActualCIFForm';
-import { CIFComparison } from '@/components/CIFComparison';
+import { CIFActualCostEntry } from '@/components/import/CIFActualCostEntry';
+import { CIFComparisonView } from '@/components/import/CIFComparisonView';
 import { CIFLearningInsights } from '@/components/CIFLearningInsights';
 import { PalletVisualization } from '@/components/PalletVisualization';
 import { CIFVerificationBadges } from '@/components/CIFVerificationBadges';
@@ -433,11 +434,9 @@ const ImportOrderCIFView = () => {
                 </TabsContent>
 
                 <TabsContent value="actual" className="space-y-4">
-                  <ActualCIFForm
+                  <CIFActualCostEntry
                     orderId={orderId!}
-                    orderItems={cifOrderItems}
-                    estimatedFreightExterior={palletConfig?.totalChargeableWeight * freightSettings.freightCostPerKg * 0.85 || 0}
-                    estimatedFreightLocal={palletConfig?.totalChargeableWeight * freightSettings.freightCostPerKg * 0.15 || 0}
+                    estimatedSnapshot={cifSnapshots?.estimate}
                     onSaved={() => {
                       checkActualCosts();
                       toast.success("Actual costs saved! Check the Comparison tab.");
@@ -446,9 +445,9 @@ const ImportOrderCIFView = () => {
                 </TabsContent>
 
                 <TabsContent value="comparison" className="space-y-4">
-                  <CIFComparison
-                    orderId={orderId!}
-                    orderItems={cifOrderItems}
+                  <CIFComparisonView
+                    estimatedSnapshot={cifSnapshots?.estimate}
+                    actualSnapshot={cifSnapshots?.actual}
                   />
                 </TabsContent>
 
