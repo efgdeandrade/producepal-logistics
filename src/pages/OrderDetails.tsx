@@ -1523,6 +1523,10 @@ const OrderDetails = () => {
                     key={customerName}
                     data-customer={customerName}
                     className={index < selectedCustomers.length - 1 ? 'print:page-break-after-always' : ''}
+                    // Critical for 80mm PDFs: constrain the capture node to the target paper width.
+                    // Otherwise html2canvas captures the full dialog width (with lots of whitespace),
+                    // which then gets scaled into 80mm and looks off-center / out of proportion.
+                    style={printFormat === 'receipt' ? { width: '80mm', margin: '0 auto' } : undefined}
                   >
                     <CustomerReceipt
                       order={order}
