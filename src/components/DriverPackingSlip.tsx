@@ -297,10 +297,7 @@ export const DriverPackingSlip = ({
                 <tbody>
                   {aggregatedProducts.map((product) => (
                     <tr key={product.code} className="border-b-2 border-black">
-                      <td className={`${textSize} py-2`}>
-                        <div className="font-bold">{product.code}</div>
-                        <div className="text-black font-bold">{product.name}</div>
-                      </td>
+                      <td className={`${textSize} py-2 font-bold`}>{product.name}</td>
                       <td className={`${textSize} text-right py-2 font-bold`}>{product.cases}</td>
                       <td className={`${textSize} text-right py-2 font-bold`}>{product.units}</td>
                     </tr>
