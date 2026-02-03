@@ -262,105 +262,98 @@ const ImportOrderCIFView = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-[1600px] mx-auto space-y-6">
-        {/* Header */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-2xl">CIF Estimation - {order.order_number}</CardTitle>
-                <p className="text-muted-foreground mt-1">
-                  Week {order.week_number} • Delivery: {format(new Date(order.delivery_date), 'EEEE, MMM d, yyyy')}
-                </p>
-              </div>
-              <div className="flex items-center gap-4">
-                {/* Estimate Status */}
-                <div className="flex items-center gap-2">
-                  {cifSnapshots?.estimate ? (
-                    <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
-                      <Check className="h-3 w-3 mr-1" />
-                      Estimate Generated
-                    </Badge>
-                  ) : generateEstimate.isPending ? (
-                    <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30">
-                      <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                      Generating...
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
-                      <AlertCircle className="h-3 w-3 mr-1" />
-                      No Estimate
-                    </Badge>
-                  )}
-                  
-                  {cifSnapshots?.actual && (
-                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                      <Check className="h-3 w-3 mr-1" />
-                      Actuals Entered
-                    </Badge>
-                  )}
-                </div>
+    <div className="space-y-6">
+      {/* Page Title Bar - works with sidebar layout */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            CIF Estimation - {order.order_number}
+          </h1>
+          <p className="text-muted-foreground">
+            Week {order.week_number} • Delivery: {format(new Date(order.delivery_date), 'EEEE, MMM d, yyyy')} • 
+            <span className="ml-2">Placed by: {order.placed_by}</span> • 
+            <span className="ml-2 capitalize font-medium">{order.status}</span>
+          </p>
+        </div>
+        
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Status Badges */}
+          {cifSnapshots?.estimate ? (
+            <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+              <Check className="h-3 w-3 mr-1" />
+              Estimate Ready
+            </Badge>
+          ) : generateEstimate.isPending ? (
+            <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30">
+              <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+              Generating...
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
+              <AlertCircle className="h-3 w-3 mr-1" />
+              No Estimate
+            </Badge>
+          )}
+          
+          {cifSnapshots?.actual && (
+            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+              <Check className="h-3 w-3 mr-1" />
+              Actuals Entered
+            </Badge>
+          )}
 
-                {/* Recalculate Button */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => orderId && generateEstimate.mutate({ orderId, forceRecalculate: true })}
-                  disabled={generateEstimate.isPending}
-                >
-                  {generateEstimate.isPending ? (
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Calculator className="h-4 w-4 mr-2" />
-                  )}
-                  Recalculate Estimate
-                </Button>
-
-                <div className="text-right text-sm text-muted-foreground">
-                  <p>Placed by: {order.placed_by}</p>
-                  <p>Status: <span className="capitalize font-medium">{order.status}</span></p>
-                </div>
-              </div>
-            </div>
-
-            {/* Estimate Summary Bar */}
-            {cifSnapshots?.estimate && (
-              <div className="mt-4 p-3 bg-muted/50 rounded-lg grid grid-cols-5 gap-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Total Freight</p>
-                  <p className="font-semibold text-lg">
-                    ${cifSnapshots.estimate.total_freight_usd?.toFixed(2) || '0.00'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Chargeable Weight</p>
-                  <p className="font-semibold text-lg">
-                    {cifSnapshots.estimate.total_chargeable_weight_kg?.toFixed(2) || '0'} kg
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Method</p>
-                  <p className="font-semibold text-lg capitalize">
-                    {cifSnapshots.estimate.distribution_method || 'Smart Blend'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Exchange Rate</p>
-                  <p className="font-semibold text-lg">
-                    {cifSnapshots.estimate.exchange_rate?.toFixed(2) || '1.82'} XCG
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">AI Adjustments</p>
-                  <p className="font-semibold text-lg">
-                    {cifSnapshots.estimate.ai_adjustments_applied?.filter((a: any) => a.source === 'auto_applied').length || 0} applied
-                  </p>
-                </div>
-              </div>
+          {/* Recalculate Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => orderId && generateEstimate.mutate({ orderId, forceRecalculate: true })}
+            disabled={generateEstimate.isPending}
+          >
+            {generateEstimate.isPending ? (
+              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Calculator className="h-4 w-4 mr-2" />
             )}
-          </CardHeader>
-        </Card>
+            Recalculate
+          </Button>
+        </div>
+      </div>
+
+      {/* Estimate Summary Stats */}
+      {cifSnapshots?.estimate && (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <Card className="p-3">
+            <p className="text-xs text-muted-foreground">Total Freight</p>
+            <p className="font-semibold text-lg">
+              ${cifSnapshots.estimate.total_freight_usd?.toFixed(2) || '0.00'}
+            </p>
+          </Card>
+          <Card className="p-3">
+            <p className="text-xs text-muted-foreground">Chargeable Weight</p>
+            <p className="font-semibold text-lg">
+              {cifSnapshots.estimate.total_chargeable_weight_kg?.toFixed(2) || '0'} kg
+            </p>
+          </Card>
+          <Card className="p-3">
+            <p className="text-xs text-muted-foreground">Method</p>
+            <p className="font-semibold text-lg capitalize">
+              {cifSnapshots.estimate.distribution_method || 'Smart Blend'}
+            </p>
+          </Card>
+          <Card className="p-3">
+            <p className="text-xs text-muted-foreground">Exchange Rate</p>
+            <p className="font-semibold text-lg">
+              {cifSnapshots.estimate.exchange_rate?.toFixed(2) || '1.82'} XCG
+            </p>
+          </Card>
+          <Card className="p-3">
+            <p className="text-xs text-muted-foreground">AI Adjustments</p>
+            <p className="font-semibold text-lg">
+              {cifSnapshots.estimate.ai_adjustments_applied?.filter((a: any) => a.source === 'auto_applied').length || 0} applied
+            </p>
+          </Card>
+        </div>
+      )}
 
         {/* CIF Tabs - Full Width */}
         <Tabs defaultValue="items" className="w-full">
@@ -471,7 +464,6 @@ const ImportOrderCIFView = () => {
             );
           })()}
         </Tabs>
-      </div>
     </div>
   );
 };
