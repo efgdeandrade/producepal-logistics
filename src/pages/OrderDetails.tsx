@@ -100,6 +100,12 @@ const OrderDetails = () => {
     include_distribution?: boolean;
   }[]>([]);
   const printRef = useRef<HTMLDivElement>(null);
+  
+  // Pre-loaded data for receipt generation to prevent race conditions
+  const [preloadedProducts, setPreloadedProducts] = useState<any[]>([]);
+  const [preloadedCompanyInfo, setPreloadedCompanyInfo] = useState<any>(null);
+  const [receiptsReady, setReceiptsReady] = useState<Set<string>>(new Set());
+  const [allReceiptsRendered, setAllReceiptsRendered] = useState(false);
 
   useEffect(() => {
     if (orderId) {
@@ -139,6 +145,41 @@ const OrderDetails = () => {
       console.error('Error fetching freight settings:', error);
     }
   };
+
+  // Preload data needed for receipt rendering to prevent race conditions
+  const preloadReceiptData = async () => {
+    try {
+      const [productsResult, companyResult] = await Promise.all([
+        supabase.from('products').select('code, name, pack_size, wholesale_price_xcg_per_unit'),
+        supabase.from('settings').select('value').eq('key', 'company_info').single()
+      ]);
+      
+      if (productsResult.data) setPreloadedProducts(productsResult.data);
+      if (companyResult.data) setPreloadedCompanyInfo(companyResult.data.value);
+      
+      return { products: productsResult.data, companyInfo: companyResult.data?.value };
+    } catch (error) {
+      console.error('Error preloading receipt data:', error);
+      return null;
+    }
+  };
+
+  // Track when a receipt is ready for capture
+  const handleReceiptReady = (customerName: string) => {
+    setReceiptsReady(prev => {
+      const newSet = new Set(prev);
+      newSet.add(customerName);
+      return newSet;
+    });
+  };
+
+  // Check if all receipts are ready
+  useEffect(() => {
+    if (viewDialog === 'receipt' && selectedCustomers.length > 0) {
+      const allReady = selectedCustomers.every(c => receiptsReady.has(c));
+      setAllReceiptsRendered(allReady);
+    }
+  }, [receiptsReady, selectedCustomers, viewDialog]);
 
   const fetchOrderDetails = async () => {
     try {
@@ -478,6 +519,16 @@ const OrderDetails = () => {
       }
     }
 
+    // Preload data for receipts to prevent race conditions during PDF capture
+    if (type === 'receipt') {
+      // Reset receipt ready tracking
+      setReceiptsReady(new Set());
+      setAllReceiptsRendered(false);
+      
+      // Preload products and company info
+      await preloadReceiptData();
+    }
+
     // Always show preview first for print and download
     if (action === 'print' || action === 'download') {
       setViewDialog(type);
@@ -547,6 +598,23 @@ const OrderDetails = () => {
       setGeneratingPDF(true);
       
       try {
+        // Wait for all receipts to be rendered with a timeout
+        const maxWaitTime = 10000; // 10 seconds max
+        const pollInterval = 200;
+        let waited = 0;
+        
+        while (!allReceiptsRendered && waited < maxWaitTime) {
+          await new Promise(resolve => setTimeout(resolve, pollInterval));
+          waited += pollInterval;
+        }
+        
+        if (!allReceiptsRendered) {
+          console.warn('Not all receipts reported ready, proceeding anyway after timeout');
+        }
+        
+        // Additional delay to ensure DOM is fully painted
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         // Use edited items if available
         const itemsForReceipt = editableReceiptItems.length > 0 ? editableReceiptItems : orderItems;
         
@@ -1462,6 +1530,9 @@ const OrderDetails = () => {
                       customerName={customerName}
                       format={printFormat}
                       receiptNumber={receiptNumbers[customerName]}
+                      preloadedProducts={preloadedProducts.length > 0 ? preloadedProducts : undefined}
+                      preloadedCompanyInfo={preloadedCompanyInfo || undefined}
+                      onDataReady={() => handleReceiptReady(customerName)}
                     />
                   </div>
                 ))}

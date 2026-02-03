@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface OrderItem {
@@ -17,14 +17,6 @@ interface Order {
   placed_by: string;
 }
 
-interface Props {
-  order: Order;
-  orderItems: OrderItem[];
-  customerName: string;
-  format: 'a4' | 'receipt';
-  receiptNumber?: string;
-}
-
 interface Product {
   code: string;
   name: string;
@@ -37,57 +29,94 @@ interface Customer {
   name: string;
 }
 
+interface CompanyInfo {
+  company_name: string;
+  address_line1: string;
+  address_line2?: string;
+  city: string;
+  postal_code?: string;
+  phone: string;
+  email: string;
+  tax_info?: string;
+}
+
+interface Props {
+  order: Order;
+  orderItems: OrderItem[];
+  customerName: string;
+  format: 'a4' | 'receipt';
+  receiptNumber?: string;
+  // Pre-loaded data to avoid async fetching during PDF generation
+  preloadedProducts?: Product[];
+  preloadedCompanyInfo?: CompanyInfo;
+  onDataReady?: () => void;
+}
+
 const LOCAL_LOGO_PATH = '/images/fuik-logo.png';
 
-export const CustomerReceipt = ({ order, orderItems, customerName, format, receiptNumber }: Props) => {
-  const [products, setProducts] = useState<Product[]>([]);
+export const CustomerReceipt = ({ 
+  order, 
+  orderItems, 
+  customerName, 
+  format, 
+  receiptNumber,
+  preloadedProducts,
+  preloadedCompanyInfo,
+  onDataReady
+}: Props) => {
+  const [products, setProducts] = useState<Product[]>(preloadedProducts || []);
   const [customer, setCustomer] = useState<Customer | null>(null);
-  const [companyInfo, setCompanyInfo] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(preloadedCompanyInfo || null);
+  const [loading, setLoading] = useState(!preloadedProducts || !preloadedCompanyInfo);
   const [logoLoaded, setLogoLoaded] = useState(false);
 
   useEffect(() => {
+    // If data is preloaded, skip fetching
+    if (preloadedProducts && preloadedCompanyInfo) {
+      setLoading(false);
+      onDataReady?.();
+      return;
+    }
     fetchData();
-  }, [customerName]);
+  }, [customerName, preloadedProducts, preloadedCompanyInfo]);
+
+  // Notify parent when logo loads (important for PDF capture)
+  useEffect(() => {
+    if (!loading && logoLoaded) {
+      onDataReady?.();
+    }
+  }, [loading, logoLoaded, onDataReady]);
 
   const fetchData = async () => {
     setLoading(true);
-    const { data: productsData } = await supabase
-      .from('products')
-      .select('code, name, pack_size, wholesale_price_xcg_per_unit');
-    if (productsData) setProducts(productsData);
-
-    const { data: customerData } = await supabase
-      .from('customers')
-      .select('id, name')
-      .eq('name', customerName)
-      .single();
-    if (customerData) setCustomer(customerData);
-
-    const { data: companyData } = await supabase
-      .from('settings')
-      .select('value')
-      .eq('key', 'company_info')
-      .single();
-    if (companyData) setCompanyInfo(companyData.value);
+    
+    const [productsResult, customerResult, companyResult] = await Promise.all([
+      supabase.from('products').select('code, name, pack_size, wholesale_price_xcg_per_unit'),
+      supabase.from('customers').select('id, name').eq('name', customerName).single(),
+      supabase.from('settings').select('value').eq('key', 'company_info').single()
+    ]);
+    
+    if (productsResult.data) setProducts(productsResult.data);
+    if (customerResult.data) setCustomer(customerResult.data);
+    if (companyResult.data) setCompanyInfo(companyResult.data.value as unknown as CompanyInfo);
 
     setLoading(false);
   };
 
-  const getProductInfo = (code: string) => {
+  const getProductInfo = useCallback((code: string) => {
     return products.find(p => p.code === code);
-  };
+  }, [products]);
 
   const customerItems = orderItems.filter(item => item.customer_name === customerName);
 
-  const calculateTotal = () => {
+  const calculateTotal = useCallback(() => {
     return customerItems.reduce((sum, item) => {
       const product = getProductInfo(item.product_code);
       if (!product || !product.wholesale_price_xcg_per_unit) return sum;
       const units = item.quantity * product.pack_size;
       return sum + (units * product.wholesale_price_xcg_per_unit);
     }, 0);
-  };
+  }, [customerItems, getProductInfo]);
 
   const isReceipt = format === 'receipt';
   const containerClass = isReceipt ? 'max-w-[80mm]' : 'max-w-[210mm]';
