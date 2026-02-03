@@ -41,7 +41,12 @@ interface LearningPattern {
   adjustment_factor: number;
   confidence_score: number;
   season_quarter?: number;
+  application_tier?: 'auto_apply' | 'suggested' | 'insufficient_data';
 }
+
+// Confidence thresholds for hybrid application model
+const CONFIDENCE_AUTO_APPLY = 70;
+const CONFIDENCE_SUGGEST = 50;
 
 // Get current season quarter (1-4)
 function getCurrentQuarter(): number {
@@ -184,6 +189,16 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      // Determine application tier based on confidence
+      let applicationTier: 'auto_apply' | 'suggested' | 'insufficient_data';
+      if (confidenceScore >= CONFIDENCE_AUTO_APPLY) {
+        applicationTier = 'auto_apply';
+      } else if (confidenceScore >= CONFIDENCE_SUGGEST) {
+        applicationTier = 'suggested';
+      } else {
+        applicationTier = 'insufficient_data';
+      }
+
       const pattern: LearningPattern = {
         pattern_key: `product_${productCode}`,
         pattern_type: 'product_freight',
@@ -193,6 +208,7 @@ Deno.serve(async (req) => {
         adjustment_factor: adjustmentFactor,
         confidence_score: confidenceScore,
         season_quarter: currentQuarter,
+        application_tier: applicationTier,
       };
 
       patterns.push(pattern);
@@ -207,6 +223,7 @@ Deno.serve(async (req) => {
         adjustment_factor: adjustmentFactor.toFixed(3),
         was_capped: wasCapped,
         confidence: confidenceScore.toFixed(1),
+        application_tier: applicationTier,
         weight_types: [...new Set(productEstimates.map(e => e.weight_type_used))].join(', ')
       });
     }
@@ -299,6 +316,11 @@ Format your response as JSON with this structure:
       }
     }
 
+    // Categorize patterns by application tier
+    const autoApplyPatterns = patterns.filter(p => p.application_tier === 'auto_apply');
+    const suggestedPatterns = patterns.filter(p => p.application_tier === 'suggested');
+    const insufficientDataPatterns = patterns.filter(p => p.application_tier === 'insufficient_data');
+
     return new Response(
       JSON.stringify({ 
         success: true,
@@ -308,7 +330,27 @@ Format your response as JSON with this structure:
         patterns: patterns.map(p => ({
           ...p,
           last_calculated: new Date().toISOString()
-        }))
+        })),
+        categorized_patterns: {
+          auto_apply: autoApplyPatterns.map(p => ({
+            ...p,
+            last_calculated: new Date().toISOString()
+          })),
+          suggested: suggestedPatterns.map(p => ({
+            ...p,
+            last_calculated: new Date().toISOString()
+          })),
+          insufficient_data: insufficientDataPatterns.map(p => ({
+            ...p,
+            last_calculated: new Date().toISOString()
+          }))
+        },
+        summary: {
+          auto_apply_count: autoApplyPatterns.length,
+          suggested_count: suggestedPatterns.length,
+          insufficient_data_count: insufficientDataPatterns.length,
+          anomalies_detected: anomalies.length
+        }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
