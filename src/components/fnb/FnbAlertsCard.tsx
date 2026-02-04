@@ -221,7 +221,7 @@ export function FnbAlertsCard({ showAudioAlerts = false, compact = false }: FnbA
 
   const handleAlertClick = (orderId: string | null | undefined) => {
     if (orderId) {
-      navigate(`/fnb/orders/edit/${orderId}`);
+      navigate(`/distribution/orders/edit/${orderId}`);
     }
   };
 

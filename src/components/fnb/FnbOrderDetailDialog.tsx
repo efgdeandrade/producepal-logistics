@@ -519,7 +519,7 @@ export function FnbOrderDetailDialog({ order, open, onOpenChange }: FnbOrderDeta
                   variant="outline"
                   onClick={() => {
                     onOpenChange(false);
-                    navigate(`/fnb/orders/edit/${order.id}`);
+                    navigate(`/distribution/orders/edit/${order.id}`);
                   }}
                 >
                   <Pencil className="h-4 w-4 mr-2" />

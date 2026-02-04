@@ -459,7 +459,7 @@ export function FnbOrderDayDialog({ day, orders, open, onOpenChange, onOrderUpda
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6"
-                  onClick={() => navigate(`/fnb/orders/edit/${order.id}`)}
+                  onClick={() => navigate(`/distribution/orders/edit/${order.id}`)}
                   title="Edit order"
                 >
                   <Edit className="h-3 w-3" />
