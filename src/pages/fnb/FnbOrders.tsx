@@ -934,7 +934,7 @@ export default function FnbOrders() {
                     className="text-xs h-7"
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate(`/fnb/picker/${order.id}`);
+                      navigate(`/distribution/picker/${order.id}`);
                     }}
                   >
                     <ClipboardList className="h-3 w-3 mr-1" />
@@ -961,7 +961,7 @@ export default function FnbOrders() {
                   className="text-xs h-7"
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigate(`/fnb/orders/edit/${order.id}`);
+                    navigate(`/distribution/orders/edit/${order.id}`);
                   }}
                 >
                   <Edit className="h-3 w-3 mr-1" />
