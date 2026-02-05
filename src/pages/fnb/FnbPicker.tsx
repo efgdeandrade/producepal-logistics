@@ -862,12 +862,28 @@ const PICKER_UNITS = [
     orderItems.length > 0 &&
     orderItems.every((item: any) => pickedQuantities[item.id] !== undefined);
 
+  // Helper to detect if picker switched from piece-based to weight-based unit
+  // This bypasses shortage validation when unit conversion occurs (e.g., ordered 8 pcs, picked 2 kg)
+  const isUnitConversion = (item: any): boolean => {
+    const originalUnit = item.order_unit || item.distribution_products?.unit || 'pcs';
+    const pickedUnit = pickedUnits[item.id] || originalUnit;
+    const pieceUnits = ['pcs', 'piece', 'pieces', 'ea', 'each', 'unit', 'units', 'case'];
+    const weightUnits = ['kg', 'gr', 'g', 'lb', 'oz', 'lbs'];
+    
+    const wasOrderedByPiece = pieceUnits.includes(originalUnit.toLowerCase());
+    const isPickedByWeight = weightUnits.includes(pickedUnit.toLowerCase());
+    
+    return wasOrderedByPiece && isPickedByWeight;
+  };
+
   // Check for any shorts without reasons - only block if quantity reduced but no reason selected
+  // BYPASS: If picker changed unit from pieces to weight (unit conversion scenario)
   const hasUnreasonedShorts = orderItems?.some(
     (item: any) =>
       (pickedQuantities[item.id] ?? item.quantity) < item.quantity &&
       !shortReasons[item.id] &&
-      item.shortage_status !== 'reported' // Don't block if already reported
+      item.shortage_status !== 'reported' && // Don't block if already reported
+      !isUnitConversion(item) // Don't block if picker switched to weight-based fulfillment
   );
 
   // Calculate progress based on items with picked_by set (checkboxes ticked)
@@ -1461,12 +1477,14 @@ const PICKER_UNITS = [
                       <div className="space-y-2 max-h-[400px] overflow-y-auto">
                         {orderItems.map((item: any) => {
                           const pickedQty = pickedQuantities[item.id] ?? (item.picked_quantity ?? item.quantity);
-                          const isShort = pickedQty < item.quantity;
+                          const unitConverted = isUnitConversion(item); // Check if picker switched units
+                          // If unit was converted (pcs → kg), don't treat as short even if qty differs
+                          const isShort = !unitConverted && pickedQty < item.quantity;
                           const isOverPicked = pickedQty > item.quantity;
                           const isReported = item.shortage_status === 'reported';
                           const isResolved = item.shortage_status === 'resolved';
                           const isWeightBased = item.distribution_products?.is_weight_based || false;
-                          const isComplete = pickedQty === item.quantity;
+                          const isComplete = unitConverted || pickedQty === item.quantity;
                           const isEditingThis = editingShortageItem === item.id;
 
                           // Visual status: green for resolved/complete, blue for reported, orange for short
@@ -1676,6 +1694,19 @@ const PICKER_UNITS = [
                                           ))}
                                         </SelectContent>
                                       </Select>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Unit Conversion Indicator - show when picker switched from pcs to kg */}
+                                {unitConverted && (
+                                  <div className="mt-2 p-2 bg-purple-50 dark:bg-purple-900/30 rounded-lg border border-purple-200 dark:border-purple-800">
+                                    <div className="flex items-center gap-2 text-xs text-purple-700 dark:text-purple-300">
+                                      <Scale className="h-4 w-4 shrink-0" />
+                                      <span>
+                                        <strong>Unit converted:</strong> Ordered {item.quantity} {item.order_unit || item.distribution_products?.unit || 'pcs'} 
+                                        → Fulfilled {pickedQty} {pickedUnits[item.id] || 'kg'}
+                                      </span>
                                     </div>
                                   </div>
                                 )}
