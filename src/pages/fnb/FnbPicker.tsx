@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase as supabaseClient } from '@/integrations/supabase/client';
-import { ArrowLeft, CheckCircle, Clock, User, Package, AlertTriangle, LogOut, Scale, Trophy, Edit, ChevronDown, ChevronUp, RefreshCw, Volume2, VolumeX, CalendarIcon, Plus, Eye, X } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Clock, User, Package, AlertTriangle, LogOut, Scale, Trophy, Edit, ChevronDown, ChevronUp, RefreshCw, Volume2, VolumeX, CalendarIcon, Plus, Eye, X, AlertCircle } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,6 +37,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { useNewOrderNotifications } from '@/hooks/useNewOrderNotifications';
+import { useProductPickingUnits } from '@/hooks/useProductPickingUnits';
 
 // Cast the backend client to `any` in this page to avoid excessively-deep type instantiation errors
 // from complex nested selects (keeps runtime behavior the same).
@@ -110,6 +111,12 @@ export default function FnbPicker() {
     expand: expandNotifications,
     dismissNotification,
   } = useNewOrderNotifications();
+
+  // Product picking unit learning hook
+  const { learnedUnits, getSuggestedUnit, recordUnitUsage } = useProductPickingUnits();
+  
+  // Track which items have had their unit explicitly confirmed
+  const [unitConfirmed, setUnitConfirmed] = useState<Record<string, boolean>>({});
 
 const PICKER_UNITS = [
   { value: 'pcs', label: 'Pcs' },
@@ -511,14 +518,27 @@ const PICKER_UNITS = [
   });
 
   // Initialize picked quantities and units when order items load
+  // Uses learned units if no picked_unit or order_unit is set
   useEffect(() => {
     if (orderItems) {
       const initialQuantities: Record<string, number> = {};
       const initialUnits: Record<string, string> = {};
       const initialReasons: Record<string, string> = {};
+      const initialConfirmed: Record<string, boolean> = {};
+      
       orderItems.forEach((item: any) => {
         initialQuantities[item.id] = item.picked_quantity ?? item.quantity;
-        initialUnits[item.id] = item.picked_unit || item.order_unit || item.distribution_products?.unit || 'pcs';
+        
+        // Priority: picked_unit > order_unit > learned_unit > product_unit > 'pcs'
+        const productId = item.distribution_products?.id || item.product_id;
+        const learnedUnit = productId ? getSuggestedUnit(productId) : null;
+        const hasExistingUnit = item.picked_unit || item.order_unit;
+        
+        initialUnits[item.id] = item.picked_unit || item.order_unit || learnedUnit || item.distribution_products?.unit || 'pcs';
+        
+        // If already picked or has a learned unit, consider it confirmed
+        initialConfirmed[item.id] = !!item.picked_unit || !!learnedUnit;
+        
         if (item.short_reason) {
           initialReasons[item.id] = item.short_reason;
         }
@@ -526,8 +546,9 @@ const PICKER_UNITS = [
       setPickedQuantities(initialQuantities);
       setPickedUnits(initialUnits);
       setShortReasons(initialReasons);
+      setUnitConfirmed(initialConfirmed);
     }
-  }, [orderItems]);
+  }, [orderItems, getSuggestedUnit]);
 
   // Mutations
   const claimMutation = useMutation({
@@ -737,6 +758,8 @@ const PICKER_UNITS = [
       if (!queueItem) throw new Error('Queue item not found');
 
       // Update all items with current picked quantities and units
+      const unitsToRecord: { productId: string; unit: string }[] = [];
+      
       if (orderItems) {
         for (const item of orderItems) {
           const pickedQty = pickedQuantities[item.id] ?? item.quantity;
@@ -744,6 +767,12 @@ const PICKER_UNITS = [
           const shortQty = Math.max(0, item.quantity - pickedQty);
           const isWeightBased = item.distribution_products?.is_weight_based || false;
           const isOverPicked = pickedQty > item.quantity;
+          
+          // Collect unit data for learning
+          const productId = item.distribution_products?.id || item.product_id;
+          if (productId && pickedUnit) {
+            unitsToRecord.push({ productId, unit: pickedUnit });
+          }
           
           await supabase
             .from('distribution_order_items')
@@ -783,11 +812,18 @@ const PICKER_UNITS = [
         .update({ status: 'ready' })
         .eq('id', queueItem.order_id);
       if (orderError) throw orderError;
+      
+      return unitsToRecord;
     },
-    onSuccess: () => {
+    onSuccess: (unitsToRecord) => {
       queryClient.invalidateQueries({ queryKey: ['fnb-picker-queue'] });
       queryClient.invalidateQueries({ queryKey: ['fnb-picker-leaderboard'] });
       queryClient.invalidateQueries({ queryKey: ['fnb-completed-orders-today'] });
+      
+      // Record units for learning (non-blocking)
+      unitsToRecord?.forEach(({ productId, unit }) => {
+        recordUnitUsage(productId, unit);
+      });
       
       // Increment session orders count
       const newCount = sessionOrdersCompleted + 1;
@@ -797,6 +833,7 @@ const PICKER_UNITS = [
       setSelectedQueue(null);
       setPickedQuantities({});
       setShortReasons({});
+      setUnitConfirmed({});
       toast.success('Order completed and ready for delivery! 🎉');
     },
     onError: () => {
@@ -885,6 +922,14 @@ const PICKER_UNITS = [
       item.shortage_status !== 'reported' && // Don't block if already reported
       !isUnitConversion(item) // Don't block if picker switched to weight-based fulfillment
   );
+
+  // Check if any items have unconfirmed units (mandatory unit selection)
+  const hasUnconfirmedUnits = orderItems?.some(
+    (item: any) => !unitConfirmed[item.id]
+  );
+  
+  // Count unconfirmed items for display
+  const unconfirmedCount = orderItems?.filter((item: any) => !unitConfirmed[item.id]).length || 0;
 
   // Calculate progress based on items with picked_by set (checkboxes ticked)
   const pickedCount = orderItems?.filter((item: any) => item.picked_by !== null).length || 0;
@@ -1603,10 +1648,16 @@ const PICKER_UNITS = [
                                         />
                                         <Select
                                           value={pickedUnits[item.id] || item.order_unit || item.distribution_products?.weight_unit || 'kg'}
-                                          onValueChange={(v) => setPickedUnits({ ...pickedUnits, [item.id]: v })}
+                                          onValueChange={(v) => {
+                                            setPickedUnits({ ...pickedUnits, [item.id]: v });
+                                            setUnitConfirmed({ ...unitConfirmed, [item.id]: true });
+                                          }}
                                           disabled={isCheckedByOther || (isReported && editingShortageItem !== item.id)}
                                         >
-                                          <SelectTrigger className="w-16 h-9 text-xs shrink-0">
+                                          <SelectTrigger className={cn(
+                                            "w-16 h-9 text-xs shrink-0",
+                                            !unitConfirmed[item.id] && "border-amber-400 dark:border-amber-600 ring-1 ring-amber-400/50"
+                                          )}>
                                             <SelectValue />
                                           </SelectTrigger>
                                           <SelectContent>
@@ -1617,6 +1668,19 @@ const PICKER_UNITS = [
                                             ))}
                                           </SelectContent>
                                         </Select>
+                                        {/* Confirm unit button for unconfirmed items */}
+                                        {!unitConfirmed[item.id] && (
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-9 px-2 text-xs border-amber-400 text-amber-700 hover:bg-amber-50 dark:border-amber-600 dark:text-amber-400 dark:hover:bg-amber-950 shrink-0"
+                                            onClick={() => setUnitConfirmed({ ...unitConfirmed, [item.id]: true })}
+                                            disabled={isCheckedByOther}
+                                          >
+                                            <CheckCircle className="h-3 w-3 mr-1" />
+                                            OK
+                                          </Button>
+                                        )}
                                       </div>
                                       
                                       {/* Weight Accuracy Indicator */}
@@ -1680,10 +1744,17 @@ const PICKER_UNITS = [
                                       </Button>
                                       <Select
                                         value={pickedUnits[item.id] || item.order_unit || item.distribution_products?.unit || 'pcs'}
-                                        onValueChange={(v) => setPickedUnits({ ...pickedUnits, [item.id]: v })}
+                                        onValueChange={(v) => {
+                                          setPickedUnits({ ...pickedUnits, [item.id]: v });
+                                          // Mark unit as confirmed when picker selects it
+                                          setUnitConfirmed({ ...unitConfirmed, [item.id]: true });
+                                        }}
                                         disabled={isCheckedByOther || (isReported && editingShortageItem !== item.id)}
                                       >
-                                        <SelectTrigger className="w-16 h-9 text-xs">
+                                        <SelectTrigger className={cn(
+                                          "w-16 h-9 text-xs",
+                                          !unitConfirmed[item.id] && "border-amber-400 dark:border-amber-600 ring-1 ring-amber-400/50"
+                                        )}>
                                           <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -1694,6 +1765,19 @@ const PICKER_UNITS = [
                                           ))}
                                         </SelectContent>
                                       </Select>
+                                      {/* Confirm unit button for unconfirmed items */}
+                                      {!unitConfirmed[item.id] && (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="h-9 px-2 text-xs border-amber-400 text-amber-700 hover:bg-amber-50 dark:border-amber-600 dark:text-amber-400 dark:hover:bg-amber-950"
+                                          onClick={() => setUnitConfirmed({ ...unitConfirmed, [item.id]: true })}
+                                          disabled={isCheckedByOther}
+                                        >
+                                          <CheckCircle className="h-3 w-3 mr-1" />
+                                          OK
+                                        </Button>
+                                      )}
                                     </div>
                                   </div>
                                 )}
@@ -1823,6 +1907,21 @@ const PICKER_UNITS = [
 
                       {/* Complete Button */}
                       <div className="pt-4 border-t">
+                        {/* Warning for unconfirmed units */}
+                        {hasUnconfirmedUnits && (
+                          <div className="mb-3 p-2 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-lg">
+                            <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300">
+                              <AlertCircle className="h-4 w-4 shrink-0" />
+                              <span>
+                                <strong>{unconfirmedCount} item{unconfirmedCount > 1 ? 's' : ''}</strong> need unit confirmation
+                              </span>
+                            </div>
+                            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 ml-6">
+                              Tap the unit dropdown and select or press OK to confirm
+                            </p>
+                          </div>
+                        )}
+                        
                         <div className="flex items-center justify-between mb-2 text-sm">
                           <span>Expected Weight</span>
                           <span className="font-medium">{expectedWeight.toFixed(1)} kg</span>
@@ -1830,7 +1929,7 @@ const PICKER_UNITS = [
                         <Button
                           className="w-full h-14 text-lg"
                           onClick={() => completeMutation.mutate({ queueId: selectedQueueItem.id, verifiedWeight: expectedWeight })}
-                          disabled={completeMutation.isPending || hasUnreasonedShorts}
+                          disabled={completeMutation.isPending || hasUnreasonedShorts || hasUnconfirmedUnits}
                         >
                           <CheckCircle className="mr-2 h-5 w-5" />
                           Complete Order

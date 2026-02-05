@@ -2664,6 +2664,44 @@ export type Database = {
           },
         ]
       }
+      distribution_product_picking_units: {
+        Row: {
+          created_at: string
+          id: string
+          last_used_at: string
+          picking_unit: string
+          product_id: string
+          updated_at: string
+          usage_count: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_used_at?: string
+          picking_unit: string
+          product_id: string
+          updated_at?: string
+          usage_count?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_used_at?: string
+          picking_unit?: string
+          product_id?: string
+          updated_at?: string
+          usage_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "distribution_product_picking_units_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       distribution_product_tier_prices: {
         Row: {
           created_at: string
