@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Pencil, Trash2, ArrowLeft, Search, MessageSquare, Route, Upload, FileSpreadsheet, Loader2, MapPin, Wand2, GitMerge, X, Map as MapIcon } from 'lucide-react';
+import { Plus, Pencil, Trash2, ArrowLeft, Search, MessageSquare, Route, Upload, FileSpreadsheet, Loader2, MapPin, Wand2, GitMerge, X, Map as MapIcon, Copy } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { CustomerMergeDialog } from '@/components/fnb/CustomerMergeDialog';
 import { CustomerLocationPicker } from '@/components/fnb/CustomerLocationPicker';
 import { Link } from 'react-router-dom';
@@ -460,6 +461,28 @@ export default function FnbCustomers() {
     setDetectedZoneInfo(null);
     setIsLocationPickerOpen(false);
     setIsDialogOpen(true);
+  };
+
+  const handleDuplicateCustomer = (customer: FnbCustomer) => {
+    setEditingCustomer(null); // Create mode, not edit
+    setPendingLocation(null);
+    setFormData({
+      name: `${customer.name} (Copy)`,
+      whatsapp_phone: '', // Must be unique - user needs to enter new
+      preferred_language: customer.preferred_language,
+      address: customer.address || '',
+      delivery_zone: customer.delivery_zone || '',
+      major_zone_id: customer.major_zone_id || null,
+      customer_type: customer.customer_type || 'regular',
+      notes: customer.notes || '',
+      pricing_tier_id: customer.pricing_tier_id || null,
+      latitude: null, // Clear - new location likely different
+      longitude: null,
+    });
+    setDetectedZoneInfo(null);
+    setIsLocationPickerOpen(false);
+    setIsDialogOpen(true);
+    toast.success('Customer duplicated - enter new phone number and save');
   };
 
   const handleLocationSelect = (location: {
@@ -1112,26 +1135,50 @@ export default function FnbCustomers() {
                         {customer.address || '-'}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(customer)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              if (confirm('Delete this customer?')) {
-                                deleteMutation.mutate(customer.id);
-                              }
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <TooltipProvider>
+                          <div className="flex items-center gap-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleEdit(customer)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Edit customer</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDuplicateCustomer(customer)}
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Duplicate this customer</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    if (confirm('Delete this customer?')) {
+                                      deleteMutation.mutate(customer.id);
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Delete customer</TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TooltipProvider>
                       </TableCell>
                     </TableRow>
                   ))}
