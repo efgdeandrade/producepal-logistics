@@ -498,7 +498,7 @@ export function FnbOrderDetailDialog({ order, open, onOpenChange }: FnbOrderDeta
                   variant="default"
                   onClick={() => {
                     onOpenChange(false);
-                    navigate(`/fnb/picker/${order.id}`);
+                    navigate(`/distribution/picker/${order.id}`);
                   }}
                 >
                   <Target className="h-4 w-4 mr-2" />
