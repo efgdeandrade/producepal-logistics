@@ -529,15 +529,18 @@ const PICKER_UNITS = [
       orderItems.forEach((item: any) => {
         initialQuantities[item.id] = item.picked_quantity ?? item.quantity;
         
-        // Priority: picked_unit > order_unit > learned_unit > product_unit > 'pcs'
+        // Priority: picked_unit > order_unit > product_unit > learned_unit > 'pcs'
+        // IMPORTANT: order_unit must take priority over learned_unit to respect what the customer ordered
         const productId = item.distribution_products?.id || item.product_id;
         const learnedUnit = productId ? getSuggestedUnit(productId) : null;
-        const hasExistingUnit = item.picked_unit || item.order_unit;
+        const orderUnit = item.order_unit || item.distribution_products?.unit;
         
-        initialUnits[item.id] = item.picked_unit || item.order_unit || learnedUnit || item.distribution_products?.unit || 'pcs';
+        // Use the order/product unit first, only fall back to learned unit if none specified
+        initialUnits[item.id] = item.picked_unit || orderUnit || learnedUnit || 'pcs';
         
-        // If already picked or has a learned unit, consider it confirmed
-        initialConfirmed[item.id] = !!item.picked_unit || !!learnedUnit;
+        // If already picked or has an order unit, consider it confirmed
+        // Learned unit alone should NOT auto-confirm - picker must still verify
+        initialConfirmed[item.id] = !!item.picked_unit || !!orderUnit;
         
         if (item.short_reason) {
           initialReasons[item.id] = item.short_reason;
