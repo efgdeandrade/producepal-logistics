@@ -10,8 +10,9 @@ export const customerSchema = z.object({
   whatsapp_phone: z
     .string()
     .trim()
-    .min(1, 'WhatsApp phone is required')
-    .regex(/^\+?[0-9]{7,15}$/, 'Invalid phone number format'),
+    .regex(/^\+?[0-9]{7,15}$/, 'Invalid phone number format')
+    .optional()
+    .or(z.literal('')),
   
   address: z
     .string()
