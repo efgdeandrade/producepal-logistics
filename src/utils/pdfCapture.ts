@@ -59,7 +59,16 @@ export const renderIsolatedCanvas = async (
     const rect = clone.getBoundingClientRect();
     const targetWidthPx = Math.ceil(rect.width);
     const fullWidthPx = Math.ceil(clone.scrollWidth || rect.width);
-    const captureWidthPx = captureFullWidth ? Math.max(targetWidthPx, fullWidthPx) : targetWidthPx;
+
+    // html2canvas is prone to 1–3px rounding errors on the right edge (especially with tables/inline text).
+    // Add a small safety buffer so the last column never gets clipped.
+    const safetyPx = captureFullWidth ? 6 : 0;
+    if (captureFullWidth) {
+      clone.style.paddingRight = `${safetyPx}px`;
+    }
+
+    const captureWidthPx =
+      (captureFullWidth ? Math.max(targetWidthPx, fullWidthPx) : targetWidthPx) + safetyPx;
 
     return await html2canvas(clone, {
       scale,
