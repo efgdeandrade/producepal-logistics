@@ -154,85 +154,83 @@ export const generateMultipleReceiptsPDF = async (
   orderNumber: string,
   onProgress?: (current: number, total: number) => void
 ): Promise<Blob> => {
-  const unit: 'mm' | 'pt' = format === 'receipt' ? 'pt' : 'mm';
-  const margin = format === 'a4' ? 10 : mmToPt(5);
-  const pageWidth = format === 'a4' ? 210 : mmToPt(80);
-  const contentWidth = pageWidth - margin * 2;
-  const a4PageHeight = 297;
-  const a4MaxContentHeight = a4PageHeight - (margin * 2);
-  
+  const isReceipt = format === 'receipt';
+
+  const pageWidthMm = isReceipt ? 80 : 210;
+  const pageHeightMm = 297;
+  const marginMm = isReceipt ? 0 : 10;
+
+  // Receipt pages auto-size to content height; A4 uses fixed page height.
+  const pageWidth = isReceipt ? mmToPt(pageWidthMm) : pageWidthMm;
+  const contentWidth = isReceipt ? pageWidth : pageWidthMm - marginMm * 2;
+  const a4MaxContentHeight = pageHeightMm - marginMm * 2;
+
   let pdf: jsPDF | null = null;
-  
+
   for (let i = 0; i < receipts.length; i++) {
     const receipt = receipts[i];
-    
-    if (onProgress) {
-      onProgress(i + 1, receipts.length);
-    }
-    
-    // Wait for assets (logo, etc.) to load before capturing
-    await waitForImages(receipt.element);
 
-    // Render element to canvas
-    const canvas = await html2canvas(receipt.element, {
+    onProgress?.(i + 1, receipts.length);
+
+    // IMPORTANT: Use isolated capture for BOTH formats.
+    // For thermal receipts this avoids dialog/transform scaling which is what makes the downloaded PDF look “narrow”.
+    const canvas = await renderIsolatedCanvas(receipt.element, {
+      widthMm: pageWidthMm,
+      captureFullWidth: isReceipt,
       scale: 2,
-      useCORS: true,
-      // Some browsers can mark canvases as tainted depending on image load behavior.
-      // We prefer reliability for local/public assets used on receipts.
-      allowTaint: true,
-      logging: false,
       backgroundColor: '#ffffff',
-      onclone: (clonedDoc) => {
-        // Ensure images remain visible in cloned document
-        const images = clonedDoc.querySelectorAll('img');
-        images.forEach((img) => {
-          (img as HTMLElement).style.visibility = 'visible';
-        });
-      },
     });
-    
-    // Calculate content dimensions
-    const imgWidth = contentWidth;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    
-    let pageHeight: number;
-    let finalImgHeight = imgHeight;
-    let finalImgWidth = imgWidth;
-    
-    if (format === 'receipt') {
-      // Thermal receipt: page height matches content
-      pageHeight = imgHeight + margin * 2;
-    } else {
-      // A4: fixed height, scale down if needed
-      pageHeight = a4PageHeight;
-      if (imgHeight > a4MaxContentHeight) {
-        const scale = a4MaxContentHeight / imgHeight;
-        finalImgHeight = a4MaxContentHeight;
-        finalImgWidth = imgWidth * scale;
+
+    if (isReceipt) {
+      const pageWidthPt = mmToPt(pageWidthMm);
+      const imgWidthPt = pageWidthPt;
+      const imgHeightPt = (canvas.height * imgWidthPt) / canvas.width;
+
+      if (i === 0) {
+        pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'pt',
+          format: [pageWidthPt, imgHeightPt],
+          hotfixes: ['px_scaling'],
+        } as any);
+      } else {
+        pdf!.addPage([pageWidthPt, imgHeightPt] as any);
       }
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      pdf!.addImage(imgData, 'JPEG', 0, 0, imgWidthPt, imgHeightPt);
+      continue;
     }
-    
+
+    // --- A4 ---
+    const imgWidthMm = contentWidth;
+    const imgHeightMm = (canvas.height * imgWidthMm) / canvas.width;
+
+    let finalImgHeight = imgHeightMm;
+    let finalImgWidth = imgWidthMm;
+
+    if (imgHeightMm > a4MaxContentHeight) {
+      const scale = a4MaxContentHeight / imgHeightMm;
+      finalImgHeight = a4MaxContentHeight;
+      finalImgWidth = imgWidthMm * scale;
+    }
+
     if (i === 0) {
-      // Create PDF with first page dimensions
       pdf = new jsPDF({
         orientation: 'portrait',
-        unit,
-        format: format === 'a4' ? 'a4' : [pageWidth, pageHeight],
+        unit: 'mm',
+        format: 'a4',
         hotfixes: ['px_scaling'],
       } as any);
     } else {
-      // Add new page with custom dimensions for this receipt
-      // jsPDF addPage can ignore array sizes unless unit/hotfix are consistent.
-      pdf!.addPage(format === 'a4' ? 'a4' : ([pageWidth, pageHeight] as any));
+      pdf!.addPage('a4');
     }
-    
+
     const imgData = canvas.toDataURL('image/jpeg', 0.98);
-    // Center content horizontally for both formats
-    const xOffset = margin + (contentWidth - finalImgWidth) / 2;
-    pdf!.addImage(imgData, 'JPEG', xOffset, margin, finalImgWidth, finalImgHeight);
+    const xOffset = marginMm + (imgWidthMm - finalImgWidth) / 2;
+    pdf!.addImage(imgData, 'JPEG', xOffset, marginMm, finalImgWidth, finalImgHeight);
   }
-  
-  // Return as blob
+
   return pdf!.output('blob');
 };
 
