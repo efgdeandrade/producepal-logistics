@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Printer, Ban, Edit, Eye, Download, Receipt, ChevronDown, FileEdit, ExternalLink, Truck, RefreshCw, Calculator, Check, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Printer, Ban, Edit, Eye, Download, Receipt, ChevronDown, FileEdit, ExternalLink, Truck, RefreshCw, Calculator, Check, AlertCircle, Copy, LayoutTemplate, MoreVertical } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,6 +25,12 @@ import { CustomerReceipt } from '@/components/CustomerReceipt';
 import { PalletVisualization } from '@/components/PalletVisualization';
 import { LandedCostPanel } from '@/components/import/LandedCostPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import html2pdf from 'html2pdf.js';
 import { DriverAssignmentDialog } from '@/components/DriverAssignmentDialog';
 import { DriverPackingSlip } from '@/components/DriverPackingSlip';
@@ -252,6 +258,130 @@ const OrderDetails = () => {
     } catch (error: any) {
       console.error('Error voiding order:', error);
       toast.error('Failed to void order');
+    }
+  };
+
+  const handleDuplicateOrder = async () => {
+    if (!order) return;
+    
+    try {
+      // Generate new order number
+      const now = new Date();
+      const newOrderNumber = `ORD-${now.getTime()}`;
+      const weekNumber = Math.ceil((now.getDate() + new Date(now.getFullYear(), now.getMonth(), 1).getDay()) / 7);
+      
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user?.id)
+        .single();
+      
+      // Create new order
+      const { data: newOrder, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          order_number: newOrderNumber,
+          week_number: weekNumber,
+          delivery_date: now.toISOString().split('T')[0],
+          placed_by: profile?.full_name || user?.email || 'Unknown',
+          user_id: user?.id,
+          status: 'pending',
+          notes: `Duplicated from ${order.order_number}`
+        })
+        .select()
+        .single();
+      
+      if (orderError) throw orderError;
+      
+      // Duplicate order items (excluding IDs)
+      const itemsToInsert = orderItems.map(item => ({
+        order_id: newOrder.id,
+        customer_name: item.customer_name,
+        product_code: item.product_code,
+        quantity: item.quantity,
+        units_quantity: item.units_quantity,
+        po_number: item.po_number,
+        sale_price_xcg: item.sale_price_xcg,
+        is_from_stock: item.is_from_stock,
+      }));
+      
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(itemsToInsert);
+      
+      if (itemsError) throw itemsError;
+      
+      toast.success('Order duplicated successfully');
+      navigate(`/import/orders/${newOrder.id}`);
+    } catch (error: any) {
+      console.error('Error duplicating order:', error);
+      toast.error('Failed to duplicate order');
+    }
+  };
+
+  const handleCreateTemplate = async () => {
+    if (!order || orderItems.length === 0) {
+      toast.error('No items to create template from');
+      return;
+    }
+    
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Create template with a default name
+      const templateName = `Template from ${order.order_number}`;
+      const dayOfWeek = new Date(order.delivery_date).getDay();
+      
+      const { data: template, error: templateError } = await supabase
+        .from('day_order_templates')
+        .insert({
+          name: templateName,
+          day_of_week: dayOfWeek,
+          is_active: true,
+          notes: `Created from order ${order.order_number}`,
+          created_by: user?.id
+        })
+        .select()
+        .single();
+      
+      if (templateError) throw templateError;
+      
+      // Get customer IDs for the template items
+      const customerNames = [...new Set(orderItems.map(item => item.customer_name))];
+      const { data: customers } = await supabase
+        .from('customers')
+        .select('id, name')
+        .in('name', customerNames);
+      
+      const customerMap = new Map(customers?.map(c => [c.name, c.id]) || []);
+      
+      // Create template items
+      const templateItems = orderItems
+        .filter(item => customerMap.has(item.customer_name))
+        .map((item, index) => ({
+          template_id: template.id,
+          customer_id: customerMap.get(item.customer_name)!,
+          customer_name: item.customer_name,
+          product_code: item.product_code,
+          default_quantity: item.quantity,
+          sort_order: index
+        }));
+      
+      if (templateItems.length > 0) {
+        const { error: itemsError } = await supabase
+          .from('day_order_template_items')
+          .insert(templateItems);
+        
+        if (itemsError) throw itemsError;
+      }
+      
+      toast.success(`Template "${templateName}" created with ${templateItems.length} items`);
+    } catch (error: any) {
+      console.error('Error creating template:', error);
+      toast.error('Failed to create template');
     }
   };
 
@@ -907,14 +1037,30 @@ const OrderDetails = () => {
                         <Edit className="mr-2 h-4 w-4" />
                         Edit Order
                       </Button>
-                      <Button 
-                        variant="destructive" 
-                        size="sm"
-                        onClick={handleVoidOrder}
-                      >
-                        <Ban className="mr-2 h-4 w-4" />
-                        Void Order
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={handleDuplicateOrder}>
+                            <Copy className="mr-2 h-4 w-4" />
+                            Duplicate Order
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleCreateTemplate}>
+                            <LayoutTemplate className="mr-2 h-4 w-4" />
+                            Create Template
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={handleVoidOrder}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Ban className="mr-2 h-4 w-4" />
+                            Void Order
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </>
                   )}
                 </div>
