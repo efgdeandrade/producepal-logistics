@@ -68,6 +68,20 @@ export const generateReceiptPDF = async (
     // Wait for all images to load before capturing
     await waitForImages(element);
     
+    // For 80mm thermal receipts, we need to capture at the exact width
+    // to prevent scaling issues. Set element width explicitly before capture.
+    const isReceipt = format === 'receipt';
+    const targetWidthMm = isReceipt ? 80 : 210;
+    const targetWidthPx = (targetWidthMm / 25.4) * 96; // Convert mm to pixels at 96 DPI
+    
+    // Store original styles to restore after capture
+    const originalWidth = element.style.width;
+    const originalMaxWidth = element.style.maxWidth;
+    
+    // Force element to exact target width for accurate capture
+    element.style.width = `${targetWidthMm}mm`;
+    element.style.maxWidth = `${targetWidthMm}mm`;
+    
     // First render to canvas to measure content
     const canvas = await html2canvas(element, {
       scale: 2,
@@ -75,7 +89,11 @@ export const generateReceiptPDF = async (
       allowTaint: true,
       logging: false,
       backgroundColor: '#ffffff',
-      onclone: (clonedDoc) => {
+      width: targetWidthPx,
+      onclone: (clonedDoc, clonedElement) => {
+        // Ensure cloned element has exact width
+        clonedElement.style.width = `${targetWidthMm}mm`;
+        clonedElement.style.maxWidth = `${targetWidthMm}mm`;
         // Ensure images are visible in cloned document
         const images = clonedDoc.querySelectorAll('img');
         images.forEach(img => {
@@ -84,10 +102,14 @@ export const generateReceiptPDF = async (
       }
     });
     
+    // Restore original styles
+    element.style.width = originalWidth;
+    element.style.maxWidth = originalMaxWidth;
+    
     // Dimensions in PDF units
-    const unit: 'mm' | 'pt' = format === 'receipt' ? 'pt' : 'mm';
-    const margin = format === 'a4' ? 10 : mmToPt(5);
-    const pageWidth = format === 'a4' ? 210 : mmToPt(80);
+    const unit: 'mm' | 'pt' = isReceipt ? 'pt' : 'mm';
+    const margin = isReceipt ? mmToPt(3) : 10; // 3mm margin for receipts
+    const pageWidth = isReceipt ? mmToPt(80) : 210;
     const contentWidth = pageWidth - margin * 2;
     
     // Calculate actual content height based on aspect ratio
@@ -99,7 +121,7 @@ export const generateReceiptPDF = async (
     let finalImgHeight = imgHeight;
     let finalImgWidth = contentWidth;
     
-    if (format === 'receipt') {
+    if (isReceipt) {
       // Thermal receipt: page height matches content (continuous roll)
       pageHeight = imgHeight + margin * 2;
     } else {
@@ -119,8 +141,7 @@ export const generateReceiptPDF = async (
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit,
-      format: format === 'a4' ? 'a4' : [pageWidth, pageHeight],
-      // Helps ensure consistent scaling between canvas pixels and PDF units.
+      format: isReceipt ? [pageWidth, pageHeight] : 'a4',
       hotfixes: ['px_scaling'],
     } as any);
     
