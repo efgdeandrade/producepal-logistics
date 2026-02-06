@@ -67,53 +67,69 @@ export const generateReceiptPDF = async (
 ): Promise<Blob> => {
   try {
     const isReceipt = format === 'receipt';
-    const pageWidthMm = isReceipt ? 80 : 210;
 
-    // Capture using an isolated off-screen clone so modal/transforms/layout constraints
-    // cannot distort the rendered width in the downloaded PDF.
+    // --- Capture (isolated clone) ---
+    if (isReceipt) {
+      const pageWidthMm = 80;
+      const canvas = await renderIsolatedCanvas(element, {
+        widthMm: pageWidthMm,
+        scale: 2,
+        backgroundColor: '#ffffff',
+      });
+
+      // jsPDF can be finicky with custom sizes in `mm`.
+      // For 80mm thermal, force `pt` with explicit pt dimensions.
+      const pageWidthPt = mmToPt(pageWidthMm);
+      const imgWidthPt = pageWidthPt; // edge-to-edge
+      const imgHeightPt = (canvas.height * imgWidthPt) / canvas.width;
+
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'pt',
+        format: [pageWidthPt, imgHeightPt],
+        hotfixes: ['px_scaling'],
+      } as any);
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      pdf.addImage(imgData, 'JPEG', 0, 0, imgWidthPt, imgHeightPt);
+      return pdf.output('blob');
+    }
+
+    // --- A4 ---
+    const pageWidthMm = 210;
     const canvas = await renderIsolatedCanvas(element, {
       widthMm: pageWidthMm,
       scale: 2,
       backgroundColor: '#ffffff',
     });
 
-    // PDF layout
-    const marginMm = isReceipt ? 0 : 10;
+    const marginMm = 10;
     const contentWidthMm = pageWidthMm - marginMm * 2;
 
     const imgHeightMm = (canvas.height * contentWidthMm) / canvas.width;
 
-    let pageHeightMm: number;
+    const pageHeightMm = 297;
+    const maxContentHeight = pageHeightMm - marginMm * 2;
+
     let finalImgHeight = imgHeightMm;
     let finalImgWidth = contentWidthMm;
 
-    if (isReceipt) {
-      // Continuous roll: page height matches content exactly (no extra margins)
-      pageHeightMm = imgHeightMm;
-    } else {
-      pageHeightMm = 297;
-      const maxContentHeight = pageHeightMm - marginMm * 2;
-
-      if (imgHeightMm > maxContentHeight) {
-        const scale = maxContentHeight / imgHeightMm;
-        finalImgHeight = maxContentHeight;
-        finalImgWidth = contentWidthMm * scale;
-      }
+    if (imgHeightMm > maxContentHeight) {
+      const scale = maxContentHeight / imgHeightMm;
+      finalImgHeight = maxContentHeight;
+      finalImgWidth = contentWidthMm * scale;
     }
 
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
-      format: isReceipt ? [pageWidthMm, pageHeightMm] : 'a4',
+      format: 'a4',
       hotfixes: ['px_scaling'],
     } as any);
 
     const imgData = canvas.toDataURL('image/jpeg', 0.98);
-
-    // For receipts we want true edge-to-edge width.
     const xOffset = marginMm + (contentWidthMm - finalImgWidth) / 2;
-    const yOffset = marginMm;
-    pdf.addImage(imgData, 'JPEG', xOffset, yOffset, finalImgWidth, finalImgHeight);
+    pdf.addImage(imgData, 'JPEG', xOffset, marginMm, finalImgWidth, finalImgHeight);
 
     return pdf.output('blob');
   } catch (error) {
