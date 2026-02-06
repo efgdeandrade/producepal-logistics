@@ -65,23 +65,27 @@ export const generateReceiptPDF = async (
   format: 'a4' | 'receipt' = 'a4'
 ): Promise<Blob> => {
   try {
-    // Wait for all images to load before capturing
     await waitForImages(element);
-    
+
     const isReceipt = format === 'receipt';
-    const targetWidthMm = isReceipt ? 80 : 210;
-    
-    // Store original styles to restore after capture
+    const pageWidthMm = isReceipt ? 80 : 210;
+
+    // IMPORTANT: For 80mm receipts, padding must be included in the 80mm width.
+    // If the element uses content-box, padding expands the rendered width and
+    // html2canvas captures a wider canvas than expected → PDF looks “not fitted”.
+    // Force border-box during capture.
     const originalWidth = element.style.width;
     const originalMaxWidth = element.style.maxWidth;
     const originalMinWidth = element.style.minWidth;
-    
-    // Force element to exact target width for accurate capture
-    element.style.width = `${targetWidthMm}mm`;
-    element.style.maxWidth = `${targetWidthMm}mm`;
-    element.style.minWidth = `${targetWidthMm}mm`;
-    
-    // Render to canvas - let html2canvas determine width from element
+    const originalBoxSizing = element.style.boxSizing;
+    const originalMargin = element.style.margin;
+
+    element.style.width = `${pageWidthMm}mm`;
+    element.style.maxWidth = `${pageWidthMm}mm`;
+    element.style.minWidth = `${pageWidthMm}mm`;
+    element.style.boxSizing = 'border-box';
+    element.style.margin = '0';
+
     const canvas = await html2canvas(element, {
       scale: 2,
       useCORS: true,
@@ -89,67 +93,62 @@ export const generateReceiptPDF = async (
       logging: false,
       backgroundColor: '#ffffff',
       onclone: (clonedDoc, clonedElement) => {
-        // Ensure cloned element has exact width
-        clonedElement.style.width = `${targetWidthMm}mm`;
-        clonedElement.style.maxWidth = `${targetWidthMm}mm`;
-        clonedElement.style.minWidth = `${targetWidthMm}mm`;
-        // Ensure images are visible in cloned document
+        clonedElement.style.width = `${pageWidthMm}mm`;
+        clonedElement.style.maxWidth = `${pageWidthMm}mm`;
+        clonedElement.style.minWidth = `${pageWidthMm}mm`;
+        clonedElement.style.boxSizing = 'border-box';
+        clonedElement.style.margin = '0';
+
         const images = clonedDoc.querySelectorAll('img');
-        images.forEach(img => {
+        images.forEach((img) => {
           (img as HTMLElement).style.visibility = 'visible';
         });
-      }
+      },
     });
-    
-    // Restore original styles
+
     element.style.width = originalWidth;
     element.style.maxWidth = originalMaxWidth;
     element.style.minWidth = originalMinWidth;
-    
-    // Dimensions in PDF units - use mm for both formats for consistency
-    const margin = isReceipt ? 3 : 10; // mm
-    const pageWidthMm = isReceipt ? 80 : 210;
-    const contentWidthMm = pageWidthMm - margin * 2;
-    
-    // Calculate actual content height based on aspect ratio
+    element.style.boxSizing = originalBoxSizing;
+    element.style.margin = originalMargin;
+
+    // PDF layout
+    const marginMm = isReceipt ? 0 : 10;
+    const contentWidthMm = pageWidthMm - marginMm * 2;
+
     const imgHeightMm = (canvas.height * contentWidthMm) / canvas.width;
-    
-    // For receipts: use content height + margins (continuous paper)
-    // For A4: use standard height but scale if content is too tall
+
     let pageHeightMm: number;
     let finalImgHeight = imgHeightMm;
     let finalImgWidth = contentWidthMm;
-    
+
     if (isReceipt) {
-      // Thermal receipt: page height matches content (continuous roll)
-      pageHeightMm = imgHeightMm + margin * 2;
+      // Continuous roll: page height matches content exactly (no extra margins)
+      pageHeightMm = imgHeightMm;
     } else {
-      // A4: fixed height, scale down content if it exceeds page
       pageHeightMm = 297;
-      const maxContentHeight = pageHeightMm - (margin * 2);
-      
+      const maxContentHeight = pageHeightMm - marginMm * 2;
+
       if (imgHeightMm > maxContentHeight) {
-        // Scale down to fit on one page
         const scale = maxContentHeight / imgHeightMm;
         finalImgHeight = maxContentHeight;
         finalImgWidth = contentWidthMm * scale;
       }
     }
-    
-    // Create PDF with calculated dimensions - always use mm for unit
+
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
       format: isReceipt ? [pageWidthMm, pageHeightMm] : 'a4',
       hotfixes: ['px_scaling'],
     } as any);
-    
+
     const imgData = canvas.toDataURL('image/jpeg', 0.98);
-    
-    // Center content horizontally
-    const xOffset = margin + (contentWidthMm - finalImgWidth) / 2;
-    pdf.addImage(imgData, 'JPEG', xOffset, margin, finalImgWidth, finalImgHeight);
-    
+
+    const xOffset = marginMm + (contentWidthMm - finalImgWidth) / 2;
+    const yOffset = marginMm;
+    pdf.addImage(imgData, 'JPEG', xOffset, yOffset, finalImgWidth, finalImgHeight);
+
     return pdf.output('blob');
   } catch (error) {
     console.error('PDF generation failed:', error);
