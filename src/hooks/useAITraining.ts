@@ -17,6 +17,7 @@ export interface MatchLog {
   detected_quantity: number | null;
   detected_unit: string | null;
   needs_review: boolean;
+  is_ignored: boolean;
   reviewed_at: string | null;
   reviewed_by: string | null;
   created_at: string;
@@ -275,6 +276,30 @@ export function useAITraining() {
     },
   });
 
+  // Ignore a line (mark as not a product - header, date, etc.)
+  const ignoreLineMutation = useMutation({
+    mutationFn: async (logId: string) => {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const { error } = await supabase
+        .from('distribution_ai_match_logs')
+        .update({
+          needs_review: false,
+          is_ignored: true,
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: user?.id,
+        })
+        .eq('id', logId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ai-training-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['ai-training-stats'] });
+      toast.success('Line marked as not a product');
+    },
+  });
+
   return {
     reviewQueue,
     isLoadingQueue,
@@ -284,7 +309,9 @@ export function useAITraining() {
     confirmMatch: confirmMatchMutation.mutate,
     correctMatch: correctMatchMutation.mutate,
     skipReview: skipReviewMutation.mutate,
+    ignoreLine: ignoreLineMutation.mutate,
     isConfirming: confirmMatchMutation.isPending,
     isCorrecting: correctMatchMutation.isPending,
+    isIgnoring: ignoreLineMutation.isPending,
   };
 }
