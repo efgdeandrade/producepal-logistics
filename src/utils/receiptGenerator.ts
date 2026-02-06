@@ -73,6 +73,7 @@ export const generateReceiptPDF = async (
       const pageWidthMm = 80;
       const canvas = await renderIsolatedCanvas(element, {
         widthMm: pageWidthMm,
+        captureFullWidth: true,
         scale: 2,
         backgroundColor: '#ffffff',
       });
