@@ -226,13 +226,33 @@ export const CustomerReceipt = ({
         </div>
 
         {/* Items Table - 4 columns for both formats */}
-        <table className={`w-full border-collapse ${isReceipt ? 'mb-2' : 'mb-4'}`}>
+        <table
+          className={`w-full border-collapse ${isReceipt ? 'mb-2 table-fixed' : 'mb-4'}`}
+        >
           <thead>
             <tr className="border-b-2 border-black">
-              <th className={`${isReceipt ? 'text-[10px]' : 'text-base'} text-left py-2 font-extrabold`}>Product</th>
-              <th className={`${isReceipt ? 'text-[10px] w-8' : 'text-base'} text-right py-2 font-extrabold`}>Qty</th>
-              <th className={`${isReceipt ? 'text-[10px] w-12' : 'text-base'} text-right py-2 font-extrabold ${!isReceipt ? 'border-l border-black pl-2' : ''}`}>Price</th>
-              <th className={`${isReceipt ? 'text-[10px] w-14' : 'text-base'} text-right py-2 font-extrabold ${!isReceipt ? 'border-l border-black pl-2' : ''}`}>
+              <th
+                className={`${isReceipt ? 'text-[10px]' : 'text-base'} text-left ${isReceipt ? 'py-1 pr-1' : 'py-2'} font-extrabold`}
+                style={isReceipt ? { width: '48%' } : undefined}
+              >
+                Product
+              </th>
+              <th
+                className={`${isReceipt ? 'text-[10px]' : 'text-base'} text-right ${isReceipt ? 'py-1 pr-1' : 'py-2'} font-extrabold`}
+                style={isReceipt ? { width: '14%' } : undefined}
+              >
+                Qty
+              </th>
+              <th
+                className={`${isReceipt ? 'text-[10px]' : 'text-base'} text-right ${isReceipt ? 'py-1 pr-1' : 'py-2'} font-extrabold ${!isReceipt ? 'border-l border-black pl-2' : ''}`}
+                style={isReceipt ? { width: '18%' } : undefined}
+              >
+                Price
+              </th>
+              <th
+                className={`${isReceipt ? 'text-[10px]' : 'text-base'} text-right ${isReceipt ? 'py-1' : 'py-2'} font-extrabold ${!isReceipt ? 'border-l border-black pl-2' : ''}`}
+                style={isReceipt ? { width: '20%' } : undefined}
+              >
                 {isReceipt ? 'Amt' : 'Total'}
               </th>
             </tr>
@@ -243,18 +263,32 @@ export const CustomerReceipt = ({
               const units = product ? item.quantity * product.pack_size : item.quantity;
               const price = item.sale_price_xcg ?? product?.wholesale_price_xcg_per_unit ?? 0;
               const lineTotal = units * price;
-              
+
               return (
                 <tr key={item.id} className="border-b border-black">
-                  <td className={`${isReceipt ? 'text-xs py-2' : 'text-base py-3'}`}>
-                    <div className="font-bold leading-normal">{product?.name || item.product_code}</div>
-                    {!isReceipt && <div className="text-xs font-medium mt-0.5">{item.quantity}×{product?.pack_size}</div>}
+                  <td className={`${isReceipt ? 'text-[10px] py-1 pr-1' : 'text-base py-3'}`}>
+                    <div className="font-bold leading-normal break-words">
+                      {product?.name || item.product_code}
+                    </div>
+                    {!isReceipt && (
+                      <div className="text-xs font-medium mt-0.5">
+                        {item.quantity}×{product?.pack_size}
+                      </div>
+                    )}
                   </td>
-                  <td className={`${isReceipt ? 'text-xs py-2' : 'text-base py-3'} text-right font-bold`}>{units}</td>
-                  <td className={`${isReceipt ? 'text-xs py-2' : 'text-base py-3'} text-right font-bold ${!isReceipt ? 'border-l border-black pl-2' : ''}`}>
+                  <td
+                    className={`${isReceipt ? 'text-[10px] py-1 pr-1' : 'text-base py-3'} text-right font-bold whitespace-nowrap`}
+                  >
+                    {units}
+                  </td>
+                  <td
+                    className={`${isReceipt ? 'text-[10px] py-1 pr-1' : 'text-base py-3'} text-right font-bold whitespace-nowrap ${!isReceipt ? 'border-l border-black pl-2' : ''}`}
+                  >
                     {price.toFixed(2)}
                   </td>
-                  <td className={`${isReceipt ? 'text-xs py-2' : 'text-base py-3'} text-right font-bold ${!isReceipt ? 'border-l border-black pl-2' : ''}`}>
+                  <td
+                    className={`${isReceipt ? 'text-[10px] py-1' : 'text-base py-3'} text-right font-bold whitespace-nowrap ${!isReceipt ? 'border-l border-black pl-2' : ''}`}
+                  >
                     {lineTotal.toFixed(2)}
                   </td>
                 </tr>
@@ -263,8 +297,15 @@ export const CustomerReceipt = ({
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-black">
-              <td colSpan={3} className={`${isReceipt ? 'text-xs py-2' : 'text-base py-3'} font-extrabold text-right`}>Total:</td>
-              <td className={`${isReceipt ? 'text-xs py-2' : 'text-base py-3'} font-extrabold text-right ${!isReceipt ? 'border-l border-black pl-2' : ''}`}>
+              <td
+                colSpan={3}
+                className={`${isReceipt ? 'text-[10px] py-1 pr-1' : 'text-base py-3'} font-extrabold text-right whitespace-nowrap`}
+              >
+                Total:
+              </td>
+              <td
+                className={`${isReceipt ? 'text-[10px] py-1' : 'text-base py-3'} font-extrabold text-right whitespace-nowrap ${!isReceipt ? 'border-l border-black pl-2' : ''}`}
+              >
                 Cg {calculateTotal().toFixed(2)}
               </td>
             </tr>
