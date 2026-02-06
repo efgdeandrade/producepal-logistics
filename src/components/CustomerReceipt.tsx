@@ -7,6 +7,7 @@ interface OrderItem {
   product_code: string;
   quantity: number;
   po_number?: string;
+  sale_price_xcg?: number | null;
 }
 
 interface Order {
@@ -121,14 +122,15 @@ export const CustomerReceipt = ({
   const calculateTotal = useCallback(() => {
     return customerItems.reduce((sum, item) => {
       const product = getProductInfo(item.product_code);
-      if (!product || !product.wholesale_price_xcg_per_unit) return sum;
-      const units = item.quantity * product.pack_size;
-      return sum + (units * product.wholesale_price_xcg_per_unit);
+      const price = item.sale_price_xcg ?? product?.wholesale_price_xcg_per_unit ?? 0;
+      if (!price) return sum;
+      const units = item.quantity * (product?.pack_size || 1);
+      return sum + (units * price);
     }, 0);
   }, [customerItems, getProductInfo]);
 
   const isReceipt = format === 'receipt';
-  const containerClass = isReceipt ? 'max-w-[80mm]' : 'max-w-[210mm]';
+  const containerClass = isReceipt ? 'w-[80mm]' : 'max-w-[210mm]';
   const printClass = isReceipt ? 'receipt-print-content format-receipt high-contrast-print' : 'receipt-print-content format-a4 high-contrast-print';
 
   if (loading) {
@@ -223,16 +225,14 @@ export const CustomerReceipt = ({
           )}
         </div>
 
-        {/* Items Table - 3 columns for receipt, 4 for A4 */}
+        {/* Items Table - 4 columns for both formats */}
         <table className={`w-full border-collapse ${isReceipt ? 'mb-2' : 'mb-4'}`}>
           <thead>
             <tr className="border-b-2 border-black">
               <th className={`${isReceipt ? 'text-[10px]' : 'text-base'} text-left py-2 font-extrabold`}>Product</th>
-              <th className={`${isReceipt ? 'text-[10px]' : 'text-base'} text-right py-2 font-extrabold`}>Qty</th>
-              {!isReceipt && (
-                <th className="text-base text-right py-2 font-extrabold border-l border-black pl-2">Price</th>
-              )}
-              <th className={`${isReceipt ? 'text-[10px]' : 'text-base'} text-right py-2 font-extrabold ${!isReceipt ? 'border-l border-black pl-2' : ''}`}>
+              <th className={`${isReceipt ? 'text-[10px] w-8' : 'text-base'} text-right py-2 font-extrabold`}>Qty</th>
+              <th className={`${isReceipt ? 'text-[10px] w-12' : 'text-base'} text-right py-2 font-extrabold ${!isReceipt ? 'border-l border-black pl-2' : ''}`}>Price</th>
+              <th className={`${isReceipt ? 'text-[10px] w-14' : 'text-base'} text-right py-2 font-extrabold ${!isReceipt ? 'border-l border-black pl-2' : ''}`}>
                 {isReceipt ? 'Amt' : 'Total'}
               </th>
             </tr>
@@ -240,8 +240,8 @@ export const CustomerReceipt = ({
           <tbody>
             {customerItems.map((item) => {
               const product = getProductInfo(item.product_code);
-              const units = product ? item.quantity * product.pack_size : 0;
-              const price = product?.wholesale_price_xcg_per_unit || 0;
+              const units = product ? item.quantity * product.pack_size : item.quantity;
+              const price = item.sale_price_xcg ?? product?.wholesale_price_xcg_per_unit ?? 0;
               const lineTotal = units * price;
               
               return (
@@ -251,9 +251,9 @@ export const CustomerReceipt = ({
                     {!isReceipt && <div className="text-xs font-medium mt-0.5">{item.quantity}×{product?.pack_size}</div>}
                   </td>
                   <td className={`${isReceipt ? 'text-xs py-2' : 'text-base py-3'} text-right font-bold`}>{units}</td>
-                  {!isReceipt && (
-                    <td className="text-base py-3 text-right font-bold border-l border-black pl-2">{price.toFixed(2)}</td>
-                  )}
+                  <td className={`${isReceipt ? 'text-xs py-2' : 'text-base py-3'} text-right font-bold ${!isReceipt ? 'border-l border-black pl-2' : ''}`}>
+                    {price.toFixed(2)}
+                  </td>
                   <td className={`${isReceipt ? 'text-xs py-2' : 'text-base py-3'} text-right font-bold ${!isReceipt ? 'border-l border-black pl-2' : ''}`}>
                     {lineTotal.toFixed(2)}
                   </td>
@@ -263,7 +263,7 @@ export const CustomerReceipt = ({
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-black">
-              <td colSpan={isReceipt ? 2 : 3} className={`${isReceipt ? 'text-xs py-2' : 'text-base py-3'} font-extrabold text-right`}>Total:</td>
+              <td colSpan={3} className={`${isReceipt ? 'text-xs py-2' : 'text-base py-3'} font-extrabold text-right`}>Total:</td>
               <td className={`${isReceipt ? 'text-xs py-2' : 'text-base py-3'} font-extrabold text-right ${!isReceipt ? 'border-l border-black pl-2' : ''}`}>
                 Cg {calculateTotal().toFixed(2)}
               </td>

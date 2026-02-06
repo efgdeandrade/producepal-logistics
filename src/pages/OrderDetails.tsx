@@ -48,6 +48,7 @@ interface OrderItem {
   units_quantity?: number | null;
   po_number?: string;
   is_from_stock?: boolean;
+  sale_price_xcg?: number | null;
 }
 
 interface Order {
