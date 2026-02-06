@@ -764,18 +764,62 @@ const OrderDetails = () => {
       }
     } else {
       // Single document download (supplier list, roundup, or single receipt)
+
+      // IMPORTANT: Single-customer receipt downloads must use our isolated-canvas workflow.
+      // The generic html2pdf path is what causes the persistent right-edge clipping on 80mm.
+      if (viewDialog === 'receipt' && selectedCustomers.length === 1) {
+        setGeneratingPDF(true);
+
+        try {
+          // Ensure the receipt is painted
+          await new Promise(resolve => setTimeout(resolve, 150));
+
+          const customerName = selectedCustomers[0];
+          const receiptDiv = printRef.current.querySelector(
+            `[data-customer="${customerName}"]`
+          ) as HTMLElement | null;
+
+          if (!receiptDiv) {
+            throw new Error('Receipt element not found');
+          }
+
+          const filename = `Receipt-${order.order_number}-${customerName.replace(/\s+/g, '-')}.pdf`;
+          const pdfBlob = await generateReceiptPDF(receiptDiv, filename, printFormat);
+
+          if (!pdfBlob || pdfBlob.size === 0) {
+            throw new Error('Generated PDF is empty');
+          }
+
+          downloadBlob(pdfBlob, filename);
+          toast.success('PDF downloaded successfully');
+
+          setViewDialog(null);
+          setPendingAction(null);
+          setSelectedCustomers([]);
+          setReceiptNumbers({});
+          setEditableReceiptItems([]);
+        } catch (error) {
+          console.error('Error generating receipt PDF:', error);
+          toast.error('Failed to generate PDF');
+        } finally {
+          setGeneratingPDF(false);
+        }
+
+        return;
+      }
+
       const opt = {
         margin: printFormat === 'receipt' ? 0.2 : 0.5,
         filename: `${viewDialog}-${order.order_number}.pdf`,
         image: { type: 'jpeg' as const, quality: 0.98 },
         html2canvas: { scale: 2 },
-        jsPDF: { 
-          unit: 'in', 
+        jsPDF: {
+          unit: 'in',
           format: printFormat === 'receipt' ? [3.15, 11] as [number, number] : 'a4',
           orientation: 'portrait' as const
         }
       };
-      
+
       try {
         await html2pdf().set(opt).from(printRef.current).save();
         toast.success('PDF downloaded successfully');
