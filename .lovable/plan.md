@@ -1,83 +1,91 @@
 
-# Duplicate Customer Feature for Distribution
+# Add Price Per Unit Column to Import Order Receipts
 
-## Overview
-Add a "Duplicate" button to the Customers table that clones an existing customer's data (appending " (Copy)" to the name), clears the phone number (since it must be unique), and opens the edit dialog for immediate modification before saving.
+## Summary
+This plan adds a "Price per unit" column to the 80mm thermal receipt format for Import orders and ensures the receipt uses the maximum available paper width (80mm).
 
-## Use Case
-Franchise businesses like "Burger Haus" have multiple locations (e.g., "Burger Haus CCB") that share similar attributes but have different addresses and phone numbers.
+## Changes Overview
 
-## Implementation
+### 1. Update CustomerReceipt Component Layout
 
-### Changes to `src/pages/fnb/FnbCustomers.tsx`
+**File:** `src/components/CustomerReceipt.tsx`
 
-1. **Add Copy icon import**
-   - Add `Copy` to the existing lucide-react imports
+**Width optimization:**
+- Change from `max-w-[80mm]` to `w-[80mm]` to ensure full paper width usage
+- The component already sets `style={{ width: fixedWidth }}` which is correct, but the container class needs updating
 
-2. **Create `handleDuplicateCustomer` function**
-   - Similar to the existing `handleDuplicateProduct` pattern in Products.tsx
-   - Clone all customer fields except:
-     - `id` (new customer)
-     - `name` → append " (Copy)" 
-     - `whatsapp_phone` → clear (user must enter unique phone)
-   - Preserve: address, delivery zone, major zone, customer type, pricing tier, language, notes, coordinates
-   - Open dialog in "create" mode (not edit mode)
+**Add Price column to 80mm format:**
+- Current 80mm format: Product | Qty | Amount (3 columns)
+- New 80mm format: Product | Qty | Price | Amount (4 columns)
+- Adjust column widths to fit all data on 80mm paper
 
-3. **Add Duplicate button in Actions column**
-   - Place between Edit and Delete buttons
-   - Use `Copy` icon with tooltip "Duplicate this customer"
-   - Trigger `handleDuplicateCustomer(customer)` on click
+### 2. Include Sale Price from Order Items
+
+**File:** `src/components/CustomerReceipt.tsx`
+
+Update the `OrderItem` interface to include the `sale_price_xcg` field:
+```typescript
+interface OrderItem {
+  id: string;
+  customer_name: string;
+  product_code: string;
+  quantity: number;
+  po_number?: string;
+  sale_price_xcg?: number | null;  // Add this field
+}
+```
+
+Update price calculation logic:
+- Use `item.sale_price_xcg` (actual sale price at order time) when available
+- Fall back to `product.wholesale_price_xcg_per_unit` if not set
+
+### 3. Update OrderDetails Interface
+
+**File:** `src/pages/OrderDetails.tsx`
+
+Update the `OrderItem` interface to include `sale_price_xcg`:
+```typescript
+interface OrderItem {
+  id: string;
+  customer_name: string;
+  product_code: string;
+  quantity: number;
+  units_quantity?: number | null;
+  po_number?: string;
+  is_from_stock?: boolean;
+  sale_price_xcg?: number | null;  // Add this field
+}
+```
+
+The query already uses `select('*')` so the data is already being fetched.
+
+---
 
 ## Technical Details
 
+### Column Layout for 80mm Receipt
+
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│  Customers Table                                            │
-├────────────┬────────────┬────────┬────────┬─────────────────┤
-│ Name       │ WhatsApp   │ Zone   │ Lang   │ Actions         │
-├────────────┼────────────┼────────┼────────┼─────────────────┤
-│ Burger Haus│ +5999...   │ ...    │ PAP    │ ✏️ 📋 🗑️        │
-│            │            │        │        │ Edit|Copy|Del   │
-└────────────┴────────────┴────────┴────────┴─────────────────┘
-                                              ↑
-                                        New button
+┌────────────────────────────────────────────────────────┐
+│                    80mm Receipt                         │
+├─────────────────┬────────┬──────────┬─────────────────┤
+│     Product     │  Qty   │  Price   │      Amount     │
+│     (flex-1)    │ (w-8)  │  (w-12)  │      (w-14)     │
+├─────────────────┼────────┼──────────┼─────────────────┤
+│ Strawberries    │   10   │   2.50   │        25.00    │
+│ Blueberries     │   20   │   3.00   │        60.00    │
+└─────────────────┴────────┴──────────┴─────────────────┘
 ```
 
-**New function logic:**
+- Text size remains at `text-[10px]` for compact layout
+- "Price" column header abbreviated for space efficiency
+- All monetary values right-aligned
+
+### Price Priority Logic
+
 ```typescript
-const handleDuplicateCustomer = (customer: FnbCustomer) => {
-  setEditingCustomer(null); // Create mode, not edit
-  setFormData({
-    name: `${customer.name} (Copy)`,
-    whatsapp_phone: '', // Must be unique - user needs to enter new
-    preferred_language: customer.preferred_language,
-    address: customer.address || '',
-    delivery_zone: customer.delivery_zone || '',
-    major_zone_id: customer.major_zone_id || null,
-    customer_type: customer.customer_type,
-    notes: customer.notes || '',
-    pricing_tier_id: customer.pricing_tier_id || null,
-    latitude: null, // Clear - new location likely different
-    longitude: null,
-  });
-  setDetectedZoneInfo(null);
-  setIsDialogOpen(true);
-  toast.success('Customer duplicated - enter new phone number and save');
-};
+// Use order-specific price if available, otherwise fall back to product default
+const price = item.sale_price_xcg ?? product?.wholesale_price_xcg_per_unit ?? 0;
 ```
 
-## Behavior Summary
-| Field | Duplicated? | Notes |
-|-------|-------------|-------|
-| Name | ✅ + " (Copy)" | User should edit for new location |
-| Phone | ❌ Clear | Required unique - user must enter |
-| Language | ✅ | Same franchise, same language |
-| Address | ✅ | User can modify |
-| Zones | ✅ | Preserved for nearby locations |
-| Customer Type | ✅ | Same business type |
-| Pricing Tier | ✅ | Same franchise pricing |
-| Notes | ✅ | Can be edited |
-| Coordinates | ❌ Clear | New location needs new coords |
-
-## Files Changed
-- `src/pages/fnb/FnbCustomers.tsx` - Add import, handler function, and UI button
+This ensures customer-specific pricing from the order is shown rather than the default product price.
