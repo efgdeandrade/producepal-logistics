@@ -81,18 +81,19 @@ export const generateReceiptPDF = async (
       // jsPDF can be finicky with custom sizes in `mm`.
       // For 80mm thermal, force `pt` with explicit pt dimensions.
       const pageWidthPt = mmToPt(pageWidthMm);
-      const imgWidthPt = pageWidthPt; // edge-to-edge
+      const marginPt = mmToPt(2); // small margins (requested)
+      const imgWidthPt = pageWidthPt - marginPt * 2;
       const imgHeightPt = (canvas.height * imgWidthPt) / canvas.width;
 
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'pt',
-        format: [pageWidthPt, imgHeightPt],
+        format: [pageWidthPt, imgHeightPt + marginPt * 2],
         hotfixes: ['px_scaling'],
       } as any);
 
       const imgData = canvas.toDataURL('image/jpeg', 0.98);
-      pdf.addImage(imgData, 'JPEG', 0, 0, imgWidthPt, imgHeightPt);
+      pdf.addImage(imgData, 'JPEG', marginPt, marginPt, imgWidthPt, imgHeightPt);
       return pdf.output('blob');
     }
 
@@ -183,22 +184,24 @@ export const generateMultipleReceiptsPDF = async (
 
     if (isReceipt) {
       const pageWidthPt = mmToPt(pageWidthMm);
-      const imgWidthPt = pageWidthPt;
+      const marginPt = mmToPt(2); // small margins (requested)
+      const imgWidthPt = pageWidthPt - marginPt * 2;
       const imgHeightPt = (canvas.height * imgWidthPt) / canvas.width;
+      const pageHeightPt = imgHeightPt + marginPt * 2;
 
       if (i === 0) {
         pdf = new jsPDF({
           orientation: 'portrait',
           unit: 'pt',
-          format: [pageWidthPt, imgHeightPt],
+          format: [pageWidthPt, pageHeightPt],
           hotfixes: ['px_scaling'],
         } as any);
       } else {
-        pdf!.addPage([pageWidthPt, imgHeightPt] as any);
+        pdf!.addPage([pageWidthPt, pageHeightPt] as any);
       }
 
       const imgData = canvas.toDataURL('image/jpeg', 0.98);
-      pdf!.addImage(imgData, 'JPEG', 0, 0, imgWidthPt, imgHeightPt);
+      pdf!.addImage(imgData, 'JPEG', marginPt, marginPt, imgWidthPt, imgHeightPt);
       continue;
     }
 
