@@ -4,6 +4,7 @@ import html2canvas from 'html2canvas';
 import JSZip from 'jszip';
 import { supabase } from '@/integrations/supabase/client';
 import { waitForImages } from '@/utils/pdfDom';
+import { renderIsolatedCanvas } from '@/utils/pdfCapture';
 
 export interface ReceiptData {
   receiptNumber: string;
@@ -65,65 +66,16 @@ export const generateReceiptPDF = async (
   format: 'a4' | 'receipt' = 'a4'
 ): Promise<Blob> => {
   try {
-    await waitForImages(element);
-
     const isReceipt = format === 'receipt';
     const pageWidthMm = isReceipt ? 80 : 210;
 
-    // IMPORTANT: For 80mm receipts, padding must be included in the 80mm width.
-    // If the element uses content-box, padding expands the rendered width and
-    // html2canvas captures a wider canvas than expected → PDF looks “not fitted”.
-    // Force border-box + no margins during capture.
-    const originalWidth = element.style.width;
-    const originalMaxWidth = element.style.maxWidth;
-    const originalMinWidth = element.style.minWidth;
-    const originalBoxSizing = element.style.boxSizing;
-    const originalMargin = element.style.margin;
-    const originalOverflow = element.style.overflow;
-
-    element.style.width = `${pageWidthMm}mm`;
-    element.style.maxWidth = `${pageWidthMm}mm`;
-    element.style.minWidth = `${pageWidthMm}mm`;
-    element.style.boxSizing = 'border-box';
-    element.style.margin = '0';
-    element.style.overflow = 'hidden';
-
-    // Measure the actual rendered pixel width after forcing mm width.
-    // We pass this to html2canvas to prevent it from expanding to scrollWidth.
-    const rect = element.getBoundingClientRect();
-    const targetWidthPx = Math.ceil(rect.width);
-
-    const canvas = await html2canvas(element, {
+    // Capture using an isolated off-screen clone so modal/transforms/layout constraints
+    // cannot distort the rendered width in the downloaded PDF.
+    const canvas = await renderIsolatedCanvas(element, {
+      widthMm: pageWidthMm,
       scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      logging: false,
       backgroundColor: '#ffffff',
-      width: targetWidthPx,
-      windowWidth: targetWidthPx,
-      scrollX: 0,
-      scrollY: 0,
-      onclone: (clonedDoc, clonedElement) => {
-        clonedElement.style.width = `${pageWidthMm}mm`;
-        clonedElement.style.maxWidth = `${pageWidthMm}mm`;
-        clonedElement.style.minWidth = `${pageWidthMm}mm`;
-        clonedElement.style.boxSizing = 'border-box';
-        clonedElement.style.margin = '0';
-        clonedElement.style.overflow = 'hidden';
-
-        const images = clonedDoc.querySelectorAll('img');
-        images.forEach((img) => {
-          (img as HTMLElement).style.visibility = 'visible';
-        });
-      },
     });
-
-    element.style.width = originalWidth;
-    element.style.maxWidth = originalMaxWidth;
-    element.style.minWidth = originalMinWidth;
-    element.style.boxSizing = originalBoxSizing;
-    element.style.margin = originalMargin;
-    element.style.overflow = originalOverflow;
 
     // PDF layout
     const marginMm = isReceipt ? 0 : 10;
