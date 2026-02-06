@@ -18,6 +18,7 @@ import { useConversationImport } from '@/hooks/useConversationImport';
 import { usePOImport } from '@/hooks/usePOImport';
 import { POUploadDialog } from '@/components/fnb/POUploadDialog';
 import { POReviewDialog } from '@/components/fnb/POReviewDialog';
+import { detectHeaderInfo } from '@/lib/headerDetection';
 import { toast } from 'sonner';
 import { format, addDays, startOfDay } from 'date-fns';
 
@@ -331,10 +332,27 @@ export default function FnbQuickPaste() {
         const text = await navigator.clipboard.readText();
         if (text.trim()) {
           setConversationText(text);
-          toast.success('Pasted from clipboard');
-          if (customerId && text.length > 5) {
-            await parseConversation(text, products, customerId);
+          
+          // Detect customer and delivery date from header lines
+          const headerInfo = detectHeaderInfo(text, customers);
+          
+          let customerToUse = customerId;
+          if (headerInfo.detectedCustomerId && !customerId) {
+            setCustomerId(headerInfo.detectedCustomerId);
+            customerToUse = headerInfo.detectedCustomerId;
+            toast.success(`Detected customer: ${headerInfo.detectedCustomerName}`);
+          }
+          
+          if (headerInfo.detectedDeliveryDate) {
+            setDeliveryDate(headerInfo.detectedDeliveryDate);
+            toast.info(`Detected delivery date: ${format(parseLocalDate(headerInfo.detectedDeliveryDate), 'MMM d, yyyy')}`);
+          }
+          
+          if (customerToUse && text.length > 5) {
+            await parseConversation(text, products, customerToUse);
             setStep('review');
+          } else if (!customerToUse) {
+            toast.info('Please select a customer to continue');
           }
         } else {
           toast.info('Clipboard is empty');
@@ -347,7 +365,23 @@ export default function FnbQuickPaste() {
 
   const handleParse = async () => {
     vibrateTap();
-    if (!customerId) {
+    
+    // Try to detect customer and date from headers first
+    const headerInfo = detectHeaderInfo(conversationText, customers);
+    
+    let customerToUse = customerId;
+    if (headerInfo.detectedCustomerId && !customerId) {
+      setCustomerId(headerInfo.detectedCustomerId);
+      customerToUse = headerInfo.detectedCustomerId;
+      toast.success(`Detected customer: ${headerInfo.detectedCustomerName}`);
+    }
+    
+    if (headerInfo.detectedDeliveryDate) {
+      setDeliveryDate(headerInfo.detectedDeliveryDate);
+      toast.info(`Detected delivery date: ${format(parseLocalDate(headerInfo.detectedDeliveryDate), 'MMM d, yyyy')}`);
+    }
+    
+    if (!customerToUse) {
       toast.error('Please select a customer first');
       return;
     }
@@ -355,7 +389,7 @@ export default function FnbQuickPaste() {
       toast.error('Please paste the WhatsApp conversation');
       return;
     }
-    await parseConversation(conversationText, products, customerId);
+    await parseConversation(conversationText, products, customerToUse);
     setStep('review');
   };
 

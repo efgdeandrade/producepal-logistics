@@ -1217,6 +1217,7 @@ export type Database = {
           detected_unit: string | null
           id: string
           interpreted_text: string | null
+          is_ignored: boolean | null
           match_source: string | null
           matched_product_id: string | null
           needs_review: boolean | null
@@ -1236,6 +1237,7 @@ export type Database = {
           detected_unit?: string | null
           id?: string
           interpreted_text?: string | null
+          is_ignored?: boolean | null
           match_source?: string | null
           matched_product_id?: string | null
           needs_review?: boolean | null
@@ -1255,6 +1257,7 @@ export type Database = {
           detected_unit?: string | null
           id?: string
           interpreted_text?: string | null
+          is_ignored?: boolean | null
           match_source?: string | null
           matched_product_id?: string | null
           needs_review?: boolean | null

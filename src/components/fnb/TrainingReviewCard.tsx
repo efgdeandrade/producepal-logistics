@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Check, SkipForward, Edit2 } from "lucide-react";
+import { Check, SkipForward, Edit2, Ban } from "lucide-react";
 import { MatchLog } from "@/hooks/useAITraining";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useQuery } from "@tanstack/react-query";
@@ -15,10 +15,11 @@ interface TrainingReviewCardProps {
   onConfirm: (params: { logId: string; addAsAlias: boolean; language: string }) => void;
   onCorrect: (params: { logId: string; correctProductId: string; addAsAlias: boolean; language: string }) => void;
   onSkip: (logId: string) => void;
+  onIgnore: (logId: string) => void;
   isLoading?: boolean;
 }
 
-export function TrainingReviewCard({ log, onConfirm, onCorrect, onSkip, isLoading }: TrainingReviewCardProps) {
+export function TrainingReviewCard({ log, onConfirm, onCorrect, onSkip, onIgnore, isLoading }: TrainingReviewCardProps) {
   const [addAsAlias, setAddAsAlias] = useState(true);
   const [language, setLanguage] = useState(log.detected_language || 'pap');
   const [isEditing, setIsEditing] = useState(false);
@@ -161,6 +162,16 @@ export function TrainingReviewCard({ log, onConfirm, onCorrect, onSkip, isLoadin
               className="flex-1"
             >
               <Edit2 className="h-4 w-4 mr-1" /> Change
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={() => onIgnore(log.id)}
+              disabled={isLoading}
+              title="Mark as not a product (header, date, etc.)"
+              className="text-muted-foreground hover:text-destructive"
+            >
+              <Ban className="h-4 w-4" />
             </Button>
             <Button 
               size="sm" 

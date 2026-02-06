@@ -28,8 +28,10 @@ export default function FnbTrainingHub() {
     confirmMatch,
     correctMatch,
     skipReview,
+    ignoreLine,
     isConfirming,
     isCorrecting,
+    isIgnoring,
   } = useAITraining();
 
   // Fetch pending context words count
@@ -134,7 +136,8 @@ export default function FnbTrainingHub() {
                         onConfirm={confirmMatch}
                         onCorrect={correctMatch}
                         onSkip={skipReview}
-                        isLoading={isConfirming || isCorrecting}
+                        onIgnore={ignoreLine}
+                        isLoading={isConfirming || isCorrecting || isIgnoring}
                       />
                     ))}
                   </div>
