@@ -60,15 +60,25 @@ export const renderIsolatedCanvas = async (
     const targetWidthPx = Math.ceil(rect.width);
     const fullWidthPx = Math.ceil(clone.scrollWidth || rect.width);
 
-    // html2canvas is prone to 1–3px rounding errors on the right edge (especially with tables/inline text).
-    // Add a small safety buffer so the last column never gets clipped.
-    const safetyPx = captureFullWidth ? 6 : 0;
+    // html2canvas is prone to right-edge clipping due to sub-pixel rounding,
+    // especially when the node's width is specified in mm (mm → px produces fractional values).
+    // Strategy:
+    // 1) add a small safety buffer
+    // 2) lock the clone + wrapper to an *exact px width* right before capture
+    const safetyPx = captureFullWidth ? 16 : 0;
+
+    const captureWidthPx =
+      (captureFullWidth ? Math.max(targetWidthPx, fullWidthPx) : targetWidthPx) + safetyPx;
+
     if (captureFullWidth) {
       clone.style.paddingRight = `${safetyPx}px`;
     }
 
-    const captureWidthPx =
-      (captureFullWidth ? Math.max(targetWidthPx, fullWidthPx) : targetWidthPx) + safetyPx;
+    // Force pixel-perfect width to avoid mm rounding differences between preview vs downloaded PDF
+    wrapper.style.width = `${captureWidthPx}px`;
+    clone.style.width = `${captureWidthPx}px`;
+    clone.style.maxWidth = `${captureWidthPx}px`;
+    clone.style.minWidth = `${captureWidthPx}px`;
 
     return await html2canvas(clone, {
       scale,
