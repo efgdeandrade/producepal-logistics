@@ -176,7 +176,7 @@ export const CustomerReceipt = ({
         }
       `}</style>
       <div 
-        className={`${printClass} bg-white text-black ${isReceipt ? 'p-3' : 'p-6'} print:p-0 font-sans`}
+        className={`${printClass} bg-white text-black ${isReceipt ? 'p-3' : 'p-6'} print:p-0 font-sans box-border`}
         style={{ width: fixedWidth, margin: '0 auto' }}
       >
         {/* Company Header */}
