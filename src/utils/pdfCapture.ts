@@ -9,11 +9,18 @@ export const renderIsolatedCanvas = async (
   element: HTMLElement,
   opts: {
     widthMm: number;
+    /** If true, capture full scrollWidth then scale into the target PDF width (prevents right-edge clipping). */
+    captureFullWidth?: boolean;
     scale?: number;
     backgroundColor?: string;
   }
 ): Promise<HTMLCanvasElement> => {
-  const { widthMm, scale = 2, backgroundColor = "#ffffff" } = opts;
+  const {
+    widthMm,
+    captureFullWidth = false,
+    scale = 2,
+    backgroundColor = "#ffffff",
+  } = opts;
 
   // Clone into an isolated off-screen wrapper so we don't inherit modal transforms.
   const wrapper = document.createElement("div");
@@ -25,6 +32,7 @@ export const renderIsolatedCanvas = async (
   wrapper.style.background = backgroundColor;
   wrapper.style.transform = "none";
   wrapper.style.zIndex = "-1";
+  wrapper.style.overflow = "visible";
 
   const clone = element.cloneNode(true) as HTMLElement;
   clone.setAttribute("data-pdf-capture-node", "true");
@@ -34,6 +42,8 @@ export const renderIsolatedCanvas = async (
   clone.style.boxSizing = "border-box";
   clone.style.margin = "0";
   clone.style.transform = "none";
+  // Important: allow overflow while capturing full width, otherwise the right edge can be clipped.
+  clone.style.overflow = captureFullWidth ? "visible" : "hidden";
 
   wrapper.appendChild(clone);
   document.body.appendChild(wrapper);
@@ -48,6 +58,8 @@ export const renderIsolatedCanvas = async (
 
     const rect = clone.getBoundingClientRect();
     const targetWidthPx = Math.ceil(rect.width);
+    const fullWidthPx = Math.ceil(clone.scrollWidth || rect.width);
+    const captureWidthPx = captureFullWidth ? Math.max(targetWidthPx, fullWidthPx) : targetWidthPx;
 
     return await html2canvas(clone, {
       scale,
@@ -55,8 +67,8 @@ export const renderIsolatedCanvas = async (
       allowTaint: true,
       logging: false,
       backgroundColor,
-      width: targetWidthPx,
-      windowWidth: targetWidthPx,
+      width: captureWidthPx,
+      windowWidth: captureWidthPx,
       scrollX: 0,
       scrollY: 0,
     });
