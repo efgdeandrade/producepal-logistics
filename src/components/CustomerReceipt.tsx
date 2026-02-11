@@ -269,8 +269,8 @@ export const CustomerReceipt = ({
               const lineTotal = units * price;
 
               return (
-                <tr key={item.id} className="border-b border-black">
-                  <td className={`${isReceipt ? 'text-sm py-2 pr-1' : 'text-base py-3'}`}>
+                <tr key={item.id} className={isReceipt ? '' : 'border-b border-black'}>
+                  <td className={`${isReceipt ? 'text-sm py-3 pr-1' : 'text-base py-3'}`}>
                     <div className="font-bold leading-normal break-words">
                       {product?.name || item.product_code}
                     </div>
@@ -281,17 +281,17 @@ export const CustomerReceipt = ({
                     )}
                   </td>
                   <td
-                    className={`${isReceipt ? 'text-sm py-2 pr-1' : 'text-base py-3'} text-right font-bold whitespace-nowrap`}
+                    className={`${isReceipt ? 'text-sm py-3 pr-1' : 'text-base py-3'} text-right font-bold whitespace-nowrap`}
                   >
                     {units}
                   </td>
                   <td
-                    className={`${isReceipt ? 'text-sm py-2 pr-1' : 'text-base py-3'} text-right font-bold whitespace-nowrap ${!isReceipt ? 'border-l border-black pl-2' : ''}`}
+                    className={`${isReceipt ? 'text-sm py-3 pr-1' : 'text-base py-3'} text-right font-bold whitespace-nowrap ${!isReceipt ? 'border-l border-black pl-2' : ''}`}
                   >
                     {price.toFixed(2)}
                   </td>
                   <td
-                    className={`${isReceipt ? 'text-sm py-2' : 'text-base py-3'} text-right font-bold whitespace-nowrap ${!isReceipt ? 'border-l border-black pl-2' : ''}`}
+                    className={`${isReceipt ? 'text-sm py-3' : 'text-base py-3'} text-right font-bold whitespace-nowrap ${!isReceipt ? 'border-l border-black pl-2' : ''}`}
                   >
                     {lineTotal.toFixed(2)}
                   </td>
