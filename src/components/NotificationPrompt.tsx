@@ -82,7 +82,7 @@ export const NotificationPrompt = ({ variant = 'banner', onDismiss }: Notificati
       
       // Note: VAPID key would be needed for actual push notifications
       // This is a placeholder for the subscription flow
-      const subscription = await registration.pushManager.subscribe({
+      const subscription = await (registration as any).pushManager.subscribe({
         userVisibleOnly: true,
         // applicationServerKey would go here
       });
