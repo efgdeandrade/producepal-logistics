@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { format as formatDate } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 
 interface OrderItem {
@@ -215,13 +216,13 @@ export const CustomerReceipt = ({
         <div className={`border-b-2 border-black ${isReceipt ? 'pb-2 mb-2' : 'pb-4 mb-4'}`}>
           <h1 className={`${isReceipt ? 'text-2xl' : 'text-3xl'} font-extrabold text-center`}>RECEIPT</h1>
           <div className={`${isReceipt ? 'text-sm mt-1' : 'text-base'} font-bold leading-normal text-center`}>
-            <p>#: {receiptNumber || `${order.order_number}-${customerName.replace(/\s+/g, '-').substring(0, 8)}`} | {new Date().toLocaleDateString()}</p>
+            <p>#: {receiptNumber || `${order.order_number}-${customerName.replace(/\s+/g, '-').substring(0, 8)}`} | {formatDate(new Date(), 'd MMM yyyy')}</p>
           </div>
         </div>
 
         {/* Customer Name */}
         <div className={isReceipt ? 'mb-2' : 'mb-4'}>
-          <p className={`${isReceipt ? 'text-base' : 'text-base'} font-extrabold`}>{customerName}</p>
+          <p className={`${isReceipt ? 'text-xl' : 'text-base'} font-extrabold`}>{customerName}</p>
           {customerItems[0]?.po_number && !isReceipt && (
             <p className="text-base font-bold"><strong>PO #:</strong> {customerItems[0].po_number}</p>
           )}
@@ -234,25 +235,25 @@ export const CustomerReceipt = ({
           <thead>
             <tr className="border-b-2 border-black">
               <th
-                className={`${isReceipt ? 'text-[10px]' : 'text-base'} text-left ${isReceipt ? 'py-1 pr-1' : 'py-2'} font-extrabold`}
+                className={`${isReceipt ? 'text-[10px]' : 'text-base'} text-left ${isReceipt ? 'py-2 pr-1' : 'py-2'} font-extrabold`}
                 style={isReceipt ? { width: '48%' } : undefined}
               >
                 Product
               </th>
               <th
-                className={`${isReceipt ? 'text-[10px]' : 'text-base'} text-right ${isReceipt ? 'py-1 pr-1' : 'py-2'} font-extrabold`}
+                className={`${isReceipt ? 'text-[10px]' : 'text-base'} text-right ${isReceipt ? 'py-2 pr-1' : 'py-2'} font-extrabold`}
                 style={isReceipt ? { width: '14%' } : undefined}
               >
                 Qty
               </th>
               <th
-                className={`${isReceipt ? 'text-[10px]' : 'text-base'} text-right ${isReceipt ? 'py-1 pr-1' : 'py-2'} font-extrabold ${!isReceipt ? 'border-l border-black pl-2' : ''}`}
+                className={`${isReceipt ? 'text-[10px]' : 'text-base'} text-right ${isReceipt ? 'py-2 pr-1' : 'py-2'} font-extrabold ${!isReceipt ? 'border-l border-black pl-2' : ''}`}
                 style={isReceipt ? { width: '18%' } : undefined}
               >
                 Price
               </th>
               <th
-                className={`${isReceipt ? 'text-[10px]' : 'text-base'} text-right ${isReceipt ? 'py-1' : 'py-2'} font-extrabold ${!isReceipt ? 'border-l border-black pl-2' : ''}`}
+                className={`${isReceipt ? 'text-[10px]' : 'text-base'} text-right ${isReceipt ? 'py-2' : 'py-2'} font-extrabold ${!isReceipt ? 'border-l border-black pl-2' : ''}`}
                 style={isReceipt ? { width: '20%' } : undefined}
               >
                 {isReceipt ? 'Amt' : 'Total'}
@@ -269,7 +270,7 @@ export const CustomerReceipt = ({
 
               return (
                 <tr key={item.id} className="border-b border-black">
-                  <td className={`${isReceipt ? 'text-sm py-1 pr-1' : 'text-base py-3'}`}>
+                  <td className={`${isReceipt ? 'text-sm py-2 pr-1' : 'text-base py-3'}`}>
                     <div className="font-bold leading-normal break-words">
                       {product?.name || item.product_code}
                     </div>
@@ -280,17 +281,17 @@ export const CustomerReceipt = ({
                     )}
                   </td>
                   <td
-                    className={`${isReceipt ? 'text-sm py-1 pr-1' : 'text-base py-3'} text-right font-bold whitespace-nowrap`}
+                    className={`${isReceipt ? 'text-sm py-2 pr-1' : 'text-base py-3'} text-right font-bold whitespace-nowrap`}
                   >
                     {units}
                   </td>
                   <td
-                    className={`${isReceipt ? 'text-sm py-1 pr-1' : 'text-base py-3'} text-right font-bold whitespace-nowrap ${!isReceipt ? 'border-l border-black pl-2' : ''}`}
+                    className={`${isReceipt ? 'text-sm py-2 pr-1' : 'text-base py-3'} text-right font-bold whitespace-nowrap ${!isReceipt ? 'border-l border-black pl-2' : ''}`}
                   >
                     {price.toFixed(2)}
                   </td>
                   <td
-                    className={`${isReceipt ? 'text-sm py-1' : 'text-base py-3'} text-right font-bold whitespace-nowrap ${!isReceipt ? 'border-l border-black pl-2' : ''}`}
+                    className={`${isReceipt ? 'text-sm py-2' : 'text-base py-3'} text-right font-bold whitespace-nowrap ${!isReceipt ? 'border-l border-black pl-2' : ''}`}
                   >
                     {lineTotal.toFixed(2)}
                   </td>
@@ -302,12 +303,12 @@ export const CustomerReceipt = ({
             <tr className="border-t-2 border-black">
               <td
                 colSpan={3}
-                className={`${isReceipt ? 'text-sm py-1 pr-1' : 'text-base py-3'} font-extrabold text-right whitespace-nowrap`}
+                className={`${isReceipt ? 'text-sm py-2 pr-1' : 'text-base py-3'} font-extrabold text-right whitespace-nowrap`}
               >
                 Total:
               </td>
               <td
-                className={`${isReceipt ? 'text-sm py-1' : 'text-base py-3'} font-extrabold text-right whitespace-nowrap ${!isReceipt ? 'border-l border-black pl-2' : ''}`}
+                className={`${isReceipt ? 'text-sm py-2' : 'text-base py-3'} font-extrabold text-right whitespace-nowrap ${!isReceipt ? 'border-l border-black pl-2' : ''}`}
               >
                 Cg {calculateTotal().toFixed(2)}
               </td>
@@ -318,7 +319,7 @@ export const CustomerReceipt = ({
         {/* Signature/Stamp Box */}
         <div className={`${isReceipt ? 'mt-3' : 'mt-4'}`}>
           <div 
-            className={`border-2 border-black ${isReceipt ? 'h-28' : 'h-28'} w-full flex flex-col justify-between p-2`}
+            className={`border-2 border-black ${isReceipt ? 'h-36' : 'h-28'} w-full flex flex-col justify-between p-2`}
           >
             <p className={`${isReceipt ? 'text-xs' : 'text-sm'} font-bold text-center`}>
               SIGNATURE / STAMP
