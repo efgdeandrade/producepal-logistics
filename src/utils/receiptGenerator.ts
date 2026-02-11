@@ -81,7 +81,7 @@ export const generateReceiptPDF = async (
       // jsPDF can be finicky with custom sizes in `mm`.
       // For 80mm thermal, force `pt` with explicit pt dimensions.
       const pageWidthPt = mmToPt(pageWidthMm);
-      const marginPt = mmToPt(2); // small margins (requested)
+      const marginPt = 0; // zero margins – full 80mm width
       const imgWidthPt = pageWidthPt - marginPt * 2;
       const imgHeightPt = (canvas.height * imgWidthPt) / canvas.width;
 
@@ -184,7 +184,7 @@ export const generateMultipleReceiptsPDF = async (
 
     if (isReceipt) {
       const pageWidthPt = mmToPt(pageWidthMm);
-      const marginPt = mmToPt(2); // small margins (requested)
+      const marginPt = 0; // zero margins – full 80mm width
       const imgWidthPt = pageWidthPt - marginPt * 2;
       const imgHeightPt = (canvas.height * imgWidthPt) / canvas.width;
       const pageHeightPt = imgHeightPt + marginPt * 2;
