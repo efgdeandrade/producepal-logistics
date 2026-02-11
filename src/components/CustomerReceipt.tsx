@@ -302,13 +302,17 @@ export const CustomerReceipt = ({
           <tfoot>
             <tr className="border-t-2 border-black">
               <td
-                colSpan={3}
-                className={`${isReceipt ? 'text-sm py-2 pr-1' : 'text-base py-3'} font-extrabold text-right whitespace-nowrap`}
+                colSpan={2}
+                className={`${isReceipt ? 'text-sm py-3' : 'text-base py-3'} font-extrabold text-right whitespace-nowrap`}
+              >
+              </td>
+              <td
+                className={`${isReceipt ? 'text-sm py-3 pr-1' : 'text-base py-3'} font-extrabold text-right whitespace-nowrap`}
               >
                 Total:
               </td>
               <td
-                className={`${isReceipt ? 'text-sm py-2' : 'text-base py-3'} font-extrabold text-right whitespace-nowrap ${!isReceipt ? 'border-l border-black pl-2' : ''}`}
+                className={`${isReceipt ? 'text-sm py-3' : 'text-base py-3'} font-extrabold text-right whitespace-nowrap ${!isReceipt ? 'border-l border-black pl-2' : ''}`}
               >
                 Cg {calculateTotal().toFixed(2)}
               </td>
