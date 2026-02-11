@@ -302,11 +302,7 @@ export const CustomerReceipt = ({
           <tfoot>
             <tr className="border-t-2 border-black">
               <td
-                colSpan={2}
-                className={`${isReceipt ? 'text-sm py-3' : 'text-base py-3'} font-extrabold text-right whitespace-nowrap`}
-              >
-              </td>
-              <td
+                colSpan={3}
                 className={`${isReceipt ? 'text-sm py-3 pr-1' : 'text-base py-3'} font-extrabold text-right whitespace-nowrap`}
               >
                 Total:
