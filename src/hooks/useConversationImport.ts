@@ -283,6 +283,8 @@ export function useConversationImport() {
       new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*(${unitPattern})\\s+(.+)`, 'i'),
       // Pattern 1b: "dos kaha orange" - word number + unit + product
       new RegExp(`(${Object.keys(numberWords).join('|')})\\s+(${unitPattern})\\s+(.+)`, 'i'),
+      // Pattern 1c: "orange 15 kg", "tomaat 3 pcs" - product + number + unit
+      new RegExp(`^([a-zA-ZÀ-ÿ][\\w\\sÀ-ÿ-]+?)\\s+(\\d+(?:[.,]\\d+)?)\\s*(${unitPattern})\\s*$`, 'i'),
       // Pattern 2: "tomaat - 5 kg" - product + separator + number + unit
       new RegExp(`(.+?)\\s*[-:]\\s*(\\d+(?:[.,]\\d+)?)\\s*(${unitPattern})?`, 'i'),
       // Pattern 3: "5 x tomaat" - number x product
@@ -318,20 +320,35 @@ export function useConversationImport() {
           
           if (!isNaN(qty) && qty > 0) {
             // Determine product and unit from matched groups
-            const possibleUnit = match[2]?.toLowerCase();
-            const isUnit = new RegExp(`^(${unitPattern})$`, 'i').test(possibleUnit);
+            // Pattern 1c has format: product(1), qty(2), unit(3)
+            const isPattern1c = pattern.source.startsWith('^([a-zA-Z');
             
-            const product = isUnit 
-              ? (match[3]?.trim() || trimmed)
-              : (match[2]?.trim() || trimmed);
-            
-            items.push({
-              raw_text: trimmed,
-              interpreted_product: product,
-              quantity: qty,
-              unit: isUnit ? possibleUnit : 'pcs',
-              confidence: 'medium'
-            });
+            if (isPattern1c) {
+              // "orange 15 kg" → product=match[1], qty=match[2], unit=match[3]
+              const unitStr = match[3]?.toLowerCase() || 'pcs';
+              items.push({
+                raw_text: trimmed,
+                interpreted_product: match[1].trim(),
+                quantity: qty,
+                unit: unitStr,
+                confidence: 'medium'
+              });
+            } else {
+              const possibleUnit = match[2]?.toLowerCase();
+              const isUnit = new RegExp(`^(${unitPattern})$`, 'i').test(possibleUnit);
+              
+              const product = isUnit 
+                ? (match[3]?.trim() || trimmed)
+                : (match[2]?.trim() || trimmed);
+              
+              items.push({
+                raw_text: trimmed,
+                interpreted_product: product,
+                quantity: qty,
+                unit: isUnit ? possibleUnit : 'pcs',
+                confidence: 'medium'
+              });
+            }
             matched = true;
             break;
           }
