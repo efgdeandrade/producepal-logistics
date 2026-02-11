@@ -62,7 +62,7 @@ export function usePushNotifications() {
         // Subscribe to push - use a placeholder VAPID key
         // In production, this should come from server/secrets
         try {
-          const sub = await registration.pushManager.subscribe({
+          const sub = await (registration as any).pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(
               'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U'
@@ -122,7 +122,7 @@ export function usePushNotifications() {
 
       try {
         const registration = await navigator.serviceWorker.ready;
-        const sub = await registration.pushManager.getSubscription();
+        const sub = await (registration as any).pushManager.getSubscription();
         setSubscription(sub);
       } catch (error) {
         console.error('Failed to check subscription:', error);
