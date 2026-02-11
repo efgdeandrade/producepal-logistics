@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
+
 import { Plus, Trash2, Save, Printer, X, ArrowLeft, FileText, Settings, Package } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate, useParams, Link } from 'react-router-dom';
@@ -49,11 +49,13 @@ interface OrderProduct {
   packSize: number;
   trays: number;
   units: number;
+  stockTrays: number;
+  stockUnits: number;
   salePriceXcg: number | null;
   defaultPriceXcg: number | null;
-  isFromStock: boolean;
+  isFromStock: boolean; // computed: true when trays=0 and stockTrays>0
   lastEditedField: 'trays' | 'units' | null;
-  unitsQuantity: number | null; // explicit units from DB when user edits units directly
+  unitsQuantity: number | null;
 }
 
 interface CustomerOrderItem {
@@ -154,17 +156,24 @@ const NewOrder = () => {
           
           if (!product) return;
           
+          const stockQty = (item as any).stock_quantity ?? 0;
+          const isStock = item.is_from_stock ?? false;
+          // Backward compat: old pure-stock items have is_from_stock=true but no stock_quantity
+          const effectiveOrderTrays = (isStock && stockQty === 0) ? 0 : item.quantity;
+          const effectiveStockTrays = (isStock && stockQty === 0) ? item.quantity : stockQty;
           const orderProduct: OrderProduct = {
             id: Date.now().toString() + Math.random(),
             productId: product.id,
             productCode: product.code,
             productName: product.name,
             packSize: product.pack_size,
-            trays: item.quantity,
-            units: item.units_quantity ?? (item.quantity * product.pack_size),
+            trays: effectiveOrderTrays,
+            units: effectiveOrderTrays * product.pack_size,
+            stockTrays: effectiveStockTrays,
+            stockUnits: effectiveStockTrays * product.pack_size,
             salePriceXcg: item.sale_price_xcg ?? null,
             defaultPriceXcg: product.wholesale_price_xcg_per_unit ?? product.retail_price_xcg_per_unit ?? null,
-            isFromStock: item.is_from_stock ?? false,
+            isFromStock: effectiveOrderTrays === 0 && effectiveStockTrays > 0,
             lastEditedField: item.units_quantity ? 'units' : null,
             unitsQuantity: item.units_quantity ?? null,
           };
@@ -254,6 +263,8 @@ const NewOrder = () => {
           packSize: product.pack_size,
           trays: 0,
           units: 0,
+          stockTrays: 0,
+          stockUnits: 0,
           salePriceXcg: defaultPrice ?? null,
           defaultPriceXcg: defaultPrice ?? null,
           isFromStock: false,
@@ -294,7 +305,7 @@ const NewOrder = () => {
             ...co,
             products: co.products.map(p =>
               p.id === productId 
-                ? { ...p, trays, units: trays * p.packSize, lastEditedField: 'trays' as const, unitsQuantity: null }
+                ? { ...p, trays, units: trays * p.packSize, lastEditedField: 'trays' as const, unitsQuantity: null, isFromStock: trays === 0 && p.stockTrays > 0 }
                 : p
             )
           }
@@ -350,6 +361,8 @@ const NewOrder = () => {
           packSize: product?.pack_size || 1,
           trays: p.quantity,
           units: p.quantity * (product?.pack_size || 1),
+          stockTrays: 0,
+          stockUnits: 0,
           salePriceXcg: defaultPrice ?? null,
           defaultPriceXcg: defaultPrice ?? null,
           isFromStock: false,
@@ -408,14 +421,19 @@ const NewOrder = () => {
     return Array.from(productMap.values()).sort((a, b) => a.product.name.localeCompare(b.product.name));
   };
 
-  const updateProductFromStock = (customerId: string, productId: string, isFromStock: boolean) => {
+  const updateProductStockTrays = (customerId: string, productId: string, stockTrays: number) => {
     setCustomerOrders(customerOrders.map(co => 
       co.id === customerId 
         ? {
             ...co,
             products: co.products.map(p =>
               p.id === productId 
-                ? { ...p, isFromStock }
+                ? { 
+                    ...p, 
+                    stockTrays, 
+                    stockUnits: stockTrays * p.packSize,
+                    isFromStock: p.trays === 0 && stockTrays > 0,
+                  }
                 : p
             )
           }
@@ -425,7 +443,7 @@ const NewOrder = () => {
 
   const getInStockItemsCount = () => {
     return customerOrders.reduce((count, co) => 
-      count + co.products.filter(p => p.isFromStock).length, 0
+      count + co.products.filter(p => p.stockTrays > 0).length, 0
     );
   };
 
@@ -581,7 +599,8 @@ const NewOrder = () => {
             quantity: p.trays,
             units_quantity: p.lastEditedField === 'units' ? p.units : null,
             sale_price_xcg: p.salePriceXcg,
-            is_from_stock: p.isFromStock,
+            is_from_stock: p.trays === 0 && p.stockTrays > 0,
+            stock_quantity: p.stockTrays || 0,
             po_number: null,
             customer_notes: co.notes || null,
           }))
@@ -621,7 +640,8 @@ const NewOrder = () => {
             quantity: p.trays,
             units_quantity: p.lastEditedField === 'units' ? p.units : null,
             sale_price_xcg: p.salePriceXcg,
-            is_from_stock: p.isFromStock,
+            is_from_stock: p.trays === 0 && p.stockTrays > 0,
+            stock_quantity: p.stockTrays || 0,
             po_number: null,
             customer_notes: co.notes || null,
           }))
@@ -897,32 +917,33 @@ const NewOrder = () => {
                       <thead>
                         <tr className="border-b">
                           <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Product</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Trays/Cases</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Order Qty</th>
                           <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Units</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Stock Qty</th>
                           <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Price (XCG)</th>
                           <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Total</th>
                           <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Pack Size</th>
-                          <th className="text-center py-3 px-4 text-sm font-semibold text-foreground">In Stock</th>
                           <th className="w-12"></th>
                         </tr>
                       </thead>
                       <tbody>
                         {customerOrder.products.map((product) => {
                           const isCustomPrice = product.salePriceXcg !== product.defaultPriceXcg && product.salePriceXcg !== null;
-                          const lineTotal = (product.trays || 0) * (product.salePriceXcg || 0);
+                          const totalTrays = product.trays + product.stockTrays;
+                          const lineTotal = totalTrays * (product.salePriceXcg || 0);
                           
                           return (
                             <tr 
                               key={product.id} 
-                              className={`border-b ${product.isFromStock ? 'bg-green-50 dark:bg-green-950/20' : ''}`}
+                              className={`border-b ${product.stockTrays > 0 ? 'bg-green-50 dark:bg-green-950/20' : ''}`}
                             >
                               <td className="py-3 px-4 text-sm text-foreground">
                                 <div className="flex items-center gap-2">
                                   {product.productName}
-                                  {product.isFromStock && (
+                                  {product.stockTrays > 0 && (
                                     <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300">
                                       <Package className="h-3 w-3" />
-                                      Stock
+                                      +{product.stockTrays} stock
                                     </span>
                                   )}
                                 </div>
@@ -934,6 +955,7 @@ const NewOrder = () => {
                                   value={product.trays || ''}
                                   onChange={(e) => updateProductTrays(customerOrder.id, product.id, parseInt(e.target.value) || 0)}
                                   className="w-24 ml-auto"
+                                  title="Quantity to order from supplier"
                                 />
                               </td>
                               <td className="py-3 px-4">
@@ -943,6 +965,16 @@ const NewOrder = () => {
                                   value={product.units || ''}
                                   onChange={(e) => updateProductUnits(customerOrder.id, product.id, parseInt(e.target.value) || 0)}
                                   className="w-24 ml-auto"
+                                />
+                              </td>
+                              <td className="py-3 px-4">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={product.stockTrays || ''}
+                                  onChange={(e) => updateProductStockTrays(customerOrder.id, product.id, parseInt(e.target.value) || 0)}
+                                  className="w-24 ml-auto"
+                                  title="Quantity already in stock (included on receipt, excluded from supplier PO)"
                                 />
                               </td>
                               <td className="py-3 px-4">
@@ -960,13 +992,6 @@ const NewOrder = () => {
                                 {lineTotal > 0 ? lineTotal.toFixed(2) : '-'}
                               </td>
                               <td className="py-3 px-4 text-right text-sm text-muted-foreground">{product.packSize}</td>
-                              <td className="py-3 px-4 text-center">
-                                <Checkbox
-                                  checked={product.isFromStock}
-                                  onCheckedChange={(checked) => updateProductFromStock(customerOrder.id, product.id, !!checked)}
-                                  title="Check if this item is from existing stock (won't be ordered from supplier)"
-                                />
-                              </td>
                               <td className="py-3 px-4">
                                 <Button
                                   variant="ghost"

@@ -9,6 +9,7 @@ interface OrderItem {
   quantity: number;
   po_number?: string;
   customer_notes?: string;
+  stock_quantity?: number | null;
 }
 
 interface Order {
@@ -151,12 +152,13 @@ export const CustomerPackingSlip = ({ order, orderItems, format }: Props) => {
               <tr className="border-t-4 border-black">
                 <td className={`${textSize} font-extrabold py-2`}>Total</td>
                 <td className={`${textSize} font-extrabold text-right py-2`}>
-                  {items.reduce((sum, item) => sum + item.quantity, 0)}
+                  {items.reduce((sum, item) => sum + item.quantity + (item.stock_quantity ?? 0), 0)}
                 </td>
                 <td className={`${textSize} font-extrabold text-right py-2`}>
                   {items.reduce((sum, item) => {
                     const product = getProductInfo(item.product_code);
-                    return sum + (product ? item.quantity * product.pack_size : 0);
+                    const totalQty = item.quantity + (item.stock_quantity ?? 0);
+                    return sum + (product ? totalQty * product.pack_size : 0);
                   }, 0)}
                 </td>
               </tr>

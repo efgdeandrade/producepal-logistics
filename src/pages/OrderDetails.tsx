@@ -55,6 +55,7 @@ interface OrderItem {
   po_number?: string;
   is_from_stock?: boolean;
   sale_price_xcg?: number | null;
+  stock_quantity?: number | null;
 }
 
 interface Order {
@@ -322,6 +323,7 @@ const OrderDetails = () => {
           po_number: item.po_number ?? null,
           sale_price_xcg: item.sale_price_xcg ?? null,
           is_from_stock: item.is_from_stock ?? false,
+          stock_quantity: (item as any).stock_quantity ?? 0,
         }));
         
         const { error: itemsError } = await supabase
@@ -1299,7 +1301,14 @@ const OrderDetails = () => {
                           {items.map((item) => (
                             <div key={item.id} className="flex justify-between text-sm">
                               <span className="text-muted-foreground">{item.product_code}</span>
-                              <span className="font-medium">{item.quantity} trays</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{item.quantity} trays</span>
+                                {(item.stock_quantity ?? 0) > 0 && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300">
+                                    +{item.stock_quantity} stock
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           ))}
                         </div>

@@ -8,6 +8,7 @@ interface OrderItem {
   quantity: number;
   po_number?: string;
   sale_price_xcg?: number | null;
+  stock_quantity?: number | null;
 }
 
 interface Order {
@@ -124,7 +125,8 @@ export const CustomerReceipt = ({
       const product = getProductInfo(item.product_code);
       const price = item.sale_price_xcg ?? product?.wholesale_price_xcg_per_unit ?? 0;
       if (!price) return sum;
-      const units = item.quantity * (product?.pack_size || 1);
+      const totalQty = item.quantity + (item.stock_quantity ?? 0);
+      const units = totalQty * (product?.pack_size || 1);
       return sum + (units * price);
     }, 0);
   }, [customerItems, getProductInfo]);
@@ -260,7 +262,8 @@ export const CustomerReceipt = ({
           <tbody>
             {customerItems.map((item) => {
               const product = getProductInfo(item.product_code);
-              const units = product ? item.quantity * product.pack_size : item.quantity;
+              const totalQty = item.quantity + (item.stock_quantity ?? 0);
+              const units = product ? totalQty * product.pack_size : totalQty;
               const price = item.sale_price_xcg ?? product?.wholesale_price_xcg_per_unit ?? 0;
               const lineTotal = units * price;
 
@@ -272,7 +275,7 @@ export const CustomerReceipt = ({
                     </div>
                     {!isReceipt && (
                       <div className="text-xs font-medium mt-0.5">
-                        {item.quantity}×{product?.pack_size}
+                        {totalQty}×{product?.pack_size}
                       </div>
                     )}
                   </td>
