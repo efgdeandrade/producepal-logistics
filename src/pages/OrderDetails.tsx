@@ -261,22 +261,30 @@ const OrderDetails = () => {
     }
   };
 
+  const [isDuplicating, setIsDuplicating] = useState(false);
+
   const handleDuplicateOrder = async () => {
-    if (!order) return;
+    if (!order || isDuplicating) return;
+    setIsDuplicating(true);
     
     try {
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        toast.error('You must be logged in to duplicate an order');
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .maybeSingle();
+
       // Generate new order number
       const now = new Date();
       const newOrderNumber = `ORD-${now.getTime()}`;
       const weekNumber = Math.ceil((now.getDate() + new Date(now.getFullYear(), now.getMonth(), 1).getDay()) / 7);
-      
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', user?.id)
-        .single();
       
       // Create new order
       const { data: newOrder, error: orderError } = await supabase
@@ -284,40 +292,56 @@ const OrderDetails = () => {
         .insert({
           order_number: newOrderNumber,
           week_number: weekNumber,
-          delivery_date: now.toISOString().split('T')[0],
-          placed_by: profile?.full_name || user?.email || 'Unknown',
-          user_id: user?.id,
+          delivery_date: order.delivery_date,
+          placed_by: profile?.full_name || user.email || 'Unknown',
+          user_id: user.id,
           status: 'pending',
           notes: `Duplicated from ${order.order_number}`
         })
         .select()
         .single();
       
-      if (orderError) throw orderError;
+      if (orderError) {
+        console.error('Order insert error:', orderError);
+        throw orderError;
+      }
+
+      if (!newOrder) {
+        throw new Error('Failed to create new order - no data returned');
+      }
       
-      // Duplicate order items (excluding IDs)
-      const itemsToInsert = orderItems.map(item => ({
-        order_id: newOrder.id,
-        customer_name: item.customer_name,
-        product_code: item.product_code,
-        quantity: item.quantity,
-        units_quantity: item.units_quantity,
-        po_number: item.po_number,
-        sale_price_xcg: item.sale_price_xcg,
-        is_from_stock: item.is_from_stock,
-      }));
+      // Duplicate order items
+      if (orderItems.length > 0) {
+        const itemsToInsert = orderItems.map(item => ({
+          order_id: newOrder.id,
+          customer_name: item.customer_name,
+          product_code: item.product_code,
+          quantity: item.quantity,
+          units_quantity: item.units_quantity ?? null,
+          po_number: item.po_number ?? null,
+          sale_price_xcg: item.sale_price_xcg ?? null,
+          is_from_stock: item.is_from_stock ?? false,
+        }));
+        
+        const { error: itemsError } = await supabase
+          .from('order_items')
+          .insert(itemsToInsert);
+        
+        if (itemsError) {
+          console.error('Order items insert error:', itemsError);
+          // Clean up the created order if items fail
+          await supabase.from('orders').delete().eq('id', newOrder.id);
+          throw itemsError;
+        }
+      }
       
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(itemsToInsert);
-      
-      if (itemsError) throw itemsError;
-      
-      toast.success('Order duplicated successfully');
+      toast.success(`Order duplicated as ${newOrderNumber}`);
       navigate(`/import/orders/${newOrder.id}`);
     } catch (error: any) {
       console.error('Error duplicating order:', error);
-      toast.error('Failed to duplicate order');
+      toast.error(`Failed to duplicate order: ${error.message || 'Unknown error'}`);
+    } finally {
+      setIsDuplicating(false);
     }
   };
 
@@ -1044,9 +1068,9 @@ const OrderDetails = () => {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={handleDuplicateOrder}>
+                          <DropdownMenuItem onClick={handleDuplicateOrder} disabled={isDuplicating}>
                             <Copy className="mr-2 h-4 w-4" />
-                            Duplicate Order
+                            {isDuplicating ? 'Duplicating...' : 'Duplicate Order'}
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={handleCreateTemplate}>
                             <LayoutTemplate className="mr-2 h-4 w-4" />
