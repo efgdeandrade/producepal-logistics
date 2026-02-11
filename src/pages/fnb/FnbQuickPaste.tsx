@@ -523,7 +523,7 @@ export default function FnbQuickPaste() {
   const selectedCustomer = customers.find(c => c.id === customerId);
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background flex flex-col">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden overflow-y-auto bg-background flex flex-col" style={{ maxWidth: '100vw' }}>
       {/* Header */}
       <header className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b px-4 py-3 safe-area-top">
         <div className="flex items-center gap-3">
@@ -552,7 +552,7 @@ export default function FnbQuickPaste() {
       </header>
 
       {/* Main Content - Scrollable */}
-      <main className="flex-1 overflow-y-auto pb-safe">
+      <main className="flex-1 overflow-y-auto overflow-x-hidden pb-safe">
         {/* Auto-parsing loading overlay */}
         {isAutoParsingRef && (
           <div className="absolute inset-0 z-50 bg-background/95 flex flex-col items-center justify-center gap-4">
@@ -714,7 +714,7 @@ export default function FnbQuickPaste() {
 
         {/* STEP 2: Review - Vertical stacked cards */}
         {step === 'review' && (
-          <div className="flex flex-col h-full overflow-hidden">
+          <div className="flex flex-col h-full overflow-x-hidden overflow-y-hidden">
             {/* Order Summary - Sticky */}
             <div className="sticky top-0 z-10 bg-background border-b px-4 py-4 space-y-2">
               <Card className="overflow-hidden">
@@ -815,7 +815,7 @@ export default function FnbQuickPaste() {
 
             {/* Items List - Scrollable, vertical only */}
             <ScrollArea className="flex-1">
-              <div className="space-y-4 py-4 px-2 sm:px-4 max-w-full overflow-hidden">
+              <div className="space-y-4 py-4 px-2 sm:px-4 w-full max-w-full overflow-x-hidden box-border">
                 {matchedItems.map((item, index) => (
                   <MobileProductCard
                     key={index}
