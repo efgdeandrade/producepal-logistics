@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ResponsiveSearchableSelect } from '@/components/ui/responsive-searchable-select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MobileQuantityInput } from './MobileQuantityInput';
 import { cn } from '@/lib/utils';
 
@@ -17,6 +18,22 @@ interface Product {
   unit: string;
 }
 
+const UNIT_OPTIONS = [
+  { value: 'pcs', label: 'Pieces' },
+  { value: 'kg', label: 'Kg' },
+  { value: 'g', label: 'Grams' },
+  { value: 'lb', label: 'Lb' },
+  { value: 'oz', label: 'Oz' },
+  { value: 'case', label: 'Case' },
+  { value: 'tros', label: 'Tros' },
+  { value: 'bag', label: 'Bag' },
+  { value: 'pack', label: 'Pack' },
+  { value: 'dozen', label: 'Dozen' },
+  { value: 'bottle', label: 'Bottle' },
+  { value: 'tin', label: 'Tin' },
+  { value: 'tray', label: 'Tray' },
+];
+
 interface MobileProductCardProps {
   rawText: string;
   quantity: number;
@@ -26,6 +43,7 @@ interface MobileProductCardProps {
   suggestedPrice: number | null;
   products: Product[];
   onQuantityChange: (quantity: number) => void;
+  onUnitChange?: (unit: string) => void;
   onProductChange: (productId: string, productName: string | null, price: number | null) => void;
   onRemove: () => void;
   className?: string;
@@ -40,6 +58,7 @@ export function MobileProductCard({
   suggestedPrice,
   products,
   onQuantityChange,
+  onUnitChange,
   onProductChange,
   onRemove,
   className
@@ -84,14 +103,12 @@ export function MobileProductCard({
   return (
     <Card className={cn(
       "relative overflow-hidden transition-colors w-full",
-      "max-w-full",
       !matchedProductId && "border-amber-300 bg-amber-50/30 dark:bg-amber-950/20",
       className
     )}>
       <CardContent className="p-4 space-y-4">
         {/* Header: Raw text + Remove button, Badge below */}
         <div className="space-y-2">
-          {/* First row: Raw text + Delete button */}
           <div className="flex items-start justify-between gap-2">
             <p className="text-sm text-muted-foreground italic line-clamp-2 flex-1 min-w-0 break-words">
               "{rawText}"
@@ -106,24 +123,40 @@ export function MobileProductCard({
             </Button>
           </div>
           
-          {/* Second row: Confidence badge */}
           <div className="flex">
             {getConfidenceBadge()}
           </div>
         </div>
 
-        {/* Quantity - Full width stepper */}
-        <div className="space-y-2">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Quantity
-          </label>
-          <MobileQuantityInput
-            value={quantity}
-            onChange={onQuantityChange}
-            unit={unit}
-            step={unit === 'kg' || unit === 'lb' ? 0.5 : 1}
-            min={0}
-          />
+        {/* Quantity + Unit row */}
+        <div className="flex gap-3 items-end">
+          <div className="flex-1 space-y-2">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Quantity
+            </label>
+            <MobileQuantityInput
+              value={quantity}
+              onChange={onQuantityChange}
+              unit={unit}
+              step={unit === 'kg' || unit === 'lb' || unit === 'g' ? 0.5 : 1}
+              min={0}
+            />
+          </div>
+          <div className="w-[100px] space-y-2">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Unit
+            </label>
+            <Select value={unit} onValueChange={(val) => onUnitChange?.(val)}>
+              <SelectTrigger className="h-10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-background z-50">
+                {UNIT_OPTIONS.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Product Selector - Full width */}

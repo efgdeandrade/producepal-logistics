@@ -714,7 +714,7 @@ export default function FnbQuickPaste() {
 
         {/* STEP 2: Review - Vertical stacked cards */}
         {step === 'review' && (
-          <div className="flex flex-col h-full">
+          <div className="flex flex-col h-full overflow-hidden">
             {/* Order Summary - Sticky */}
             <div className="sticky top-0 z-10 bg-background border-b px-4 py-4 space-y-2">
               <Card className="overflow-hidden">
@@ -815,7 +815,7 @@ export default function FnbQuickPaste() {
 
             {/* Items List - Scrollable, vertical only */}
             <ScrollArea className="flex-1">
-              <div className="space-y-4 py-4 px-4">
+              <div className="space-y-4 py-4 px-2 sm:px-4 max-w-full overflow-hidden">
                 {matchedItems.map((item, index) => (
                   <MobileProductCard
                     key={index}
@@ -827,6 +827,7 @@ export default function FnbQuickPaste() {
                     suggestedPrice={item.suggested_price}
                     products={products}
                     onQuantityChange={(qty) => updateMatchedItem(index, { quantity: qty })}
+                    onUnitChange={(unit) => updateMatchedItem(index, { unit })}
                     onProductChange={(id, name, price) => updateMatchedItem(index, {
                       matched_product_id: id,
                       matched_product_name: name,
