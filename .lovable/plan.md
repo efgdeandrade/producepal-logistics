@@ -1,34 +1,37 @@
 
 
-## Receipt Layout Improvements (80mm Thermal) - Extra Large Fonts
+## Receipt Fine-Tuning (80mm Thermal Format)
 
-Three changes to the thermal receipt format only (A4 unchanged):
+Four targeted changes in `src/components/CustomerReceipt.tsx`, affecting only the thermal receipt format:
 
-### 1. Font Sizes - Bumped Two Steps Up from Current
+### 1. Date Format: "10 Feb 2026"
+- Currently uses `new Date().toLocaleDateString()` which outputs locale-dependent format
+- Change to use `format(new Date(), 'd MMM yyyy')` from the already-installed `date-fns` library
+- This gives the exact format: `10 Feb 2026`
 
-| Element | Current | Proposed |
-|---|---|---|
-| Logo height | h-8 | h-12 |
-| Company name | text-sm | text-xl |
-| Company details | text-[10px] | text-sm |
-| "RECEIPT" title | text-base | text-2xl |
-| Receipt number/date | text-[10px] | text-sm |
-| Customer name | text-xs | text-base |
-| Table headers | text-[10px] | text-sm |
-| Table cells | text-[10px] | text-sm |
-| Signature label | text-[9px] | text-xs |
-| Signature footer | text-[8px] | text-[10px] |
+### 2. Larger Customer Name
+- Current: `text-base` (16px)
+- Change to: `text-xl` (20px) with extra bold weight
+- Makes the customer name clearly stand out on the receipt
 
-### 2. Zero Side Margins
-- Container padding: `p-3` changes to `py-3 px-0`
-- PDF generator margin: 2mm changes to 0mm
+### 3. More Vertical Space Between Items
+- Current table row padding: `py-1` (4px top/bottom)
+- Change to: `py-2` (8px top/bottom) for all table cells in the receipt format
+- Doubles the breathing room between line items
 
-### 3. Taller Signature/Stamp Box
-- Height: `h-20` changes to `h-28`
+### 4. Taller Signature/Stamp Box
+- Current height: `h-28` (112px)
+- Change to: `h-36` (144px) -- roughly 30% taller
+
+---
 
 ### Technical Details
 
-**Files to modify:**
-- `src/components/CustomerReceipt.tsx` -- all font size increases, padding removal, signature box height
-- `src/utils/receiptGenerator.ts` -- set `marginPt` to `0` for receipt format in both single and multi-receipt code paths
+**File:** `src/components/CustomerReceipt.tsx`
 
+- Add `import { format } from 'date-fns';` at top
+- Line 218: Replace `new Date().toLocaleDateString()` with `format(new Date(), 'd MMM yyyy')`
+- Line 224: Change `text-base` to `text-xl` for customer name in receipt mode
+- Lines 272, 283, 288, 293, 305, 310: Change `py-1` to `py-2` for receipt table rows
+- Line 237: Change header `py-1` to `py-2` as well for consistency
+- Line 321: Change `h-28` to `h-36` for the receipt signature box
