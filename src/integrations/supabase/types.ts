@@ -4585,6 +4585,7 @@ export type Database = {
           product_code: string
           quantity: number
           sale_price_xcg: number | null
+          stock_quantity: number | null
           units_quantity: number | null
         }
         Insert: {
@@ -4598,6 +4599,7 @@ export type Database = {
           product_code: string
           quantity?: number
           sale_price_xcg?: number | null
+          stock_quantity?: number | null
           units_quantity?: number | null
         }
         Update: {
@@ -4611,6 +4613,7 @@ export type Database = {
           product_code?: string
           quantity?: number
           sale_price_xcg?: number | null
+          stock_quantity?: number | null
           units_quantity?: number | null
         }
         Relationships: [
