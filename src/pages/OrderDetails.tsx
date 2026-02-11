@@ -295,7 +295,8 @@ const OrderDetails = () => {
           delivery_date: order.delivery_date,
           placed_by: profile?.full_name || user.email || 'Unknown',
           user_id: user.id,
-          status: 'pending',
+          // Orders table enforces allowed statuses via DB constraint
+          status: 'active',
           notes: `Duplicated from ${order.order_number}`
         })
         .select()
