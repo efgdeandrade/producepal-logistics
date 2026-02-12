@@ -165,24 +165,26 @@ export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
       .filter(p => p.qty_cases > 0);
   }, [orderItems]);
 
-  // Calculate CIF
-  const result = useMemo(() => {
-    if (cifProducts.length === 0) return null;
-
-    if (components.length > 0) {
-      return calculateCIF(cifProducts, components, settings);
-    }
+  // Build effective components — separate memo so we can display the breakdown
+  const effectiveComponents: CifComponent[] = useMemo(() => {
+    if (components.length > 0) return components;
+    if (cifProducts.length === 0) return [];
 
     const tempResult = calculateCIF(cifProducts, [], settings);
     const chgWt = tempResult.totals.total_chargeable_weight_kg;
-    const defaultComponents: CifComponent[] = [
-      { component_type: 'champion', label: 'Champion', status: 'received', currency: 'USD', amount: settings.champion_cost_per_kg * chgWt, allocation_basis: 'chargeable_weight' },
-      { component_type: 'swissport', label: 'Swissport', status: 'pending', currency: 'USD', amount: settings.swissport_cost_per_kg * chgWt, allocation_basis: 'chargeable_weight' },
-      { component_type: 'bank_charges', label: 'Bank Charges', status: 'received', currency: 'USD', amount: settings.bank_charges_usd, allocation_basis: 'value' },
-      { component_type: 'handling_terminal', label: 'Local Logistics', status: 'received', currency: 'XCG', amount: settings.local_logistics_xcg, allocation_basis: 'cases' },
+    return [
+      { component_type: 'champion', label: 'Champion', status: 'received' as const, currency: 'USD' as const, amount: settings.champion_cost_per_kg * chgWt, allocation_basis: 'chargeable_weight' as const },
+      { component_type: 'swissport', label: 'Swissport', status: 'pending' as const, currency: 'USD' as const, amount: settings.swissport_cost_per_kg * chgWt, allocation_basis: 'chargeable_weight' as const },
+      { component_type: 'bank_charges', label: 'Bank Charges', status: 'received' as const, currency: 'USD' as const, amount: settings.bank_charges_usd, allocation_basis: 'value' as const },
+      { component_type: 'handling_terminal', label: 'Local Logistics', status: 'received' as const, currency: 'XCG' as const, amount: settings.local_logistics_xcg, allocation_basis: 'cases' as const },
     ];
-    return calculateCIF(cifProducts, defaultComponents, settings);
   }, [cifProducts, components, settings]);
+
+  // Calculate CIF
+  const result = useMemo(() => {
+    if (cifProducts.length === 0) return null;
+    return calculateCIF(cifProducts, effectiveComponents, settings);
+  }, [cifProducts, effectiveComponents, settings]);
 
   const pendingCount = components.filter(c => c.status === 'pending').length;
   const isFinal = versionType === 'actual' && components.length > 0 && components.every(c => c.status === 'approved');
@@ -499,6 +501,30 @@ export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
               </div>
             </Card>
           </div>
+
+          {/* Shared Costs Breakdown */}
+          <Card className="p-3">
+            <div className="text-xs font-semibold text-muted-foreground mb-2">Shared Costs Breakdown</div>
+            <div className="space-y-1">
+              {effectiveComponents.map((comp, i) => {
+                const amountUsd = comp.currency === 'XCG' ? comp.amount / settings.fx_rate_usd_to_xcg : comp.amount;
+                const displayAmount = currencyView === 'usd' ? formatUSD(amountUsd) : formatXCG(amountUsd * settings.fx_rate_usd_to_xcg);
+                return (
+                  <div key={i} className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      {comp.label || comp.component_type}
+                      <span className="text-xs ml-1 opacity-60">({comp.allocation_basis.replace('_', ' ')})</span>
+                    </span>
+                    <span className="font-medium">{displayAmount}</span>
+                  </div>
+                );
+              })}
+              <div className="flex justify-between text-sm font-bold border-t pt-1 mt-1">
+                <span>Total Shared</span>
+                <span>{currencyView === 'usd' ? formatUSD(result.total_shared_costs_usd) : formatXCG(result.total_shared_costs_usd * settings.fx_rate_usd_to_xcg)}</span>
+              </div>
+            </div>
+          </Card>
 
           {/* Allocation Table */}
           <Card>
