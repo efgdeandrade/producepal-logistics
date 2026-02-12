@@ -167,7 +167,6 @@ export default function ImportCIFBackfill() {
           const cifProducts: CifProduct[] = items.map(item => {
             const prod = prodMap.get(item.product_code);
             const packSize = prod?.pack_size || 1;
-            const weightPerUnitKg = (Number(prod?.weight) || 0) / 1000;
             
             // Supplier cost priority: line > product price_usd_per_unit * pack > price_usd > 0
             let costPerCase = item.supplier_cost_usd_per_case != null ? Number(item.supplier_cost_usd_per_case) : 0;
@@ -184,7 +183,7 @@ export default function ImportCIFBackfill() {
               product_name: prod?.name || item.product_code,
               qty_cases: item.quantity,
               case_pack: packSize,
-              weight_case_kg: weightPerUnitKg * packSize,
+              weight_case_kg: (Number(prod?.weight) || 0) / 1000,
               length_cm: Number(prod?.length_cm) || 0,
               width_cm: Number(prod?.width_cm) || 0,
               height_cm: Number(prod?.height_cm) || 0,

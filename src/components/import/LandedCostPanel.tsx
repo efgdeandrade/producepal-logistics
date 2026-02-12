@@ -148,14 +148,13 @@ export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
     return Array.from(grouped.entries())
       .map(([code, { totalQty, prod, costPerCase }]) => {
         const packSize = prod?.pack_size || 1;
-        const weightPerUnitKg = (Number(prod?.weight) || 0) / 1000;
         return {
           product_id: prod?.id || '',
           product_code: code,
           product_name: prod?.name || code,
           qty_cases: totalQty,
           case_pack: packSize,
-          weight_case_kg: weightPerUnitKg * packSize,
+          weight_case_kg: (Number(prod?.weight) || 0) / 1000,
           length_cm: Number(prod?.length_cm) || 0,
           width_cm: Number(prod?.width_cm) || 0,
           height_cm: Number(prod?.height_cm) || 0,
