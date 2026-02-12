@@ -53,6 +53,7 @@ import ImportBills from "./pages/import/ImportBills";
 import ImportShipments from "./pages/import/ImportShipments";
 import ImportDocuments from "./pages/import/ImportDocuments";
 import ImportAnalytics from "./pages/import/ImportAnalytics";
+import ImportCIFCalculator from "./pages/import/ImportCIFCalculator";
 
 // Distribution Department
 import DistributionDashboard from "./pages/DistributionDashboard";
@@ -284,6 +285,7 @@ const App = () => (
                   <Route path="/import/shipments" element={<ProtectedImport><ImportShipments /></ProtectedImport>} />
                   <Route path="/import/documents" element={<ProtectedImport><ImportDocuments /></ProtectedImport>} />
                   <Route path="/import/analytics" element={<ProtectedImport><ImportAnalytics /></ProtectedImport>} />
+                  <Route path="/import/cif-calculator" element={<ProtectedImport><ImportCIFCalculator /></ProtectedImport>} />
                   <Route path="/import/email-templates" element={<ProtectedImport><ImportEmailTemplates /></ProtectedImport>} />
 
                   {/* ========== DISTRIBUTION PORTAL ========== */}

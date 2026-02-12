@@ -47,6 +47,7 @@ const importNavItems: PortalNavItem[] = [
   { path: '/import/shipments', label: 'Shipment Tracking', icon: Truck },
   { path: '/import/documents', label: 'Documents', icon: FolderOpen },
   { path: '/import/analytics', label: 'Analytics', icon: BarChart3 },
+  { path: '/import/cif-calculator', label: 'CIF Calculator', icon: Calculator },
   { path: '/import/standing-orders', label: 'Order Templates', icon: FileText },
   { path: '/import/email-templates', label: 'Email Templates', icon: Mail },
   { path: '/import/ai-learning', label: 'AI Learning', icon: Brain },
