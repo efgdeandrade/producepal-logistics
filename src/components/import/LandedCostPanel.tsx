@@ -110,13 +110,15 @@ export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
     return s;
   }, [globalSettings]);
 
-  // Build products from order items
+  // Build products from order items — consolidate lines with the same product_code
   const cifProducts: CifProduct[] = useMemo(() => {
     if (!orderItems) return [];
-    return orderItems.map(item => {
+
+    const grouped = new Map<string, { totalQty: number; prod: any; costPerCase: number }>();
+
+    for (const item of orderItems) {
       const prod = item.products as any;
       const packSize = prod?.pack_size || 1;
-      const weightPerUnitKg = (Number(prod?.weight) || 0) / 1000;
 
       // Supplier cost priority: line > product price_usd_per_unit * pack > price_usd > 0
       let costPerCase = item.supplier_cost_usd_per_case != null ? Number(item.supplier_cost_usd_per_case) : 0;
@@ -127,19 +129,40 @@ export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
         costPerCase = Number(prod.price_usd);
       }
 
-      return {
-        product_id: prod?.id || '',
-        product_code: item.product_code,
-        product_name: prod?.name || item.product_code,
-        qty_cases: item.quantity || 0,
-        case_pack: packSize,
-        weight_case_kg: weightPerUnitKg * packSize,
-        length_cm: Number(prod?.length_cm) || 0,
-        width_cm: Number(prod?.width_cm) || 0,
-        height_cm: Number(prod?.height_cm) || 0,
-        supplier_cost_usd_per_case: costPerCase,
-      };
-    }).filter(p => p.qty_cases > 0);
+      const existing = grouped.get(item.product_code);
+      if (existing) {
+        existing.totalQty += (item.quantity || 0);
+        // Keep the first non-zero cost found
+        if (existing.costPerCase <= 0 && costPerCase > 0) {
+          existing.costPerCase = costPerCase;
+        }
+      } else {
+        grouped.set(item.product_code, {
+          totalQty: item.quantity || 0,
+          prod,
+          costPerCase,
+        });
+      }
+    }
+
+    return Array.from(grouped.entries())
+      .map(([code, { totalQty, prod, costPerCase }]) => {
+        const packSize = prod?.pack_size || 1;
+        const weightPerUnitKg = (Number(prod?.weight) || 0) / 1000;
+        return {
+          product_id: prod?.id || '',
+          product_code: code,
+          product_name: prod?.name || code,
+          qty_cases: totalQty,
+          case_pack: packSize,
+          weight_case_kg: weightPerUnitKg * packSize,
+          length_cm: Number(prod?.length_cm) || 0,
+          width_cm: Number(prod?.width_cm) || 0,
+          height_cm: Number(prod?.height_cm) || 0,
+          supplier_cost_usd_per_case: costPerCase,
+        };
+      })
+      .filter(p => p.qty_cases > 0);
   }, [orderItems]);
 
   // Calculate CIF
