@@ -33,12 +33,12 @@ import { ImportAIInsightsPanel } from "@/components/import/ImportAIInsightsPanel
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', '#82ca9d', '#ffc658', '#8884d8'];
 
 export default function ImportAnalytics() {
-  // Fetch CIF calculations for analytics
-  const { data: cifCalculations } = useQuery({
+  // Fetch CIF versions for analytics
+  const { data: cifVersions } = useQuery({
     queryKey: ["import-analytics-cif"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("cif_calculations")
+        .from("cif_versions")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(200);
@@ -75,20 +75,17 @@ export default function ImportAnalytics() {
 
   // Calculate stats
   const stats = useMemo(() => ({
-    totalCIF: cifCalculations?.length || 0,
-    avgExchangeRate: cifCalculations?.length 
-      ? (cifCalculations.reduce((sum, c) => sum + (c.exchange_rate || 0), 0) / cifCalculations.length).toFixed(2)
+    totalCIF: cifVersions?.length || 0,
+    avgExchangeRate: cifVersions?.length 
+      ? (cifVersions.reduce((sum, c) => sum + (c.fx_rate_usd_to_xcg || 0), 0) / cifVersions.length).toFixed(2)
       : "0.00",
     totalSuppliers: suppliers?.length || 0,
     totalBillsAmount: bills?.reduce((sum, b) => sum + (b.amount || 0), 0) || 0,
-    avgChargeableWeight: cifCalculations?.length
-      ? (cifCalculations.reduce((sum, c) => sum + (c.total_chargeable_weight || 0), 0) / cifCalculations.length).toFixed(1)
-      : "0",
-  }), [cifCalculations, suppliers, bills]);
+  }), [cifVersions, suppliers, bills]);
 
-  // Monthly calculation trend (real data)
+  // Monthly CIF trend
   const monthlyData = useMemo(() => {
-    if (!cifCalculations) return [];
+    if (!cifVersions) return [];
     
     const last6Months = Array.from({ length: 6 }, (_, i) => {
       const date = subMonths(new Date(), 5 - i);
@@ -96,80 +93,56 @@ export default function ImportAnalytics() {
         month: format(date, 'MMM'),
         start: startOfMonth(date),
         end: endOfMonth(date),
-        calculations: 0,
-        freightCost: 0,
+        estimates: 0,
+        actuals: 0,
       };
     });
 
-    cifCalculations.forEach(calc => {
-      const calcDate = new Date(calc.created_at);
-      const monthData = last6Months.find(m => 
-        calcDate >= m.start && calcDate <= m.end
-      );
+    cifVersions.forEach(ver => {
+      const verDate = new Date(ver.created_at);
+      const monthData = last6Months.find(m => verDate >= m.start && verDate <= m.end);
       if (monthData) {
-        monthData.calculations++;
-        // Extract freight cost from results if available
-        const results = calc.results as any;
-        if (results?.byCost) {
-          results.byCost.forEach((r: any) => {
-            monthData.freightCost += (r.freightCost || 0);
-          });
-        }
+        if (ver.version_type === 'estimate') monthData.estimates++;
+        else monthData.actuals++;
       }
     });
 
     return last6Months.map(m => ({
       month: m.month,
-      calculations: m.calculations,
-      freightCost: Math.round(m.freightCost),
+      estimates: m.estimates,
+      actuals: m.actuals,
     }));
-  }, [cifCalculations]);
+  }, [cifVersions]);
 
   // CIF by type distribution
   const typeChartData = useMemo(() => {
-    if (!cifCalculations) return [];
+    if (!cifVersions) return [];
     
-    const cifByType = cifCalculations.reduce((acc, calc) => {
-      const type = calc.calculation_type || 'unknown';
+    const byType = cifVersions.reduce((acc, ver) => {
+      const type = ver.version_type || 'unknown';
       acc[type] = (acc[type] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    return Object.entries(cifByType).map(([name, value]) => ({
+    return Object.entries(byType).map(([name, value]) => ({
       name: name.charAt(0).toUpperCase() + name.slice(1),
       value,
     }));
-  }, [cifCalculations]);
-
-  // Distribution method usage
-  const methodChartData = useMemo(() => {
-    if (!cifCalculations) return [];
-    
-    const methodCounts = cifCalculations.reduce((acc, calc) => {
-      const method = calc.selected_distribution_method || 'not_selected';
-      acc[method] = (acc[method] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    return Object.entries(methodCounts).map(([name, value]) => ({
-      name: name.replace(/_/g, ' ').charAt(0).toUpperCase() + name.replace(/_/g, ' ').slice(1),
-      value,
-    }));
-  }, [cifCalculations]);
+  }, [cifVersions]);
 
   // Exchange rate trend
   const exchangeRateTrend = useMemo(() => {
-    if (!cifCalculations) return [];
+    if (!cifVersions) return [];
     
-    const sorted = [...cifCalculations]
+    const sorted = [...cifVersions]
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
       .slice(-20);
     
-    return sorted.map(calc => ({
-      date: format(new Date(calc.created_at), 'MMM d'),
-      rate: calc.exchange_rate,
+    return sorted.map(ver => ({
+      date: format(new Date(ver.created_at), 'MMM d'),
+      rate: ver.fx_rate_usd_to_xcg,
     }));
-  }, [cifCalculations]);
+  }, [cifVersions]);
 
   // Supplier spending from bills
   const supplierSpending = useMemo(() => {
@@ -200,10 +173,10 @@ export default function ImportAnalytics() {
       <ImportAIInsightsPanel />
 
       {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">CIF Calculations</CardTitle>
+            <CardTitle className="text-sm font-medium">CIF Versions</CardTitle>
             <Calculator className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -243,16 +216,6 @@ export default function ImportAnalytics() {
             <p className="text-xs text-muted-foreground">expenses tracked</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Weight</CardTitle>
-            <Scale className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.avgChargeableWeight}</div>
-            <p className="text-xs text-muted-foreground">kg per calculation</p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Charts Row 1 */}
@@ -261,7 +224,7 @@ export default function ImportAnalytics() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5" />
-              Monthly Calculations & Freight
+              Monthly CIF Versions
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -269,12 +232,11 @@ export default function ImportAnalytics() {
               <BarChart data={monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="month" className="text-xs" />
-                <YAxis yAxisId="left" className="text-xs" />
-                <YAxis yAxisId="right" orientation="right" className="text-xs" />
+                <YAxis className="text-xs" />
                 <Tooltip />
                 <Legend />
-                <Bar yAxisId="left" dataKey="calculations" name="Calculations" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                <Bar yAxisId="right" dataKey="freightCost" name="Freight ($)" fill="hsl(var(--secondary))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="estimates" name="Estimates" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="actuals" name="Actuals" fill="hsl(var(--secondary))" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -314,12 +276,12 @@ export default function ImportAnalytics() {
       </div>
 
       {/* Charts Row 2 */}
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Percent className="h-5 w-5" />
-              Calculations by Type
+              CIF by Type
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -337,42 +299,6 @@ export default function ImportAnalytics() {
                     dataKey="value"
                   >
                     {typeChartData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-[250px] flex items-center justify-center text-muted-foreground">
-                No data available
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              Distribution Methods
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {methodChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={methodChartData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {methodChartData.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>

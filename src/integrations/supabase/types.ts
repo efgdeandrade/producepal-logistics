@@ -263,569 +263,533 @@ export type Database = {
           },
         ]
       }
-      cif_allocation_decisions: {
+      cif_allocations: {
         Row: {
-          actual_profit_xcg: number | null
-          ai_reasoning: Json | null
-          chosen_method: string
-          confidence_level: string | null
-          created_at: string
-          decision_date: string
-          id: string
-          market_context: Json | null
-          order_id: string | null
-          predicted_profit_xcg: number | null
-          recommended_method: string
-          strategic_insights: Json | null
-          total_cost_usd: number | null
-          total_freight_usd: number | null
-          total_products: number
-          total_weight_kg: number | null
-          updated_at: string
-        }
-        Insert: {
-          actual_profit_xcg?: number | null
-          ai_reasoning?: Json | null
-          chosen_method: string
-          confidence_level?: string | null
-          created_at?: string
-          decision_date?: string
-          id?: string
-          market_context?: Json | null
-          order_id?: string | null
-          predicted_profit_xcg?: number | null
-          recommended_method: string
-          strategic_insights?: Json | null
-          total_cost_usd?: number | null
-          total_freight_usd?: number | null
-          total_products: number
-          total_weight_kg?: number | null
-          updated_at?: string
-        }
-        Update: {
-          actual_profit_xcg?: number | null
-          ai_reasoning?: Json | null
-          chosen_method?: string
-          confidence_level?: string | null
-          created_at?: string
-          decision_date?: string
-          id?: string
-          market_context?: Json | null
-          order_id?: string | null
-          predicted_profit_xcg?: number | null
-          recommended_method?: string
-          strategic_insights?: Json | null
-          total_cost_usd?: number | null
-          total_freight_usd?: number | null
-          total_products?: number
-          total_weight_kg?: number | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "cif_allocation_decisions_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      cif_anomalies: {
-        Row: {
-          actual_cif_xcg: number
-          anomaly_type: string
-          created_at: string
-          estimated_cif_xcg: number
-          excluded_from_learning: boolean
-          id: string
-          order_id: string
-          product_code: string
-          review_notes: string | null
-          reviewed: boolean
-          reviewed_at: string | null
-          reviewed_by: string | null
-          severity: string
-          supplier_id: string | null
-          variance_percentage: number
-        }
-        Insert: {
-          actual_cif_xcg: number
-          anomaly_type: string
-          created_at?: string
-          estimated_cif_xcg: number
-          excluded_from_learning?: boolean
-          id?: string
-          order_id: string
-          product_code: string
-          review_notes?: string | null
-          reviewed?: boolean
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          severity?: string
-          supplier_id?: string | null
-          variance_percentage: number
-        }
-        Update: {
-          actual_cif_xcg?: number
-          anomaly_type?: string
-          created_at?: string
-          estimated_cif_xcg?: number
-          excluded_from_learning?: boolean
-          id?: string
-          order_id?: string
-          product_code?: string
-          review_notes?: string | null
-          reviewed?: boolean
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          severity?: string
-          supplier_id?: string | null
-          variance_percentage?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "cif_anomalies_supplier_id_fkey"
-            columns: ["supplier_id"]
-            isOneToOne: false
-            referencedRelation: "suppliers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      cif_audit_log: {
-        Row: {
-          blend_ratio: number | null
-          calculation_timestamp: string
-          calculation_type: string
-          created_at: string
-          created_by: string | null
-          distribution_method: string
-          exchange_rate_used: number
-          id: string
-          learning_adjustments_applied: Json | null
-          order_id: string
-          products_input: Json
-          products_output: Json
-          total_freight_usd: number
-          validation_messages: Json | null
-          validation_status: string
-        }
-        Insert: {
-          blend_ratio?: number | null
-          calculation_timestamp?: string
-          calculation_type: string
-          created_at?: string
-          created_by?: string | null
-          distribution_method: string
-          exchange_rate_used: number
-          id?: string
-          learning_adjustments_applied?: Json | null
-          order_id: string
-          products_input: Json
-          products_output: Json
-          total_freight_usd: number
-          validation_messages?: Json | null
-          validation_status?: string
-        }
-        Update: {
-          blend_ratio?: number | null
-          calculation_timestamp?: string
-          calculation_type?: string
-          created_at?: string
-          created_by?: string | null
-          distribution_method?: string
-          exchange_rate_used?: number
-          id?: string
-          learning_adjustments_applied?: Json | null
-          order_id?: string
-          products_input?: Json
-          products_output?: Json
-          total_freight_usd?: number
-          validation_messages?: Json | null
-          validation_status?: string
-        }
-        Relationships: []
-      }
-      cif_calculation_snapshots: {
-        Row: {
-          ai_adjustments_applied: Json | null
-          bank_charges_usd: number | null
-          blend_ratio: number | null
-          created_at: string | null
-          created_by: string | null
-          distribution_method: string | null
-          exchange_rate: number | null
-          freight_exterior_usd: number | null
-          freight_local_usd: number | null
-          id: string
-          labor_xcg: number | null
-          local_logistics_usd: number | null
-          notes: string | null
-          order_id: string | null
-          other_costs_usd: number | null
-          products_data: Json
-          snapshot_type: string
-          supplier_fixed_costs_usd: number | null
-          total_actual_weight_kg: number | null
-          total_chargeable_weight_kg: number | null
-          total_freight_usd: number | null
-          total_volumetric_weight_kg: number | null
-        }
-        Insert: {
-          ai_adjustments_applied?: Json | null
-          bank_charges_usd?: number | null
-          blend_ratio?: number | null
-          created_at?: string | null
-          created_by?: string | null
-          distribution_method?: string | null
-          exchange_rate?: number | null
-          freight_exterior_usd?: number | null
-          freight_local_usd?: number | null
-          id?: string
-          labor_xcg?: number | null
-          local_logistics_usd?: number | null
-          notes?: string | null
-          order_id?: string | null
-          other_costs_usd?: number | null
-          products_data?: Json
-          snapshot_type: string
-          supplier_fixed_costs_usd?: number | null
-          total_actual_weight_kg?: number | null
-          total_chargeable_weight_kg?: number | null
-          total_freight_usd?: number | null
-          total_volumetric_weight_kg?: number | null
-        }
-        Update: {
-          ai_adjustments_applied?: Json | null
-          bank_charges_usd?: number | null
-          blend_ratio?: number | null
-          created_at?: string | null
-          created_by?: string | null
-          distribution_method?: string | null
-          exchange_rate?: number | null
-          freight_exterior_usd?: number | null
-          freight_local_usd?: number | null
-          id?: string
-          labor_xcg?: number | null
-          local_logistics_usd?: number | null
-          notes?: string | null
-          order_id?: string | null
-          other_costs_usd?: number | null
-          products_data?: Json
-          snapshot_type?: string
-          supplier_fixed_costs_usd?: number | null
-          total_actual_weight_kg?: number | null
-          total_chargeable_weight_kg?: number | null
-          total_freight_usd?: number | null
-          total_volumetric_weight_kg?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "cif_calculation_snapshots_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      cif_calculations: {
-        Row: {
-          bank_charges_usd: number | null
-          calculation_name: string
-          calculation_type: string
-          created_at: string
-          created_by: string
-          exchange_rate: number
-          freight_champion_cost: number | null
-          freight_exterior_per_kg: number
-          freight_local_per_kg: number
-          id: string
-          labor_xcg: number | null
-          limiting_factor: string | null
-          local_logistics_usd: number | null
-          notes: string | null
-          products: Json
-          results: Json
-          selected_distribution_method: string | null
-          swissport_cost: number | null
-          total_chargeable_weight: number | null
-          total_pallets: number | null
-          updated_at: string
-        }
-        Insert: {
-          bank_charges_usd?: number | null
-          calculation_name: string
-          calculation_type: string
-          created_at?: string
-          created_by: string
-          exchange_rate: number
-          freight_champion_cost?: number | null
-          freight_exterior_per_kg: number
-          freight_local_per_kg: number
-          id?: string
-          labor_xcg?: number | null
-          limiting_factor?: string | null
-          local_logistics_usd?: number | null
-          notes?: string | null
-          products: Json
-          results: Json
-          selected_distribution_method?: string | null
-          swissport_cost?: number | null
-          total_chargeable_weight?: number | null
-          total_pallets?: number | null
-          updated_at?: string
-        }
-        Update: {
-          bank_charges_usd?: number | null
-          calculation_name?: string
-          calculation_type?: string
-          created_at?: string
-          created_by?: string
-          exchange_rate?: number
-          freight_champion_cost?: number | null
-          freight_exterior_per_kg?: number
-          freight_local_per_kg?: number
-          id?: string
-          labor_xcg?: number | null
-          limiting_factor?: string | null
-          local_logistics_usd?: number | null
-          notes?: string | null
-          products?: Json
-          results?: Json
-          selected_distribution_method?: string | null
-          swissport_cost?: number | null
-          total_chargeable_weight?: number | null
-          total_pallets?: number | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      cif_estimates: {
-        Row: {
-          actual_bank_charges_usd: number | null
-          actual_cif_xcg: number | null
-          actual_freight_exterior_usd: number | null
-          actual_freight_local_usd: number | null
-          actual_labor_xcg: number | null
-          actual_other_costs_usd: number | null
-          actual_total_freight_usd: number | null
           actual_weight_kg: number
+          allocated_costs_json: Json | null
+          allocated_shared_costs_usd: number
+          allocated_shared_costs_xcg: number
           chargeable_weight_kg: number
-          created_at: string | null
-          estimated_bank_charges_usd: number | null
-          estimated_cif_xcg: number | null
-          estimated_date: string | null
-          estimated_freight_exterior_usd: number | null
-          estimated_freight_local_usd: number | null
-          estimated_labor_xcg: number | null
-          estimated_other_costs_usd: number | null
-          estimated_supplier_fixed_costs_usd: number | null
-          estimated_total_freight_usd: number | null
+          cif_version_id: string
+          created_at: string
           id: string
-          order_id: string | null
-          pallet_utilization_percentage: number | null
-          pallets_used: number | null
+          landed_cost_per_case_usd: number | null
+          landed_cost_per_case_xcg: number | null
+          landed_cost_per_kg_usd: number | null
+          landed_cost_per_kg_xcg: number | null
+          landed_cost_per_piece_usd: number | null
+          landed_cost_per_piece_xcg: number | null
+          landed_total_usd: number
+          landed_total_xcg: number
           product_code: string
-          supplier_fixed_costs_usd: number | null
-          updated_at: string | null
-          variance_amount_usd: number | null
-          variance_percentage: number | null
+          product_id: string | null
+          qty_cases: number
+          qty_pieces: number
+          spoilage_usd: number
+          supplier_cost_usd: number
+          supplier_cost_usd_per_case: number
+          supplier_cost_xcg: number
           volumetric_weight_kg: number
-          weight_type_used: string | null
         }
         Insert: {
-          actual_bank_charges_usd?: number | null
-          actual_cif_xcg?: number | null
-          actual_freight_exterior_usd?: number | null
-          actual_freight_local_usd?: number | null
-          actual_labor_xcg?: number | null
-          actual_other_costs_usd?: number | null
-          actual_total_freight_usd?: number | null
-          actual_weight_kg: number
-          chargeable_weight_kg: number
-          created_at?: string | null
-          estimated_bank_charges_usd?: number | null
-          estimated_cif_xcg?: number | null
-          estimated_date?: string | null
-          estimated_freight_exterior_usd?: number | null
-          estimated_freight_local_usd?: number | null
-          estimated_labor_xcg?: number | null
-          estimated_other_costs_usd?: number | null
-          estimated_supplier_fixed_costs_usd?: number | null
-          estimated_total_freight_usd?: number | null
-          id?: string
-          order_id?: string | null
-          pallet_utilization_percentage?: number | null
-          pallets_used?: number | null
-          product_code: string
-          supplier_fixed_costs_usd?: number | null
-          updated_at?: string | null
-          variance_amount_usd?: number | null
-          variance_percentage?: number | null
-          volumetric_weight_kg: number
-          weight_type_used?: string | null
-        }
-        Update: {
-          actual_bank_charges_usd?: number | null
-          actual_cif_xcg?: number | null
-          actual_freight_exterior_usd?: number | null
-          actual_freight_local_usd?: number | null
-          actual_labor_xcg?: number | null
-          actual_other_costs_usd?: number | null
-          actual_total_freight_usd?: number | null
           actual_weight_kg?: number
+          allocated_costs_json?: Json | null
+          allocated_shared_costs_usd?: number
+          allocated_shared_costs_xcg?: number
           chargeable_weight_kg?: number
-          created_at?: string | null
-          estimated_bank_charges_usd?: number | null
-          estimated_cif_xcg?: number | null
-          estimated_date?: string | null
-          estimated_freight_exterior_usd?: number | null
-          estimated_freight_local_usd?: number | null
-          estimated_labor_xcg?: number | null
-          estimated_other_costs_usd?: number | null
-          estimated_supplier_fixed_costs_usd?: number | null
-          estimated_total_freight_usd?: number | null
+          cif_version_id: string
+          created_at?: string
           id?: string
-          order_id?: string | null
-          pallet_utilization_percentage?: number | null
-          pallets_used?: number | null
-          product_code?: string
-          supplier_fixed_costs_usd?: number | null
-          updated_at?: string | null
-          variance_amount_usd?: number | null
-          variance_percentage?: number | null
+          landed_cost_per_case_usd?: number | null
+          landed_cost_per_case_xcg?: number | null
+          landed_cost_per_kg_usd?: number | null
+          landed_cost_per_kg_xcg?: number | null
+          landed_cost_per_piece_usd?: number | null
+          landed_cost_per_piece_xcg?: number | null
+          landed_total_usd?: number
+          landed_total_xcg?: number
+          product_code: string
+          product_id?: string | null
+          qty_cases?: number
+          qty_pieces?: number
+          spoilage_usd?: number
+          supplier_cost_usd?: number
+          supplier_cost_usd_per_case?: number
+          supplier_cost_xcg?: number
           volumetric_weight_kg?: number
-          weight_type_used?: string | null
+        }
+        Update: {
+          actual_weight_kg?: number
+          allocated_costs_json?: Json | null
+          allocated_shared_costs_usd?: number
+          allocated_shared_costs_xcg?: number
+          chargeable_weight_kg?: number
+          cif_version_id?: string
+          created_at?: string
+          id?: string
+          landed_cost_per_case_usd?: number | null
+          landed_cost_per_case_xcg?: number | null
+          landed_cost_per_kg_usd?: number | null
+          landed_cost_per_kg_xcg?: number | null
+          landed_cost_per_piece_usd?: number | null
+          landed_cost_per_piece_xcg?: number | null
+          landed_total_usd?: number
+          landed_total_xcg?: number
+          product_code?: string
+          product_id?: string | null
+          qty_cases?: number
+          qty_pieces?: number
+          spoilage_usd?: number
+          supplier_cost_usd?: number
+          supplier_cost_usd_per_case?: number
+          supplier_cost_xcg?: number
+          volumetric_weight_kg?: number
         }
         Relationships: [
           {
-            foreignKeyName: "cif_estimates_order_id_fkey"
-            columns: ["order_id"]
+            foreignKeyName: "cif_allocations_cif_version_id_fkey"
+            columns: ["cif_version_id"]
+            isOneToOne: false
+            referencedRelation: "cif_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cif_allocations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cif_asycuda_records: {
+        Row: {
+          clearance_date: string | null
+          created_at: string
+          declaration_date: string | null
+          declaration_no: string | null
+          duties_amount: number | null
+          id: string
+          import_order_id: string
+          notes: string | null
+          taxes_amount: number | null
+          updated_at: string
+        }
+        Insert: {
+          clearance_date?: string | null
+          created_at?: string
+          declaration_date?: string | null
+          declaration_no?: string | null
+          duties_amount?: number | null
+          id?: string
+          import_order_id: string
+          notes?: string | null
+          taxes_amount?: number | null
+          updated_at?: string
+        }
+        Update: {
+          clearance_date?: string | null
+          created_at?: string
+          declaration_date?: string | null
+          declaration_no?: string | null
+          duties_amount?: number | null
+          id?: string
+          import_order_id?: string
+          notes?: string | null
+          taxes_amount?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cif_asycuda_records_import_order_id_fkey"
+            columns: ["import_order_id"]
             isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
       }
-      cif_learning_patterns: {
+      cif_change_log: {
         Row: {
-          adjustment_factor: number | null
-          avg_variance_percentage: number | null
-          confidence_score: number | null
-          created_at: string | null
+          action: string
+          changed_at: string
+          changed_by: string | null
           id: string
-          last_calculated: string | null
-          pattern_key: string
-          pattern_type: string
-          sample_size: number | null
-          season_quarter: number | null
-          std_deviation: number | null
-          supplier_id: string | null
-          updated_at: string | null
+          new_data: Json | null
+          old_data: Json | null
+          record_id: string
+          table_name: string
         }
         Insert: {
-          adjustment_factor?: number | null
-          avg_variance_percentage?: number | null
-          confidence_score?: number | null
-          created_at?: string | null
+          action: string
+          changed_at?: string
+          changed_by?: string | null
           id?: string
-          last_calculated?: string | null
-          pattern_key: string
-          pattern_type: string
-          sample_size?: number | null
-          season_quarter?: number | null
-          std_deviation?: number | null
-          supplier_id?: string | null
-          updated_at?: string | null
+          new_data?: Json | null
+          old_data?: Json | null
+          record_id: string
+          table_name: string
         }
         Update: {
-          adjustment_factor?: number | null
-          avg_variance_percentage?: number | null
-          confidence_score?: number | null
-          created_at?: string | null
+          action?: string
+          changed_at?: string
+          changed_by?: string | null
           id?: string
-          last_calculated?: string | null
-          pattern_key?: string
-          pattern_type?: string
-          sample_size?: number | null
-          season_quarter?: number | null
-          std_deviation?: number | null
-          supplier_id?: string | null
-          updated_at?: string | null
+          new_data?: Json | null
+          old_data?: Json | null
+          record_id?: string
+          table_name?: string
+        }
+        Relationships: []
+      }
+      cif_components: {
+        Row: {
+          allocation_basis: string
+          amount: number
+          amount_usd: number
+          approved_at: string | null
+          approved_by: string | null
+          cif_version_id: string
+          component_type: string
+          created_at: string
+          currency: string
+          id: string
+          label: string | null
+          notes: string | null
+          source_document_id: string | null
+          status: string
+        }
+        Insert: {
+          allocation_basis?: string
+          amount?: number
+          amount_usd?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          cif_version_id: string
+          component_type: string
+          created_at?: string
+          currency?: string
+          id?: string
+          label?: string | null
+          notes?: string | null
+          source_document_id?: string | null
+          status?: string
+        }
+        Update: {
+          allocation_basis?: string
+          amount?: number
+          amount_usd?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          cif_version_id?: string
+          component_type?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          label?: string | null
+          notes?: string | null
+          source_document_id?: string | null
+          status?: string
         }
         Relationships: [
           {
-            foreignKeyName: "cif_learning_patterns_supplier_id_fkey"
-            columns: ["supplier_id"]
+            foreignKeyName: "cif_components_cif_version_id_fkey"
+            columns: ["cif_version_id"]
             isOneToOne: false
-            referencedRelation: "suppliers"
+            referencedRelation: "cif_versions"
             referencedColumns: ["id"]
           },
         ]
       }
-      cif_product_performance: {
+      cif_documents: {
         Row: {
-          actual_margin_xcg: number | null
-          allocation_method: string
-          cif_per_unit_xcg: number | null
-          competitive_gap_percentage: number | null
+          approved_at: string | null
+          approved_by: string | null
+          cif_version_id: string | null
           created_at: string
-          decision_id: string | null
-          freight_allocated_usd: number | null
+          document_type: string
+          extracted_fields_json: Json | null
+          extraction_status: string | null
           id: string
-          market_position: string | null
-          predicted_margin_percentage: number | null
-          predicted_margin_xcg: number | null
-          product_code: string
-          product_name: string
-          quantity: number
-          waste_quantity: number | null
-          wholesale_price_xcg: number | null
+          import_order_id: string | null
+          original_filename: string
+          storage_path: string
         }
         Insert: {
-          actual_margin_xcg?: number | null
-          allocation_method: string
-          cif_per_unit_xcg?: number | null
-          competitive_gap_percentage?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
+          cif_version_id?: string | null
           created_at?: string
-          decision_id?: string | null
-          freight_allocated_usd?: number | null
+          document_type: string
+          extracted_fields_json?: Json | null
+          extraction_status?: string | null
           id?: string
-          market_position?: string | null
-          predicted_margin_percentage?: number | null
-          predicted_margin_xcg?: number | null
-          product_code: string
-          product_name: string
-          quantity: number
-          waste_quantity?: number | null
-          wholesale_price_xcg?: number | null
+          import_order_id?: string | null
+          original_filename: string
+          storage_path: string
         }
         Update: {
-          actual_margin_xcg?: number | null
-          allocation_method?: string
-          cif_per_unit_xcg?: number | null
-          competitive_gap_percentage?: number | null
+          approved_at?: string | null
+          approved_by?: string | null
+          cif_version_id?: string | null
           created_at?: string
-          decision_id?: string | null
-          freight_allocated_usd?: number | null
+          document_type?: string
+          extracted_fields_json?: Json | null
+          extraction_status?: string | null
           id?: string
-          market_position?: string | null
-          predicted_margin_percentage?: number | null
-          predicted_margin_xcg?: number | null
-          product_code?: string
-          product_name?: string
-          quantity?: number
-          waste_quantity?: number | null
-          wholesale_price_xcg?: number | null
+          import_order_id?: string | null
+          original_filename?: string
+          storage_path?: string
         }
         Relationships: [
           {
-            foreignKeyName: "cif_product_performance_decision_id_fkey"
-            columns: ["decision_id"]
+            foreignKeyName: "cif_documents_cif_version_id_fkey"
+            columns: ["cif_version_id"]
             isOneToOne: false
-            referencedRelation: "cif_allocation_decisions"
+            referencedRelation: "cif_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cif_documents_import_order_id_fkey"
+            columns: ["import_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cif_drive_links: {
+        Row: {
+          created_at: string
+          google_drive_folder_id: string | null
+          google_drive_folder_url: string | null
+          id: string
+          import_order_id: string | null
+          last_synced_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          google_drive_folder_id?: string | null
+          google_drive_folder_url?: string | null
+          id?: string
+          import_order_id?: string | null
+          last_synced_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          google_drive_folder_id?: string | null
+          google_drive_folder_url?: string | null
+          id?: string
+          import_order_id?: string | null
+          last_synced_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cif_drive_links_import_order_id_fkey"
+            columns: ["import_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cif_pricing_suggestions: {
+        Row: {
+          cif_allocation_id: string
+          cif_version_id: string
+          created_at: string
+          id: string
+          product_code: string
+          retail_margin_pct: number
+          retail_price_per_case_usd: number | null
+          retail_price_per_case_xcg: number | null
+          retail_price_per_kg_usd: number | null
+          retail_price_per_kg_xcg: number | null
+          retail_price_per_piece_usd: number | null
+          retail_price_per_piece_xcg: number | null
+          wholesale_margin_pct: number
+          wholesale_price_per_case_usd: number | null
+          wholesale_price_per_case_xcg: number | null
+          wholesale_price_per_kg_usd: number | null
+          wholesale_price_per_kg_xcg: number | null
+          wholesale_price_per_piece_usd: number | null
+          wholesale_price_per_piece_xcg: number | null
+        }
+        Insert: {
+          cif_allocation_id: string
+          cif_version_id: string
+          created_at?: string
+          id?: string
+          product_code: string
+          retail_margin_pct?: number
+          retail_price_per_case_usd?: number | null
+          retail_price_per_case_xcg?: number | null
+          retail_price_per_kg_usd?: number | null
+          retail_price_per_kg_xcg?: number | null
+          retail_price_per_piece_usd?: number | null
+          retail_price_per_piece_xcg?: number | null
+          wholesale_margin_pct?: number
+          wholesale_price_per_case_usd?: number | null
+          wholesale_price_per_case_xcg?: number | null
+          wholesale_price_per_kg_usd?: number | null
+          wholesale_price_per_kg_xcg?: number | null
+          wholesale_price_per_piece_usd?: number | null
+          wholesale_price_per_piece_xcg?: number | null
+        }
+        Update: {
+          cif_allocation_id?: string
+          cif_version_id?: string
+          created_at?: string
+          id?: string
+          product_code?: string
+          retail_margin_pct?: number
+          retail_price_per_case_usd?: number | null
+          retail_price_per_case_xcg?: number | null
+          retail_price_per_kg_usd?: number | null
+          retail_price_per_kg_xcg?: number | null
+          retail_price_per_piece_usd?: number | null
+          retail_price_per_piece_xcg?: number | null
+          wholesale_margin_pct?: number
+          wholesale_price_per_case_usd?: number | null
+          wholesale_price_per_case_xcg?: number | null
+          wholesale_price_per_kg_usd?: number | null
+          wholesale_price_per_kg_xcg?: number | null
+          wholesale_price_per_piece_usd?: number | null
+          wholesale_price_per_piece_xcg?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cif_pricing_suggestions_cif_allocation_id_fkey"
+            columns: ["cif_allocation_id"]
+            isOneToOne: false
+            referencedRelation: "cif_allocations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cif_pricing_suggestions_cif_version_id_fkey"
+            columns: ["cif_version_id"]
+            isOneToOne: false
+            referencedRelation: "cif_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cif_variances: {
+        Row: {
+          actual_version_id: string | null
+          created_at: string
+          estimate_version_id: string | null
+          id: string
+          import_order_id: string | null
+          summary_notes: string | null
+          variance_json: Json
+        }
+        Insert: {
+          actual_version_id?: string | null
+          created_at?: string
+          estimate_version_id?: string | null
+          id?: string
+          import_order_id?: string | null
+          summary_notes?: string | null
+          variance_json?: Json
+        }
+        Update: {
+          actual_version_id?: string | null
+          created_at?: string
+          estimate_version_id?: string | null
+          id?: string
+          import_order_id?: string | null
+          summary_notes?: string | null
+          variance_json?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cif_variances_actual_version_id_fkey"
+            columns: ["actual_version_id"]
+            isOneToOne: false
+            referencedRelation: "cif_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cif_variances_estimate_version_id_fkey"
+            columns: ["estimate_version_id"]
+            isOneToOne: false
+            referencedRelation: "cif_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cif_variances_import_order_id_fkey"
+            columns: ["import_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cif_versions: {
+        Row: {
+          ai_notes: string | null
+          allocation_method_default: string
+          bank_charges_usd: number
+          champion_cost_per_kg: number
+          created_at: string
+          created_by: string | null
+          fx_rate_usd_to_xcg: number
+          id: string
+          import_order_id: string | null
+          is_final: boolean
+          local_logistics_xcg: number
+          spoilage_mode: string
+          spoilage_pct: number
+          swissport_cost_per_kg: number
+          totals_json: Json | null
+          version_no: number
+          version_type: string
+        }
+        Insert: {
+          ai_notes?: string | null
+          allocation_method_default?: string
+          bank_charges_usd?: number
+          champion_cost_per_kg?: number
+          created_at?: string
+          created_by?: string | null
+          fx_rate_usd_to_xcg?: number
+          id?: string
+          import_order_id?: string | null
+          is_final?: boolean
+          local_logistics_xcg?: number
+          spoilage_mode?: string
+          spoilage_pct?: number
+          swissport_cost_per_kg?: number
+          totals_json?: Json | null
+          version_no?: number
+          version_type: string
+        }
+        Update: {
+          ai_notes?: string | null
+          allocation_method_default?: string
+          bank_charges_usd?: number
+          champion_cost_per_kg?: number
+          created_at?: string
+          created_by?: string | null
+          fx_rate_usd_to_xcg?: number
+          id?: string
+          import_order_id?: string | null
+          is_final?: boolean
+          local_logistics_xcg?: number
+          spoilage_mode?: string
+          spoilage_pct?: number
+          swissport_cost_per_kg?: number
+          totals_json?: Json | null
+          version_no?: number
+          version_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cif_versions_import_order_id_fkey"
+            columns: ["import_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
@@ -4630,10 +4594,12 @@ export type Database = {
         Row: {
           created_at: string
           delivery_date: string
+          fx_rate_usd_to_xcg_snapshot: number | null
           id: string
           notes: string | null
           order_number: string
           placed_by: string
+          settings_overrides_json: Json | null
           status: string
           updated_at: string
           user_id: string | null
@@ -4642,10 +4608,12 @@ export type Database = {
         Insert: {
           created_at?: string
           delivery_date: string
+          fx_rate_usd_to_xcg_snapshot?: number | null
           id?: string
           notes?: string | null
           order_number: string
           placed_by: string
+          settings_overrides_json?: Json | null
           status?: string
           updated_at?: string
           user_id?: string | null
@@ -4654,10 +4622,12 @@ export type Database = {
         Update: {
           created_at?: string
           delivery_date?: string
+          fx_rate_usd_to_xcg_snapshot?: number | null
           id?: string
           notes?: string | null
           order_number?: string
           placed_by?: string
+          settings_overrides_json?: Json | null
           status?: string
           updated_at?: string
           user_id?: string | null
@@ -5862,8 +5832,11 @@ export type Database = {
           cases_per_pallet: number | null
           contact: string | null
           created_at: string
+          currency_default: string | null
           email: string | null
           id: string
+          incoterms_default: string | null
+          lead_time_days: number | null
           name: string
           notes_pallet_config: string | null
           pallet_height_cm: number | null
@@ -5879,8 +5852,11 @@ export type Database = {
           cases_per_pallet?: number | null
           contact?: string | null
           created_at?: string
+          currency_default?: string | null
           email?: string | null
           id?: string
+          incoterms_default?: string | null
+          lead_time_days?: number | null
           name: string
           notes_pallet_config?: string | null
           pallet_height_cm?: number | null
@@ -5896,8 +5872,11 @@ export type Database = {
           cases_per_pallet?: number | null
           contact?: string | null
           created_at?: string
+          currency_default?: string | null
           email?: string | null
           id?: string
+          incoterms_default?: string | null
+          lead_time_days?: number | null
           name?: string
           notes_pallet_config?: string | null
           pallet_height_cm?: number | null
@@ -6717,6 +6696,8 @@ export type Database = {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"][]
       }
+      has_cif_edit_role: { Args: { _user_id: string }; Returns: boolean }
+      has_cif_view_role: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -6747,6 +6728,9 @@ export type Database = {
         | "manager"
         | "hr"
         | "interim"
+        | "import"
+        | "finance"
+        | "sales"
       customer_type: "regular" | "supermarket" | "cod" | "credit"
       payment_method_type: "cash" | "swipe" | "transfer" | "credit"
     }
@@ -6886,6 +6870,9 @@ export const Constants = {
         "manager",
         "hr",
         "interim",
+        "import",
+        "finance",
+        "sales",
       ],
       customer_type: ["regular", "supermarket", "cod", "credit"],
       payment_method_type: ["cash", "swipe", "transfer", "credit"],
