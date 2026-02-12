@@ -1,43 +1,41 @@
-import { useState, useEffect, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useState, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, Save, Calculator, Plus, Trash2, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
+import { Calculator, Save, FileText, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   type CifProduct,
   type CifComponent,
   type CifSettings,
-  type AllocationBasis,
   DEFAULT_CIF_SETTINGS,
-  DEFAULT_ALLOCATION_BASIS,
-  COMPONENT_TYPES,
   calculateCIF,
   formatUSD,
   formatXCG,
 } from "@/lib/cifEngine";
+import { CifComponentManager } from "./CifComponentManager";
+import { CifDocumentUpload } from "./CifDocumentUpload";
 
 interface LandedCostPanelProps {
   orderId: string;
 }
 
 type UnitView = 'piece' | 'case' | 'kg';
+type VersionType = 'estimate' | 'actual';
 
 export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
   const queryClient = useQueryClient();
   const [unitView, setUnitView] = useState<UnitView>('piece');
-  const [showComponents, setShowComponents] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [versionType, setVersionType] = useState<VersionType>('estimate');
+  const [components, setComponents] = useState<CifComponent[]>([]);
 
-  // Fetch order items with product data
+  // Fetch order items
   const { data: orderItems } = useQuery({
     queryKey: ["order-items-cif", orderId],
     queryFn: async () => {
@@ -50,7 +48,7 @@ export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
     },
   });
 
-  // Fetch latest CIF version for this order
+  // Fetch latest CIF version
   const { data: latestVersion } = useQuery({
     queryKey: ["cif-version-latest", orderId],
     queryFn: async () => {
@@ -99,16 +97,13 @@ export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
       const prod = item.products as any;
       const packSize = prod?.pack_size || 1;
       const weightPerUnitKg = (prod?.weight || 0) / 1000;
-      const weightCaseKg = weightPerUnitKg * packSize;
-      const cases = item.quantity || 0;
-
       return {
         product_id: prod?.id || '',
         product_code: item.product_code,
         product_name: prod?.name || item.product_code,
-        qty_cases: cases,
+        qty_cases: item.quantity || 0,
         case_pack: packSize,
-        weight_case_kg: weightCaseKg,
+        weight_case_kg: weightPerUnitKg * packSize,
         length_cm: Number(prod?.length_cm) || 0,
         width_cm: Number(prod?.width_cm) || 0,
         height_cm: Number(prod?.height_cm) || 0,
@@ -117,25 +112,31 @@ export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
     }).filter(p => p.qty_cases > 0);
   }, [orderItems]);
 
-  // Calculate CIF with default components
+  // Calculate CIF
   const result = useMemo(() => {
     if (cifProducts.length === 0) return null;
-    
-    // Auto-generate default components based on shipment
+
+    // Use user-managed components if any, else auto-generate defaults for estimate
+    if (components.length > 0) {
+      return calculateCIF(cifProducts, components, settings);
+    }
+
+    // Auto-generate default for estimate preview
     const tempResult = calculateCIF(cifProducts, [], settings);
     const chgWt = tempResult.totals.total_chargeable_weight_kg;
-
     const defaultComponents: CifComponent[] = [
       { component_type: 'champion', label: 'Champion', status: 'received', currency: 'USD', amount: settings.champion_cost_per_kg * chgWt, allocation_basis: 'chargeable_weight' },
       { component_type: 'swissport', label: 'Swissport', status: 'pending', currency: 'USD', amount: settings.swissport_cost_per_kg * chgWt, allocation_basis: 'chargeable_weight' },
       { component_type: 'bank_charges', label: 'Bank Charges', status: 'received', currency: 'USD', amount: settings.bank_charges_usd, allocation_basis: 'value' },
       { component_type: 'handling_terminal', label: 'Local Logistics', status: 'received', currency: 'XCG', amount: settings.local_logistics_xcg, allocation_basis: 'cases' },
     ];
-
     return calculateCIF(cifProducts, defaultComponents, settings);
-  }, [cifProducts, settings]);
+  }, [cifProducts, components, settings]);
 
-  // Save as CIF version
+  const pendingCount = components.filter(c => c.status === 'pending').length;
+  const isFinal = versionType === 'actual' && components.length > 0 && components.every(c => c.status === 'approved');
+
+  // Save CIF version
   const handleSaveVersion = async () => {
     if (!result) return;
     setSaving(true);
@@ -147,7 +148,8 @@ export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
         .insert({
           import_order_id: orderId,
           version_no: nextVersion,
-          version_type: 'estimate',
+          version_type: versionType,
+          is_final: isFinal,
           fx_rate_usd_to_xcg: settings.fx_rate_usd_to_xcg,
           champion_cost_per_kg: settings.champion_cost_per_kg,
           swissport_cost_per_kg: settings.swissport_cost_per_kg,
@@ -157,8 +159,22 @@ export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
         })
         .select()
         .single();
-      
       if (vErr) throw vErr;
+
+      // Save components
+      if (components.length > 0) {
+        const compRows = components.map(c => ({
+          cif_version_id: version.id,
+          component_type: c.component_type,
+          label: c.label,
+          status: c.status,
+          currency: c.currency,
+          amount: c.amount,
+          amount_usd: c.currency === 'XCG' ? c.amount / settings.fx_rate_usd_to_xcg : c.amount,
+          allocation_basis: c.allocation_basis,
+        }));
+        await supabase.from("cif_components").insert(compRows);
+      }
 
       // Save allocations
       const allocRows = result.allocations.map(a => ({
@@ -186,18 +202,68 @@ export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
         landed_cost_per_kg_usd: a.landed_cost_per_kg_usd,
         landed_cost_per_kg_xcg: a.landed_cost_per_kg_xcg,
       }));
+      await supabase.from("cif_allocations").insert(allocRows);
 
-      const { error: aErr } = await supabase.from("cif_allocations").insert(allocRows);
-      if (aErr) throw aErr;
+      // Save pricing suggestions
+      const pricingRows = result.pricing.map((p, i) => ({
+        cif_version_id: version.id,
+        cif_allocation_id: version.id, // will be overridden below
+        product_code: p.product_code,
+        wholesale_margin_pct: p.wholesale_margin_pct,
+        retail_margin_pct: p.retail_margin_pct,
+        wholesale_price_per_piece_usd: p.wholesale_price_per_piece_usd,
+        wholesale_price_per_piece_xcg: p.wholesale_price_per_piece_xcg,
+        wholesale_price_per_case_usd: p.wholesale_price_per_case_usd,
+        wholesale_price_per_case_xcg: p.wholesale_price_per_case_xcg,
+        wholesale_price_per_kg_usd: p.wholesale_price_per_kg_usd,
+        wholesale_price_per_kg_xcg: p.wholesale_price_per_kg_xcg,
+        retail_price_per_piece_usd: p.retail_price_per_piece_usd,
+        retail_price_per_piece_xcg: p.retail_price_per_piece_xcg,
+        retail_price_per_case_usd: p.retail_price_per_case_usd,
+        retail_price_per_case_xcg: p.retail_price_per_case_xcg,
+        retail_price_per_kg_usd: p.retail_price_per_kg_usd,
+        retail_price_per_kg_xcg: p.retail_price_per_kg_xcg,
+      }));
+
+      // Get saved allocations to link pricing
+      const { data: savedAllocs } = await supabase
+        .from("cif_allocations")
+        .select("id, product_code")
+        .eq("cif_version_id", version.id);
+
+      if (savedAllocs) {
+        const allocMap = new Map(savedAllocs.map(a => [a.product_code, a.id]));
+        const linkedPricing = pricingRows.map(p => ({
+          ...p,
+          cif_allocation_id: allocMap.get(p.product_code) || savedAllocs[0]?.id,
+        }));
+        await supabase.from("cif_pricing_suggestions").insert(linkedPricing);
+      }
 
       queryClient.invalidateQueries({ queryKey: ["cif-version-latest", orderId] });
-      toast.success(`CIF Estimate v${nextVersion} saved`);
+      toast.success(`CIF ${versionType} v${nextVersion} saved${isFinal ? ' (FINAL)' : ''}`);
     } catch (error) {
       console.error("Error saving CIF version:", error);
       toast.error("Failed to save CIF version");
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleDocumentExtracted = (fields: any) => {
+    if (!fields) return;
+    // Auto-add extracted component
+    const newComp: CifComponent = {
+      component_type: fields.document_type || 'other',
+      label: fields.vendor_name || fields.document_type || 'Extracted',
+      status: 'received',
+      currency: fields.currency === 'XCG' || fields.currency === 'ANG' ? 'XCG' : 'USD',
+      amount: fields.total_amount || 0,
+      allocation_basis: fields.document_type === 'air_freight' || fields.document_type === 'champion' || fields.document_type === 'swissport'
+        ? 'chargeable_weight' : 'value',
+    };
+    setComponents(prev => [...prev, newComp]);
+    toast.success(`Component "${newComp.label}" added from document`);
   };
 
   if (!result) {
@@ -215,16 +281,29 @@ export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
 
   return (
     <div className="space-y-4">
-      {/* Header with version info */}
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <Calculator className="h-5 w-5" />
           <h3 className="font-semibold">CIF Profile</h3>
           {latestVersion && (
             <Badge variant="secondary">v{latestVersion.version_no} ({latestVersion.version_type})</Badge>
           )}
+          {versionType === 'actual' && pendingCount > 0 && (
+            <Badge variant="outline" className="text-amber-600">NOT FINAL</Badge>
+          )}
+          {isFinal && <Badge className="bg-green-600">FINAL</Badge>}
         </div>
         <div className="flex items-center gap-2">
+          <Select value={versionType} onValueChange={v => setVersionType(v as VersionType)}>
+            <SelectTrigger className="w-[110px] h-8">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="estimate">Estimate</SelectItem>
+              <SelectItem value="actual">Actual</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={unitView} onValueChange={v => setUnitView(v as UnitView)}>
             <SelectTrigger className="w-[110px] h-8">
               <SelectValue />
@@ -242,77 +321,109 @@ export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
         </div>
       </div>
 
-      {/* Shipment Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card className="p-3">
-          <div className="text-xs text-muted-foreground">Chargeable Wt</div>
-          <div className="text-lg font-bold">{result.totals.total_chargeable_weight_kg.toFixed(1)} kg</div>
-        </Card>
-        <Card className="p-3">
-          <div className="text-xs text-muted-foreground">Supplier Cost</div>
-          <div className="text-lg font-bold">{fmt(result.totals.total_value_usd)}</div>
-        </Card>
-        <Card className="p-3">
-          <div className="text-xs text-muted-foreground">Shared Costs</div>
-          <div className="text-lg font-bold">{fmt(result.total_shared_costs_usd)}</div>
-        </Card>
-        <Card className="p-3">
-          <div className="text-xs text-muted-foreground">Total Landed</div>
-          <div className="text-lg font-bold text-primary">{fmtX(result.total_landed_xcg)}</div>
-          <div className="text-xs text-muted-foreground">{fmt(result.total_landed_usd)}</div>
-        </Card>
-      </div>
+      <Tabs defaultValue="breakdown">
+        <TabsList>
+          <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
+          <TabsTrigger value="components">Components</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
+        </TabsList>
 
-      {/* Allocation Table */}
-      <Card>
-        <CardContent className="pt-4">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Product</TableHead>
-                <TableHead className="text-right">Cases</TableHead>
-                <TableHead className="text-right">Landed/{unitView}</TableHead>
-                <TableHead className="text-right">Wholesale</TableHead>
-                <TableHead className="text-right">Retail</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {result.allocations.map((alloc, idx) => {
-                const pricing = result.pricing[idx];
-                const lcKey = `landed_cost_per_${unitView}_xcg` as keyof typeof alloc;
-                const wpKey = `wholesale_price_per_${unitView}_xcg` as keyof typeof pricing;
-                const rpKey = `retail_price_per_${unitView}_xcg` as keyof typeof pricing;
+        <TabsContent value="breakdown" className="space-y-4">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Card className="p-3">
+              <div className="text-xs text-muted-foreground">Chargeable Wt</div>
+              <div className="text-lg font-bold">{result.totals.total_chargeable_weight_kg.toFixed(1)} kg</div>
+            </Card>
+            <Card className="p-3">
+              <div className="text-xs text-muted-foreground">Supplier Cost</div>
+              <div className="text-lg font-bold">{fmt(result.totals.total_value_usd)}</div>
+            </Card>
+            <Card className="p-3">
+              <div className="text-xs text-muted-foreground">Shared Costs</div>
+              <div className="text-lg font-bold">{fmt(result.total_shared_costs_usd)}</div>
+            </Card>
+            <Card className="p-3">
+              <div className="text-xs text-muted-foreground">Total Landed</div>
+              <div className="text-lg font-bold text-primary">{fmtX(result.total_landed_xcg)}</div>
+              <div className="text-xs text-muted-foreground">{fmt(result.total_landed_usd)}</div>
+            </Card>
+          </div>
 
-                return (
-                  <TableRow key={idx}>
-                    <TableCell>
-                      <div className="font-medium text-sm">{alloc.product_code}</div>
-                      <div className="text-xs text-muted-foreground">{alloc.product_name}</div>
-                    </TableCell>
-                    <TableCell className="text-right">{alloc.qty_cases}</TableCell>
-                    <TableCell className="text-right font-semibold">
-                      {fmtX(alloc[lcKey] as number)}
-                    </TableCell>
-                    <TableCell className="text-right text-green-600 dark:text-green-400">
-                      {fmtX(pricing[wpKey] as number)}
-                    </TableCell>
-                    <TableCell className="text-right text-blue-600 dark:text-blue-400">
-                      {fmtX(pricing[rpKey] as number)}
-                    </TableCell>
+          {/* Allocation Table */}
+          <Card>
+            <CardContent className="pt-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product</TableHead>
+                    <TableHead className="text-right">Cases</TableHead>
+                    <TableHead className="text-right">Landed/{unitView}</TableHead>
+                    <TableHead className="text-right">Wholesale</TableHead>
+                    <TableHead className="text-right">Retail</TableHead>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {result.allocations.map((alloc, idx) => {
+                    const pricing = result.pricing[idx];
+                    const lcKey = `landed_cost_per_${unitView}_xcg` as keyof typeof alloc;
+                    const wpKey = `wholesale_price_per_${unitView}_xcg` as keyof typeof pricing;
+                    const rpKey = `retail_price_per_${unitView}_xcg` as keyof typeof pricing;
 
-      {/* FX info */}
-      <div className="text-xs text-muted-foreground text-center">
-        FX Rate: 1 USD = {settings.fx_rate_usd_to_xcg} XCG • 
-        Champion: ${settings.champion_cost_per_kg}/kg • 
-        Swissport: ${settings.swissport_cost_per_kg}/kg
-      </div>
+                    return (
+                      <TableRow key={idx}>
+                        <TableCell>
+                          <div className="font-medium text-sm">{alloc.product_code}</div>
+                          <div className="text-xs text-muted-foreground">{alloc.product_name}</div>
+                        </TableCell>
+                        <TableCell className="text-right">{alloc.qty_cases}</TableCell>
+                        <TableCell className="text-right font-semibold">
+                          {fmtX(alloc[lcKey] as number)}
+                        </TableCell>
+                        <TableCell className="text-right text-green-600 dark:text-green-400">
+                          {fmtX(pricing[wpKey] as number)}
+                        </TableCell>
+                        <TableCell className="text-right text-blue-600 dark:text-blue-400">
+                          {fmtX(pricing[rpKey] as number)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* FX info */}
+          <div className="text-xs text-muted-foreground text-center">
+            FX: 1 USD = {settings.fx_rate_usd_to_xcg} XCG •
+            Champion: ${settings.champion_cost_per_kg}/kg •
+            Swissport: ${settings.swissport_cost_per_kg}/kg
+          </div>
+        </TabsContent>
+
+        <TabsContent value="components">
+          <CifComponentManager
+            components={components}
+            onChange={setComponents}
+            versionType={versionType}
+            chargeableWeightKg={result.totals.total_chargeable_weight_kg}
+            defaultSettings={{
+              champion_cost_per_kg: settings.champion_cost_per_kg,
+              swissport_cost_per_kg: settings.swissport_cost_per_kg,
+              bank_charges_usd: settings.bank_charges_usd,
+              local_logistics_xcg: settings.local_logistics_xcg,
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent value="documents">
+          <CifDocumentUpload
+            orderId={orderId}
+            onComponentExtracted={handleDocumentExtracted}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

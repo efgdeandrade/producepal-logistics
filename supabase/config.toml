@@ -149,3 +149,6 @@ verify_jwt = false
 
 [functions.send-template-message]
 verify_jwt = true
+
+[functions.cif-document-extract]
+verify_jwt = false
