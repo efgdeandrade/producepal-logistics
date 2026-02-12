@@ -1,48 +1,36 @@
 
-# Fix Margin Popup to Use Actual Wholesale & Retail Prices
 
-## Problem
-The hover popup currently uses `price_xcg` (a generic per-case price) as the "Current Sell Price" for margin calculations. But the products table has dedicated columns -- `wholesale_price_xcg_per_unit` (e.g. 9.00 for STB_500) and `retail_price_xcg_per_unit` (e.g. 12.95) -- that hold the real prices set on the product detail page.
+# Dynamic Quantity Column Based on Unit Filter
 
-## Fix (single file: `src/components/import/LandedCostPanel.tsx`)
+## What Changes
+When you switch the unit filter (Piece / Case / Kg), the "Cases" column will update to show quantities in that unit. Hovering over the value will show the alternate representation.
 
-### 1. Fetch the wholesale and retail prices from the database
-Update the product query (line 73) to include:
-- `wholesale_price_xcg_per_unit`
-- `retail_price_xcg_per_unit`
+## Behavior
 
-### 2. Rewrite the margin popup to use the correct prices
-In `renderMarginPopup` (lines 440-537):
+| Unit Filter | Column Header | Column Value | Hover Tooltip |
+|-------------|--------------|--------------|---------------|
+| Piece       | Pieces       | qty_cases x pack_size | "X cases" |
+| Case        | Cases        | qty_cases | "X pieces" |
+| Kg          | Weight (kg)  | qty_cases x weight_per_case | "X cases" |
 
-**Wholesale section:**
-- "Current Sell" uses `wholesale_price_xcg_per_unit` from the product (e.g. 9.00 XCG for STB_500)
-- "Actual Margin" = `(wholesale_sell - landed_per_piece) / wholesale_sell * 100`
+## Technical Details (single file: `src/components/import/LandedCostPanel.tsx`)
 
-**Retail section:**
-- "Current Sell" uses `retail_price_xcg_per_unit` (e.g. 12.95 XCG for STB_500)
-- "Actual Margin" = `(retail_sell - landed_per_piece) / retail_sell * 100`
+### 1. Update the column header (line 663)
+Change from hardcoded `Cases` to dynamic based on `unitView`:
+- `piece` -> "Pieces"
+- `case` -> "Cases"  
+- `kg` -> "Weight (kg)"
 
-Both sections will compare per-unit (per-piece) values since the database prices are per-unit.
+### 2. Update the cell value (line 686)
+Replace the hardcoded `{alloc.qty_cases}` with:
+- **piece**: `alloc.qty_cases * alloc.case_pack`
+- **case**: `alloc.qty_cases`
+- **kg**: `(alloc.qty_cases * alloc.weight_case_kg).toFixed(1)`
 
-### 3. Remove the old "Per Piece" section
-The separate per-piece block at the bottom (lines 507-528) becomes redundant since both Wholesale and Retail now show per-unit comparisons.
+### 3. Add a hover tooltip on the cell
+Wrap the value in a Tooltip (already imported via existing UI components) showing the alternate info:
+- **piece**: tooltip says "X cases"
+- **case**: tooltip says "X pieces (pack size: Y)"
+- **kg**: tooltip says "X cases"
 
-### 4. Update the "no price" fallback
-Show the message only if both wholesale and retail prices are missing from the product record.
-
-## Example: STB_500 popup after fix
-```
-STB_500 -- Strawberries Jumbo 500g
----------------------------------
-WHOLESALE
-  CIF Suggested:   $X.XX (per unit)
-  Current Sell:    $9.00 (per unit)
-  Target Margin:   20%
-  Actual Margin:   Y.Y%
----------------------------------
-RETAIL
-  CIF Suggested:   $X.XX (per unit)
-  Current Sell:    $12.95 (per unit)
-  Target Margin:   44%
-  Actual Margin:   Z.Z%
-```
+No new dependencies or database changes needed.
