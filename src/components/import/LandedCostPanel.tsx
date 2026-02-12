@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Calculator, Save, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -660,7 +661,7 @@ export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Product</TableHead>
-                    <TableHead className="text-right">Cases</TableHead>
+                    <TableHead className="text-right">{unitView === 'piece' ? 'Pieces' : unitView === 'kg' ? 'Weight (kg)' : 'Cases'}</TableHead>
                     <TableHead className="text-right">Landed/{unitView}</TableHead>
                     <TableHead className="text-right">Wholesale</TableHead>
                     <TableHead className="text-right">Retail</TableHead>
@@ -683,7 +684,28 @@ export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
                               <div className="font-medium text-sm">{alloc.product_code}</div>
                               <div className="text-xs text-muted-foreground">{alloc.product_name}</div>
                             </TableCell>
-                            <TableCell className="text-right">{alloc.qty_cases}</TableCell>
+                            <TableCell className="text-right">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="cursor-help">
+                                      {unitView === 'piece'
+                                        ? alloc.qty_pieces
+                                        : unitView === 'kg'
+                                          ? alloc.actual_weight_kg.toFixed(1)
+                                          : alloc.qty_cases}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {unitView === 'piece'
+                                      ? `${alloc.qty_cases} cases`
+                                      : unitView === 'kg'
+                                        ? `${alloc.qty_cases} cases`
+                                        : `${alloc.qty_pieces} pieces`}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </TableCell>
                             <TableCell className="text-right font-semibold">
                               {fmt(alloc[lcKey] as number)}
                             </TableCell>
