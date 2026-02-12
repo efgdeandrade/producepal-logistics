@@ -42,16 +42,29 @@ export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
   const [components, setComponents] = useState<CifComponent[]>([]);
   const [showReadiness, setShowReadiness] = useState(false);
 
-  // Fetch order items
+  // Fetch order items with products joined manually
   const { data: orderItems } = useQuery({
     queryKey: ["order-items-cif", orderId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: items, error } = await supabase
         .from("order_items")
-        .select("*, products:product_code(id, code, name, pack_size, weight, length_cm, width_cm, height_cm, price_usd_per_unit, price_usd)")
+        .select("*")
         .eq("order_id", orderId);
       if (error) throw error;
-      return data;
+      if (!items || items.length === 0) return [];
+
+      // Get unique product codes and fetch products
+      const codes = [...new Set(items.map(i => i.product_code))];
+      const { data: products } = await supabase
+        .from("products")
+        .select("id, code, name, pack_size, weight, length_cm, width_cm, height_cm, price_usd_per_unit, price_usd")
+        .in("code", codes);
+
+      const productMap = new Map((products || []).map(p => [p.code, p]));
+      return items.map(item => ({
+        ...item,
+        products: productMap.get(item.product_code) || null,
+      }));
     },
   });
 
