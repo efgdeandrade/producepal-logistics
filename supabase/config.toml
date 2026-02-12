@@ -152,3 +152,6 @@ verify_jwt = true
 
 [functions.cif-document-extract]
 verify_jwt = false
+
+[functions.list-drive-files]
+verify_jwt = false

@@ -27,6 +27,7 @@ import {
 } from "recharts";
 import { format } from "date-fns";
 import { formatUSD, formatXCG } from "@/lib/cifEngine";
+import { CifProfitDashboard } from "@/components/import/CifProfitDashboard";
 
 export default function ImportCIFReports() {
   // Fetch all CIF versions with allocations
@@ -156,12 +157,17 @@ export default function ImportCIFReports() {
         </Card>
       </div>
 
-      <Tabs defaultValue="variance">
+      <Tabs defaultValue="profit">
         <TabsList>
+          <TabsTrigger value="profit">Profit</TabsTrigger>
           <TabsTrigger value="variance">Estimate vs Actual</TabsTrigger>
           <TabsTrigger value="components">Cost Breakdown</TabsTrigger>
           <TabsTrigger value="history">Version History</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="profit">
+          <CifProfitDashboard />
+        </TabsContent>
 
         {/* Variance Tab */}
         <TabsContent value="variance" className="space-y-4">
