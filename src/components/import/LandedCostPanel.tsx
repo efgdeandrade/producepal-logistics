@@ -702,7 +702,7 @@ export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
                             <TableCell className="text-right text-primary">
                               {fmt(pricing[wpKey] as number)}
                             </TableCell>
-                            <TableCell className="text-right text-accent-foreground">
+                            <TableCell className="text-right text-foreground">
                               {retailVal != null ? fmt(retailVal) : '--'}
                             </TableCell>
                           </TableRow>
