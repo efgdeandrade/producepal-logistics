@@ -4550,6 +4550,7 @@ export type Database = {
           quantity: number
           sale_price_xcg: number | null
           stock_quantity: number | null
+          supplier_cost_usd_per_case: number | null
           units_quantity: number | null
         }
         Insert: {
@@ -4564,6 +4565,7 @@ export type Database = {
           quantity?: number
           sale_price_xcg?: number | null
           stock_quantity?: number | null
+          supplier_cost_usd_per_case?: number | null
           units_quantity?: number | null
         }
         Update: {
@@ -4578,6 +4580,7 @@ export type Database = {
           quantity?: number
           sale_price_xcg?: number | null
           stock_quantity?: number | null
+          supplier_cost_usd_per_case?: number | null
           units_quantity?: number | null
         }
         Relationships: [

@@ -42,6 +42,7 @@ const importNavItems: PortalNavItem[] = [
   { path: '/import/consolidation-groups', label: 'Consolidation Groups', icon: Layers },
   { path: '/import/cif-calculator', label: 'CIF Calculator', icon: Calculator },
   { path: '/import/cif-reports', label: 'CIF Reports', icon: BarChart3 },
+  { path: '/import/cif-backfill', label: 'CIF Backfill', icon: History },
   { path: '/import/invoices', label: 'Invoices', icon: FileSpreadsheet },
   { path: '/import/bills', label: 'Bills/Expenses', icon: Receipt },
   { path: '/import/shipments', label: 'Shipment Tracking', icon: Truck },
