@@ -20,6 +20,9 @@ import {
 } from "@/lib/cifEngine";
 import { CifComponentManager } from "./CifComponentManager";
 import { CifDocumentUpload } from "./CifDocumentUpload";
+import { GoogleDriveFileBrowser } from "./GoogleDriveFileBrowser";
+import { AsycudaMetadataSection } from "./AsycudaMetadataSection";
+import { CifAIAuditor } from "./CifAIAuditor";
 
 interface LandedCostPanelProps {
   orderId: string;
@@ -326,6 +329,9 @@ export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
           <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
           <TabsTrigger value="components">Components</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsTrigger value="drive">Drive</TabsTrigger>
+          <TabsTrigger value="customs">Customs</TabsTrigger>
+          <TabsTrigger value="ai">AI Auditor</TabsTrigger>
         </TabsList>
 
         <TabsContent value="breakdown" className="space-y-4">
@@ -422,6 +428,18 @@ export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
             orderId={orderId}
             onComponentExtracted={handleDocumentExtracted}
           />
+        </TabsContent>
+
+        <TabsContent value="drive">
+          <GoogleDriveFileBrowser orderId={orderId} />
+        </TabsContent>
+
+        <TabsContent value="customs">
+          <AsycudaMetadataSection orderId={orderId} />
+        </TabsContent>
+
+        <TabsContent value="ai">
+          <CifAIAuditor cifVersionId={latestVersion?.id} orderId={orderId} />
         </TabsContent>
       </Tabs>
     </div>
