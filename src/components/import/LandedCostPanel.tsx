@@ -70,7 +70,7 @@ export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
       const codes = [...new Set(items.map(i => i.product_code))];
       const { data: products } = await supabase
         .from("products")
-        .select("id, code, name, pack_size, weight, length_cm, width_cm, height_cm, price_usd_per_unit, price_usd, price_xcg")
+        .select("id, code, name, pack_size, weight, length_cm, width_cm, height_cm, price_usd_per_unit, price_usd, price_xcg, wholesale_price_xcg_per_unit, retail_price_xcg_per_unit")
         .in("code", codes);
 
       const productMap = new Map((products || []).map(p => [p.code, p]));
@@ -439,23 +439,20 @@ export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
   // Helper to build margin hover content for a row
   const renderMarginPopup = (alloc: typeof result.allocations[0], pricing: typeof result.pricing[0]) => {
     const prod = productDataMap.get(alloc.product_code);
-    const currentSellPriceXCG = prod?.price_xcg ? Number(prod.price_xcg) : null;
-    // Derive per-piece price from per-case price / pack_size
-    const packSize = prod?.pack_size || 1;
-    const currentPricePerPiece = currentSellPriceXCG ? currentSellPriceXCG / packSize : null;
+    const wholesaleSellXCG = prod?.wholesale_price_xcg_per_unit ? Number(prod.wholesale_price_xcg_per_unit) : null;
+    const retailSellXCG = prod?.retail_price_xcg_per_unit ? Number(prod.retail_price_xcg_per_unit) : null;
 
-    const landedPerCaseXCG = alloc.landed_cost_per_case_xcg ?? 0;
     const landedPerPieceXCG = alloc.landed_cost_per_piece_xcg ?? 0;
 
-    const wholesalePriceXCG = pricing.wholesale_price_per_case_xcg ?? 0;
-    const retailPriceXCG = pricing.retail_price_per_case_xcg ?? 0;
+    const wholesaleSuggestedXCG = pricing.wholesale_price_per_piece_xcg ?? 0;
+    const retailSuggestedXCG = pricing.retail_price_per_piece_xcg ?? 0;
 
     // Actual margin: (sell - landed) / sell * 100
-    const actualWholesaleMargin = currentSellPriceXCG && currentSellPriceXCG > 0
-      ? ((currentSellPriceXCG - landedPerCaseXCG) / currentSellPriceXCG * 100)
+    const actualWholesaleMargin = wholesaleSellXCG && wholesaleSellXCG > 0
+      ? ((wholesaleSellXCG - landedPerPieceXCG) / wholesaleSellXCG * 100)
       : null;
-    const actualPieceMargin = currentPricePerPiece && currentPricePerPiece > 0
-      ? ((currentPricePerPiece - landedPerPieceXCG) / currentPricePerPiece * 100)
+    const actualRetailMargin = retailSellXCG && retailSellXCG > 0
+      ? ((retailSellXCG - landedPerPieceXCG) / retailSellXCG * 100)
       : null;
 
     return (
@@ -469,12 +466,12 @@ export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
           <div className="text-xs font-semibold text-muted-foreground uppercase">Wholesale</div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">CIF Suggested:</span>
-            <span className="font-medium">{formatXCG(wholesalePriceXCG)}</span>
+            <span className="font-medium">{formatXCG(wholesaleSuggestedXCG)} /unit</span>
           </div>
-          {currentSellPriceXCG != null && (
+          {wholesaleSellXCG != null && (
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Current Sell (case):</span>
-              <span className="font-medium">{formatXCG(currentSellPriceXCG)}</span>
+              <span className="text-muted-foreground">Current Sell:</span>
+              <span className="font-medium">{formatXCG(wholesaleSellXCG)} /unit</span>
             </div>
           )}
           <div className="flex justify-between">
@@ -496,40 +493,31 @@ export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
           <div className="text-xs font-semibold text-muted-foreground uppercase">Retail</div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">CIF Suggested:</span>
-            <span className="font-medium">{formatXCG(retailPriceXCG)}</span>
+            <span className="font-medium">{formatXCG(retailSuggestedXCG)} /unit</span>
           </div>
+          {retailSellXCG != null && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Current Sell:</span>
+              <span className="font-medium">{formatXCG(retailSellXCG)} /unit</span>
+            </div>
+          )}
           <div className="flex justify-between">
             <span className="text-muted-foreground">Target Margin:</span>
             <span className="font-medium">{pricing.retail_margin_pct}%</span>
           </div>
+          {actualRetailMargin != null && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Actual Margin:</span>
+              <span className={`font-bold ${actualRetailMargin < pricing.retail_margin_pct ? 'text-destructive' : 'text-primary'}`}>
+                {actualRetailMargin.toFixed(1)}%
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* Per piece section if available */}
-        {currentPricePerPiece != null && (
-          <div className="space-y-1 border-t pt-1">
-            <div className="text-xs font-semibold text-muted-foreground uppercase">Per Piece</div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Current Sell:</span>
-              <span className="font-medium">{formatXCG(currentPricePerPiece)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">CIF Landed:</span>
-              <span className="font-medium">{formatXCG(landedPerPieceXCG)}</span>
-            </div>
-            {actualPieceMargin != null && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Actual Margin:</span>
-                <span className={`font-bold ${actualPieceMargin < pricing.wholesale_margin_pct ? 'text-destructive' : 'text-primary'}`}>
-                  {actualPieceMargin.toFixed(1)}%
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {!currentSellPriceXCG && !currentPricePerPiece && (
+        {wholesaleSellXCG == null && retailSellXCG == null && (
           <div className="text-xs text-muted-foreground italic border-t pt-1">
-            No current selling price set for this product.
+            No wholesale or retail price set for this product.
           </div>
         )}
       </div>
