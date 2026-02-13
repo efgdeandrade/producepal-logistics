@@ -920,8 +920,8 @@ const NewOrder = () => {
                           <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Order Qty</th>
                           <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Units</th>
                           <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Stock Qty</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Price (XCG)</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Total</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Price (XCG) p/unit</th>
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Total units to order</th>
                           <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Pack Size</th>
                           <th className="w-12"></th>
                         </tr>
@@ -930,7 +930,7 @@ const NewOrder = () => {
                         {customerOrder.products.map((product) => {
                           const isCustomPrice = product.salePriceXcg !== product.defaultPriceXcg && product.salePriceXcg !== null;
                           const totalTrays = product.trays + product.stockTrays;
-                          const lineTotal = totalTrays * (product.salePriceXcg || 0);
+                          const totalUnitsToOrder = product.trays * product.packSize;
                           
                           return (
                             <tr 
@@ -989,7 +989,7 @@ const NewOrder = () => {
                                 />
                               </td>
                               <td className="py-3 px-4 text-right text-sm font-medium text-foreground">
-                                {lineTotal > 0 ? lineTotal.toFixed(2) : '-'}
+                                {totalUnitsToOrder > 0 ? totalUnitsToOrder : '-'}
                               </td>
                               <td className="py-3 px-4 text-right text-sm text-muted-foreground">{product.packSize}</td>
                               <td className="py-3 px-4">
