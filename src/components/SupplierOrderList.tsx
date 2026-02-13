@@ -178,6 +178,9 @@ export const SupplierOrderList = ({ order, orderItems, format, selectedSuppliers
       {Object.entries(filteredGroupedBySupplier).map(([supplierName, { supplier, items }]) => {
         const { consolidated, individual } = getConsolidatedGroups(items);
         
+        // Skip suppliers with no items after stock deduction
+        if (consolidated.length === 0 && individual.length === 0) return null;
+        
         // Calculate grand totals
         const totalConsolidatedCases = consolidated.reduce((sum, g) => sum + g.totalCases, 0);
         const totalIndividualTrays = individual.reduce((sum, p) => sum + p.quantity, 0);
