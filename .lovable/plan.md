@@ -1,21 +1,24 @@
 
 
-# Adjust Import Order Column Labels and Formula
+# Fix: Deduct Stock from "Total units to order"
 
-## Changes (single file: `src/pages/NewOrder.tsx`)
+## Problem
+The current formula `product.trays * product.packSize` does not subtract stock quantity. So if you order 10 cases and have 5 in stock, it still shows 10 * packSize instead of 5 * packSize.
 
-### 1. Rename "Price (XCG)" to "Price (XCG) p/unit"
-Line 923: Update the column header text.
+## Fix (single line change in `src/pages/NewOrder.tsx`)
 
-### 2. Rename "Total" to "Total units to order"
-Line 924: Update the column header text.
+**Line 933** -- change:
+```
+const totalUnitsToOrder = product.trays * product.packSize;
+```
+to:
+```
+const totalUnitsToOrder = Math.max(0, product.trays - product.stockTrays) * product.packSize;
+```
 
-### 3. Fix the formula
-Lines 932-933 and 992: Currently the "Total" column calculates a monetary total (`totalTrays * salePriceXcg`). Change it to show the number of units being ordered from the supplier (excluding stock):
+This ensures stock is deducted from the import order quantity. `Math.max(0, ...)` prevents negative values if stock exceeds order qty.
 
-- **Formula**: `product.trays * product.packSize`
-- This gives the actual units to be ordered (import portion only, not counting stock)
-- Example: Order Qty = 2 cases, Pack Size = 20 -> Total units to order = 40. If Stock Qty = 1 case, those stock units are excluded since `trays` only represents the import quantity.
+**Example**: Order Qty = 10 cases, Stock Qty = 5 cases, Pack Size = 20 --> Total units to order = (10 - 5) * 20 = **100**
 
-Display as an integer (no decimal formatting), with a dash when zero.
+No other files need to change.
 
