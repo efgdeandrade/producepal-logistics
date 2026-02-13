@@ -930,7 +930,7 @@ const NewOrder = () => {
                         {customerOrder.products.map((product) => {
                           const isCustomPrice = product.salePriceXcg !== product.defaultPriceXcg && product.salePriceXcg !== null;
                           const totalTrays = product.trays + product.stockTrays;
-                          const totalUnitsToOrder = product.trays * product.packSize;
+                          const totalUnitsToOrder = Math.max(0, product.trays - product.stockTrays) * product.packSize;
                           
                           return (
                             <tr 
