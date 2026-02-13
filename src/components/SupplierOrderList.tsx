@@ -9,6 +9,7 @@ interface OrderItem {
   quantity: number;
   units_quantity?: number | null;
   is_from_stock?: boolean;
+  stock_quantity?: number | null;
 }
 
 interface Order {
@@ -104,13 +105,17 @@ export const SupplierOrderList = ({ order, orderItems, format, selectedSuppliers
 
     // STEP 1: First aggregate quantities by product code, respecting units_quantity
     const productTotals = items.reduce((acc, item) => {
+      const netQuantity = Math.max(0, item.quantity - (item.stock_quantity || 0));
+      if (netQuantity === 0) return acc;
+      
       if (!acc[item.product_code]) {
         acc[item.product_code] = { quantity: 0, unitsQuantity: null as number | null };
       }
-      acc[item.product_code].quantity += item.quantity;
-      // Sum units_quantity if present
+      acc[item.product_code].quantity += netQuantity;
+      // Scale units_quantity proportionally if present
       if (item.units_quantity != null) {
-        acc[item.product_code].unitsQuantity = (acc[item.product_code].unitsQuantity || 0) + item.units_quantity;
+        const ratio = netQuantity / item.quantity;
+        acc[item.product_code].unitsQuantity = (acc[item.product_code].unitsQuantity || 0) + Math.round(item.units_quantity * ratio);
       }
       return acc;
     }, {} as Record<string, { quantity: number; unitsQuantity: number | null }>);
