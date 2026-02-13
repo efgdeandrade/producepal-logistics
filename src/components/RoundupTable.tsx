@@ -8,6 +8,7 @@ interface OrderItem {
   product_code: string;
   quantity: number;
   is_from_stock?: boolean;
+  stock_quantity?: number | null;
 }
 
 interface Order {
@@ -89,10 +90,13 @@ export const RoundupTable = ({ order, orderItems, format }: Props) => {
 
     // First aggregate quantities per product
     const productTotals = orderItems.reduce((acc, item) => {
+      const netQuantity = Math.max(0, item.quantity - (item.stock_quantity || 0));
+      if (netQuantity === 0) return acc;
+      
       if (!acc[item.product_code]) {
         acc[item.product_code] = 0;
       }
-      acc[item.product_code] += item.quantity;
+      acc[item.product_code] += netQuantity;
       return acc;
     }, {} as Record<string, number>);
 
