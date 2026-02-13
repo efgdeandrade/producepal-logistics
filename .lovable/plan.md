@@ -1,36 +1,21 @@
 
 
-# Dynamic Quantity Column Based on Unit Filter
+# Adjust Import Order Column Labels and Formula
 
-## What Changes
-When you switch the unit filter (Piece / Case / Kg), the "Cases" column will update to show quantities in that unit. Hovering over the value will show the alternate representation.
+## Changes (single file: `src/pages/NewOrder.tsx`)
 
-## Behavior
+### 1. Rename "Price (XCG)" to "Price (XCG) p/unit"
+Line 923: Update the column header text.
 
-| Unit Filter | Column Header | Column Value | Hover Tooltip |
-|-------------|--------------|--------------|---------------|
-| Piece       | Pieces       | qty_cases x pack_size | "X cases" |
-| Case        | Cases        | qty_cases | "X pieces" |
-| Kg          | Weight (kg)  | qty_cases x weight_per_case | "X cases" |
+### 2. Rename "Total" to "Total units to order"
+Line 924: Update the column header text.
 
-## Technical Details (single file: `src/components/import/LandedCostPanel.tsx`)
+### 3. Fix the formula
+Lines 932-933 and 992: Currently the "Total" column calculates a monetary total (`totalTrays * salePriceXcg`). Change it to show the number of units being ordered from the supplier (excluding stock):
 
-### 1. Update the column header (line 663)
-Change from hardcoded `Cases` to dynamic based on `unitView`:
-- `piece` -> "Pieces"
-- `case` -> "Cases"  
-- `kg` -> "Weight (kg)"
+- **Formula**: `product.trays * product.packSize`
+- This gives the actual units to be ordered (import portion only, not counting stock)
+- Example: Order Qty = 2 cases, Pack Size = 20 -> Total units to order = 40. If Stock Qty = 1 case, those stock units are excluded since `trays` only represents the import quantity.
 
-### 2. Update the cell value (line 686)
-Replace the hardcoded `{alloc.qty_cases}` with:
-- **piece**: `alloc.qty_cases * alloc.case_pack`
-- **case**: `alloc.qty_cases`
-- **kg**: `(alloc.qty_cases * alloc.weight_case_kg).toFixed(1)`
+Display as an integer (no decimal formatting), with a dash when zero.
 
-### 3. Add a hover tooltip on the cell
-Wrap the value in a Tooltip (already imported via existing UI components) showing the alternate info:
-- **piece**: tooltip says "X cases"
-- **case**: tooltip says "X pieces (pack size: Y)"
-- **kg**: tooltip says "X cases"
-
-No new dependencies or database changes needed.
