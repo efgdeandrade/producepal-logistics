@@ -6,16 +6,68 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const SYSTEM_PROMPT = `You are a CIF calculation auditor for FUIK COMPANY B.V., IMPORT department.
+
+Your job: validate the audit_pack JSON strictly and detect calculation/formula errors.
+
+You must:
+1) Validate formulas match formulas_used constants (FX 1.82, divisor 6000, chargeable=max(actual, volumetric), pricing formulas wholesale cost/0.80 and retail cost/0.56).
+2) Verify allocations: for each cost component, sum of allocated amounts across products equals component total within tolerance.
+3) Verify unit conversions: per piece, per case, per kg consistency.
+4) Verify pricing math.
+
+Rules:
+- Never invent missing numbers. If required fields are missing, output FAIL with CRITICAL issues.
+- Output MUST be valid JSON and MUST follow the required response schema exactly.
+- If FAIL, include a minimal, surgical Lovable fix prompt that only changes what is necessary.
+
+Return only JSON, no markdown, no extra text.
+
+Required response schema:
+{
+  "audit_status": "PASS|FAIL|ERROR",
+  "engine_version": "<string from input>",
+  "input_hash": "<string from input>",
+  "summary": "<string>",
+  "issues": [
+    {
+      "severity": "CRITICAL|HIGH|MEDIUM|LOW",
+      "code": "<string>",
+      "where": { "cif_version_id":"", "type":"", "method":"", "component_type":"", "product_id":"", "field":"" },
+      "problem": "<string>",
+      "expected": "<string>",
+      "found": "<string>",
+      "impact": "<string>",
+      "how_to_verify": "<string>",
+      "fix": "<string>"
+    }
+  ],
+  "fix_prompt": "<string>"
+}`;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { auditPack } = await req.json();
+    const body = await req.json();
+    const { audit_pack, options, context } = body;
+
+    // Support both naming conventions
+    const auditPack = audit_pack || body.auditPack;
+
     if (!auditPack) {
       return new Response(
-        JSON.stringify({ error: "Missing auditPack in request body" }),
+        JSON.stringify({ error: "Missing audit_pack in request body" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate required fields
+    if (!auditPack.export_meta || !auditPack.cif_versions || !auditPack.products_full_detail) {
+      return new Response(
+        JSON.stringify({ error: "audit_pack missing required sections: export_meta, cif_versions, products_full_detail" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -28,36 +80,19 @@ serve(async (req) => {
       );
     }
 
-    const systemPrompt = `You are a CIF calculation auditor for FUIK IMPORT. Your job is to validate formulas and recompute totals for each allocation method.
+    const engineVersion = context?.engine_version || auditPack.export_meta?.engine_version || "unknown";
+    const inputHash = body.input_hash || "";
 
-Rules you MUST validate:
-- Volumetric weight per case = (L * W * H) / 6000
-- Chargeable weight = max(actual_weight, volumetric_weight)  
-- FX conversion: XCG = USD * fx_rate, USD = XCG / fx_rate
-- Wholesale price = landed_cost / (1 - 0.20) i.e. 20% margin
-- Retail price = landed_cost / (1 - 0.44) i.e. 44% margin
-- For each component, sum of allocated amounts across all products must equal the component total (within rounding tolerance)
-- Per-piece cost is primary; per-case and per-kg are secondary
-- Never invent missing numbers; if required fields are missing, mark as CRITICAL
+    const userPrompt = `Audit this CIF calculation pack strictly. Recompute every formula and verify all totals for every method.
 
-You MUST return a JSON object with this exact structure:
-{
-  "audit_status": "PASS" or "FAIL",
-  "issues": [
-    {
-      "severity": "CRITICAL" | "HIGH" | "MEDIUM" | "LOW",
-      "where": "<method/component/product/formula>",
-      "problem": "description of the issue",
-      "expected": "what the correct value should be",
-      "found": "what was actually found",
-      "fix": "how to fix it"
-    }
-  ],
-  "summary": "brief summary of audit findings",
-  "lovable_fix_prompt": "If FAIL, a copy/paste ready prompt for Lovable to fix the calculation engine. If PASS, empty string."
-}
+Engine version: ${engineVersion}
+Input hash: ${inputHash}
+Rounding tolerance USD: ${options?.rounding_tolerance_usd || 0.02}
+Rounding tolerance XCG: ${options?.rounding_tolerance_xcg || 0.05}
+Max issues to report: ${options?.max_issues || 50}
 
-Return ONLY the JSON object, no markdown wrapping.`;
+Full audit pack:
+${JSON.stringify(auditPack)}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -68,11 +103,8 @@ Return ONLY the JSON object, no markdown wrapping.`;
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: systemPrompt },
-          {
-            role: "user",
-            content: `Audit this CIF calculation pack. Recompute every formula and verify all totals for every method. Here is the full audit pack:\n\n${JSON.stringify(auditPack)}`,
-          },
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userPrompt },
         ],
       }),
     });
@@ -105,26 +137,65 @@ Return ONLY the JSON object, no markdown wrapping.`;
 
     if (!content) {
       return new Response(
-        JSON.stringify({ error: "Empty response from AI" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({
+          audit_status: "ERROR",
+          engine_version: engineVersion,
+          input_hash: inputHash,
+          summary: "Empty response from AI model",
+          issues: [{
+            severity: "CRITICAL",
+            code: "EMPTY_AI_RESPONSE",
+            where: {},
+            problem: "AI model returned empty content",
+            expected: "Structured audit JSON",
+            found: "Empty response",
+            impact: "Cannot perform audit",
+            how_to_verify: "Retry the audit",
+            fix: "Retry the audit request",
+          }],
+          fix_prompt: "",
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Parse the JSON response (handle potential markdown wrapping)
+    // Parse the JSON response
     let auditResult;
     try {
       const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       auditResult = JSON.parse(cleaned);
-    } catch (parseErr) {
+    } catch (_parseErr) {
       console.error("Failed to parse AI response:", content);
       return new Response(
         JSON.stringify({
-          error: "Failed to parse AI audit response",
-          raw_response: content,
+          audit_status: "ERROR",
+          engine_version: engineVersion,
+          input_hash: inputHash,
+          summary: "AI returned invalid JSON",
+          issues: [{
+            severity: "CRITICAL",
+            code: "INVALID_AI_RESPONSE",
+            where: {},
+            problem: "AI response could not be parsed as JSON",
+            expected: "Valid JSON matching response schema",
+            found: content.substring(0, 200),
+            impact: "Cannot determine audit result",
+            how_to_verify: "Check raw AI response",
+            fix: "Retry the audit",
+          }],
+          fix_prompt: "",
         }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Ensure required fields exist
+    auditResult.engine_version = auditResult.engine_version || engineVersion;
+    auditResult.input_hash = auditResult.input_hash || inputHash;
+    auditResult.audit_status = auditResult.audit_status || "ERROR";
+    auditResult.issues = auditResult.issues || [];
+    auditResult.summary = auditResult.summary || "";
+    auditResult.fix_prompt = auditResult.fix_prompt || "";
 
     return new Response(JSON.stringify(auditResult), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

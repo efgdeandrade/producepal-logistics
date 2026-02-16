@@ -5,6 +5,9 @@
  * Full precision is maintained in all calculations; rounding is UI-only.
  */
 
+/** Bump this value whenever CIF formulas change. */
+export const CIF_ENGINE_VERSION = "2026-02-16_v1";
+
 // =============================================
 // TYPES
 // =============================================
