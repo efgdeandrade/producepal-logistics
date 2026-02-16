@@ -155,3 +155,6 @@ verify_jwt = false
 
 [functions.list-drive-files]
 verify_jwt = false
+
+[functions.audit-cif-pack]
+verify_jwt = true
