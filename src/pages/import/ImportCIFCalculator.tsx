@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calculator, Plus, Trash2, Settings2, DollarSign, Package, Scale, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
+import { resolveWeightCaseKg } from "@/lib/cifWeightResolver";
 import {
   type CifProduct,
   type CifComponent,
@@ -41,7 +42,7 @@ export default function ImportCIFCalculator() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, code, name, pack_size, weight, length_cm, width_cm, height_cm, price_usd_per_unit, supplier_id")
+        .select("id, code, name, pack_size, weight, length_cm, width_cm, height_cm, price_usd_per_unit, supplier_id, empty_case_weight, netto_weight_per_unit, gross_weight_per_unit")
         .order("code");
       if (error) throw error;
       return data;
@@ -79,9 +80,14 @@ export default function ImportCIFCalculator() {
     const dbProd = dbProducts?.find(p => p.id === productId);
     if (!dbProd) return;
     
-    // weight is stored in grams, convert to kg per case
-    const weightPerUnitKg = (dbProd.weight || 0) / 1000;
-    const weightCaseKg = weightPerUnitKg * (dbProd.pack_size || 1);
+    // Use canonical weight resolver
+    const weightCaseKg = resolveWeightCaseKg({
+      weight: dbProd.weight,
+      netto_weight_per_unit: (dbProd as any).netto_weight_per_unit,
+      gross_weight_per_unit: (dbProd as any).gross_weight_per_unit,
+      empty_case_weight: (dbProd as any).empty_case_weight,
+      pack_size: dbProd.pack_size,
+    }).weight_case_kg || 0;
 
     const newProduct: CifProduct = {
       product_id: dbProd.id,

@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Calculator, Save, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { resolveWeightCaseKg } from "@/lib/cifWeightResolver";
 import {
   type CifProduct,
   type CifComponent,
@@ -71,7 +72,7 @@ export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
       const codes = [...new Set(items.map(i => i.product_code))];
       const { data: products } = await supabase
         .from("products")
-        .select("id, code, name, pack_size, weight, length_cm, width_cm, height_cm, price_usd_per_unit, price_usd, price_xcg, wholesale_price_xcg_per_unit, retail_price_xcg_per_unit")
+        .select("id, code, name, pack_size, weight, length_cm, width_cm, height_cm, price_usd_per_unit, price_usd, price_xcg, wholesale_price_xcg_per_unit, retail_price_xcg_per_unit, empty_case_weight, netto_weight_per_unit, gross_weight_per_unit")
         .in("code", codes);
 
       const productMap = new Map((products || []).map(p => [p.code, p]));
@@ -180,7 +181,13 @@ export function LandedCostPanel({ orderId }: LandedCostPanelProps) {
           product_name: prod?.name || code,
           qty_cases: totalQty,
           case_pack: packSize,
-          weight_case_kg: (Number(prod?.weight) || 0) / 1000,
+          weight_case_kg: resolveWeightCaseKg({
+            weight: prod?.weight,
+            netto_weight_per_unit: prod?.netto_weight_per_unit,
+            gross_weight_per_unit: prod?.gross_weight_per_unit,
+            empty_case_weight: prod?.empty_case_weight,
+            pack_size: prod?.pack_size,
+          }).weight_case_kg || 0,
           length_cm: Number(prod?.length_cm) || 0,
           width_cm: Number(prod?.width_cm) || 0,
           height_cm: Number(prod?.height_cm) || 0,
