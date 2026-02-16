@@ -12,6 +12,7 @@ import {
   type AllocationBasis,
   calculateCIF,
   DEFAULT_CIF_SETTINGS,
+  CIF_ENGINE_VERSION,
 } from "./cifEngine";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -19,7 +20,7 @@ const ALL_METHODS: AllocationBasis[] = [
   'chargeable_weight', 'actual_weight', 'volume', 'value', 'cases', 'pieces', 'equal'
 ];
 
-const METHOD_LABEL_MAP: Record<string, string> = {
+const METHOD_KEY_MAP: Record<string, string> = {
   chargeable_weight: 'weight',
   actual_weight: 'actual_weight',
   volume: 'volume',
@@ -93,7 +94,7 @@ export async function generateAuditPack(options: AuditPackOptions) {
     settings.bank_charges_usd = map.get("cif_bank_charges")?.amount ?? settings.bank_charges_usd;
   }
 
-  // Build CIF products
+  // Build CIF products (consolidate same product_code)
   const grouped = new Map<string, { totalQty: number; prod: any; costPerCase: number }>();
   for (const item of (items || [])) {
     const prod = productMap.get(item.product_code);
@@ -128,9 +129,7 @@ export async function generateAuditPack(options: AuditPackOptions) {
 
   // Detect missing fields
   const missingFields = cifProducts
-    .filter(p =>
-      !p.case_pack || !p.weight_case_kg || !p.length_cm || !p.width_cm || !p.height_cm || !p.supplier_cost_usd_per_case
-    )
+    .filter(p => !p.case_pack || !p.weight_case_kg || !p.length_cm || !p.width_cm || !p.height_cm || !p.supplier_cost_usd_per_case)
     .map(p => ({
       product_id: p.product_id,
       missing: [
@@ -157,7 +156,7 @@ export async function generateAuditPack(options: AuditPackOptions) {
     supplier_cost_usd_per_case: p.supplier_cost_usd_per_case,
   }));
 
-  // Build CIF version results with multi-method calculations
+  // Build CIF version results with ALL 5 method comparisons
   const cifVersionsOutput = (versions || []).map(v => {
     const versionComponents: CifComponent[] = (v.cif_components || []).map((c: any) => ({
       id: c.id,
@@ -180,13 +179,13 @@ export async function generateAuditPack(options: AuditPackOptions) {
     };
 
     // Calculate for ALL methods
-    const methodResults: Record<string, any> = {};
+    const methodsComparison: Record<string, any> = {};
     for (const method of ALL_METHODS) {
       const methodComponents = versionComponents.map(c => ({ ...c, allocation_basis: method }));
       const calcResult = calculateCIF(cifProducts, methodComponents, versionSettings);
 
-      const methodKey = METHOD_LABEL_MAP[method] || method;
-      methodResults[methodKey] = {
+      const key = METHOD_KEY_MAP[method] || method;
+      methodsComparison[key] = {
         allocations: calcResult.allocations.map(a => ({
           product_id: a.product_id,
           qty_cases: a.qty_cases,
@@ -206,15 +205,18 @@ export async function generateAuditPack(options: AuditPackOptions) {
           component_breakdown: a.allocated_costs,
         })),
         totals: {
-          total_landed_usd: calcResult.total_landed_usd,
-          total_landed_xcg: calcResult.total_landed_xcg,
-          total_shared_costs_usd: calcResult.total_shared_costs_usd,
+          totals_shared_usd: calcResult.total_shared_costs_usd,
+          totals_supplier_usd: calcResult.allocations.reduce((s, a) => s + a.supplier_cost_usd, 0),
+          totals_landed_usd: calcResult.total_landed_usd,
+          totals_shared_xcg: calcResult.total_shared_costs_usd * versionSettings.fx_rate_usd_to_xcg,
+          totals_supplier_xcg: calcResult.allocations.reduce((s, a) => s + a.supplier_cost_xcg, 0),
+          totals_landed_xcg: calcResult.total_landed_xcg,
           rounding_adjustment_usd: calcResult.rounding_adjustment_usd,
         },
       };
     }
 
-    // Get totals from the primary method (chargeable_weight)
+    // Primary method totals
     const primaryResult = calculateCIF(cifProducts, versionComponents, versionSettings);
 
     return {
@@ -241,14 +243,14 @@ export async function generateAuditPack(options: AuditPackOptions) {
         notes: c.notes || '',
         source_document_id: '',
       })),
-      method_results: methodResults,
+      methods_comparison: methodsComparison,
     };
   });
 
-  // Build final pack
   const auditPack = {
     export_meta: {
       export_version: "1.0",
+      engine_version: CIF_ENGINE_VERSION,
       exported_at: new Date().toISOString(),
       exported_by: userEmail || userId || 'unknown',
       module: "IMPORT",
@@ -257,19 +259,19 @@ export async function generateAuditPack(options: AuditPackOptions) {
     chatgpt_instructions: {
       role: "You are ChatGPT acting as a CIF calculation auditor.",
       task: [
-        "1) Validate formulas match the rules in formulas_used (volumetric divisor 6000, chargeable=max(actual, volumetric), FX conversion direction, pricing margins).",
-        "2) Recompute and verify: per piece (primary), per case, per kg costs for EACH product line for EACH method (weight/volume/value/quantity/equal).",
-        "3) Verify allocations: for each component, sum of allocated amounts across products equals component total within rounding tolerance.",
-        "4) Detect anomalies/errors: missing fields, division by zero, negative values, incorrect currency conversions, wrong margin/markup formulas, incorrect totals.",
-        "5) Output: PASS/FAIL + list of issues with severity + corrected formulas/pseudocode.",
-        "6) If FAIL: Generate a Lovable 'Fix Prompt' that is copy/paste ready and only includes the minimal changes needed.",
+        "Validate formulas and constants match formulas_used (FX 1.82, divisor 6000, chargeable=max(actual, volumetric), wholesale cost/0.80, retail cost/0.56).",
+        "Recompute and verify per piece (primary), per case, per kg for EACH product line for EACH method (weight/volume/value/quantity/equal).",
+        "Verify allocations: per component, sum of allocated across products equals component total within rounding tolerance.",
+        "Flag missing fields, division by zero, negatives, currency direction errors, wrong totals, wrong margin/markup logic.",
+        "Output PASS/FAIL + issues + minimal Lovable fix prompt if FAIL.",
       ],
       required_output_format: {
         audit_status: "PASS or FAIL",
         issues: [
           {
             severity: "CRITICAL/HIGH/MEDIUM/LOW",
-            where: "<method/component/product/formula>",
+            code: "...",
+            where: "...",
             problem: "...",
             expected: "...",
             found: "...",
@@ -277,7 +279,7 @@ export async function generateAuditPack(options: AuditPackOptions) {
           },
         ],
         summary: "short",
-        lovable_fix_prompt: "If FAIL, include here, else empty string",
+        lovable_fix_prompt: "If FAIL include here, else empty string",
       },
     },
     order: {
@@ -287,6 +289,7 @@ export async function generateAuditPack(options: AuditPackOptions) {
       created_at: order?.created_at || '',
       supplier_pos: [],
       settings_snapshot: {
+        fx_usd_to_xcg: settings.fx_rate_usd_to_xcg,
         champion_usd_per_kg: settings.champion_cost_per_kg,
         swissport_usd_per_kg: settings.swissport_cost_per_kg,
         bank_usd: settings.bank_charges_usd,
@@ -295,6 +298,12 @@ export async function generateAuditPack(options: AuditPackOptions) {
         spoilage_value: settings.spoilage_pct,
         volumetric_divisor: 6000,
         chargeable_rule: "max(actual, volumetric)",
+        pricing: {
+          wholesale_margin: 0.20,
+          retail_margin: 0.44,
+          wholesale_price_formula: "cost/0.80",
+          retail_price_formula: "cost/0.56",
+        },
       },
     },
     products_full_detail: productsFullDetail,
@@ -302,9 +311,9 @@ export async function generateAuditPack(options: AuditPackOptions) {
     formulas_used: {
       volumetric_weight_per_case: "(L*W*H)/6000",
       chargeable_weight_line: "max(actual_weight_line, volumetric_weight_line)",
-      wholesale_price: "cost/(1-0.20)",
-      retail_price: "cost/(1-0.44)",
       fx_rule: `xcg = usd*${settings.fx_rate_usd_to_xcg}, usd = xcg/${settings.fx_rate_usd_to_xcg}`,
+      wholesale_price: "cost/0.80",
+      retail_price: "cost/0.56",
       unit_outputs: "primary per piece; secondary per case and per kg",
     },
     rounding: {
@@ -327,9 +336,9 @@ export async function saveAuditPackToStorage(
   versionId?: string,
   userId?: string
 ) {
-  const versionNo = pack.cif_versions?.[0]?.version_no || 0;
+  const engineVersion = pack.export_meta?.engine_version || CIF_ENGINE_VERSION;
   const timestamp = Date.now();
-  const path = `cif_exports/${orderId}/${exportType}_v${versionNo}_${timestamp}.json`;
+  const path = `cif_exports/${orderId}/${exportType}_${engineVersion}_${timestamp}.json`;
 
   const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' });
 
@@ -342,12 +351,15 @@ export async function saveAuditPackToStorage(
     throw new Error('Failed to upload export to storage');
   }
 
-  // Record in cif_exports table
+  const inputHash = await computeInputHash(pack);
+
   await supabase.from('cif_exports').insert({
     import_order_id: orderId,
     cif_version_id: versionId || null,
     export_type: exportType,
+    engine_version: engineVersion,
     storage_path: path,
+    input_hash: inputHash,
     created_by: userId || null,
   } as any);
 
@@ -355,19 +367,14 @@ export async function saveAuditPackToStorage(
 }
 
 /**
- * Simple hash for caching audit results
+ * SHA-256 hash of audit pack + engine version for caching
  */
-export function hashAuditPack(pack: any): string {
-  const str = JSON.stringify({
-    products: pack.products_full_detail,
-    versions: pack.cif_versions,
-    settings: pack.order?.settings_snapshot,
-  });
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash |= 0;
-  }
-  return Math.abs(hash).toString(36);
+export async function computeInputHash(pack: any): Promise<string> {
+  const engineVersion = pack.export_meta?.engine_version || CIF_ENGINE_VERSION;
+  const str = JSON.stringify(pack) + engineVersion;
+  const encoder = new TextEncoder();
+  const data = encoder.encode(str);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }

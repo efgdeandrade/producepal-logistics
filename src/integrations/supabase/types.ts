@@ -412,40 +412,43 @@ export type Database = {
       cif_audits: {
         Row: {
           audit_status: string
-          cif_version_id: string | null
+          cif_version_id: string
           created_at: string
           created_by: string | null
+          engine_version: string
+          fix_prompt: string | null
           id: string
           import_order_id: string
-          input_hash: string | null
-          issues_json: Json | null
-          lovable_fix_prompt: string | null
+          input_hash: string
+          issues_json: Json
           model_used: string | null
           summary_text: string | null
         }
         Insert: {
           audit_status?: string
-          cif_version_id?: string | null
+          cif_version_id: string
           created_at?: string
           created_by?: string | null
+          engine_version: string
+          fix_prompt?: string | null
           id?: string
           import_order_id: string
-          input_hash?: string | null
-          issues_json?: Json | null
-          lovable_fix_prompt?: string | null
+          input_hash: string
+          issues_json?: Json
           model_used?: string | null
           summary_text?: string | null
         }
         Update: {
           audit_status?: string
-          cif_version_id?: string | null
+          cif_version_id?: string
           created_at?: string
           created_by?: string | null
+          engine_version?: string
+          fix_prompt?: string | null
           id?: string
           import_order_id?: string
-          input_hash?: string | null
-          issues_json?: Json | null
-          lovable_fix_prompt?: string | null
+          input_hash?: string
+          issues_json?: Json
           model_used?: string | null
           summary_text?: string | null
         }
@@ -648,27 +651,33 @@ export type Database = {
           cif_version_id: string | null
           created_at: string
           created_by: string | null
+          engine_version: string
           export_type: string
           id: string
           import_order_id: string
+          input_hash: string
           storage_path: string
         }
         Insert: {
           cif_version_id?: string | null
           created_at?: string
           created_by?: string | null
+          engine_version?: string
           export_type: string
           id?: string
           import_order_id: string
+          input_hash?: string
           storage_path: string
         }
         Update: {
           cif_version_id?: string | null
           created_at?: string
           created_by?: string | null
+          engine_version?: string
           export_type?: string
           id?: string
           import_order_id?: string
+          input_hash?: string
           storage_path?: string
         }
         Relationships: [

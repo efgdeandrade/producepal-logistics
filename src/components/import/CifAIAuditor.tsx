@@ -12,9 +12,10 @@ import { toast } from "sonner";
 import {
   generateAuditPack,
   saveAuditPackToStorage,
-  hashAuditPack,
+  computeInputHash,
   type ExportType,
 } from "@/lib/cifAuditPack";
+import { CIF_ENGINE_VERSION } from "@/lib/cifEngine";
 
 interface CifAIAuditorProps {
   cifVersionId?: string;
@@ -23,18 +24,23 @@ interface CifAIAuditorProps {
 
 interface AuditIssue {
   severity: string;
-  where: string;
+  code?: string;
+  where?: any;
   problem: string;
   expected?: string;
   found?: string;
+  impact?: string;
+  how_to_verify?: string;
   fix?: string;
 }
 
 interface AuditResult {
   audit_status: string;
+  engine_version?: string;
+  input_hash?: string;
   issues: AuditIssue[];
   summary: string;
-  lovable_fix_prompt?: string;
+  fix_prompt?: string;
 }
 
 export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
@@ -98,7 +104,7 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `cif_${type}_${orderId.slice(0, 8)}_${Date.now()}.json`;
+      a.download = `cif_${type}_${orderId.slice(0, 8)}_${CIF_ENGINE_VERSION}_${Date.now()}.json`;
       a.click();
       URL.revokeObjectURL(url);
 
@@ -113,7 +119,10 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
   };
 
   const handleAudit = async () => {
-    if (!orderId) return;
+    if (!orderId || !cifVersionId) {
+      toast.error("No CIF version available to audit");
+      return;
+    }
     setAuditing(true);
     setAuditResult(null);
     try {
@@ -125,25 +134,23 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
         userEmail: user?.email,
       });
 
-      const inputHash = hashAuditPack(pack);
+      const inputHash = await computeInputHash(pack);
 
       // Check cache
       const { data: cached } = await supabase
         .from("cif_audits")
         .select("*")
-        .eq("import_order_id", orderId)
         .eq("input_hash", inputHash)
-        .eq("audit_status", "PASS")
-        .or("audit_status.eq.FAIL")
-        .limit(1)
         .maybeSingle();
 
-      if (cached && cached.audit_status !== 'pending') {
+      if (cached && (cached.audit_status === 'PASS' || cached.audit_status === 'FAIL')) {
         setAuditResult({
           audit_status: cached.audit_status,
+          engine_version: cached.engine_version,
+          input_hash: cached.input_hash,
           issues: (cached.issues_json as any) || [],
           summary: cached.summary_text || '',
-          lovable_fix_prompt: cached.lovable_fix_prompt || '',
+          fix_prompt: cached.fix_prompt || '',
         });
         toast.info("Showing cached audit result");
         setAuditing(false);
@@ -152,7 +159,22 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
 
       // Call edge function
       const { data, error } = await supabase.functions.invoke("audit-cif-pack", {
-        body: { auditPack: pack },
+        body: {
+          audit_pack: pack,
+          input_hash: inputHash,
+          options: {
+            mode: "strict",
+            rounding_tolerance_usd: 0.02,
+            rounding_tolerance_xcg: 0.05,
+            max_issues: 50,
+          },
+          context: {
+            app: "FUIK",
+            department: "IMPORT",
+            module: "CIF",
+            engine_version: CIF_ENGINE_VERSION,
+          },
+        },
       });
 
       if (error) throw error;
@@ -160,41 +182,54 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
       const result = data as AuditResult;
       setAuditResult(result);
 
-      // Save to cif_audits
-      await supabase.from("cif_audits").insert({
+      // Save to cif_audits (upsert on input_hash)
+      const { error: insertError } = await supabase.from("cif_audits").insert({
         import_order_id: orderId,
-        cif_version_id: cifVersionId || null,
-        audit_status: result.audit_status || 'unknown',
-        issues_json: result.issues as any,
-        summary_text: result.summary || '',
-        lovable_fix_prompt: result.lovable_fix_prompt || '',
-        created_by: user?.id || null,
-        model_used: 'google/gemini-2.5-flash',
+        cif_version_id: cifVersionId,
+        engine_version: CIF_ENGINE_VERSION,
         input_hash: inputHash,
+        audit_status: result.audit_status || 'ERROR',
+        issues_json: (result.issues || []) as any,
+        summary_text: result.summary || '',
+        fix_prompt: result.fix_prompt || '',
+        model_used: 'google/gemini-2.5-flash',
+        created_by: user?.email || user?.id || null,
       } as any);
+
+      // If duplicate key, that's fine (cached)
+      if (insertError && !insertError.message?.includes('duplicate')) {
+        console.error("Failed to save audit:", insertError);
+      }
 
       queryClient.invalidateQueries({ queryKey: ["cif-audits", orderId] });
 
       if (result.audit_status === 'PASS') {
         toast.success("CIF audit passed ✓");
+      } else if (result.audit_status === 'FAIL') {
+        toast.warning(`CIF audit FAIL — ${(result.issues || []).length} issues found`);
       } else {
-        toast.warning(`CIF audit: ${result.audit_status} — ${(result.issues || []).length} issues found`);
+        toast.error(`CIF audit returned: ${result.audit_status}`);
       }
     } catch (err) {
       console.error("Audit failed:", err);
       toast.error("AI audit failed. Please try again.");
 
       // Record failed attempt
-      const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("cif_audits").insert({
-        import_order_id: orderId!,
-        cif_version_id: cifVersionId || null,
-        audit_status: 'error',
-        summary_text: err instanceof Error ? err.message : 'Unknown error',
-        created_by: user?.id || null,
-        model_used: 'google/gemini-2.5-flash',
-        input_hash: '',
-      } as any);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        await supabase.from("cif_audits").insert({
+          import_order_id: orderId!,
+          cif_version_id: cifVersionId!,
+          engine_version: CIF_ENGINE_VERSION,
+          input_hash: `error_${Date.now()}`,
+          audit_status: 'ERROR',
+          summary_text: err instanceof Error ? err.message : 'Unknown error',
+          issues_json: [] as any,
+          fix_prompt: '',
+          model_used: 'google/gemini-2.5-flash',
+          created_by: user?.email || user?.id || null,
+        } as any);
+      } catch { /* ignore */ }
     } finally {
       setAuditing(false);
     }
@@ -220,6 +255,13 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
 
   return (
     <div className="space-y-4">
+      {/* Engine Version Label */}
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Badge variant="outline" className="text-xs font-mono">
+          Engine {CIF_ENGINE_VERSION}
+        </Badge>
+      </div>
+
       {/* Export Buttons */}
       <Card>
         <CardHeader className="pb-3">
@@ -286,7 +328,7 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
               <Brain className="h-4 w-4" />
               AI CIF Auditor
             </CardTitle>
-            <Button size="sm" onClick={handleAudit} disabled={auditing}>
+            <Button size="sm" onClick={handleAudit} disabled={auditing || !cifVersionId}>
               {auditing ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-1" />
               ) : (
@@ -303,7 +345,9 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
               <div className={`p-3 rounded-lg flex items-center gap-2 ${
                 auditResult.audit_status === 'PASS'
                   ? 'bg-primary/10 text-primary'
-                  : 'bg-destructive/10 text-destructive'
+                  : auditResult.audit_status === 'ERROR'
+                    ? 'bg-muted text-muted-foreground'
+                    : 'bg-destructive/10 text-destructive'
               }`}>
                 {auditResult.audit_status === 'PASS' ? (
                   <ShieldCheck className="h-5 w-5" />
@@ -313,6 +357,11 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
                 <span className="font-semibold text-sm">
                   Audit: {auditResult.audit_status}
                 </span>
+                {auditResult.engine_version && (
+                  <span className="text-xs ml-auto opacity-60">
+                    Engine {auditResult.engine_version}
+                  </span>
+                )}
               </div>
 
               {/* Summary */}
@@ -320,7 +369,7 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
                 {auditResult.summary}
               </div>
 
-              {/* Issues */}
+              {/* Issues Table */}
               {auditResult.issues && auditResult.issues.length > 0 && (
                 <div className="space-y-2">
                   <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -328,7 +377,7 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
                   </div>
                   {auditResult.issues.map((issue, i) => (
                     <div key={i} className="p-3 border rounded-lg space-y-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         {issue.severity?.toUpperCase() === 'CRITICAL' || issue.severity?.toUpperCase() === 'HIGH' ? (
                           <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
                         ) : (
@@ -337,22 +386,37 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
                         <Badge variant={severityColor(issue.severity)} className="text-xs">
                           {issue.severity}
                         </Badge>
-                        <span className="text-xs text-muted-foreground">{issue.where}</span>
+                        {issue.code && (
+                          <span className="text-xs font-mono text-muted-foreground">{issue.code}</span>
+                        )}
+                        {typeof issue.where === 'string' && (
+                          <span className="text-xs text-muted-foreground">{issue.where}</span>
+                        )}
+                        {typeof issue.where === 'object' && issue.where?.method && (
+                          <span className="text-xs text-muted-foreground">
+                            {issue.where.method}{issue.where.product_id ? ` / ${issue.where.product_id.slice(0, 8)}` : ''}
+                          </span>
+                        )}
                       </div>
                       <p className="text-sm">{issue.problem}</p>
                       {issue.expected && (
                         <p className="text-xs text-muted-foreground">
-                          Expected: <span className="text-foreground">{issue.expected}</span>
+                          Expected: <span className="text-foreground font-mono">{issue.expected}</span>
                         </p>
                       )}
                       {issue.found && (
                         <p className="text-xs text-muted-foreground">
-                          Found: <span className="text-foreground">{issue.found}</span>
+                          Found: <span className="text-foreground font-mono">{issue.found}</span>
+                        </p>
+                      )}
+                      {issue.impact && (
+                        <p className="text-xs text-muted-foreground">
+                          Impact: <span className="text-foreground">{issue.impact}</span>
                         </p>
                       )}
                       {issue.fix && (
                         <p className="text-xs text-primary flex items-center gap-1">
-                          <TrendingUp className="h-3 w-3" />
+                          <TrendingUp className="h-3 w-3 shrink-0" />
                           {issue.fix}
                         </p>
                       )}
@@ -362,7 +426,7 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
               )}
 
               {/* Fix Prompt */}
-              {auditResult.lovable_fix_prompt && auditResult.lovable_fix_prompt.length > 0 && (
+              {auditResult.fix_prompt && auditResult.fix_prompt.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -371,7 +435,7 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => copyFixPrompt(auditResult.lovable_fix_prompt!)}
+                      onClick={() => copyFixPrompt(auditResult.fix_prompt!)}
                     >
                       {copiedPrompt ? (
                         <Check className="h-3.5 w-3.5 mr-1" />
@@ -382,37 +446,43 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
                     </Button>
                   </div>
                   <pre className="p-3 rounded-lg bg-muted/50 text-xs whitespace-pre-wrap overflow-auto max-h-48 font-mono">
-                    {auditResult.lovable_fix_prompt}
+                    {auditResult.fix_prompt}
                   </pre>
                 </div>
               )}
             </div>
-          ) : latestAudit && latestAudit.audit_status !== 'pending' ? (
+          ) : latestAudit ? (
             <div className="space-y-3">
               <div className="text-xs font-medium text-muted-foreground">Last Audit Result</div>
               <div className={`p-3 rounded-lg flex items-center gap-2 ${
                 latestAudit.audit_status === 'PASS'
                   ? 'bg-primary/10 text-primary'
-                  : latestAudit.audit_status === 'error'
+                  : latestAudit.audit_status === 'ERROR'
                     ? 'bg-muted text-muted-foreground'
                     : 'bg-destructive/10 text-destructive'
               }`}>
                 {latestAudit.audit_status === 'PASS' ? (
                   <ShieldCheck className="h-5 w-5" />
-                ) : latestAudit.audit_status === 'error' ? (
-                  <AlertTriangle className="h-5 w-5" />
                 ) : (
                   <ShieldAlert className="h-5 w-5" />
                 )}
                 <span className="font-semibold text-sm">
-                  {latestAudit.audit_status === 'error' ? 'Audit Error' : `Audit: ${latestAudit.audit_status}`}
+                  {latestAudit.audit_status === 'ERROR' ? 'Audit Error' : `Audit: ${latestAudit.audit_status}`}
                 </span>
                 <span className="text-xs ml-auto">
-                  {new Date(latestAudit.created_at).toLocaleDateString()}
+                  {latestAudit.engine_version} · {new Date(latestAudit.created_at).toLocaleDateString()}
                 </span>
               </div>
               {latestAudit.summary_text && (
                 <div className="p-3 rounded-lg bg-muted/50 text-sm">{latestAudit.summary_text}</div>
+              )}
+              {latestAudit.fix_prompt && latestAudit.fix_prompt.length > 0 && (
+                <div className="space-y-1">
+                  <div className="text-xs font-medium text-muted-foreground">Fix Prompt</div>
+                  <pre className="p-3 rounded-lg bg-muted/50 text-xs whitespace-pre-wrap overflow-auto max-h-32 font-mono">
+                    {latestAudit.fix_prompt}
+                  </pre>
+                </div>
               )}
             </div>
           ) : (
