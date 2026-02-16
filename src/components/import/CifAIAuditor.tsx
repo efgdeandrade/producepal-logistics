@@ -15,7 +15,7 @@ import {
 import {
   Brain, Loader2, AlertTriangle, TrendingUp, Lightbulb,
   Download, FileJson, ShieldCheck, ShieldAlert, Copy, Check,
-  XCircle, Pencil,
+  XCircle, Pencil, Bug, RefreshCw,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -26,7 +26,9 @@ import {
   checkCifReadiness,
   type ExportType,
   type MissingFieldEntry,
+  type ProductDebugInfo,
 } from "@/lib/cifAuditPack";
+import { resolveWeightCaseKg } from "@/lib/cifWeightResolver";
 import { CIF_ENGINE_VERSION } from "@/lib/cifEngine";
 
 interface CifAIAuditorProps {
@@ -64,7 +66,6 @@ const FIELD_LABELS: Record<string, string> = {
   supplier_cost_usd_per_case: "Cost USD/Case",
 };
 
-// DB column mapping for product fixes
 const FIELD_TO_DB_COLUMN: Record<string, string> = {
   case_pack: "pack_size",
   weight_case_kg: "weight", // stored as grams in DB
@@ -88,6 +89,12 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
   const [pendingExportType, setPendingExportType] = useState<ExportType | null>(null);
   const [savingFixes, setSavingFixes] = useState(false);
 
+  // Debug panel state
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
+  const [debugData, setDebugData] = useState<ProductDebugInfo[]>([]);
+  const [loadingDebug, setLoadingDebug] = useState(false);
+  const [fixingWeight, setFixingWeight] = useState<string | null>(null);
+
   // Fetch previous audits
   const { data: previousAudits } = useQuery({
     queryKey: ["cif-audits", orderId],
@@ -105,7 +112,6 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
     enabled: !!orderId,
   });
 
-  // Fetch previous exports
   const { data: previousExports } = useQuery({
     queryKey: ["cif-exports", orderId],
     queryFn: async () => {
@@ -122,13 +128,55 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
     enabled: !!orderId,
   });
 
+  const loadDebugData = async () => {
+    if (!orderId) return;
+    setLoadingDebug(true);
+    try {
+      const { debugInfo } = await checkCifReadiness(orderId);
+      setDebugData(debugInfo);
+      setShowDebugPanel(true);
+    } catch (err) {
+      console.error("Debug load error:", err);
+      toast.error("Failed to load debug data");
+    } finally {
+      setLoadingDebug(false);
+    }
+  };
+
+  const handleAutoFixWeight = async (info: ProductDebugInfo) => {
+    if (!info.product_id) return;
+    setFixingWeight(info.product_id);
+    try {
+      // The resolver already found a valid weight from alternate fields
+      const resolved = info.weight_debug;
+      if (!resolved.weight_case_kg_used || resolved.weight_case_kg_used <= 0) {
+        toast.error("No valid weight found in any field");
+        return;
+      }
+      // Write to products.weight (in grams)
+      const weightGrams = resolved.weight_case_kg_used * 1000;
+      const { error } = await supabase
+        .from("products")
+        .update({ weight: weightGrams })
+        .eq("id", info.product_id);
+      if (error) throw error;
+      toast.success(`Fixed ${info.product_code}: weight set to ${weightGrams}g (${resolved.weight_case_kg_used}kg) from ${resolved.weight_source}`);
+      // Reload debug
+      await loadDebugData();
+    } catch (err) {
+      console.error("Auto-fix error:", err);
+      toast.error("Failed to fix weight");
+    } finally {
+      setFixingWeight(null);
+    }
+  };
+
   const runReadinessCheck = async (type: ExportType): Promise<boolean> => {
     if (!orderId) return false;
     const { ready, missingFields } = await checkCifReadiness(orderId);
     if (!ready && missingFields.length > 0) {
       setMissingFieldsData(missingFields);
       setPendingExportType(type);
-      // Initialize fix values
       const fixes: Record<string, Record<string, string>> = {};
       missingFields.forEach(m => {
         fixes[m.product_id] = {};
@@ -157,7 +205,6 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
           if (!dbCol) continue;
 
           if (field === 'weight_case_kg') {
-            // DB stores weight in grams
             updateData[dbCol] = numVal * 1000;
           } else {
             updateData[dbCol] = numVal;
@@ -179,7 +226,6 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
       toast.success("Product data updated. Re-checking readiness...");
       setShowReadinessModal(false);
 
-      // Re-run export with pending type
       if (pendingExportType) {
         await handleExport(pendingExportType);
       }
@@ -194,7 +240,6 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
   const handleExport = async (type: ExportType) => {
     if (!orderId) return;
 
-    // Readiness check
     const ready = await runReadinessCheck(type);
     if (!ready) return;
 
@@ -208,10 +253,8 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
         userEmail: user?.email,
       });
 
-      // Save to storage
       await saveAuditPackToStorage(pack, orderId, type, cifVersionId, user?.id);
 
-      // Download locally
       const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -236,7 +279,6 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
       return;
     }
 
-    // Readiness check
     const ready = await runReadinessCheck('full');
     if (!ready) return;
 
@@ -253,7 +295,6 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
 
       const inputHash = await computeInputHash(pack);
 
-      // Check cache
       const { data: cached } = await supabase
         .from("cif_audits")
         .select("*")
@@ -274,7 +315,6 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
         return;
       }
 
-      // Call edge function
       const { data, error } = await supabase.functions.invoke("audit-cif-pack", {
         body: {
           audit_pack: pack,
@@ -299,7 +339,6 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
       const result = data as AuditResult;
       setAuditResult(result);
 
-      // Save to cif_audits
       const { error: insertError } = await supabase.from("cif_audits").insert({
         import_order_id: orderId,
         cif_version_id: cifVersionId || orderId,
@@ -375,7 +414,101 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
         <Badge variant="outline" className="text-xs font-mono">
           Engine {CIF_ENGINE_VERSION}
         </Badge>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-6 text-xs"
+          onClick={loadDebugData}
+          disabled={loadingDebug}
+        >
+          {loadingDebug ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Bug className="h-3 w-3 mr-1" />}
+          Debug Product Fields
+        </Button>
       </div>
+
+      {/* Debug Panel */}
+      {showDebugPanel && debugData.length > 0 && (
+        <Card className="border-dashed border-muted-foreground/30">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Bug className="h-4 w-4" />
+                Product Field Debugger
+              </CardTitle>
+              <div className="flex gap-1">
+                <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={loadDebugData}>
+                  <RefreshCw className="h-3 w-3 mr-1" /> Refresh
+                </Button>
+                <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setShowDebugPanel(false)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left p-1.5 font-medium text-muted-foreground">SKU</th>
+                  <th className="text-left p-1.5 font-medium text-muted-foreground">Name</th>
+                  <th className="text-right p-1.5 font-medium text-muted-foreground">weight (g)</th>
+                  <th className="text-right p-1.5 font-medium text-muted-foreground">netto/unit (g)</th>
+                  <th className="text-right p-1.5 font-medium text-muted-foreground">empty_case (g)</th>
+                  <th className="text-right p-1.5 font-medium text-muted-foreground">gross/unit (g)</th>
+                  <th className="text-right p-1.5 font-medium text-muted-foreground">pack_size</th>
+                  <th className="text-right p-1.5 font-medium text-muted-foreground font-bold">kg_used</th>
+                  <th className="text-left p-1.5 font-medium text-muted-foreground">Source</th>
+                  <th className="text-left p-1.5 font-medium text-muted-foreground">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {debugData.map(info => {
+                  const d = info.weight_debug;
+                  const failed = d.weight_source === 'FAILED';
+                  const hasAltWeight = d.weight_case_kg_used != null && d.weight_case_kg_used > 0 && d.weight_raw == null;
+                  return (
+                    <tr key={info.product_id} className={`border-b border-border/50 ${failed ? 'bg-destructive/5' : ''}`}>
+                      <td className="p-1.5 font-mono">{info.product_code}</td>
+                      <td className="p-1.5 max-w-[120px] truncate">{info.product_name}</td>
+                      <td className="p-1.5 text-right font-mono">{d.weight_raw ?? <span className="text-destructive">null</span>}</td>
+                      <td className="p-1.5 text-right font-mono">{d.netto_weight_per_unit_raw ?? '—'}</td>
+                      <td className="p-1.5 text-right font-mono">{d.empty_case_weight_raw ?? '—'}</td>
+                      <td className="p-1.5 text-right font-mono">{d.gross_weight_per_unit_raw ?? '—'}</td>
+                      <td className="p-1.5 text-right font-mono">{d.pack_size_raw ?? '—'}</td>
+                      <td className="p-1.5 text-right font-mono font-bold">
+                        {d.weight_case_kg_used != null ? d.weight_case_kg_used.toFixed(3) : <span className="text-destructive">FAIL</span>}
+                      </td>
+                      <td className="p-1.5">
+                        <Badge variant={failed ? 'destructive' : hasAltWeight ? 'secondary' : 'outline'} className="text-[10px]">
+                          {d.weight_source}
+                        </Badge>
+                      </td>
+                      <td className="p-1.5">
+                        {hasAltWeight && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-5 text-[10px] px-1.5"
+                            onClick={() => handleAutoFixWeight(info)}
+                            disabled={fixingWeight === info.product_id}
+                          >
+                            {fixingWeight === info.product_id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Fix weight'}
+                          </Button>
+                        )}
+                        {info.duplicates && info.duplicates.length > 1 && (
+                          <Badge variant="destructive" className="text-[10px] ml-1">
+                            {info.duplicates.length} dupes
+                          </Badge>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Export Buttons */}
       <Card>
@@ -387,43 +520,16 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleExport('estimate')}
-              disabled={!!exporting}
-            >
-              {exporting === 'estimate' ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-1" />
-              ) : (
-                <Download className="h-4 w-4 mr-1" />
-              )}
+            <Button size="sm" variant="outline" onClick={() => handleExport('estimate')} disabled={!!exporting}>
+              {exporting === 'estimate' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
               Export Estimate CIF (JSON)
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleExport('actual')}
-              disabled={!!exporting}
-            >
-              {exporting === 'actual' ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-1" />
-              ) : (
-                <Download className="h-4 w-4 mr-1" />
-              )}
+            <Button size="sm" variant="outline" onClick={() => handleExport('actual')} disabled={!!exporting}>
+              {exporting === 'actual' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
               Export Actual CIF (JSON)
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleExport('full')}
-              disabled={!!exporting}
-            >
-              {exporting === 'full' ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-1" />
-              ) : (
-                <Download className="h-4 w-4 mr-1" />
-              )}
+            <Button size="sm" variant="outline" onClick={() => handleExport('full')} disabled={!!exporting}>
+              {exporting === 'full' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
               Export Full Audit Pack (JSON)
             </Button>
           </div>
@@ -444,11 +550,7 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
               AI CIF Auditor
             </CardTitle>
             <Button size="sm" onClick={handleAudit} disabled={auditing}>
-              {auditing ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-1" />
-              ) : (
-                <Brain className="h-4 w-4 mr-1" />
-              )}
+              {auditing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Brain className="h-4 w-4 mr-1" />}
               {auditing ? "Auditing..." : "Audit CIF with AI"}
             </Button>
           </div>
@@ -456,7 +558,6 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
         <CardContent>
           {auditResult ? (
             <div className="space-y-4">
-              {/* Status banner */}
               <div className={`p-3 rounded-lg flex items-center gap-2 ${
                 auditResult.audit_status === 'PASS'
                   ? 'bg-primary/10 text-primary'
@@ -464,27 +565,15 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
                     ? 'bg-muted text-muted-foreground'
                     : 'bg-destructive/10 text-destructive'
               }`}>
-                {auditResult.audit_status === 'PASS' ? (
-                  <ShieldCheck className="h-5 w-5" />
-                ) : (
-                  <ShieldAlert className="h-5 w-5" />
-                )}
-                <span className="font-semibold text-sm">
-                  Audit: {auditResult.audit_status}
-                </span>
+                {auditResult.audit_status === 'PASS' ? <ShieldCheck className="h-5 w-5" /> : <ShieldAlert className="h-5 w-5" />}
+                <span className="font-semibold text-sm">Audit: {auditResult.audit_status}</span>
                 {auditResult.engine_version && (
-                  <span className="text-xs ml-auto opacity-60">
-                    Engine {auditResult.engine_version}
-                  </span>
+                  <span className="text-xs ml-auto opacity-60">Engine {auditResult.engine_version}</span>
                 )}
               </div>
 
-              {/* Summary */}
-              <div className="p-3 rounded-lg bg-muted/50 text-sm">
-                {auditResult.summary}
-              </div>
+              <div className="p-3 rounded-lg bg-muted/50 text-sm">{auditResult.summary}</div>
 
-              {/* Issues Table */}
               {auditResult.issues && auditResult.issues.length > 0 && (
                 <div className="space-y-2">
                   <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -498,15 +587,9 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
                         ) : (
                           <Lightbulb className="h-3.5 w-3.5 text-muted-foreground" />
                         )}
-                        <Badge variant={severityColor(issue.severity)} className="text-xs">
-                          {issue.severity}
-                        </Badge>
-                        {issue.code && (
-                          <span className="text-xs font-mono text-muted-foreground">{issue.code}</span>
-                        )}
-                        {typeof issue.where === 'string' && (
-                          <span className="text-xs text-muted-foreground">{issue.where}</span>
-                        )}
+                        <Badge variant={severityColor(issue.severity)} className="text-xs">{issue.severity}</Badge>
+                        {issue.code && <span className="text-xs font-mono text-muted-foreground">{issue.code}</span>}
+                        {typeof issue.where === 'string' && <span className="text-xs text-muted-foreground">{issue.where}</span>}
                         {typeof issue.where === 'object' && issue.where?.method && (
                           <span className="text-xs text-muted-foreground">
                             {issue.where.method}{issue.where.product_id ? ` / ${issue.where.product_id.slice(0, 8)}` : ''}
@@ -515,24 +598,17 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
                       </div>
                       <p className="text-sm">{issue.problem}</p>
                       {issue.expected && (
-                        <p className="text-xs text-muted-foreground">
-                          Expected: <span className="text-foreground font-mono">{issue.expected}</span>
-                        </p>
+                        <p className="text-xs text-muted-foreground">Expected: <span className="text-foreground font-mono">{issue.expected}</span></p>
                       )}
                       {issue.found && (
-                        <p className="text-xs text-muted-foreground">
-                          Found: <span className="text-foreground font-mono">{issue.found}</span>
-                        </p>
+                        <p className="text-xs text-muted-foreground">Found: <span className="text-foreground font-mono">{issue.found}</span></p>
                       )}
                       {issue.impact && (
-                        <p className="text-xs text-muted-foreground">
-                          Impact: <span className="text-foreground">{issue.impact}</span>
-                        </p>
+                        <p className="text-xs text-muted-foreground">Impact: <span className="text-foreground">{issue.impact}</span></p>
                       )}
                       {issue.fix && (
                         <p className="text-xs text-primary flex items-center gap-1">
-                          <TrendingUp className="h-3 w-3 shrink-0" />
-                          {issue.fix}
+                          <TrendingUp className="h-3 w-3 shrink-0" />{issue.fix}
                         </p>
                       )}
                     </div>
@@ -540,23 +616,12 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
                 </div>
               )}
 
-              {/* Fix Prompt */}
               {auditResult.fix_prompt && auditResult.fix_prompt.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Lovable Fix Prompt
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => copyFixPrompt(auditResult.fix_prompt!)}
-                    >
-                      {copiedPrompt ? (
-                        <Check className="h-3.5 w-3.5 mr-1" />
-                      ) : (
-                        <Copy className="h-3.5 w-3.5 mr-1" />
-                      )}
+                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Lovable Fix Prompt</div>
+                    <Button size="sm" variant="ghost" onClick={() => copyFixPrompt(auditResult.fix_prompt!)}>
+                      {copiedPrompt ? <Check className="h-3.5 w-3.5 mr-1" /> : <Copy className="h-3.5 w-3.5 mr-1" />}
                       {copiedPrompt ? "Copied" : "Copy"}
                     </Button>
                   </div>
@@ -576,11 +641,7 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
                     ? 'bg-muted text-muted-foreground'
                     : 'bg-destructive/10 text-destructive'
               }`}>
-                {latestAudit.audit_status === 'PASS' ? (
-                  <ShieldCheck className="h-5 w-5" />
-                ) : (
-                  <ShieldAlert className="h-5 w-5" />
-                )}
+                {latestAudit.audit_status === 'PASS' ? <ShieldCheck className="h-5 w-5" /> : <ShieldAlert className="h-5 w-5" />}
                 <span className="font-semibold text-sm">
                   {latestAudit.audit_status === 'ERROR' ? 'Audit Error' : `Audit: ${latestAudit.audit_status}`}
                 </span>

@@ -15,6 +15,7 @@ import {
   CIF_ENGINE_VERSION,
   DEFAULT_ALLOCATION_BASIS,
 } from "./cifEngine";
+import { resolveWeightCaseKg, type WeightDebug } from "./cifWeightResolver";
 import { supabase } from "@/integrations/supabase/client";
 
 const ALL_METHODS: AllocationBasis[] = [
@@ -40,9 +41,6 @@ interface AuditPackOptions {
   userEmail?: string;
 }
 
-/**
- * Check which products have missing required fields for CIF calculation.
- */
 export interface MissingFieldEntry {
   product_id: string;
   product_code: string;
@@ -50,32 +48,62 @@ export interface MissingFieldEntry {
   missing: string[];
 }
 
-export async function checkCifReadiness(orderId: string): Promise<{
-  ready: boolean;
-  missingFields: MissingFieldEntry[];
-  cifProducts: CifProduct[];
-}> {
-  // Fetch order items
+export interface ProductDebugInfo {
+  product_id: string;
+  product_code: string;
+  product_name: string;
+  weight_debug: WeightDebug;
+  raw_fields: Record<string, any>;
+  duplicates?: { id: string; name: string; code: string }[];
+}
+
+/**
+ * Fetch products with all weight-related fields for an order.
+ */
+async function fetchProductsForOrder(orderId: string) {
   const { data: items } = await supabase
     .from("order_items")
     .select("*")
     .eq("order_id", orderId);
 
   const codes = [...new Set((items || []).map(i => i.product_code))];
-  if (codes.length === 0) {
-    return { ready: false, missingFields: [], cifProducts: [] };
-  }
+  if (codes.length === 0) return { items: items || [], products: [], productMap: new Map() };
 
   const { data: products } = await supabase
     .from("products")
-    .select("id, code, name, pack_size, weight, length_cm, width_cm, height_cm, price_usd_per_unit, price_usd, supplier_id")
+    .select("id, code, name, pack_size, weight, length_cm, width_cm, height_cm, price_usd_per_unit, price_usd, supplier_id, empty_case_weight, netto_weight_per_unit, gross_weight_per_unit, volumetric_weight_kg")
     .in("code", codes);
 
   const productMap = new Map((products || []).map(p => [p.code, p]));
+  return { items: items || [], products: products || [], productMap };
+}
+
+/**
+ * Check CIF readiness using the canonical weight resolver.
+ */
+export async function checkCifReadiness(orderId: string): Promise<{
+  ready: boolean;
+  missingFields: MissingFieldEntry[];
+  cifProducts: CifProduct[];
+  debugInfo: ProductDebugInfo[];
+}> {
+  const { items, products, productMap } = await fetchProductsForOrder(orderId);
+
+  if (items.length === 0) {
+    return { ready: false, missingFields: [], cifProducts: [], debugInfo: [] };
+  }
+
+  // Check for duplicate product codes
+  const codeToProducts = new Map<string, any[]>();
+  for (const p of products) {
+    const list = codeToProducts.get(p.code) || [];
+    list.push(p);
+    codeToProducts.set(p.code, list);
+  }
 
   // Build CIF products (consolidate same product_code)
   const grouped = new Map<string, { totalQty: number; prod: any; costPerCase: number }>();
-  for (const item of (items || [])) {
+  for (const item of items) {
     const prod = productMap.get(item.product_code);
     const packSize = prod?.pack_size || 1;
     let costPerCase = item.supplier_cost_usd_per_case != null ? Number(item.supplier_cost_usd_per_case) : 0;
@@ -91,19 +119,52 @@ export async function checkCifReadiness(orderId: string): Promise<{
     }
   }
 
+  const debugInfo: ProductDebugInfo[] = [];
+
   const cifProducts: CifProduct[] = Array.from(grouped.entries())
-    .map(([code, { totalQty, prod, costPerCase }]) => ({
-      product_id: prod?.id || '',
-      product_code: code,
-      product_name: prod?.name || code,
-      qty_cases: totalQty,
-      case_pack: prod?.pack_size || 0,
-      weight_case_kg: (Number(prod?.weight) || 0) / 1000,
-      length_cm: Number(prod?.length_cm) || 0,
-      width_cm: Number(prod?.width_cm) || 0,
-      height_cm: Number(prod?.height_cm) || 0,
-      supplier_cost_usd_per_case: costPerCase,
-    }))
+    .map(([code, { totalQty, prod, costPerCase }]) => {
+      // Use canonical weight resolver
+      const weightResult = resolveWeightCaseKg({
+        weight: prod?.weight,
+        netto_weight_per_unit: prod?.netto_weight_per_unit,
+        gross_weight_per_unit: prod?.gross_weight_per_unit,
+        empty_case_weight: prod?.empty_case_weight,
+        pack_size: prod?.pack_size,
+      });
+
+      const dupes = (codeToProducts.get(code) || []).length > 1
+        ? (codeToProducts.get(code) || []).map(d => ({ id: d.id, name: d.name, code: d.code }))
+        : undefined;
+
+      debugInfo.push({
+        product_id: prod?.id || '',
+        product_code: code,
+        product_name: prod?.name || code,
+        weight_debug: weightResult.debug,
+        raw_fields: {
+          weight: prod?.weight,
+          empty_case_weight: prod?.empty_case_weight,
+          netto_weight_per_unit: prod?.netto_weight_per_unit,
+          gross_weight_per_unit: prod?.gross_weight_per_unit,
+          volumetric_weight_kg: prod?.volumetric_weight_kg,
+          pack_size: prod?.pack_size,
+        },
+        duplicates: dupes,
+      });
+
+      return {
+        product_id: prod?.id || '',
+        product_code: code,
+        product_name: prod?.name || code,
+        qty_cases: totalQty,
+        case_pack: prod?.pack_size || 0,
+        weight_case_kg: weightResult.weight_case_kg || 0,
+        length_cm: Number(prod?.length_cm) || 0,
+        width_cm: Number(prod?.width_cm) || 0,
+        height_cm: Number(prod?.height_cm) || 0,
+        supplier_cost_usd_per_case: costPerCase,
+      };
+    })
     .filter(p => p.qty_cases > 0);
 
   const REQUIRED_FIELDS: (keyof CifProduct)[] = [
@@ -123,23 +184,21 @@ export async function checkCifReadiness(orderId: string): Promise<{
     ready: missingFields.length === 0,
     missingFields,
     cifProducts,
+    debugInfo,
   };
 }
 
 export async function generateAuditPack(options: AuditPackOptions) {
   const { orderId, exportType, userId, userEmail } = options;
 
-  // Fetch order
   const { data: order } = await supabase
     .from("orders")
     .select("*")
     .eq("id", orderId)
     .single();
 
-  // Use checkCifReadiness to build cifProducts
-  const { cifProducts, missingFields: missingFieldEntries } = await checkCifReadiness(orderId);
+  const { cifProducts, missingFields: missingFieldEntries, debugInfo } = await checkCifReadiness(orderId);
 
-  // Build product map for supplier_id lookup
   const codes = cifProducts.map(p => p.product_code);
   const { data: products } = await supabase
     .from("products")
@@ -163,7 +222,6 @@ export async function generateAuditPack(options: AuditPackOptions) {
 
   const { data: versions } = await versionQuery;
 
-  // Fetch global settings
   const { data: globalSettings } = await supabase
     .from("settings")
     .select("key, value")
@@ -179,7 +237,9 @@ export async function generateAuditPack(options: AuditPackOptions) {
     settings.bank_charges_usd = map.get("cif_bank_charges")?.amount ?? settings.bank_charges_usd;
   }
 
-  // Products full detail
+  // Build debug map for weight_debug per product
+  const debugMap = new Map(debugInfo.map(d => [d.product_code, d]));
+
   const productsFullDetail = cifProducts.map(p => ({
     product_id: p.product_id,
     sku: p.product_code,
@@ -191,17 +251,15 @@ export async function generateAuditPack(options: AuditPackOptions) {
     width_cm: p.width_cm,
     height_cm: p.height_cm,
     supplier_cost_usd_per_case: p.supplier_cost_usd_per_case,
+    weight_debug: debugMap.get(p.product_code)?.weight_debug || null,
   }));
 
-  // Build CIF version results
   let cifVersionsOutput = buildVersionsOutput(versions || [], cifProducts, settings);
 
-  // KEY FIX: If no CIF versions exist, generate an on-the-fly estimate
   if (cifVersionsOutput.length === 0 && cifProducts.length > 0) {
     cifVersionsOutput = [generateOnTheFlyEstimate(cifProducts, settings)];
   }
 
-  // Simplified missing_fields for JSON output (without product_name)
   const missingFields = missingFieldEntries.map(m => ({
     product_id: m.product_id,
     missing: m.missing,
@@ -223,6 +281,7 @@ export async function generateAuditPack(options: AuditPackOptions) {
         "Recompute and verify per piece (primary), per case, per kg for EACH product line for EACH method (weight/volume/value/quantity/equal).",
         "Verify allocations: per component, sum of allocated across products equals component total within rounding tolerance.",
         "Flag missing fields, division by zero, negatives, currency direction errors, wrong totals, wrong margin/markup logic.",
+        "Check weight_debug for each product to verify the weight source is consistent and correct.",
         "Output PASS/FAIL + issues + minimal Lovable fix prompt if FAIL.",
       ],
       required_output_format: {
@@ -365,8 +424,6 @@ function buildVersionsOutput(
     };
 
     const methodsComparison = buildMethodsComparison(cifProducts, versionComponents, versionSettings);
-
-    // Primary method totals
     const primaryResult = calculateCIF(cifProducts, versionComponents, versionSettings);
 
     return {
@@ -406,10 +463,8 @@ function generateOnTheFlyEstimate(
   cifProducts: CifProduct[],
   settings: CifSettings,
 ) {
-  // Build default cost components from settings
   const primaryResult = calculateCIF(cifProducts, [], settings);
   const totalChargeableKg = primaryResult.totals.total_chargeable_weight_kg;
-  const totalValueUsd = primaryResult.totals.total_value_usd;
 
   const defaultComponents: CifComponent[] = [
     {
@@ -446,9 +501,7 @@ function generateOnTheFlyEstimate(
     },
   ];
 
-  // Filter out zero-amount components
   const components = defaultComponents.filter(c => c.amount > 0);
-
   const fullResult = calculateCIF(cifProducts, components, settings);
   const methodsComparison = buildMethodsComparison(cifProducts, components, settings);
 
