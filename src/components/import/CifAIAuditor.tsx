@@ -3,9 +3,19 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Brain, Loader2, AlertTriangle, TrendingUp, Lightbulb,
   Download, FileJson, ShieldCheck, ShieldAlert, Copy, Check,
+  XCircle, Pencil,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -13,7 +23,9 @@ import {
   generateAuditPack,
   saveAuditPackToStorage,
   computeInputHash,
+  checkCifReadiness,
   type ExportType,
+  type MissingFieldEntry,
 } from "@/lib/cifAuditPack";
 import { CIF_ENGINE_VERSION } from "@/lib/cifEngine";
 
@@ -43,12 +55,38 @@ interface AuditResult {
   fix_prompt?: string;
 }
 
+const FIELD_LABELS: Record<string, string> = {
+  case_pack: "Pack Size",
+  weight_case_kg: "Weight/Case (kg)",
+  length_cm: "Length (cm)",
+  width_cm: "Width (cm)",
+  height_cm: "Height (cm)",
+  supplier_cost_usd_per_case: "Cost USD/Case",
+};
+
+// DB column mapping for product fixes
+const FIELD_TO_DB_COLUMN: Record<string, string> = {
+  case_pack: "pack_size",
+  weight_case_kg: "weight", // stored as grams in DB
+  length_cm: "length_cm",
+  width_cm: "width_cm",
+  height_cm: "height_cm",
+  supplier_cost_usd_per_case: "price_usd",
+};
+
 export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
   const queryClient = useQueryClient();
   const [exporting, setExporting] = useState<ExportType | null>(null);
   const [auditing, setAuditing] = useState(false);
   const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
   const [copiedPrompt, setCopiedPrompt] = useState(false);
+
+  // Readiness check modal state
+  const [showReadinessModal, setShowReadinessModal] = useState(false);
+  const [missingFieldsData, setMissingFieldsData] = useState<MissingFieldEntry[]>([]);
+  const [fieldFixes, setFieldFixes] = useState<Record<string, Record<string, string>>>({});
+  const [pendingExportType, setPendingExportType] = useState<ExportType | null>(null);
+  const [savingFixes, setSavingFixes] = useState(false);
 
   // Fetch previous audits
   const { data: previousAudits } = useQuery({
@@ -84,8 +122,82 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
     enabled: !!orderId,
   });
 
+  const runReadinessCheck = async (type: ExportType): Promise<boolean> => {
+    if (!orderId) return false;
+    const { ready, missingFields } = await checkCifReadiness(orderId);
+    if (!ready && missingFields.length > 0) {
+      setMissingFieldsData(missingFields);
+      setPendingExportType(type);
+      // Initialize fix values
+      const fixes: Record<string, Record<string, string>> = {};
+      missingFields.forEach(m => {
+        fixes[m.product_id] = {};
+        m.missing.forEach(f => { fixes[m.product_id][f] = ''; });
+      });
+      setFieldFixes(fixes);
+      setShowReadinessModal(true);
+      return false;
+    }
+    return true;
+  };
+
+  const handleSaveFixes = async () => {
+    setSavingFixes(true);
+    try {
+      for (const entry of missingFieldsData) {
+        const fixes = fieldFixes[entry.product_id];
+        if (!fixes) continue;
+
+        const updateData: Record<string, any> = {};
+        for (const [field, value] of Object.entries(fixes)) {
+          const numVal = parseFloat(value);
+          if (isNaN(numVal) || numVal <= 0) continue;
+
+          const dbCol = FIELD_TO_DB_COLUMN[field];
+          if (!dbCol) continue;
+
+          if (field === 'weight_case_kg') {
+            // DB stores weight in grams
+            updateData[dbCol] = numVal * 1000;
+          } else {
+            updateData[dbCol] = numVal;
+          }
+        }
+
+        if (Object.keys(updateData).length > 0 && entry.product_id) {
+          const { error } = await supabase
+            .from("products")
+            .update(updateData)
+            .eq("id", entry.product_id);
+          if (error) {
+            console.error(`Failed to update product ${entry.product_code}:`, error);
+            toast.error(`Failed to update ${entry.product_code}`);
+          }
+        }
+      }
+
+      toast.success("Product data updated. Re-checking readiness...");
+      setShowReadinessModal(false);
+
+      // Re-run export with pending type
+      if (pendingExportType) {
+        await handleExport(pendingExportType);
+      }
+    } catch (err) {
+      console.error("Save fixes error:", err);
+      toast.error("Failed to save fixes");
+    } finally {
+      setSavingFixes(false);
+    }
+  };
+
   const handleExport = async (type: ExportType) => {
     if (!orderId) return;
+
+    // Readiness check
+    const ready = await runReadinessCheck(type);
+    if (!ready) return;
+
     setExporting(type);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -119,10 +231,15 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
   };
 
   const handleAudit = async () => {
-    if (!orderId || !cifVersionId) {
-      toast.error("No CIF version available to audit");
+    if (!orderId) {
+      toast.error("No order to audit");
       return;
     }
+
+    // Readiness check
+    const ready = await runReadinessCheck('full');
+    if (!ready) return;
+
     setAuditing(true);
     setAuditResult(null);
     try {
@@ -182,10 +299,10 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
       const result = data as AuditResult;
       setAuditResult(result);
 
-      // Save to cif_audits (upsert on input_hash)
+      // Save to cif_audits
       const { error: insertError } = await supabase.from("cif_audits").insert({
         import_order_id: orderId,
-        cif_version_id: cifVersionId,
+        cif_version_id: cifVersionId || orderId,
         engine_version: CIF_ENGINE_VERSION,
         input_hash: inputHash,
         audit_status: result.audit_status || 'ERROR',
@@ -196,7 +313,6 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
         created_by: user?.email || user?.id || null,
       } as any);
 
-      // If duplicate key, that's fine (cached)
       if (insertError && !insertError.message?.includes('duplicate')) {
         console.error("Failed to save audit:", insertError);
       }
@@ -214,12 +330,11 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
       console.error("Audit failed:", err);
       toast.error("AI audit failed. Please try again.");
 
-      // Record failed attempt
       try {
         const { data: { user } } = await supabase.auth.getUser();
         await supabase.from("cif_audits").insert({
           import_order_id: orderId!,
-          cif_version_id: cifVersionId!,
+          cif_version_id: cifVersionId || orderId!,
           engine_version: CIF_ENGINE_VERSION,
           input_hash: `error_${Date.now()}`,
           audit_status: 'ERROR',
@@ -328,7 +443,7 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
               <Brain className="h-4 w-4" />
               AI CIF Auditor
             </CardTitle>
-            <Button size="sm" onClick={handleAudit} disabled={auditing || !cifVersionId}>
+            <Button size="sm" onClick={handleAudit} disabled={auditing}>
               {auditing ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-1" />
               ) : (
@@ -492,6 +607,66 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Readiness Check Modal */}
+      <Dialog open={showReadinessModal} onOpenChange={setShowReadinessModal}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <XCircle className="h-5 w-5" />
+              CIF Readiness Check Failed
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              The following products are missing required fields for CIF calculation. 
+              Fill in the values below to proceed with export.
+            </p>
+            {missingFieldsData.map((entry) => (
+              <Card key={entry.product_id} className="border-destructive/30">
+                <CardHeader className="py-2 px-3">
+                  <div className="flex items-center gap-2">
+                    <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-sm font-medium">{entry.product_code}</span>
+                    <span className="text-xs text-muted-foreground truncate">{entry.product_name}</span>
+                  </div>
+                </CardHeader>
+                <CardContent className="py-2 px-3 space-y-2">
+                  {entry.missing.map((field) => (
+                    <div key={field} className="flex items-center gap-2">
+                      <Label className="text-xs w-32 shrink-0">{FIELD_LABELS[field] || field}</Label>
+                      <Input
+                        type="number"
+                        step="any"
+                        min="0"
+                        className="h-8 text-sm"
+                        placeholder="0"
+                        value={fieldFixes[entry.product_id]?.[field] || ''}
+                        onChange={(e) => {
+                          setFieldFixes(prev => ({
+                            ...prev,
+                            [entry.product_id]: {
+                              ...prev[entry.product_id],
+                              [field]: e.target.value,
+                            },
+                          }));
+                        }}
+                      />
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowReadinessModal(false)}>Cancel</Button>
+            <Button onClick={handleSaveFixes} disabled={savingFixes}>
+              {savingFixes ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Fix &amp; Export
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
