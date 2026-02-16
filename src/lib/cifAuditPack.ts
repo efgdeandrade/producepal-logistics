@@ -13,6 +13,7 @@ import {
   calculateCIF,
   DEFAULT_CIF_SETTINGS,
   CIF_ENGINE_VERSION,
+  DEFAULT_ALLOCATION_BASIS,
 } from "./cifEngine";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -39,6 +40,92 @@ interface AuditPackOptions {
   userEmail?: string;
 }
 
+/**
+ * Check which products have missing required fields for CIF calculation.
+ */
+export interface MissingFieldEntry {
+  product_id: string;
+  product_code: string;
+  product_name: string;
+  missing: string[];
+}
+
+export async function checkCifReadiness(orderId: string): Promise<{
+  ready: boolean;
+  missingFields: MissingFieldEntry[];
+  cifProducts: CifProduct[];
+}> {
+  // Fetch order items
+  const { data: items } = await supabase
+    .from("order_items")
+    .select("*")
+    .eq("order_id", orderId);
+
+  const codes = [...new Set((items || []).map(i => i.product_code))];
+  if (codes.length === 0) {
+    return { ready: false, missingFields: [], cifProducts: [] };
+  }
+
+  const { data: products } = await supabase
+    .from("products")
+    .select("id, code, name, pack_size, weight, length_cm, width_cm, height_cm, price_usd_per_unit, price_usd, supplier_id")
+    .in("code", codes);
+
+  const productMap = new Map((products || []).map(p => [p.code, p]));
+
+  // Build CIF products (consolidate same product_code)
+  const grouped = new Map<string, { totalQty: number; prod: any; costPerCase: number }>();
+  for (const item of (items || [])) {
+    const prod = productMap.get(item.product_code);
+    const packSize = prod?.pack_size || 1;
+    let costPerCase = item.supplier_cost_usd_per_case != null ? Number(item.supplier_cost_usd_per_case) : 0;
+    if (costPerCase <= 0 && prod?.price_usd_per_unit) costPerCase = Number(prod.price_usd_per_unit) * packSize;
+    if (costPerCase <= 0 && prod?.price_usd) costPerCase = Number(prod.price_usd);
+
+    const existing = grouped.get(item.product_code);
+    if (existing) {
+      existing.totalQty += (item.quantity || 0);
+      if (existing.costPerCase <= 0 && costPerCase > 0) existing.costPerCase = costPerCase;
+    } else {
+      grouped.set(item.product_code, { totalQty: item.quantity || 0, prod, costPerCase });
+    }
+  }
+
+  const cifProducts: CifProduct[] = Array.from(grouped.entries())
+    .map(([code, { totalQty, prod, costPerCase }]) => ({
+      product_id: prod?.id || '',
+      product_code: code,
+      product_name: prod?.name || code,
+      qty_cases: totalQty,
+      case_pack: prod?.pack_size || 0,
+      weight_case_kg: (Number(prod?.weight) || 0) / 1000,
+      length_cm: Number(prod?.length_cm) || 0,
+      width_cm: Number(prod?.width_cm) || 0,
+      height_cm: Number(prod?.height_cm) || 0,
+      supplier_cost_usd_per_case: costPerCase,
+    }))
+    .filter(p => p.qty_cases > 0);
+
+  const REQUIRED_FIELDS: (keyof CifProduct)[] = [
+    'case_pack', 'weight_case_kg', 'length_cm', 'width_cm', 'height_cm', 'supplier_cost_usd_per_case'
+  ];
+
+  const missingFields: MissingFieldEntry[] = cifProducts
+    .map(p => ({
+      product_id: p.product_id,
+      product_code: p.product_code,
+      product_name: p.product_name,
+      missing: REQUIRED_FIELDS.filter(f => !p[f] || Number(p[f]) <= 0),
+    }))
+    .filter(m => m.missing.length > 0);
+
+  return {
+    ready: missingFields.length === 0,
+    missingFields,
+    cifProducts,
+  };
+}
+
 export async function generateAuditPack(options: AuditPackOptions) {
   const { orderId, exportType, userId, userEmail } = options;
 
@@ -49,17 +136,15 @@ export async function generateAuditPack(options: AuditPackOptions) {
     .eq("id", orderId)
     .single();
 
-  // Fetch order items + products
-  const { data: items } = await supabase
-    .from("order_items")
-    .select("*")
-    .eq("order_id", orderId);
+  // Use checkCifReadiness to build cifProducts
+  const { cifProducts, missingFields: missingFieldEntries } = await checkCifReadiness(orderId);
 
-  const codes = [...new Set((items || []).map(i => i.product_code))];
+  // Build product map for supplier_id lookup
+  const codes = cifProducts.map(p => p.product_code);
   const { data: products } = await supabase
     .from("products")
-    .select("id, code, name, pack_size, weight, length_cm, width_cm, height_cm, price_usd_per_unit, price_usd, supplier_id")
-    .in("code", codes);
+    .select("id, code, supplier_id")
+    .in("code", codes.length > 0 ? codes : ['__none__']);
 
   const productMap = new Map((products || []).map(p => [p.code, p]));
 
@@ -94,54 +179,6 @@ export async function generateAuditPack(options: AuditPackOptions) {
     settings.bank_charges_usd = map.get("cif_bank_charges")?.amount ?? settings.bank_charges_usd;
   }
 
-  // Build CIF products (consolidate same product_code)
-  const grouped = new Map<string, { totalQty: number; prod: any; costPerCase: number }>();
-  for (const item of (items || [])) {
-    const prod = productMap.get(item.product_code);
-    const packSize = prod?.pack_size || 1;
-    let costPerCase = item.supplier_cost_usd_per_case != null ? Number(item.supplier_cost_usd_per_case) : 0;
-    if (costPerCase <= 0 && prod?.price_usd_per_unit) costPerCase = Number(prod.price_usd_per_unit) * packSize;
-    if (costPerCase <= 0 && prod?.price_usd) costPerCase = Number(prod.price_usd);
-
-    const existing = grouped.get(item.product_code);
-    if (existing) {
-      existing.totalQty += (item.quantity || 0);
-      if (existing.costPerCase <= 0 && costPerCase > 0) existing.costPerCase = costPerCase;
-    } else {
-      grouped.set(item.product_code, { totalQty: item.quantity || 0, prod, costPerCase });
-    }
-  }
-
-  const cifProducts: CifProduct[] = Array.from(grouped.entries())
-    .map(([code, { totalQty, prod, costPerCase }]) => ({
-      product_id: prod?.id || '',
-      product_code: code,
-      product_name: prod?.name || code,
-      qty_cases: totalQty,
-      case_pack: prod?.pack_size || 1,
-      weight_case_kg: (Number(prod?.weight) || 0) / 1000,
-      length_cm: Number(prod?.length_cm) || 0,
-      width_cm: Number(prod?.width_cm) || 0,
-      height_cm: Number(prod?.height_cm) || 0,
-      supplier_cost_usd_per_case: costPerCase,
-    }))
-    .filter(p => p.qty_cases > 0);
-
-  // Detect missing fields
-  const missingFields = cifProducts
-    .filter(p => !p.case_pack || !p.weight_case_kg || !p.length_cm || !p.width_cm || !p.height_cm || !p.supplier_cost_usd_per_case)
-    .map(p => ({
-      product_id: p.product_id,
-      missing: [
-        ...(p.case_pack ? [] : ['case_pack']),
-        ...(p.weight_case_kg ? [] : ['weight_case_kg']),
-        ...(p.length_cm ? [] : ['length_cm']),
-        ...(p.width_cm ? [] : ['width_cm']),
-        ...(p.height_cm ? [] : ['height_cm']),
-        ...(p.supplier_cost_usd_per_case ? [] : ['supplier_cost_usd_per_case']),
-      ],
-    }));
-
   // Products full detail
   const productsFullDetail = cifProducts.map(p => ({
     product_id: p.product_id,
@@ -156,96 +193,19 @@ export async function generateAuditPack(options: AuditPackOptions) {
     supplier_cost_usd_per_case: p.supplier_cost_usd_per_case,
   }));
 
-  // Build CIF version results with ALL 5 method comparisons
-  const cifVersionsOutput = (versions || []).map(v => {
-    const versionComponents: CifComponent[] = (v.cif_components || []).map((c: any) => ({
-      id: c.id,
-      component_type: c.component_type,
-      label: c.label,
-      status: c.status as 'pending' | 'received' | 'approved',
-      currency: c.currency as 'USD' | 'XCG',
-      amount: c.amount,
-      allocation_basis: c.allocation_basis as AllocationBasis,
-      notes: c.notes,
-    }));
+  // Build CIF version results
+  let cifVersionsOutput = buildVersionsOutput(versions || [], cifProducts, settings);
 
-    const versionSettings: CifSettings = {
-      ...settings,
-      fx_rate_usd_to_xcg: v.fx_rate_usd_to_xcg,
-      champion_cost_per_kg: v.champion_cost_per_kg,
-      swissport_cost_per_kg: v.swissport_cost_per_kg,
-      local_logistics_xcg: v.local_logistics_xcg,
-      bank_charges_usd: v.bank_charges_usd,
-    };
+  // KEY FIX: If no CIF versions exist, generate an on-the-fly estimate
+  if (cifVersionsOutput.length === 0 && cifProducts.length > 0) {
+    cifVersionsOutput = [generateOnTheFlyEstimate(cifProducts, settings)];
+  }
 
-    // Calculate for ALL methods
-    const methodsComparison: Record<string, any> = {};
-    for (const method of ALL_METHODS) {
-      const methodComponents = versionComponents.map(c => ({ ...c, allocation_basis: method }));
-      const calcResult = calculateCIF(cifProducts, methodComponents, versionSettings);
-
-      const key = METHOD_KEY_MAP[method] || method;
-      methodsComparison[key] = {
-        allocations: calcResult.allocations.map(a => ({
-          product_id: a.product_id,
-          qty_cases: a.qty_cases,
-          qty_pieces: a.qty_pieces,
-          actual_weight_kg_line: a.actual_weight_kg,
-          volumetric_weight_kg_line: a.volumetric_weight_kg,
-          chargeable_weight_kg_line: a.chargeable_weight_kg,
-          supplier_cost_usd_line: a.supplier_cost_usd,
-          allocated_shared_costs_usd_line: a.allocated_shared_costs_usd,
-          landed_total_usd_line: a.landed_total_usd,
-          landed_cost_per_piece_usd: a.landed_cost_per_piece_usd,
-          landed_cost_per_case_usd: a.landed_cost_per_case_usd,
-          landed_cost_per_kg_usd: a.landed_cost_per_kg_usd,
-          landed_cost_per_piece_xcg: a.landed_cost_per_piece_xcg,
-          landed_cost_per_case_xcg: a.landed_cost_per_case_xcg,
-          landed_cost_per_kg_xcg: a.landed_cost_per_kg_xcg,
-          component_breakdown: a.allocated_costs,
-        })),
-        totals: {
-          totals_shared_usd: calcResult.total_shared_costs_usd,
-          totals_supplier_usd: calcResult.allocations.reduce((s, a) => s + a.supplier_cost_usd, 0),
-          totals_landed_usd: calcResult.total_landed_usd,
-          totals_shared_xcg: calcResult.total_shared_costs_usd * versionSettings.fx_rate_usd_to_xcg,
-          totals_supplier_xcg: calcResult.allocations.reduce((s, a) => s + a.supplier_cost_xcg, 0),
-          totals_landed_xcg: calcResult.total_landed_xcg,
-          rounding_adjustment_usd: calcResult.rounding_adjustment_usd,
-        },
-      };
-    }
-
-    // Primary method totals
-    const primaryResult = calculateCIF(cifProducts, versionComponents, versionSettings);
-
-    return {
-      cif_version_id: v.id,
-      type: v.version_type,
-      version_no: v.version_no,
-      is_final: v.is_final,
-      created_at: v.created_at,
-      totals: {
-        total_cases: primaryResult.totals.total_cases,
-        total_pieces: primaryResult.totals.total_pieces,
-        total_actual_weight_kg: primaryResult.totals.total_actual_weight_kg,
-        total_volumetric_weight_kg: primaryResult.totals.total_volumetric_weight_kg,
-        total_chargeable_weight_kg: primaryResult.totals.total_chargeable_weight_kg,
-        total_value_usd: primaryResult.totals.total_value_usd,
-      },
-      components: versionComponents.map(c => ({
-        component_type: c.component_type,
-        status: c.status,
-        currency: c.currency,
-        amount: c.amount,
-        amount_usd: c.currency === 'XCG' ? c.amount / versionSettings.fx_rate_usd_to_xcg : c.amount,
-        allocation_basis: c.allocation_basis,
-        notes: c.notes || '',
-        source_document_id: '',
-      })),
-      methods_comparison: methodsComparison,
-    };
-  });
+  // Simplified missing_fields for JSON output (without product_name)
+  const missingFields = missingFieldEntries.map(m => ({
+    product_id: m.product_id,
+    missing: m.missing,
+  }));
 
   const auditPack = {
     export_meta: {
@@ -324,6 +284,200 @@ export async function generateAuditPack(options: AuditPackOptions) {
   };
 
   return auditPack;
+}
+
+/**
+ * Build methods comparison for a set of components against cifProducts.
+ */
+function buildMethodsComparison(
+  cifProducts: CifProduct[],
+  versionComponents: CifComponent[],
+  versionSettings: CifSettings,
+): Record<string, any> {
+  const methodsComparison: Record<string, any> = {};
+
+  for (const method of ALL_METHODS) {
+    const methodComponents = versionComponents.map(c => ({ ...c, allocation_basis: method }));
+    const calcResult = calculateCIF(cifProducts, methodComponents, versionSettings);
+
+    const key = METHOD_KEY_MAP[method] || method;
+    methodsComparison[key] = {
+      allocations: calcResult.allocations.map(a => ({
+        product_id: a.product_id,
+        qty_cases: a.qty_cases,
+        qty_pieces: a.qty_pieces,
+        actual_weight_kg_line: a.actual_weight_kg,
+        volumetric_weight_kg_line: a.volumetric_weight_kg,
+        chargeable_weight_kg_line: a.chargeable_weight_kg,
+        supplier_cost_usd_line: a.supplier_cost_usd,
+        allocated_shared_costs_usd_line: a.allocated_shared_costs_usd,
+        landed_total_usd_line: a.landed_total_usd,
+        landed_cost_per_piece_usd: a.landed_cost_per_piece_usd,
+        landed_cost_per_case_usd: a.landed_cost_per_case_usd,
+        landed_cost_per_kg_usd: a.landed_cost_per_kg_usd,
+        landed_cost_per_piece_xcg: a.landed_cost_per_piece_xcg,
+        landed_cost_per_case_xcg: a.landed_cost_per_case_xcg,
+        landed_cost_per_kg_xcg: a.landed_cost_per_kg_xcg,
+        component_breakdown: a.allocated_costs,
+      })),
+      totals: {
+        totals_shared_usd: calcResult.total_shared_costs_usd,
+        totals_supplier_usd: calcResult.allocations.reduce((s, a) => s + a.supplier_cost_usd, 0),
+        totals_landed_usd: calcResult.total_landed_usd,
+        totals_shared_xcg: calcResult.total_shared_costs_usd * versionSettings.fx_rate_usd_to_xcg,
+        totals_supplier_xcg: calcResult.allocations.reduce((s, a) => s + a.supplier_cost_xcg, 0),
+        totals_landed_xcg: calcResult.total_landed_xcg,
+        rounding_adjustment_usd: calcResult.rounding_adjustment_usd,
+      },
+    };
+  }
+
+  return methodsComparison;
+}
+
+/**
+ * Build output from existing DB cif_versions.
+ */
+function buildVersionsOutput(
+  versions: any[],
+  cifProducts: CifProduct[],
+  settings: CifSettings,
+) {
+  return versions.map(v => {
+    const versionComponents: CifComponent[] = (v.cif_components || []).map((c: any) => ({
+      id: c.id,
+      component_type: c.component_type,
+      label: c.label,
+      status: c.status as 'pending' | 'received' | 'approved',
+      currency: c.currency as 'USD' | 'XCG',
+      amount: c.amount,
+      allocation_basis: c.allocation_basis as AllocationBasis,
+      notes: c.notes,
+    }));
+
+    const versionSettings: CifSettings = {
+      ...settings,
+      fx_rate_usd_to_xcg: v.fx_rate_usd_to_xcg,
+      champion_cost_per_kg: v.champion_cost_per_kg,
+      swissport_cost_per_kg: v.swissport_cost_per_kg,
+      local_logistics_xcg: v.local_logistics_xcg,
+      bank_charges_usd: v.bank_charges_usd,
+    };
+
+    const methodsComparison = buildMethodsComparison(cifProducts, versionComponents, versionSettings);
+
+    // Primary method totals
+    const primaryResult = calculateCIF(cifProducts, versionComponents, versionSettings);
+
+    return {
+      cif_version_id: v.id,
+      type: v.version_type,
+      version_no: v.version_no,
+      is_final: v.is_final,
+      created_at: v.created_at,
+      totals: {
+        total_cases: primaryResult.totals.total_cases,
+        total_pieces: primaryResult.totals.total_pieces,
+        total_actual_weight_kg: primaryResult.totals.total_actual_weight_kg,
+        total_volumetric_weight_kg: primaryResult.totals.total_volumetric_weight_kg,
+        total_chargeable_weight_kg: primaryResult.totals.total_chargeable_weight_kg,
+        total_value_usd: primaryResult.totals.total_value_usd,
+      },
+      components: versionComponents.map(c => ({
+        component_type: c.component_type,
+        status: c.status,
+        currency: c.currency,
+        amount: c.amount,
+        amount_usd: c.currency === 'XCG' ? c.amount / versionSettings.fx_rate_usd_to_xcg : c.amount,
+        allocation_basis: c.allocation_basis,
+        notes: c.notes || '',
+        source_document_id: '',
+      })),
+      methods_comparison: methodsComparison,
+    };
+  });
+}
+
+/**
+ * Generate an on-the-fly Estimate CIF version when no DB versions exist.
+ * Uses default settings to build shared cost components automatically.
+ */
+function generateOnTheFlyEstimate(
+  cifProducts: CifProduct[],
+  settings: CifSettings,
+) {
+  // Build default cost components from settings
+  const primaryResult = calculateCIF(cifProducts, [], settings);
+  const totalChargeableKg = primaryResult.totals.total_chargeable_weight_kg;
+  const totalValueUsd = primaryResult.totals.total_value_usd;
+
+  const defaultComponents: CifComponent[] = [
+    {
+      component_type: 'champion',
+      label: 'Champion (External)',
+      status: 'pending',
+      currency: 'USD',
+      amount: totalChargeableKg * settings.champion_cost_per_kg,
+      allocation_basis: DEFAULT_ALLOCATION_BASIS['champion'] || 'chargeable_weight',
+    },
+    {
+      component_type: 'swissport',
+      label: 'Swissport (Local)',
+      status: 'pending',
+      currency: 'USD',
+      amount: totalChargeableKg * settings.swissport_cost_per_kg,
+      allocation_basis: DEFAULT_ALLOCATION_BASIS['swissport'] || 'chargeable_weight',
+    },
+    {
+      component_type: 'bank_charges',
+      label: 'Bank Charges',
+      status: 'pending',
+      currency: 'USD',
+      amount: settings.bank_charges_usd,
+      allocation_basis: DEFAULT_ALLOCATION_BASIS['bank_charges'] || 'value',
+    },
+    {
+      component_type: 'handling_terminal',
+      label: 'Local Logistics',
+      status: 'pending',
+      currency: 'XCG',
+      amount: settings.local_logistics_xcg,
+      allocation_basis: DEFAULT_ALLOCATION_BASIS['handling_terminal'] || 'cases',
+    },
+  ];
+
+  // Filter out zero-amount components
+  const components = defaultComponents.filter(c => c.amount > 0);
+
+  const fullResult = calculateCIF(cifProducts, components, settings);
+  const methodsComparison = buildMethodsComparison(cifProducts, components, settings);
+
+  return {
+    cif_version_id: 'on-the-fly-estimate',
+    type: 'estimate',
+    version_no: 1,
+    is_final: false,
+    created_at: new Date().toISOString(),
+    totals: {
+      total_cases: fullResult.totals.total_cases,
+      total_pieces: fullResult.totals.total_pieces,
+      total_actual_weight_kg: fullResult.totals.total_actual_weight_kg,
+      total_volumetric_weight_kg: fullResult.totals.total_volumetric_weight_kg,
+      total_chargeable_weight_kg: fullResult.totals.total_chargeable_weight_kg,
+      total_value_usd: fullResult.totals.total_value_usd,
+    },
+    components: components.map(c => ({
+      component_type: c.component_type,
+      status: c.status,
+      currency: c.currency,
+      amount: c.amount,
+      amount_usd: c.currency === 'XCG' ? c.amount / settings.fx_rate_usd_to_xcg : c.amount,
+      allocation_basis: c.allocation_basis,
+      notes: 'Auto-generated estimate from default settings',
+      source_document_id: '',
+    })),
+    methods_comparison: methodsComparison,
+  };
 }
 
 /**
