@@ -10,13 +10,14 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlusCircle, Pencil, Trash2, ArrowLeft, Search, History, Copy } from 'lucide-react';
+import { PlusCircle, Pencil, Trash2, ArrowLeft, Search, History, Copy, Scale } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { ProductPriceHistory } from '@/components/ProductPriceHistory';
 import { ProductFormDialog } from '@/components/ProductFormDialog';
 import { SupplierPriceEntry } from '@/components/SupplierPricingSection';
+import { NormalizeWeightsDialog } from '@/components/import/NormalizeWeightsDialog';
 
 const productSchema = z.object({
   code: z.string().trim().min(1, 'Product code is required').max(50, 'Code too long'),
@@ -78,6 +79,7 @@ const Products = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [priceHistoryProduct, setPriceHistoryProduct] = useState<{ id: string; code: string } | null>(null);
   const [supplierPrices, setSupplierPrices] = useState<SupplierPriceEntry[]>([]);
+  const [normalizeOpen, setNormalizeOpen] = useState(false);
   const [formData, setFormData] = useState({
     code: '',
     name: '',
@@ -613,6 +615,10 @@ const Products = () => {
           </div>
           {canManage && (
             <div className="ml-auto flex gap-2">
+              <Button variant="outline" onClick={() => setNormalizeOpen(true)}>
+                <Scale className="mr-2 h-4 w-4" />
+                Normalize Weights
+              </Button>
               <Button onClick={() => handleOpenDialog()}>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Add Product
@@ -807,6 +813,7 @@ const Products = () => {
             onOpenChange={(open) => !open && setPriceHistoryProduct(null)}
         />
       )}
+      <NormalizeWeightsDialog open={normalizeOpen} onOpenChange={setNormalizeOpen} />
     </div>
   );
 };
