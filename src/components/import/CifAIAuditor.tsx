@@ -336,7 +336,16 @@ export function CifAIAuditor({ cifVersionId, orderId }: CifAIAuditorProps) {
 
       if (error) throw error;
 
-      const result = data as AuditResult;
+      // Normalize: AI may return "anomalies" instead of "issues"
+      const raw = data as any;
+      const result: AuditResult = {
+        audit_status: raw.audit_status || 'ERROR',
+        engine_version: raw.engine_version,
+        input_hash: raw.input_hash,
+        issues: Array.isArray(raw.issues) ? raw.issues : Array.isArray(raw.anomalies) ? raw.anomalies : [],
+        summary: raw.summary || '',
+        fix_prompt: raw.fix_prompt || raw.lovable_fix_prompt || '',
+      };
       setAuditResult(result);
 
       const { error: insertError } = await supabase.from("cif_audits").insert({
