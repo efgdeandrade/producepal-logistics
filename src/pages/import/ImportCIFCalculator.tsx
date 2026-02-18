@@ -42,7 +42,7 @@ export default function ImportCIFCalculator() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, code, name, pack_size, weight, length_cm, width_cm, height_cm, price_usd_per_unit, supplier_id, empty_case_weight, netto_weight_per_unit, gross_weight_per_unit")
+        .select("id, code, name, pack_size, weight, length_cm, width_cm, height_cm, price_usd_per_unit, supplier_id, empty_case_weight, netto_weight_per_unit, gross_weight_per_unit, unit_net_g, unit_gross_g, case_tare_g, case_gross_g, weight_mode, case_weight_override_enabled")
         .order("code");
       if (error) throw error;
       return data;
@@ -87,6 +87,12 @@ export default function ImportCIFCalculator() {
       gross_weight_per_unit: (dbProd as any).gross_weight_per_unit,
       empty_case_weight: (dbProd as any).empty_case_weight,
       pack_size: dbProd.pack_size,
+      unit_net_g: (dbProd as any).unit_net_g,
+      unit_gross_g: (dbProd as any).unit_gross_g,
+      case_tare_g: (dbProd as any).case_tare_g,
+      case_gross_g: (dbProd as any).case_gross_g,
+      weight_mode: (dbProd as any).weight_mode,
+      case_weight_override_enabled: (dbProd as any).case_weight_override_enabled,
     }).weight_case_kg || 0;
 
     const newProduct: CifProduct = {

@@ -150,6 +150,12 @@ const Suppliers = () => {
     length_cm: '',
     width_cm: '',
     height_cm: '',
+    unit_net_g: '',
+    unit_gross_g: '',
+    case_tare_g: '',
+    case_gross_g: '',
+    weight_mode: '',
+    case_weight_override_enabled: false,
   });
 
   // Fetch currency conversion rate from settings
@@ -363,7 +369,8 @@ const Suppliers = () => {
         price_usd_per_unit: '', price_usd_per_case: '', price_xcg_per_unit: '', price_xcg_per_case: '',
         wholesale_price_usd_per_unit: '', wholesale_price_xcg_per_unit: '',
         retail_price_usd_per_unit: '', retail_price_xcg_per_unit: '',
-        unit: '', length_cm: '', width_cm: '', height_cm: ''
+        unit: '', length_cm: '', width_cm: '', height_cm: '',
+        unit_net_g: '', unit_gross_g: '', case_tare_g: '', case_gross_g: '', weight_mode: '', case_weight_override_enabled: false,
       });
     },
     onError: (error: Error) => {
@@ -520,6 +527,12 @@ const Suppliers = () => {
         length_cm: product.length_cm?.toString() || '',
         width_cm: product.width_cm?.toString() || '',
         height_cm: product.height_cm?.toString() || '',
+        unit_net_g: (product as any).unit_net_g?.toString() || '',
+        unit_gross_g: (product as any).unit_gross_g?.toString() || '',
+        case_tare_g: (product as any).case_tare_g?.toString() || '',
+        case_gross_g: (product as any).case_gross_g?.toString() || '',
+        weight_mode: (product as any).weight_mode || '',
+        case_weight_override_enabled: !!(product as any).case_weight_override_enabled,
       });
     } else {
       setEditingProduct(null);
@@ -529,7 +542,8 @@ const Suppliers = () => {
         price_usd_per_unit: '', price_usd_per_case: '', price_xcg_per_unit: '', price_xcg_per_case: '',
         wholesale_price_usd_per_unit: '', wholesale_price_xcg_per_unit: '',
         retail_price_usd_per_unit: '', retail_price_xcg_per_unit: '',
-        unit: '', length_cm: '', width_cm: '', height_cm: ''
+        unit: '', length_cm: '', width_cm: '', height_cm: '',
+        unit_net_g: '', unit_gross_g: '', case_tare_g: '', case_gross_g: '', weight_mode: '', case_weight_override_enabled: false,
       });
     }
     setIsProductDialogOpen(true);
