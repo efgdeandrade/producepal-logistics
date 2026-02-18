@@ -6,7 +6,7 @@
  */
 
 /** Bump this value whenever CIF formulas change. */
-export const CIF_ENGINE_VERSION = "2026-02-16_v1.3";
+export const CIF_ENGINE_VERSION = "2026-02-18_v1.4";
 
 // =============================================
 // TYPES
@@ -269,8 +269,9 @@ export function calculateCIF(
 ): CifCalculationResult {
   const fxRate = settings.fx_rate_usd_to_xcg;
   
-  // Step 1: Calculate line weights
-  const lines = products.map(calculateLineWeights);
+  // Step 1: Calculate line weights (exclude 0-qty products so 'equal' divides correctly)
+  const activeProducts = products.filter(p => p.qty_cases > 0);
+  const lines = activeProducts.map(calculateLineWeights);
   const totals = calculateShipmentTotals(lines);
 
   // Step 2: Normalize all component amounts to USD
