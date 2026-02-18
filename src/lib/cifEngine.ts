@@ -6,7 +6,7 @@
  */
 
 /** Bump this value whenever CIF formulas change. */
-export const CIF_ENGINE_VERSION = "2026-02-18_v1.4";
+export const CIF_ENGINE_VERSION = "2026-02-18_v1.5";
 
 // =============================================
 // TYPES

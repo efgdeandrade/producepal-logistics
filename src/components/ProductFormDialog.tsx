@@ -1,4 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,6 +30,13 @@ interface ProductFormData {
   length_cm: string;
   width_cm: string;
   height_cm: string;
+  // New weight model fields
+  unit_net_g: string;
+  unit_gross_g: string;
+  case_tare_g: string;
+  case_gross_g: string;
+  weight_mode: string;
+  case_weight_override_enabled: boolean;
 }
 
 interface Product {
@@ -203,7 +211,111 @@ export const ProductFormDialog = ({
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          {/* Weight Model Section */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <h4 className="text-sm font-medium">Weight Model (CIF)</h4>
+              <Badge variant="outline" className="text-xs">v1.5</Badge>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="weight_mode">Weight Mode</Label>
+                <Select
+                  value={formData.weight_mode || ''}
+                  onValueChange={(value) => setFormData({ ...formData, weight_mode: value })}
+                >
+                  <SelectTrigger id="weight_mode">
+                    <SelectValue placeholder="Select weight mode" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="UNIT_NET_PLUS_TARE">Unit Net + Tare (computed)</SelectItem>
+                    <SelectItem value="UNIT_GROSS_PLUS_TARE">Unit Gross + Tare (computed)</SelectItem>
+                    <SelectItem value="CASE_GROSS">Case Gross (manual)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  How CIF resolves case weight for freight
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="case_gross_g">Case Gross Weight (g)</Label>
+                <Input
+                  id="case_gross_g"
+                  type="number"
+                  step="0.01"
+                  value={formData.case_gross_g}
+                  onChange={(e) => setFormData({ ...formData, case_gross_g: e.target.value })}
+                  placeholder="Total case weight in grams"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {formData.weight_mode === 'CASE_GROSS' ? 'Used directly for CIF' : 'For verification only'}
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="unit_net_g">Unit Net Weight (g)</Label>
+                <Input
+                  id="unit_net_g"
+                  type="number"
+                  step="0.01"
+                  value={formData.unit_net_g}
+                  onChange={(e) => setFormData({ ...formData, unit_net_g: e.target.value })}
+                  placeholder="Net weight per piece"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="unit_gross_g">Unit Gross Weight (g)</Label>
+                <Input
+                  id="unit_gross_g"
+                  type="number"
+                  step="0.01"
+                  value={formData.unit_gross_g}
+                  onChange={(e) => setFormData({ ...formData, unit_gross_g: e.target.value })}
+                  placeholder="Gross weight per piece"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="case_tare_g">Empty Case/Tray (g)</Label>
+                <Input
+                  id="case_tare_g"
+                  type="number"
+                  step="0.01"
+                  value={formData.case_tare_g}
+                  onChange={(e) => setFormData({ ...formData, case_tare_g: e.target.value })}
+                  placeholder="Empty case weight"
+                />
+              </div>
+            </div>
+            {/* Computed preview */}
+            {formData.pack_size && formData.unit_net_g && formData.weight_mode !== 'CASE_GROSS' && (
+              <div className="rounded-md bg-muted p-3 text-sm space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Computed case weight:</span>
+                  <span className="font-medium">
+                    {(() => {
+                      const base = formData.weight_mode === 'UNIT_GROSS_PLUS_TARE' && formData.unit_gross_g
+                        ? parseFloat(formData.unit_gross_g)
+                        : parseFloat(formData.unit_net_g);
+                      const tare = parseFloat(formData.case_tare_g) || 0;
+                      const pack = parseFloat(formData.pack_size) || 1;
+                      const total = base * pack + tare;
+                      return `${total.toFixed(0)}g (${(total / 1000).toFixed(3)} kg)`;
+                    })()}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Legacy weight fields (collapsed) */}
+          <details className="space-y-3">
+            <summary className="text-sm font-medium text-muted-foreground cursor-pointer">
+              Legacy Weight Fields (deprecated)
+            </summary>
+          <div className="grid grid-cols-3 gap-4 mt-2">
             <div className="space-y-2">
               <Label htmlFor="netto_weight_per_unit">
                 Net Weight/Unit (g)
@@ -216,9 +328,6 @@ export const ProductFormDialog = ({
                 onChange={(e) => setFormData({ ...formData, netto_weight_per_unit: e.target.value })}
                 placeholder="Net weight in grams"
               />
-              <p className="text-xs text-muted-foreground">
-                Used if Gross Weight is empty
-              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="gross_weight_per_unit">
@@ -232,9 +341,6 @@ export const ProductFormDialog = ({
                 onChange={(e) => setFormData({ ...formData, gross_weight_per_unit: e.target.value })}
                 placeholder="Gross weight in grams"
               />
-              <p className="text-xs text-muted-foreground">
-                Overrides Net Weight when filled
-              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="empty_case_weight">Empty Case Weight (g)</Label>
@@ -246,11 +352,9 @@ export const ProductFormDialog = ({
                 onChange={(e) => setFormData({ ...formData, empty_case_weight: e.target.value })}
                 placeholder="Empty case weight in grams"
               />
-              <p className="text-xs text-muted-foreground">
-                Weight of empty case/tray only
-              </p>
             </div>
           </div>
+          </details>
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">

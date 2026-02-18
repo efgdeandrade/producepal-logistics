@@ -15,7 +15,7 @@ import {
   CIF_ENGINE_VERSION,
   DEFAULT_ALLOCATION_BASIS,
 } from "./cifEngine";
-import { resolveWeightCaseKg, type WeightDebug } from "./cifWeightResolver";
+import { resolveWeightCaseKg, checkWeightDiscrepancy, type WeightDebug } from "./cifWeightResolver";
 import { supabase } from "@/integrations/supabase/client";
 
 const ALL_METHODS: AllocationBasis[] = [
@@ -71,7 +71,7 @@ async function fetchProductsForOrder(orderId: string) {
 
   const { data: products } = await supabase
     .from("products")
-    .select("id, code, name, pack_size, weight, length_cm, width_cm, height_cm, price_usd_per_unit, price_usd, supplier_id, empty_case_weight, netto_weight_per_unit, gross_weight_per_unit, volumetric_weight_kg")
+    .select("id, code, name, pack_size, weight, length_cm, width_cm, height_cm, price_usd_per_unit, price_usd, supplier_id, empty_case_weight, netto_weight_per_unit, gross_weight_per_unit, volumetric_weight_kg, unit_net_g, unit_gross_g, case_tare_g, case_gross_g, weight_mode, case_weight_override_enabled")
     .in("code", codes);
 
   const productMap = new Map((products || []).map(p => [p.code, p]));
@@ -130,6 +130,12 @@ export async function checkCifReadiness(orderId: string): Promise<{
         gross_weight_per_unit: prod?.gross_weight_per_unit,
         empty_case_weight: prod?.empty_case_weight,
         pack_size: prod?.pack_size,
+        unit_net_g: (prod as any)?.unit_net_g,
+        unit_gross_g: (prod as any)?.unit_gross_g,
+        case_tare_g: (prod as any)?.case_tare_g,
+        case_gross_g: (prod as any)?.case_gross_g,
+        weight_mode: (prod as any)?.weight_mode,
+        case_weight_override_enabled: (prod as any)?.case_weight_override_enabled,
       });
 
       const dupes = (codeToProducts.get(code) || []).length > 1
@@ -148,6 +154,12 @@ export async function checkCifReadiness(orderId: string): Promise<{
           gross_weight_per_unit: prod?.gross_weight_per_unit,
           volumetric_weight_kg: prod?.volumetric_weight_kg,
           pack_size: prod?.pack_size,
+          unit_net_g: (prod as any)?.unit_net_g,
+          unit_gross_g: (prod as any)?.unit_gross_g,
+          case_tare_g: (prod as any)?.case_tare_g,
+          case_gross_g: (prod as any)?.case_gross_g,
+          weight_mode: (prod as any)?.weight_mode,
+          case_weight_override_enabled: (prod as any)?.case_weight_override_enabled,
         },
         duplicates: dupes,
       });
@@ -240,19 +252,40 @@ export async function generateAuditPack(options: AuditPackOptions) {
   // Build debug map for weight_debug per product
   const debugMap = new Map(debugInfo.map(d => [d.product_code, d]));
 
-  const productsFullDetail = cifProducts.map(p => ({
-    product_id: p.product_id,
-    sku: p.product_code,
-    name: p.product_name,
-    supplier_id: productMap.get(p.product_code)?.supplier_id || '',
-    case_pack: p.case_pack,
-    weight_case_kg: p.weight_case_kg,
-    length_cm: p.length_cm,
-    width_cm: p.width_cm,
-    height_cm: p.height_cm,
-    supplier_cost_usd_per_case: p.supplier_cost_usd_per_case,
-    weight_debug: debugMap.get(p.product_code)?.weight_debug || null,
-  }));
+  const productsFullDetail = cifProducts.map(p => {
+    const dbg = debugMap.get(p.product_code);
+    const discrepancy = dbg ? checkWeightDiscrepancy(dbg.raw_fields) : null;
+    return {
+      product_id: p.product_id,
+      sku: p.product_code,
+      name: p.product_name,
+      supplier_id: productMap.get(p.product_code)?.supplier_id || '',
+      case_pack: p.case_pack,
+      weight_case_kg: p.weight_case_kg,
+      length_cm: p.length_cm,
+      width_cm: p.width_cm,
+      height_cm: p.height_cm,
+      supplier_cost_usd_per_case: p.supplier_cost_usd_per_case,
+      weight_debug: dbg?.weight_debug ? {
+        unit_net_g: dbg.weight_debug.unit_net_g,
+        unit_gross_g: dbg.weight_debug.unit_gross_g,
+        case_tare_g: dbg.weight_debug.case_tare_g,
+        case_gross_g: dbg.weight_debug.case_gross_g,
+        case_gross_g_used: dbg.weight_debug.case_gross_g_used,
+        weight_source: dbg.weight_debug.weight_source,
+        weight_mode: dbg.weight_debug.weight_mode,
+        weight_case_kg_used: dbg.weight_debug.weight_case_kg_used,
+        // Legacy fields for reference
+        weight_raw: dbg.weight_debug.weight_raw,
+      } : null,
+      weight_discrepancy: discrepancy?.hasDiscrepancy ? {
+        stored_g: discrepancy.storedG,
+        computed_g: discrepancy.computedG,
+        diff_g: discrepancy.diffG,
+        diff_pct: discrepancy.diffPct,
+      } : null,
+    };
+  });
 
   let cifVersionsOutput = buildVersionsOutput(versions || [], cifProducts, settings);
 

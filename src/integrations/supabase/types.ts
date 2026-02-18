@@ -5157,7 +5157,10 @@ export type Database = {
       }
       products: {
         Row: {
+          case_gross_g: number | null
           case_size: string | null
+          case_tare_g: number | null
+          case_weight_override_enabled: boolean | null
           code: string
           consolidation_group: string | null
           created_at: string
@@ -5177,15 +5180,21 @@ export type Database = {
           retail_price_xcg_per_unit: number | null
           supplier_id: string | null
           unit: string | null
+          unit_gross_g: number | null
+          unit_net_g: number | null
           updated_at: string
           volumetric_weight_kg: number | null
           weight: number | null
+          weight_mode: string | null
           wholesale_price_usd_per_unit: number | null
           wholesale_price_xcg_per_unit: number | null
           width_cm: number | null
         }
         Insert: {
+          case_gross_g?: number | null
           case_size?: string | null
+          case_tare_g?: number | null
+          case_weight_override_enabled?: boolean | null
           code: string
           consolidation_group?: string | null
           created_at?: string
@@ -5205,15 +5214,21 @@ export type Database = {
           retail_price_xcg_per_unit?: number | null
           supplier_id?: string | null
           unit?: string | null
+          unit_gross_g?: number | null
+          unit_net_g?: number | null
           updated_at?: string
           volumetric_weight_kg?: number | null
           weight?: number | null
+          weight_mode?: string | null
           wholesale_price_usd_per_unit?: number | null
           wholesale_price_xcg_per_unit?: number | null
           width_cm?: number | null
         }
         Update: {
+          case_gross_g?: number | null
           case_size?: string | null
+          case_tare_g?: number | null
+          case_weight_override_enabled?: boolean | null
           code?: string
           consolidation_group?: string | null
           created_at?: string
@@ -5233,9 +5248,12 @@ export type Database = {
           retail_price_xcg_per_unit?: number | null
           supplier_id?: string | null
           unit?: string | null
+          unit_gross_g?: number | null
+          unit_net_g?: number | null
           updated_at?: string
           volumetric_weight_kg?: number | null
           weight?: number | null
+          weight_mode?: string | null
           wholesale_price_usd_per_unit?: number | null
           wholesale_price_xcg_per_unit?: number | null
           width_cm?: number | null

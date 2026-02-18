@@ -100,6 +100,12 @@ const Products = () => {
     length_cm: '',
     width_cm: '',
     height_cm: '',
+    unit_net_g: '',
+    unit_gross_g: '',
+    case_tare_g: '',
+    case_gross_g: '',
+    weight_mode: '',
+    case_weight_override_enabled: false,
   });
 
   // Generate product code for new products
@@ -151,6 +157,12 @@ const Products = () => {
         length_cm: product.length_cm?.toString() || '',
         width_cm: product.width_cm?.toString() || '',
         height_cm: product.height_cm?.toString() || '',
+        unit_net_g: (product as any).unit_net_g?.toString() || '',
+        unit_gross_g: (product as any).unit_gross_g?.toString() || '',
+        case_tare_g: (product as any).case_tare_g?.toString() || '',
+        case_gross_g: (product as any).case_gross_g?.toString() || '',
+        weight_mode: (product as any).weight_mode || '',
+        case_weight_override_enabled: !!(product as any).case_weight_override_enabled,
       });
       
       // Fetch existing supplier prices for this product
@@ -201,6 +213,12 @@ const Products = () => {
         length_cm: '',
         width_cm: '',
         height_cm: '',
+        unit_net_g: '',
+        unit_gross_g: '',
+        case_tare_g: '',
+        case_gross_g: '',
+        weight_mode: '',
+        case_weight_override_enabled: false,
       });
     }
     setIsDialogOpen(true);
@@ -233,6 +251,12 @@ const Products = () => {
       length_cm: product.length_cm?.toString() || '',
       width_cm: product.width_cm?.toString() || '',
       height_cm: product.height_cm?.toString() || '',
+      unit_net_g: (product as any).unit_net_g?.toString() || '',
+      unit_gross_g: (product as any).unit_gross_g?.toString() || '',
+      case_tare_g: (product as any).case_tare_g?.toString() || '',
+      case_gross_g: (product as any).case_gross_g?.toString() || '',
+      weight_mode: (product as any).weight_mode || '',
+      case_weight_override_enabled: !!(product as any).case_weight_override_enabled,
     });
     
     // Copy supplier prices from original product
@@ -334,6 +358,12 @@ const Products = () => {
         length_cm: lengthCm,
         width_cm: widthCm,
         height_cm: heightCm,
+        unit_net_g: values.unit_net_g ? parseFloat(values.unit_net_g) : null,
+        unit_gross_g: values.unit_gross_g ? parseFloat(values.unit_gross_g) : null,
+        case_tare_g: values.case_tare_g ? parseFloat(values.case_tare_g) : 0,
+        case_gross_g: values.case_gross_g ? parseFloat(values.case_gross_g) : null,
+        weight_mode: values.weight_mode || null,
+        case_weight_override_enabled: values.case_weight_override_enabled || false,
       };
       
       const validated = productSchema.parse(parsed);
@@ -359,7 +389,13 @@ const Products = () => {
         width_cm: validated.width_cm,
         height_cm: validated.height_cm,
         volumetric_weight_kg: volumetricWeightKg,
-      }]).select().single();
+        unit_net_g: values.unit_net_g ? parseFloat(values.unit_net_g) : null,
+        unit_gross_g: values.unit_gross_g ? parseFloat(values.unit_gross_g) : null,
+        case_tare_g: values.case_tare_g ? parseFloat(values.case_tare_g) : 0,
+        case_gross_g: values.case_gross_g ? parseFloat(values.case_gross_g) : null,
+        weight_mode: values.weight_mode || null,
+        case_weight_override_enabled: values.case_weight_override_enabled || false,
+      } as any]).select().single();
       if (error) {
         console.error('Product creation error:', error);
         throw error;
@@ -381,7 +417,8 @@ const Products = () => {
         price_usd_per_unit: '', price_usd_per_case: '', price_xcg_per_unit: '', price_xcg_per_case: '',
         wholesale_price_usd_per_unit: '', wholesale_price_xcg_per_unit: '',
         retail_price_usd_per_unit: '', retail_price_xcg_per_unit: '', unit: '',
-        length_cm: '', width_cm: '', height_cm: ''
+        length_cm: '', width_cm: '', height_cm: '',
+        unit_net_g: '', unit_gross_g: '', case_tare_g: '', case_gross_g: '', weight_mode: '', case_weight_override_enabled: false,
       });
     },
     onError: (error: Error) => {
@@ -446,7 +483,13 @@ const Products = () => {
           width_cm: validated.width_cm,
           height_cm: validated.height_cm,
           volumetric_weight_kg: volumetricWeightKg,
-        })
+          unit_net_g: values.unit_net_g ? parseFloat(values.unit_net_g) : null,
+          unit_gross_g: values.unit_gross_g ? parseFloat(values.unit_gross_g) : null,
+          case_tare_g: values.case_tare_g ? parseFloat(values.case_tare_g) : 0,
+          case_gross_g: values.case_gross_g ? parseFloat(values.case_gross_g) : null,
+          weight_mode: values.weight_mode || null,
+          case_weight_override_enabled: values.case_weight_override_enabled || false,
+        } as any)
         .eq('id', id);
       if (error) {
         console.error('Product update error:', error);
