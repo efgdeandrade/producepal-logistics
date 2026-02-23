@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Printer, Ban, Edit, Eye, Download, Receipt, ChevronDown, FileEdit, ExternalLink, Truck, RefreshCw, Calculator, Check, AlertCircle, Copy, LayoutTemplate, MoreVertical } from 'lucide-react';
+import { ArrowLeft, Printer, Ban, Edit, Eye, Download, Receipt, ChevronDown, FileEdit, ExternalLink, Truck, RefreshCw, Calculator, Check, AlertCircle, Copy, LayoutTemplate, MoreVertical, Smartphone } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
@@ -45,6 +45,8 @@ import {
 } from '@/utils/receiptGenerator';
 import { calculateOrderPalletConfig, ProductWeightInfo } from '@/lib/weightCalculations';
 import { formatCuracao } from '@/lib/dateUtils';
+import { MTRExportDialog } from '@/components/fnb/MTRExportDialog';
+import type { MTRReceiptData } from '@/utils/mtrExportEngine';
 
 interface OrderItem {
   id: string;
@@ -100,6 +102,8 @@ const OrderDetails = () => {
     include_distribution?: boolean;
   }[]>([]);
   const printRef = useRef<HTMLDivElement>(null);
+  const [showMTRDialog, setShowMTRDialog] = useState(false);
+  const [mtrReceiptData, setMtrReceiptData] = useState<MTRReceiptData | null>(null);
   
   // Pre-loaded data for receipt generation to prevent race conditions
   const [preloadedProducts, setPreloadedProducts] = useState<any[]>([]);
@@ -1349,7 +1353,7 @@ const OrderDetails = () => {
           <div className="space-y-4">
             <div>
               <p className="text-sm font-medium mb-2">Format:</p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <Button
                   variant={printFormat === 'a4' ? 'default' : 'outline'}
                   onClick={() => setPrintFormat('a4')}
@@ -1361,6 +1365,62 @@ const OrderDetails = () => {
                   onClick={() => setPrintFormat('receipt')}
                 >
                   80mm Receipt
+                </Button>
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={async () => {
+                    setShowFormatDialog(false);
+                    // Build MTR receipt data from selected customers
+                    if (!order) return;
+                    const itemsForReceipt = editableReceiptItems.length > 0 ? editableReceiptItems : orderItems;
+                    const preloaded = await preloadReceiptData();
+                    const products = preloaded?.products || preloadedProducts;
+                    const companyInfo = preloaded?.companyInfo || preloadedCompanyInfo;
+                    const company = typeof companyInfo === 'string' ? JSON.parse(companyInfo) : companyInfo;
+
+                    // Use first selected customer or all items
+                    const customerName = selectedCustomers.length > 0 ? selectedCustomers[0] : getUniqueCustomers()[0];
+                    const customerItems = customerName
+                      ? itemsForReceipt.filter(item => item.customer_name === customerName)
+                      : itemsForReceipt;
+
+                    const mtrItems = customerItems.map(item => {
+                      const product = products?.find((p: any) => p.code === item.product_code);
+                      const packSize = product?.pack_size || 1;
+                      const unitPrice = item.sale_price_xcg != null ? item.sale_price_xcg : (product?.wholesale_price_xcg_per_unit || 0);
+                      const qty = item.quantity * packSize;
+                      return {
+                        name: product?.name || item.product_code,
+                        qty,
+                        rate: unitPrice,
+                        amount: qty * unitPrice,
+                      };
+                    });
+
+                    const subtotal = mtrItems.reduce((s, i) => s + i.amount, 0);
+
+                    setMtrReceiptData({
+                      storeName: company?.name || 'FUIK COMPANY B.V.',
+                      storeAddress: company?.address || '',
+                      storePhone: company?.phone || '',
+                      storeEmail: company?.email || '',
+                      storeCrib: company?.crib || '',
+                      title: 'RECEIPT',
+                      date: formatCuracao(order.delivery_date, 'd MMM yyyy'),
+                      customerName: customerName || 'Customer',
+                      items: mtrItems,
+                      subtotal,
+                      obTax: 0,
+                      total: subtotal,
+                      orderRefs: [order.order_number],
+                      footer: 'Thank you for your business!',
+                    });
+                    setShowMTRDialog(true);
+                  }}
+                >
+                  <Smartphone className="h-4 w-4" />
+                  MTR Mobile
                 </Button>
               </div>
             </div>
@@ -1631,6 +1691,13 @@ const OrderDetails = () => {
           setPendingAction({ type: 'driver', action: 'view' });
           setShowFormatDialog(true);
         }}
+      />
+
+      <MTRExportDialog
+        open={showMTRDialog}
+        onOpenChange={setShowMTRDialog}
+        receiptData={mtrReceiptData}
+        filename={order ? `Receipt-${order.order_number}` : 'receipt'}
       />
     </div>
   );
