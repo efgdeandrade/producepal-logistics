@@ -13,7 +13,10 @@ import {
   AlertCircle,
   RefreshCw,
   Download,
+  Smartphone,
 } from 'lucide-react';
+import { MTRExportDialog } from '@/components/fnb/MTRExportDialog';
+import type { MTRReceiptData } from '@/utils/mtrExportEngine';
 import {
   Dialog,
   DialogContent,
@@ -92,6 +95,7 @@ export default function FnbInvoiceDetail() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [printFormat, setPrintFormat] = useState<'80mm' | 'a4'>('80mm');
+  const [showMTRDialog, setShowMTRDialog] = useState(false);
   
   const invoicePreviewRef = useRef<HTMLDivElement>(null);
 
@@ -573,6 +577,11 @@ export default function FnbInvoiceDetail() {
                 Print / Download
               </Button>
 
+              <Button variant="outline" className="w-full" onClick={() => setShowMTRDialog(true)}>
+                <Smartphone className="h-4 w-4 mr-2" />
+                MTR Export (Mobile)
+              </Button>
+
               {invoice.status === 'draft' && (
                 <>
                   <Separator />
@@ -706,6 +715,39 @@ export default function FnbInvoiceDetail() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* MTR Export Dialog */}
+      <MTRExportDialog
+        open={showMTRDialog}
+        onOpenChange={setShowMTRDialog}
+        receiptData={invoice ? {
+          storeName: 'FUIK COMPANY B.V.',
+          storeAddress: 'Reigerweg 21',
+          storePhone: '7363845',
+          storeEmail: 'info@fuik.co',
+          storeCrib: '102649479',
+          title: 'INVOICE',
+          date: invoiceDate ? format(invoiceDate, 'MMMM d, yyyy') : '',
+          dueDate: invoiceDate ? format(new Date(invoiceDate.getTime() + 7 * 24 * 60 * 60 * 1000), 'MMMM d, yyyy') : undefined,
+          paymentTerms: 'Due on Receipt',
+          customerName: invoice.distribution_customers?.name || '',
+          customerAddress: invoice.distribution_customers?.address || undefined,
+          customerPhone: invoice.distribution_customers?.whatsapp_phone || undefined,
+          customerMemo: customerMemo || undefined,
+          items: items.map(item => ({
+            name: item.product_name,
+            qty: item.quantity,
+            rate: item.unit_price_xcg,
+            amount: item.line_total_xcg,
+            obEligible: item.is_ob_eligible,
+          })),
+          subtotal,
+          obTax,
+          total,
+          orderRefs: orderNumbers,
+        } : null}
+        filename={`invoice-${invoice?.distribution_customers?.name?.replace(/\s+/g, '-') || 'draft'}-${invoiceDate ? format(invoiceDate, 'yyyy-MM-dd') : 'draft'}`}
+      />
     </div>
   );
 }
