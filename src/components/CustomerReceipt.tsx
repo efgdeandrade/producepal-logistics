@@ -53,6 +53,10 @@ interface Props {
   preloadedProducts?: Product[];
   preloadedCompanyInfo?: CompanyInfo;
   onDataReady?: () => void;
+  /** Timestamps for versioned receipts */
+  receiptCreatedAt?: string;
+  receiptModifiedAt?: string;
+  receiptVersion?: number;
 }
 
 const LOCAL_LOGO_PATH = '/images/fuik-logo.png';
@@ -65,7 +69,10 @@ export const CustomerReceipt = ({
   receiptNumber,
   preloadedProducts,
   preloadedCompanyInfo,
-  onDataReady
+  onDataReady,
+  receiptCreatedAt,
+  receiptModifiedAt,
+  receiptVersion,
 }: Props) => {
   const [products, setProducts] = useState<Product[]>(preloadedProducts || []);
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -217,7 +224,18 @@ export const CustomerReceipt = ({
           <h1 className={`${isReceipt ? 'text-2xl' : 'text-3xl'} font-extrabold text-center`}>RECEIPT</h1>
           <div className={`${isReceipt ? 'text-sm mt-1' : 'text-base'} font-bold leading-normal text-center`}>
             <p>#: {receiptNumber || `${order.order_number}-${customerName.replace(/\s+/g, '-').substring(0, 8)}`} | {formatDate(new Date(), 'd MMM yyyy')}</p>
+            {receiptVersion && receiptVersion > 1 && (
+              <p className={`${isReceipt ? 'text-[9px]' : 'text-xs'} font-medium`}>Version {receiptVersion}</p>
+            )}
           </div>
+          {(receiptCreatedAt || receiptModifiedAt) && (
+            <div className={`${isReceipt ? 'text-[9px] mt-1' : 'text-xs mt-2'} text-center font-medium`}>
+              {receiptCreatedAt && <p>Created: {formatDate(new Date(receiptCreatedAt), 'd MMM yyyy HH:mm')}</p>}
+              {receiptModifiedAt && receiptModifiedAt !== receiptCreatedAt && (
+                <p>Modified: {formatDate(new Date(receiptModifiedAt), 'd MMM yyyy HH:mm')}</p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Customer Name */}
