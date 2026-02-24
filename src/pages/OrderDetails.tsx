@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Printer, Ban, Edit, Eye, Download, Receipt, ChevronDown, FileEdit, ExternalLink, Truck, RefreshCw, Calculator, Check, AlertCircle, Copy, LayoutTemplate, MoreVertical, Smartphone } from 'lucide-react';
+import { ArrowLeft, Printer, Ban, Edit, Eye, Download, Receipt, ChevronDown, FileEdit, ExternalLink, Truck, RefreshCw, Calculator, Check, AlertCircle, Copy, LayoutTemplate, MoreVertical, Smartphone, History, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
@@ -47,6 +47,8 @@ import { calculateOrderPalletConfig, ProductWeightInfo } from '@/lib/weightCalcu
 import { formatCuracao } from '@/lib/dateUtils';
 import { MTRExportDialog } from '@/components/fnb/MTRExportDialog';
 import type { MTRReceiptData } from '@/utils/mtrExportEngine';
+import { useReceiptVersions, type ReceiptVersion, type ReceiptLineItem } from '@/hooks/useReceiptVersions';
+import { PackingSlipFromReceipts } from '@/components/PackingSlipFromReceipts';
 
 interface OrderItem {
   id: string;
@@ -105,6 +107,12 @@ const OrderDetails = () => {
   const [showMTRDialog, setShowMTRDialog] = useState(false);
   const [mtrReceiptData, setMtrReceiptData] = useState<MTRReceiptData | null>(null);
   
+  // Receipt versioning
+  const { savedReceipts, loading: loadingReceipts, fetchSavedReceipts, fetchReceiptLineItems, saveReceiptVersion } = useReceiptVersions(orderId);
+  const [showRecallDialog, setShowRecallDialog] = useState(false);
+  const [recalledReceiptMeta, setRecalledReceiptMeta] = useState<ReceiptVersion | null>(null);
+  const [recalledLineItems, setRecalledLineItems] = useState<ReceiptLineItem[]>([]);
+  
   // Pre-loaded data for receipt generation to prevent race conditions
   const [preloadedProducts, setPreloadedProducts] = useState<any[]>([]);
   const [preloadedCompanyInfo, setPreloadedCompanyInfo] = useState<any>(null);
@@ -114,6 +122,7 @@ const OrderDetails = () => {
   useEffect(() => {
     if (orderId) {
       fetchOrderDetails();
+      fetchSavedReceipts();
     }
   }, [orderId, location.state]);
 
@@ -452,9 +461,71 @@ const OrderDetails = () => {
     setShowEditReceiptDialog(true);
   };
 
-  const handleConfirmEditedReceipt = (editedItems: OrderItem[]) => {
+  const handleConfirmEditedReceipt = async (editedItems: OrderItem[]) => {
     setEditableReceiptItems(editedItems);
     setShowEditReceiptDialog(false);
+
+    // If editing a recalled receipt, save as new version immediately
+    if (recalledReceiptMeta) {
+      try {
+        const { data: productsData } = await supabase
+          .from('products')
+          .select('code, name, pack_size, wholesale_price_xcg_per_unit')
+          .in('code', editedItems.map(i => i.product_code));
+
+        const customerItems = editedItems.filter(i => i.customer_name === recalledReceiptMeta.customer_name);
+        const amount = customerItems.reduce((sum, item) => {
+          const product = productsData?.find(p => p.code === item.product_code);
+          const packSize = product?.pack_size || 1;
+          const unitPrice = item.sale_price_xcg ?? product?.wholesale_price_xcg_per_unit ?? 0;
+          return sum + (item.quantity * packSize * unitPrice);
+        }, 0);
+
+        const versionItems = customerItems.map((item, idx) => {
+          const product = productsData?.find(p => p.code === item.product_code);
+          const packSize = product?.pack_size || 1;
+          const unitPrice = item.sale_price_xcg ?? product?.wholesale_price_xcg_per_unit ?? 0;
+          return {
+            product_code: item.product_code,
+            product_name: product?.name || item.product_code,
+            quantity: item.quantity,
+            unit_price: unitPrice,
+            line_total: item.quantity * packSize * unitPrice,
+            sort_order: idx,
+          };
+        });
+
+        await saveReceiptVersion({
+          receiptNumber: recalledReceiptMeta.receipt_number,
+          orderId: recalledReceiptMeta.order_id,
+          customerId: recalledReceiptMeta.customer_id,
+          customerName: recalledReceiptMeta.customer_name,
+          orderNumber: recalledReceiptMeta.order_number,
+          amount,
+          deliveryDate: recalledReceiptMeta.delivery_date || undefined,
+          notes: 'Edited version',
+          items: versionItems,
+        });
+
+        toast.success(`Saved new version for ${recalledReceiptMeta.receipt_number}`);
+        fetchSavedReceipts();
+
+        // Show updated receipt
+        setReceiptNumbers({ [recalledReceiptMeta.customer_name]: recalledReceiptMeta.receipt_number });
+        setSelectedCustomers([recalledReceiptMeta.customer_name]);
+        await preloadReceiptData();
+        setReceiptsReady(new Set());
+        setAllReceiptsRendered(false);
+        setViewDialog('receipt');
+        setPendingAction({ type: 'receipt', action: 'view' });
+        setRecalledReceiptMeta(null);
+        return;
+      } catch (err) {
+        console.error('Error saving receipt version:', err);
+        toast.error('Failed to save receipt version');
+      }
+    }
+
     setPendingAction({ type: 'receipt', action: 'view' });
     setShowFormatDialog(true);
   };
@@ -554,7 +625,7 @@ const OrderDetails = () => {
           const customerItems = itemsForReceipt.filter(item => item.customer_name === customerName);
           const { data: productsData } = await supabase
             .from('products')
-            .select('code, pack_size, wholesale_price_xcg_per_unit')
+            .select('code, name, pack_size, wholesale_price_xcg_per_unit')
             .in('code', customerItems.map(item => item.product_code));
           
           const amount = customerItems.reduce((sum, item) => {
@@ -571,7 +642,7 @@ const OrderDetails = () => {
             .eq('name', customerName)
             .maybeSingle();
           
-          // Save receipt record
+          // Save receipt record (legacy table)
           await saveReceiptRecord({
             receiptNumber,
             customerName,
@@ -581,10 +652,39 @@ const OrderDetails = () => {
             amount,
             deliveryDate: order!.delivery_date
           });
+
+          // Save receipt version with line items (new versioned system)
+          const versionItems = customerItems.map((item, idx) => {
+            const product = productsData?.find(p => p.code === item.product_code);
+            const packSize = product?.pack_size || 1;
+            const unitPrice = item.sale_price_xcg ?? product?.wholesale_price_xcg_per_unit ?? 0;
+            const units = item.quantity * packSize;
+            return {
+              product_code: item.product_code,
+              product_name: product?.name || item.product_code,
+              quantity: item.quantity,
+              unit_price: unitPrice,
+              line_total: units * unitPrice,
+              sort_order: idx,
+            };
+          });
+
+          await saveReceiptVersion({
+            receiptNumber,
+            orderId: order!.id,
+            customerId: customerData?.id,
+            customerName,
+            orderNumber: order!.order_number,
+            amount,
+            deliveryDate: order!.delivery_date,
+            items: versionItems,
+          });
         }
         
         setReceiptNumbers(numbers);
         toast.success(`Generated ${selectedCustomers.length} receipt number${selectedCustomers.length !== 1 ? 's' : ''}`);
+        // Refresh saved receipts list
+        fetchSavedReceipts();
       } catch (error) {
         console.error('Error generating receipt numbers:', error);
         toast.error('Failed to generate receipt numbers');
@@ -1117,7 +1217,11 @@ const OrderDetails = () => {
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <h3 className="font-semibold">Customer Packing Slips</h3>
-                      <p className="text-xs text-muted-foreground">Separate slip per customer</p>
+                      <p className="text-xs text-muted-foreground">
+                        {savedReceipts.length > 0 
+                          ? `Based on ${savedReceipts.length} saved receipt${savedReceipts.length !== 1 ? 's' : ''}`
+                          : 'Separate slip per customer (create receipts first for accurate data)'}
+                      </p>
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -1269,6 +1373,105 @@ const OrderDetails = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Saved Receipts Section */}
+          {savedReceipts.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <History className="h-5 w-5" />
+                  Saved Receipts ({savedReceipts.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {savedReceipts.map((receipt) => (
+                    <div key={receipt.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors">
+                      <div>
+                        <p className="font-medium">{receipt.customer_name}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{receipt.receipt_number}</span>
+                          <span>•</span>
+                          <span>v{receipt.version_number}</span>
+                          <span>•</span>
+                          <Clock className="h-3 w-3" />
+                          <span>{new Date(receipt.created_at).toLocaleString()}</span>
+                        </div>
+                        <p className="text-sm font-medium mt-0.5">Cg {Number(receipt.amount).toFixed(2)}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              const items = await fetchReceiptLineItems(receipt.id);
+                              setRecalledReceiptMeta(receipt);
+                              setRecalledLineItems(items);
+                              
+                              // Convert to OrderItem format for the edit dialog
+                              const editItems: OrderItem[] = items.map((li, idx) => ({
+                                id: `recalled-${li.id}`,
+                                customer_name: receipt.customer_name,
+                                product_code: li.product_code,
+                                quantity: li.quantity,
+                                sale_price_xcg: li.unit_price,
+                              }));
+                              
+                              setEditableReceiptItems(editItems);
+                              setSelectedCustomers([receipt.customer_name]);
+                              setShowEditReceiptDialog(true);
+                            } catch (err) {
+                              toast.error('Failed to load receipt items');
+                            }
+                          }}
+                        >
+                          <Edit className="mr-1 h-3.5 w-3.5" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              const items = await fetchReceiptLineItems(receipt.id);
+                              setRecalledReceiptMeta(receipt);
+                              setRecalledLineItems(items);
+                              
+                              // Convert to OrderItem format for viewing
+                              const viewItems: OrderItem[] = items.map((li) => ({
+                                id: `recalled-${li.id}`,
+                                customer_name: receipt.customer_name,
+                                product_code: li.product_code,
+                                quantity: li.quantity,
+                                sale_price_xcg: li.unit_price,
+                              }));
+                              
+                              setEditableReceiptItems(viewItems);
+                              setSelectedCustomers([receipt.customer_name]);
+                              setReceiptNumbers({ [receipt.customer_name]: receipt.receipt_number });
+                              
+                              // Preload + show
+                              await preloadReceiptData();
+                              setReceiptsReady(new Set());
+                              setAllReceiptsRendered(false);
+                              setViewDialog('receipt');
+                              setPendingAction({ type: 'receipt', action: 'view' });
+                            } catch (err) {
+                              toast.error('Failed to load receipt');
+                            }
+                          }}
+                        >
+                          <Eye className="mr-1 h-3.5 w-3.5" />
+                          View / Print
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Collapsible
             open={orderItemsExpanded}
@@ -1606,10 +1809,12 @@ const OrderDetails = () => {
           </DialogHeader>
           <div ref={printRef} className="print-container print:block">
             {viewDialog === 'packing' && order && (
-              <CustomerPackingSlip 
-                order={order} 
-                orderItems={orderItems} 
+              <PackingSlipFromReceipts
+                order={order}
+                orderItems={orderItems}
+                savedReceipts={savedReceipts}
                 format={printFormat}
+                fetchReceiptLineItems={fetchReceiptLineItems}
               />
             )}
             {viewDialog === 'supplier' && order && (
@@ -1648,6 +1853,9 @@ const OrderDetails = () => {
                       preloadedProducts={preloadedProducts.length > 0 ? preloadedProducts : undefined}
                       preloadedCompanyInfo={preloadedCompanyInfo || undefined}
                       onDataReady={() => handleReceiptReady(customerName)}
+                      receiptCreatedAt={recalledReceiptMeta?.created_at}
+                      receiptModifiedAt={new Date().toISOString()}
+                      receiptVersion={recalledReceiptMeta?.version_number}
                     />
                   </div>
                 ))}
@@ -1667,8 +1875,14 @@ const OrderDetails = () => {
 
       <ReceiptEditDialog
         open={showEditReceiptDialog}
-        onOpenChange={setShowEditReceiptDialog}
-        orderItems={orderItems}
+        onOpenChange={(open) => {
+          setShowEditReceiptDialog(open);
+          if (!open) {
+            setRecalledReceiptMeta(null);
+            setRecalledLineItems([]);
+          }
+        }}
+        orderItems={editableReceiptItems.length > 0 ? editableReceiptItems : orderItems}
         selectedCustomers={selectedCustomers}
         onConfirm={handleConfirmEditedReceipt}
       />

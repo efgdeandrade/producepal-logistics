@@ -5420,6 +5420,50 @@ export type Database = {
         }
         Relationships: []
       }
+      receipt_line_items: {
+        Row: {
+          created_at: string
+          id: string
+          line_total: number
+          product_code: string
+          product_name: string
+          quantity: number
+          receipt_version_id: string
+          sort_order: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          line_total?: number
+          product_code: string
+          product_name: string
+          quantity?: number
+          receipt_version_id: string
+          sort_order?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          line_total?: number
+          product_code?: string
+          product_name?: string
+          quantity?: number
+          receipt_version_id?: string
+          sort_order?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipt_line_items_receipt_version_id_fkey"
+            columns: ["receipt_version_id"]
+            isOneToOne: false
+            referencedRelation: "receipt_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       receipt_numbers: {
         Row: {
           amount: number
@@ -5476,6 +5520,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      receipt_versions: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          customer_name: string
+          delivery_date: string | null
+          id: string
+          is_current: boolean
+          notes: string | null
+          order_id: string
+          order_number: string
+          receipt_number: string
+          version_number: number
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          customer_name: string
+          delivery_date?: string | null
+          id?: string
+          is_current?: boolean
+          notes?: string | null
+          order_id: string
+          order_number: string
+          receipt_number: string
+          version_number?: number
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          customer_name?: string
+          delivery_date?: string | null
+          id?: string
+          is_current?: boolean
+          notes?: string | null
+          order_id?: string
+          order_number?: string
+          receipt_number?: string
+          version_number?: number
+        }
+        Relationships: []
       }
       report_executions: {
         Row: {
