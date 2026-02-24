@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { BUILD_TIMESTAMP } from '@/lib/version';
+import { APP_VERSION } from '@/lib/version';
 
 interface VersionInfo {
   version: string;
@@ -23,24 +23,27 @@ export const useVersionCheck = (): UseVersionCheckResult => {
     try {
       // Add cache-busting query param to prevent browser caching
       const response = await fetch(`/version.json?t=${Date.now()}`, {
-        cache: 'no-store'
+        cache: 'no-store',
       });
-      
-      if (!response.ok) {
-        return;
-      }
+
+      if (!response.ok) return;
 
       const serverVersion: VersionInfo = await response.json();
-      
-      // Compare build timestamps
-      if (serverVersion.buildTime && serverVersion.buildTime !== BUILD_TIMESTAMP) {
-        setIsUpdateAvailable(true);
+
+      // Only prompt when the semantic app version changes.
+      // (Build timestamps can differ in preview/dev environments and cause false positives.)
+      const hasUpdate = !!serverVersion.version && serverVersion.version !== APP_VERSION;
+      setIsUpdateAvailable(hasUpdate);
+
+      // If the server version matches again, allow future prompts.
+      if (!hasUpdate && isDismissed) {
+        setIsDismissed(false);
       }
     } catch (error) {
       // Silently fail - version.json might not exist in development
       console.debug('Version check failed:', error);
     }
-  }, []);
+  }, [isDismissed]);
 
   useEffect(() => {
     // Initial check after a short delay (let the app load first)
@@ -67,6 +70,6 @@ export const useVersionCheck = (): UseVersionCheckResult => {
   return {
     isUpdateAvailable: isUpdateAvailable && !isDismissed,
     dismiss,
-    refresh
+    refresh,
   };
 };
