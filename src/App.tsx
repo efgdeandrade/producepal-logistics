@@ -117,6 +117,15 @@ import Offline from "./pages/Offline";
 import ResetPassword from "./pages/ResetPassword";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import EULA from "./pages/EULA";
+import SetupProfile from "./pages/SetupProfile";
+
+// Intake Portal
+import { IntakeLayout } from "@/layouts/IntakeLayout";
+import IntakeConversations from "./pages/intake/IntakeConversations";
+import IntakeEmailPO from "./pages/intake/IntakeEmailPO";
+import IntakeShopifyOrders from "./pages/intake/IntakeShopifyOrders";
+import IntakeProducts from "./pages/intake/IntakeProducts";
+import IntakeSettings from "./pages/intake/IntakeSettings";
 
 const queryClient = new QueryClient();
 
