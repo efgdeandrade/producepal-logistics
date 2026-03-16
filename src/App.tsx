@@ -255,6 +255,21 @@ const App = () => (
                     </ProtectedRoute>
                   } />
 
+                  {/* ========== SETUP PROFILE ========== */}
+                  <Route path="/setup" element={
+                    <ProtectedRoute>
+                      <SetupProfile />
+                    </ProtectedRoute>
+                  } />
+
+                  {/* ========== INTAKE PORTAL ========== */}
+                  <Route path="/intake" element={<ProtectedIntake><IntakeConversations /></ProtectedIntake>} />
+                  <Route path="/intake/conversations" element={<ProtectedIntake><IntakeConversations /></ProtectedIntake>} />
+                  <Route path="/intake/email-po" element={<ProtectedIntake><IntakeEmailPO /></ProtectedIntake>} />
+                  <Route path="/intake/shopify" element={<ProtectedIntake><IntakeShopifyOrders /></ProtectedIntake>} />
+                  <Route path="/intake/products" element={<ProtectedIntake><IntakeProducts /></ProtectedIntake>} />
+                  <Route path="/intake/settings" element={<ProtectedIntake><IntakeSettings /></ProtectedIntake>} />
+
                   {/* ========== STANDALONE APPS ========== */}
                   <Route path="/dre" element={
                     <ProtectedRoute>
