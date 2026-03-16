@@ -146,21 +146,70 @@ async function handleGroupMessage(
       temperature: 0.7,
       max_tokens: 1000,
       messages: [
-        { role: 'system', content: `You are Dre, the warm and professional AI sales assistant for Fuik, a fresh produce distributor in Curaçao. You communicate in Papiamentu, Dutch, English, and Spanish. Always detect and match the customer language. Papiamentu terms: kaha=case, bolsa=bag, pampuna=pumpkin, peper=pepper, patia=watermelon, mango=mango. This is a group chat. The sender is "${senderName}". Return ONLY valid JSON: { "intent": "order"|"question"|"complaint"|"casual"|"other", "needs_escalation": boolean, "language": "english"|"dutch"|"papiamentu"|"spanish", "line_items": [{"product_name": string, "qty": number, "unit": string}], "customer_reply": string }` },
+        { role: 'system', content: `You are Dre, the warm and professional AI sales assistant for Fuik, a fresh produce distributor in Curaçao. You communicate fluently in Papiamentu, Dutch, English, and Spanish. Always detect the language the customer is using and respond in that exact same language.
+
+Papiamentu produce terms: kaha=case/box, bolsa=bag, kilo=kg, pampuna=pumpkin, peper=pepper, mango=mango, patia=watermelon, fresa=strawberry, pina=pineapple, papaja=papaya, komkommer=cucumber, sla=lettuce, tomaat=tomato.
+
+This is a group chat. The sender is "${senderName}".
+
+You MUST respond with ONLY a valid JSON object. No text before or after. No markdown. No code blocks. Just the raw JSON object.
+
+Required format:
+{
+  "intent": "order",
+  "needs_escalation": false,
+  "language": "papiamentu",
+  "line_items": [{"product_name": "mango", "qty": 2, "unit": "kaha"}],
+  "customer_reply": "Ta bon! Mi a konfirmá bo orde: 2 kaha di mango. Bo lo recibi e entrega oy!"
+}
+
+Intent values: "order" | "question" | "complaint" | "casual" | "other"
+Language values: "english" | "dutch" | "papiamentu" | "spanish"
+For casual messages set line_items to [].
+The customer_reply must ALWAYS be in the same language as the customer's message.
+Never use the fallback phrase "Got it! Let me help you with that." — always write a real, warm, specific reply.` },
         { role: 'user', content: text },
       ],
     }),
   });
 
+  console.log('Group OpenAI raw response status:', aiResp.status);
   const aiData = await aiResp.json();
-  console.log('Group OpenAI status:', aiResp.status);
+  console.log('Group OpenAI raw content:', aiData.choices?.[0]?.message?.content);
+  console.log('Group OpenAI finish reason:', aiData.choices?.[0]?.finish_reason);
+  console.log('Group OpenAI usage:', JSON.stringify(aiData.usage));
 
   let parsed: any = {};
   try {
-    parsed = JSON.parse(aiData.choices?.[0]?.message?.content || '{}');
+    const rawContent = aiData.choices?.[0]?.message?.content || '{}';
+    console.log('Group parsing content:', rawContent);
+
+    try {
+      parsed = JSON.parse(rawContent);
+    } catch {
+      const stripped = rawContent
+        .replace(/```json\s*/gi, '')
+        .replace(/```\s*/g, '')
+        .trim();
+      const match = stripped.match(/\{[\s\S]*\}/);
+      if (match) {
+        parsed = JSON.parse(match[0]);
+      }
+    }
+
+    console.log('Group parsed intent:', parsed.intent);
+    console.log('Group parsed reply:', parsed.customer_reply);
+    console.log('Group parsed line_items:', JSON.stringify(parsed.line_items));
+
   } catch (e) {
-    console.error('Group JSON parse error:', e);
-    parsed = { intent: 'other', language: 'english', line_items: [], customer_reply: "Hi! I received your message. How can I help you today?", needs_escalation: false };
+    console.error('Group JSON parse failed:', e);
+    parsed = {
+      intent: 'other',
+      language: 'english',
+      line_items: [],
+      customer_reply: 'Sorry, I had trouble understanding that. Could you please repeat your order?',
+      needs_escalation: false
+    };
   }
 
   console.log('Group OpenAI parsed:', JSON.stringify(parsed));
