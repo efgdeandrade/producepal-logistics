@@ -144,9 +144,21 @@ export default function IntakeConversations() {
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   };
 
-  const selectConversation = (id: string) => {
+  const selectConversation = async (id: string) => {
     setSelectedId(id);
     fetchMessages(id);
+    // Fetch linked order if exists
+    const conv = conversations.find(c => c.id === id);
+    if (conv?.order_id) {
+      const { data: order } = await supabase
+        .from('distribution_orders')
+        .select('*, distribution_order_items(product_name_raw, quantity, order_unit)')
+        .eq('id', conv.order_id)
+        .single();
+      setLinkedOrder(order);
+    } else {
+      setLinkedOrder(null);
+    }
   };
 
   // Control actions
