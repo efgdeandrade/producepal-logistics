@@ -2591,6 +2591,7 @@ export type Database = {
         Row: {
           assigned_at: string | null
           assignment_locked: boolean
+          awaiting_customer_confirmation: boolean | null
           cancellation_cutoff_hours: number | null
           cod_amount_collected: number | null
           cod_amount_due: number | null
@@ -2598,6 +2599,8 @@ export type Database = {
           cod_notes: string | null
           cod_reconciled_at: string | null
           cod_reconciled_by: string | null
+          confirmation_requested_at: string | null
+          confirmed_by_customer_at: string | null
           created_at: string | null
           customer_id: string | null
           customer_phone: string | null
@@ -2649,6 +2652,7 @@ export type Database = {
         Insert: {
           assigned_at?: string | null
           assignment_locked?: boolean
+          awaiting_customer_confirmation?: boolean | null
           cancellation_cutoff_hours?: number | null
           cod_amount_collected?: number | null
           cod_amount_due?: number | null
@@ -2656,6 +2660,8 @@ export type Database = {
           cod_notes?: string | null
           cod_reconciled_at?: string | null
           cod_reconciled_by?: string | null
+          confirmation_requested_at?: string | null
+          confirmed_by_customer_at?: string | null
           created_at?: string | null
           customer_id?: string | null
           customer_phone?: string | null
@@ -2707,6 +2713,7 @@ export type Database = {
         Update: {
           assigned_at?: string | null
           assignment_locked?: boolean
+          awaiting_customer_confirmation?: boolean | null
           cancellation_cutoff_hours?: number | null
           cod_amount_collected?: number | null
           cod_amount_due?: number | null
@@ -2714,6 +2721,8 @@ export type Database = {
           cod_notes?: string | null
           cod_reconciled_at?: string | null
           cod_reconciled_by?: string | null
+          confirmation_requested_at?: string | null
+          confirmed_by_customer_at?: string | null
           created_at?: string | null
           customer_id?: string | null
           customer_phone?: string | null
@@ -3680,6 +3689,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      dre_language_terms: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          id: string
+          language: string
+          notes: string | null
+          term: string
+          translation_en: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          language: string
+          notes?: string | null
+          term: string
+          translation_en: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          language?: string
+          notes?: string | null
+          term?: string
+          translation_en?: string
+        }
+        Relationships: []
       }
       dre_messages: {
         Row: {
