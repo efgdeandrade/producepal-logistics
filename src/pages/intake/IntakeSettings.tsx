@@ -17,12 +17,49 @@ const ROLE_OPTIONS = ['director', 'business_partner', 'right_hand', 'manager', '
 
 function TelegramSettingsTab() {
   const { toast } = useToast();
-  const [botToken, setBotToken] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [tokenStatus, setTokenStatus] = useState<{ ok: boolean; message: string } | null>(null);
   const [registering, setRegistering] = useState(false);
   const [webhookResult, setWebhookResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [lastMessage, setLastMessage] = useState<string | null>(null);
 
   const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL || ''}/functions/v1/telegram-webhook`;
+
+  // Load last message timestamp
+  useEffect(() => {
+    const fetchLastMessage = async () => {
+      const { data } = await supabase
+        .from('dre_messages')
+        .select('created_at')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      if (data) {
+        setLastMessage(new Date(data.created_at).toLocaleString());
+      }
+    };
+    fetchLastMessage();
+  }, []);
+
+  const testToken = async () => {
+    setTesting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('test-telegram-token');
+      if (error) throw error;
+      if (data?.ok) {
+        setTokenStatus({ ok: true, message: `Connected as @${data.bot_username}` });
+      } else {
+        setTokenStatus({ ok: false, message: data?.error || 'Not connected — check token' });
+      }
+    } catch (e: any) {
+      setTokenStatus({ ok: false, message: e.message });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  // Test on mount
+  useEffect(() => { testToken(); }, []);
 
   const registerWebhook = async () => {
     setRegistering(true);
@@ -30,7 +67,7 @@ function TelegramSettingsTab() {
       const { data, error } = await supabase.functions.invoke('register-telegram-webhook');
       if (error) throw error;
       if (data?.ok) {
-        setWebhookResult({ ok: true, message: 'Webhook registered successfully' });
+        setWebhookResult({ ok: true, message: 'Webhook registered' });
       } else {
         setWebhookResult({ ok: false, message: data?.description || JSON.stringify(data) });
       }
@@ -41,48 +78,31 @@ function TelegramSettingsTab() {
     }
   };
 
-  const saveToken = async () => {
-    if (!botToken.trim()) return;
-    setSaving(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('save-telegram-token', {
-        body: { token: botToken.trim() },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      toast({ title: 'Bot token saved' });
-      setBotToken('');
-      // Auto-register webhook after saving
-      await registerWebhook();
-    } catch (e: any) {
-      toast({ title: 'Error saving token', description: e.message, variant: 'destructive' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <div className="max-w-lg space-y-4 p-4 border rounded-lg bg-intake-surface">
+      {/* Bot Token Status */}
       <div>
         <Label>Bot Token</Label>
         <div className="flex gap-2 mt-1">
-          <Input
-            type="password"
-            placeholder="Paste your Telegram bot token"
-            value={botToken}
-            onChange={(e) => setBotToken(e.target.value)}
-          />
+          <Input type="password" value="••••••••••••••••" readOnly className="mt-0" />
           <Button
             variant="outline"
-            className="h-9 text-xs shrink-0"
-            onClick={saveToken}
-            disabled={saving || !botToken.trim()}
+            className="h-10 text-xs shrink-0"
+            onClick={testToken}
+            disabled={testing}
           >
-            {saving ? 'Saving…' : 'Save Token'}
+            {testing ? 'Testing…' : 'Test Connection'}
           </Button>
         </div>
-        <p className="text-xs text-intake-text-muted mt-1">Enter the token from @BotFather. It will be securely stored as a backend secret.</p>
+        <p className="text-xs text-intake-text-muted mt-1">Managed via backend secrets.</p>
+        {tokenStatus && (
+          <p className={`text-xs mt-1 ${tokenStatus.ok ? 'text-green-600' : 'text-red-600'}`}>
+            {tokenStatus.ok ? '✅' : '❌'} {tokenStatus.message}
+          </p>
+        )}
       </div>
+
+      {/* Webhook URL */}
       <div>
         <Label>Webhook URL</Label>
         <Input readOnly value={webhookUrl} className="mt-1" />
@@ -92,6 +112,7 @@ function TelegramSettingsTab() {
           </p>
         )}
       </div>
+
       <Button
         variant="outline"
         className="h-8 text-xs"
@@ -100,6 +121,13 @@ function TelegramSettingsTab() {
       >
         {registering ? 'Registering…' : 'Register Webhook'}
       </Button>
+
+      {/* Status */}
+      <div className="pt-2 border-t">
+        <p className="text-xs text-intake-text-muted">
+          Last message received: {lastMessage || 'No messages yet'}
+        </p>
+      </div>
     </div>
   );
 }
@@ -186,7 +214,6 @@ export default function IntakeSettings() {
         new_roles: [newRole] as any,
       });
       toast({ title: 'Role updated' });
-      // Refresh
       const { data: roles } = await supabase.from('user_roles').select('user_id, role');
       const roleMap: Record<string, string[]> = {};
       (roles || []).forEach((r: any) => {

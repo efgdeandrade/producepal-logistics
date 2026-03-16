@@ -96,42 +96,45 @@ async function downloadTelegramFile(fileId: string): Promise<{ data: Uint8Array;
   } catch (e) { console.error('File download error:', e); return null; }
 }
 
-async function callLovableAI(messages: Array<{ role: string; content: any }>): Promise<{
-  intent: string; language: string; line_items: Array<{ product_name: string; qty: number; unit: string }>; customer_reply: string;
+async function callOpenAI(messages: Array<{ role: string; content: any }>): Promise<{
+  intent: string;
+  language: string;
+  line_items: Array<{ product_name: string; qty: number; unit: string }>;
+  customer_reply: string;
 }> {
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-  if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
+  const apiKey = Deno.env.get('OPENAI_API_KEY');
+  if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
 
-  const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: 'google/gemini-3-flash-preview', messages, temperature: 0.7, max_tokens: 1000 }),
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      messages,
+      temperature: 0.7,
+      max_tokens: 1000,
+      response_format: { type: 'json_object' },
+    }),
   });
 
   if (!resp.ok) {
     const errText = await resp.text();
-    console.error('AI error:', resp.status, errText);
-    throw new Error(`AI error ${resp.status}`);
+    throw new Error(`OpenAI error ${resp.status}: ${errText}`);
   }
 
   const data = await resp.json();
-  const content = data.choices?.[0]?.message?.content || '';
-  // Parse JSON from response
-  let jsonStr = content;
-  const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (jsonMatch) jsonStr = jsonMatch[1].trim();
-  else {
-    const objMatch = content.match(/\{[\s\S]*\}/);
-    if (objMatch) jsonStr = objMatch[0];
-  }
+  const content = data.choices?.[0]?.message?.content || '{}';
 
   try {
-    const parsed = JSON.parse(jsonStr);
+    const parsed = JSON.parse(content);
     return {
       intent: parsed.intent || 'other',
       language: parsed.language || 'english',
       line_items: parsed.line_items || [],
-      customer_reply: parsed.customer_reply || content,
+      customer_reply: parsed.customer_reply || 'I understood your message.',
     };
   } catch {
     return { intent: 'other', language: 'english', line_items: [], customer_reply: content };
@@ -149,6 +152,14 @@ Deno.serve(async (req) => {
 
     const chatId = String(message.chat.id);
     const messageText = message.text || '';
+
+    // Check if OPENAI_API_KEY is configured before doing anything
+    const openaiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openaiKey) {
+      console.error('OPENAI_API_KEY not set — cannot process message');
+      await sendTelegramMessage(chatId, 'Bot is being configured, please try again in a few minutes.');
+      return new Response('OK', { status: 200 });
+    }
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -201,7 +212,6 @@ Deno.serve(async (req) => {
       }
 
       // Pending customer exists but not linked — still escalated
-      // Store the message and return
       const { data: existingConvo } = await supabase
         .from('dre_conversations')
         .select('id')
@@ -273,17 +283,20 @@ Deno.serve(async (req) => {
         const { data: urlData } = supabase.storage.from('order-media').getPublicUrl(storagePath);
         mediaUrl = urlData.publicUrl;
 
-        // Use Lovable AI (Gemini) for transcription via multimodal
-        const base64Audio = btoa(String.fromCharCode(...downloaded.data));
+        // Use OpenAI Whisper for transcription
+        const apiKey = Deno.env.get('OPENAI_API_KEY');
         try {
-          const transcribeResp = await callLovableAI([
-            { role: 'system', content: 'You are a transcription assistant. Transcribe the audio exactly. Output ONLY the transcription text, nothing else.' },
-            { role: 'user', content: [
-              { type: 'text', text: 'Transcribe this audio message:' },
-              { type: 'input_audio', data: base64Audio, format: 'ogg' }
-            ] as any },
-          ]);
-          processedText = transcribeResp.customer_reply || messageText || '[voice note]';
+          const formData = new FormData();
+          const blob = new Blob([downloaded.data], { type: 'audio/ogg' });
+          formData.append('file', blob, 'voice.ogg');
+          formData.append('model', 'whisper-1');
+          const whisperResp = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${apiKey}` },
+            body: formData,
+          });
+          const whisperData = await whisperResp.json();
+          processedText = whisperData.text || '[transcription failed]';
         } catch {
           processedText = messageText || '[voice note - transcription failed]';
         }
@@ -301,7 +314,6 @@ Deno.serve(async (req) => {
         const { data: urlData } = supabase.storage.from('order-media').getPublicUrl(storagePath);
         mediaUrl = urlData.publicUrl;
         mediaType = 'image';
-        // If there's a caption, use it
         if (message.caption) processedText = message.caption;
       }
     }
@@ -349,7 +361,7 @@ Deno.serve(async (req) => {
       aiMessages.push({ role: 'user', content: processedText });
     }
 
-    const aiResponse = await callLovableAI(aiMessages);
+    const aiResponse = await callOpenAI(aiMessages);
 
     // STEP 6 — Store customer message
     await supabase.from('dre_messages').insert({
@@ -388,16 +400,13 @@ Deno.serve(async (req) => {
       let deliveryDate = getCuracaoDateStr();
 
       if (nowMinutes <= cutoffMinutes) {
-        // Before cutoff — same-day confirmed
         orderStatus = 'confirmed';
       } else if (nowMinutes <= stockMinutes) {
-        // After cutoff, before stock window — draft, pending manager
         orderStatus = 'draft';
         isLateOrder = true;
         lateDecision = 'pending';
         replyText = LATE_HOLD_MESSAGES[aiResponse.language] || LATE_HOLD_MESSAGES.english;
       } else {
-        // After stock window — next-day
         isLateOrder = true;
         orderStatus = 'confirmed';
         const tomorrow = new Date(curacaoNow);
@@ -419,7 +428,6 @@ Deno.serve(async (req) => {
       }).select().single();
 
       if (order) {
-        // Match and insert order items
         for (const item of aiResponse.line_items) {
           const searchName = item.product_name.toLowerCase().trim();
           let matchedProductId: string | null = null;
