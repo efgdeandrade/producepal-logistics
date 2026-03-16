@@ -1504,65 +1504,107 @@ export type Database = {
       distribution_ai_match_logs: {
         Row: {
           confidence: string | null
+          conversation_id: string | null
           corrected_product_id: string | null
+          corrected_reply: string | null
           created_at: string | null
           customer_id: string | null
           detected_language: string | null
           detected_quantity: number | null
           detected_unit: string | null
+          dre_reply: string | null
           id: string
           interpreted_text: string | null
           is_ignored: boolean | null
           match_source: string | null
           matched_product_id: string | null
+          needs_language_review: boolean | null
           needs_review: boolean | null
           order_id: string | null
           raw_text: string
+          reply_corrected_at: string | null
+          reply_corrected_by: string | null
           reviewed_at: string | null
           reviewed_by: string | null
+          source_channel: string | null
           was_corrected: boolean | null
         }
         Insert: {
           confidence?: string | null
+          conversation_id?: string | null
           corrected_product_id?: string | null
+          corrected_reply?: string | null
           created_at?: string | null
           customer_id?: string | null
           detected_language?: string | null
           detected_quantity?: number | null
           detected_unit?: string | null
+          dre_reply?: string | null
           id?: string
           interpreted_text?: string | null
           is_ignored?: boolean | null
           match_source?: string | null
           matched_product_id?: string | null
+          needs_language_review?: boolean | null
           needs_review?: boolean | null
           order_id?: string | null
           raw_text: string
+          reply_corrected_at?: string | null
+          reply_corrected_by?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          source_channel?: string | null
           was_corrected?: boolean | null
         }
         Update: {
           confidence?: string | null
+          conversation_id?: string | null
           corrected_product_id?: string | null
+          corrected_reply?: string | null
           created_at?: string | null
           customer_id?: string | null
           detected_language?: string | null
           detected_quantity?: number | null
           detected_unit?: string | null
+          dre_reply?: string | null
           id?: string
           interpreted_text?: string | null
           is_ignored?: boolean | null
           match_source?: string | null
           matched_product_id?: string | null
+          needs_language_review?: boolean | null
           needs_review?: boolean | null
           order_id?: string | null
           raw_text?: string
+          reply_corrected_at?: string | null
+          reply_corrected_by?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          source_channel?: string | null
           was_corrected?: boolean | null
         }
         Relationships: [
+          {
+            foreignKeyName: "distribution_ai_match_logs_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "dre_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distribution_ai_match_logs_reply_corrected_by_fkey"
+            columns: ["reply_corrected_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distribution_ai_match_logs_reply_corrected_by_fkey"
+            columns: ["reply_corrected_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fnb_ai_match_logs_corrected_product_id_fkey"
             columns: ["corrected_product_id"]
