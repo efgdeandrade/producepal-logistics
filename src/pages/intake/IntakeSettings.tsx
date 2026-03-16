@@ -15,6 +15,95 @@ import { useToast } from '@/hooks/use-toast';
 
 const ROLE_OPTIONS = ['director', 'business_partner', 'right_hand', 'manager', 'employee', 'driver'];
 
+function TelegramSettingsTab() {
+  const { toast } = useToast();
+  const [botToken, setBotToken] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [registering, setRegistering] = useState(false);
+  const [webhookResult, setWebhookResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL || ''}/functions/v1/telegram-webhook`;
+
+  const registerWebhook = async () => {
+    setRegistering(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('register-telegram-webhook');
+      if (error) throw error;
+      if (data?.ok) {
+        setWebhookResult({ ok: true, message: 'Webhook registered successfully' });
+      } else {
+        setWebhookResult({ ok: false, message: data?.description || JSON.stringify(data) });
+      }
+    } catch (e: any) {
+      setWebhookResult({ ok: false, message: e.message });
+    } finally {
+      setRegistering(false);
+    }
+  };
+
+  const saveToken = async () => {
+    if (!botToken.trim()) return;
+    setSaving(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('save-telegram-token', {
+        body: { token: botToken.trim() },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: 'Bot token saved' });
+      setBotToken('');
+      // Auto-register webhook after saving
+      await registerWebhook();
+    } catch (e: any) {
+      toast({ title: 'Error saving token', description: e.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="max-w-lg space-y-4 p-4 border rounded-lg bg-intake-surface">
+      <div>
+        <Label>Bot Token</Label>
+        <div className="flex gap-2 mt-1">
+          <Input
+            type="password"
+            placeholder="Paste your Telegram bot token"
+            value={botToken}
+            onChange={(e) => setBotToken(e.target.value)}
+          />
+          <Button
+            variant="outline"
+            className="h-9 text-xs shrink-0"
+            onClick={saveToken}
+            disabled={saving || !botToken.trim()}
+          >
+            {saving ? 'Saving…' : 'Save Token'}
+          </Button>
+        </div>
+        <p className="text-xs text-intake-text-muted mt-1">Enter the token from @BotFather. It will be securely stored as a backend secret.</p>
+      </div>
+      <div>
+        <Label>Webhook URL</Label>
+        <Input readOnly value={webhookUrl} className="mt-1" />
+        {webhookResult && (
+          <p className={`text-xs mt-1 ${webhookResult.ok ? 'text-green-600' : 'text-red-600'}`}>
+            {webhookResult.ok ? '✅' : '❌'} {webhookResult.message}
+          </p>
+        )}
+      </div>
+      <Button
+        variant="outline"
+        className="h-8 text-xs"
+        onClick={registerWebhook}
+        disabled={registering}
+      >
+        {registering ? 'Registering…' : 'Register Webhook'}
+      </Button>
+    </div>
+  );
+}
+
 export default function IntakeSettings() {
   const { user, hasRole } = useAuth();
   const { toast } = useToast();
