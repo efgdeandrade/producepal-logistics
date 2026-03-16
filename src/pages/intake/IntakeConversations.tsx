@@ -42,6 +42,7 @@ export default function IntakeConversations() {
   const [linkCustomerId, setLinkCustomerId] = useState('');
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
   const [newCustomer, setNewCustomer] = useState({ name: '', customer_type: 'retail' as string, zone: '', payment_terms: 'cod', preferred_language: 'pap', delivery_address: '', phone: '', email: '', telegram_chat_id: '' });
+  const [linkedOrder, setLinkedOrder] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const selected = conversations.find((c) => c.id === selectedId);
