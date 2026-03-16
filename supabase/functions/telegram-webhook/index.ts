@@ -192,10 +192,35 @@ async function handleGroupMessage(
     }).select().single();
 
     if (order) {
+      // Load products with aliases for matching
+      const { data: products } = await supabase
+        .from('distribution_products')
+        .select('id, name, name_aliases, unit_options')
+        .eq('is_active', true);
+
       for (const item of parsed.line_items) {
+        let matchedProductId: string | null = null;
+        const searchName = (item.product_name || '').toLowerCase().trim();
+
+        for (const p of (products || [])) {
+          if (p.name.toLowerCase().includes(searchName) || searchName.includes(p.name.toLowerCase())) {
+            matchedProductId = p.id;
+            break;
+          }
+          const aliases = p.name_aliases || [];
+          for (const alias of aliases) {
+            if (alias.toLowerCase() === searchName || searchName.includes(alias.toLowerCase())) {
+              matchedProductId = p.id;
+              break;
+            }
+          }
+          if (matchedProductId) break;
+        }
+
         await supabase.from('distribution_order_items').insert({
           order_id: order.id,
           product_name_raw: item.product_name,
+          product_id: matchedProductId,
           quantity: item.qty,
           order_unit: item.unit || 'kg',
         });
