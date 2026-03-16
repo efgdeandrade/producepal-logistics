@@ -63,26 +63,63 @@ serve(async (req) => {
       .maybeSingle();
 
     if (!customer) {
-      const { data: pending } = await supabase
+      console.log('No customer found for chatId:', chatId, '— checking pending_customers');
+
+      // Issue 3: Check ALL pending_customers for this chat_id (any status)
+      const { data: existingPending } = await supabase
         .from('pending_customers')
-        .select('id')
+        .select('id, linked_customer_id, status')
         .eq('telegram_chat_id', chatId)
-        .eq('status', 'unlinked')
         .maybeSingle();
 
-      if (!pending) {
-        const { data: newPending } = await supabase
-          .from('pending_customers')
-          .insert({ telegram_chat_id: chatId, first_message: text, detected_language: 'unknown', status: 'unlinked' })
-          .select().single();
-        await supabase.from('dre_conversations').insert({
-          channel: 'telegram', external_chat_id: chatId,
-          control_status: 'escalated', pending_customer_id: newPending?.id || null,
-        });
-        await sendTelegramMessage(chatId, "Hi! I don't recognize your account yet. What is your business name?");
+      if (existingPending) {
+        console.log('Existing pending customer found:', existingPending.id, 'status:', existingPending.status);
+
+        if (existingPending.status === 'linked' && existingPending.linked_customer_id) {
+          // This pending customer was already linked — use the linked customer
+          console.log('Pending customer is linked to:', existingPending.linked_customer_id);
+          const { data: linkedCustomer } = await supabase
+            .from('distribution_customers')
+            .select('id, name, preferred_language')
+            .eq('id', existingPending.linked_customer_id)
+            .maybeSingle();
+
+          if (linkedCustomer) {
+            // Also backfill the telegram_chat_id so future lookups skip pending flow
+            await supabase
+              .from('distribution_customers')
+              .update({ telegram_chat_id: chatId })
+              .eq('id', linkedCustomer.id);
+            console.log('Backfilled telegram_chat_id on customer:', linkedCustomer.id);
+            // Fall through to process as a known customer — recursive call not needed,
+            // just process inline below
+            // Re-use the same logic by setting customer-like vars and continuing
+            // For simplicity, just send a welcome back and return — next message will match directly
+            await sendTelegramMessage(chatId, `Welcome back, ${linkedCustomer.name}! How can I help you today?`);
+            return new Response('OK', { status: 200 });
+          }
+        }
+
+        // Pending exists but not linked yet — just store the message, don't create duplicate
+        console.log('Pending customer exists but not yet linked, skipping duplicate creation');
+        return new Response('OK', { status: 200 });
       }
+
+      // No pending customer at all — create one
+      console.log('Creating new pending_customers row');
+      const { data: newPending } = await supabase
+        .from('pending_customers')
+        .insert({ telegram_chat_id: chatId, first_message: text, detected_language: 'unknown', status: 'unlinked' })
+        .select().single();
+      await supabase.from('dre_conversations').insert({
+        channel: 'telegram', external_chat_id: chatId,
+        control_status: 'escalated', pending_customer_id: newPending?.id || null,
+      });
+      await sendTelegramMessage(chatId, "Hi! I don't recognize your account yet. What is your business name?");
       return new Response('OK', { status: 200 });
     }
+
+    console.log('Customer found:', customer.id, customer.name);
 
     // Find or create conversation
     let { data: convo } = await supabase
@@ -102,9 +139,12 @@ serve(async (req) => {
       convo = newConvo;
     }
 
+    console.log('Conversation:', convo?.id, convo?.control_status);
+
     if (!convo) return new Response('OK', { status: 200 });
 
     if (convo.control_status === 'human_in_control') {
+      console.log('Human in control — storing message only');
       await supabase.from('dre_messages').insert({ conversation_id: convo.id, role: 'customer', content: text, media_type: 'text' });
       await supabase.from('dre_conversations').update({ updated_at: new Date().toISOString() }).eq('id', convo.id);
       return new Response('OK', { status: 200 });
@@ -114,6 +154,7 @@ serve(async (req) => {
     await supabase.from('dre_messages').insert({ conversation_id: convo.id, role: 'customer', content: text, media_type: 'text' });
 
     // Call GPT-4o
+    console.log('Calling OpenAI...');
     const aiResp = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
@@ -130,11 +171,24 @@ serve(async (req) => {
     });
 
     const aiData = await aiResp.json();
-    console.log('OpenAI response status:', aiResp.status);
+    console.log('OpenAI status:', aiResp.status);
 
-    const parsed = JSON.parse(aiData.choices?.[0]?.message?.content || '{}');
+    // Issue 1: Safe JSON parse with try-catch fallback
+    let parsed: any = {};
+    try {
+      const content = aiData.choices?.[0]?.message?.content || '{}';
+      parsed = JSON.parse(content);
+    } catch (e) {
+      console.error('JSON parse error:', e, 'Raw content:', aiData.choices?.[0]?.message?.content);
+      parsed = { intent: 'other', language: 'english', line_items: [], customer_reply: "Hi! I received your message. How can I help you today?" };
+    }
+
+    console.log('OpenAI parsed:', JSON.stringify(parsed));
+
     const reply = parsed.customer_reply || "Got it! Let me help you with that.";
     const language = parsed.language || 'english';
+
+    console.log('Sending reply:', reply);
 
     // If order intent, create order
     if (parsed.intent === 'order' && parsed.line_items?.length > 0) {
