@@ -6,6 +6,134 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ─── DRE SYSTEM PROMPT ──────────────────────────────────────────────
+const DRE_SYSTEM_PROMPT = `
+You are Dre — FUIK's sales person on Telegram. FUIK is a fresh produce distributor based in Curaçao.
+
+## WHO YOU ARE
+You are male, calm, reassuring, and casually professional. You feel like a trusted contact — not a bot, not a call center. You grew up on the island. You know the pace. You never rush, never panic, never make promises you cannot keep. You are the best salesperson FUIK has ever had.
+
+## LANGUAGE RULES — CRITICAL
+You speak Papiamentu (Curaçao dialect), English, Dutch, and Spanish.
+Priority order: Papiamentu > English > Dutch > Spanish.
+ALWAYS match the exact language the customer uses in their current message.
+If they switch languages, you switch immediately without comment.
+Curaçao Papiamentu is NOT the same as Aruban Papiamentu. Use Curaçao spelling and vocabulary.
+Never mix languages in one reply unless the customer does it first.
+
+Key Curaçao Papiamentu produce terms:
+kaha=case/box | bolsa=bag | saku=sack | kilo=kg | misa=head (lettuce)
+pampuna=pumpkin | peper=pepper | paprika=bell pepper | tomaat=tomato
+patia=watermelon | papaja=papaya | fresa=strawberry | pina/ananas=pineapple
+komkommer=cucumber | sla/lechuga=lettuce | wortel=carrot | repoyo=cabbage
+ui/cebola=onion | sèl=celery | mango=mango
+
+Confirmation words to recognize: tá bon / ya / si / yes / ja / correct / confirmed / ok / oké
+
+## HOW YOU ADDRESS CUSTOMERS
+Never use a name until the customer introduces themselves.
+Once you know their name, use it naturally — not every message, just when it feels right.
+
+## ORDER FLOW — THE MOST IMPORTANT RULE
+FUIK accepts ALL orders. We never say something is out of stock. We never say we do not carry something. If a customer orders grapes, apples, or anything not on the standard list — we accept it and source it.
+
+STEP 1 — When you receive an order, parse it and reply with a bullet-point summary asking to confirm:
+"✅ Got it! Here's what I have:
+- [qty] [unit] [product]
+- [qty] [unit] [product]
+Is this correct? Reply YES to confirm 🙏"
+
+Reply in the customer's language. Always bullet points. Never mention delivery time.
+
+STEP 2 — When customer confirms (tá bon / yes / si / ja / correct / oké):
+Reply: "Perfect! Your order is in 🌿 The FUIK team will reach out to confirm delivery details."
+Nothing more. No delivery promises. No time estimates.
+
+If customer does NOT confirm but adds/changes items — update the summary and ask again.
+
+## WHAT YOU NEVER DO
+- Never confirm delivery times or dates — only the FUIK team does that
+- Never say something is out of stock or unavailable
+- Never negotiate prices — quote standard prices only if asked
+- Never make promises about availability
+- Never use Aruban Papiamentu
+- Never write long paragraphs — short and clear always
+- Never ignore a complaint
+
+## PRICING
+You can share standard prices if the customer asks. You cannot negotiate or offer discounts.
+If they push for a discount say: "For pricing questions I'll connect you with the team 👌"
+
+## COMPLAINTS
+If a customer complains about a delivery or has a serious issue:
+- Acknowledge warmly in 1 sentence
+- Say the team will follow up
+- Set intent to "complaint" so the manager gets tagged
+Do NOT offer replacements or credits on your own.
+
+## DIFFICULT CUSTOMERS
+Stay calm. Acknowledge their feelings. One brief empathetic reply, then escalate.
+Never match negative energy. Never argue.
+
+## PROACTIVE MESSAGES
+When reaching out proactively (customer hasn't ordered in a while):
+- Keep it warm and natural, like a friend checking in
+- Max 1 message per week per customer
+- Never pushy, never salesy — just genuine
+- Example: "Hey! Haven't seen an order from you lately 🌿 Everything going well? Need anything this week?"
+
+## MEMORY
+You remember previous orders. When relevant, reference them naturally:
+"Last time you got 3 cases of mango — want the same again?"
+Suggest reorders proactively when it makes sense.
+
+## GROUP CHAT BEHAVIOR
+In group chats, only respond when:
+- The message is clearly an order, question, or complaint about products/delivery
+- You are directly mentioned or tagged
+- Someone replies directly to one of your messages
+Stay completely silent for casual conversation, greetings between staff, or unrelated topics.
+After an order is confirmed, post the full order summary in the group so everyone can see.
+
+## WHEN YOU CANNOT HELP
+Say: "Let me connect you with the team 👌" and set intent to "escalate".
+Never leave a customer without acknowledgment.
+
+## AI DISCLOSURE
+If a customer directly asks if you are a bot or AI — be honest:
+"I'm FUIK's digital assistant 😊 But the team is always here if you need a human."
+
+## RESPONSE FORMAT
+You MUST respond with ONLY valid JSON. No text before or after. No markdown. No code blocks.
+
+{
+  "intent": "order_step1" | "order_confirmed" | "order_modified" | "question" | "complaint" | "escalate" | "casual" | "proactive_response" | "other",
+  "language": "papiamentu" | "english" | "dutch" | "spanish",
+  "line_items": [{"product_name": string, "qty": number, "unit": string}],
+  "customer_reply": string,
+  "customer_name_detected": string | null,
+  "requires_escalation": boolean
+}
+
+intent values:
+- order_step1: customer sent an order, Dre is sending summary for confirmation
+- order_confirmed: customer confirmed the order summary
+- order_modified: customer changed something in the order
+- question: customer asked a question (not an order)
+- complaint: customer has a complaint
+- escalate: Dre cannot handle this, tag manager
+- casual: small talk, greeting, not business-related — stay silent or brief warm reply
+- proactive_response: customer replied to a proactive outreach message
+- other: anything else
+
+line_items: only populated for order_step1, order_confirmed, order_modified
+customer_reply: always in the customer's detected language
+customer_name_detected: if the customer mentioned their name in this message, extract it — otherwise null
+requires_escalation: true if manager should be tagged
+`;
+
+// ─── HELPERS ─────────────────────────────────────────────────────────
+
 async function sendTelegramMessage(chatId: string, text: string): Promise<void> {
   const token = Deno.env.get('TELEGRAM_BOT_TOKEN');
   if (!token) { console.error('No TELEGRAM_BOT_TOKEN'); return; }
@@ -26,6 +154,15 @@ async function getBotId(): Promise<number | null> {
     const data = await resp.json();
     return data?.result?.id || null;
   } catch { return null; }
+}
+
+async function getManagerHandle(supabase: any): Promise<string> {
+  const { data } = await supabase
+    .from('app_settings')
+    .select('value')
+    .eq('key', 'manager_telegram_handle')
+    .maybeSingle();
+  return data?.value || '@FuikManager';
 }
 
 async function checkGroupIntent(text: string, openaiKey: string): Promise<string> {
@@ -53,388 +190,30 @@ async function checkGroupIntent(text: string, openaiKey: string): Promise<string
   }
 }
 
-// ─── GROUP CHAT HANDLER ───────────────────────────────────────────────
-async function handleGroupMessage(
-  message: any,
-  chatId: string,
-  text: string,
-  senderName: string,
-  supabase: any,
-  openaiKey: string,
-) {
-  const botId = await getBotId();
-  const botUsername = Deno.env.get('TELEGRAM_BOT_USERNAME') || '';
+async function loadLanguageTerms(supabase: any): Promise<string> {
+  const { data: langTerms } = await supabase
+    .from('dre_language_terms')
+    .select('term, translation_en, category')
+    .eq('language', 'papiamentu')
+    .order('category');
 
-  // Determine if Dre should respond
-  const mentionsBot = botUsername && text.toLowerCase().includes(`@${botUsername.toLowerCase()}`);
-  const isReplyToBot = message.reply_to_message?.from?.id === botId;
-  let shouldRespond = mentionsBot || isReplyToBot;
-
-  if (!shouldRespond) {
-    const intent = await checkGroupIntent(text, openaiKey);
-    console.log('Group intent classification:', intent);
-    if (intent === 'casual' || intent === 'other') {
-      console.log('Group: casual/other intent — staying silent');
-      return;
-    }
-    shouldRespond = true;
-  }
-
-  // Look up customer by group chat ID
-  const { data: customer } = await supabase
-    .from('distribution_customers')
-    .select('id, name, preferred_language')
-    .eq('telegram_chat_id', chatId)
-    .maybeSingle();
-
-  if (!customer) {
-    console.log('Group not linked to any customer:', chatId);
-    await sendTelegramMessage(chatId, "Hi! I'm Dre, Fuik's order assistant 🌿 This group hasn't been linked to a customer account yet. Please contact us to get set up.");
-    return;
-  }
-
-  console.log('Group customer found:', customer.id, customer.name);
-
-  // Find or create conversation (one per group)
-  let { data: convo } = await supabase
-    .from('dre_conversations')
-    .select('id, control_status')
-    .eq('external_chat_id', chatId)
-    .eq('channel', 'telegram')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (!convo) {
-    const { data: newConvo } = await supabase
-      .from('dre_conversations')
-      .insert({ customer_id: customer.id, channel: 'telegram', external_chat_id: chatId, control_status: 'dre_active' })
-      .select().single();
-    convo = newConvo;
-  }
-
-  if (!convo) return;
-
-  console.log('Group conversation:', convo.id, convo.control_status);
-
-  // Store customer message with sender prefix
-  const prefixedContent = `[${senderName}]: ${text}`;
-  await supabase.from('dre_messages').insert({ conversation_id: convo.id, role: 'customer', content: prefixedContent, media_type: 'text' });
-
-  // If human in control, just store
-  if (convo.control_status === 'human_in_control') {
-    console.log('Group: human in control — stored message only');
-    await supabase.from('dre_conversations').update({ updated_at: new Date().toISOString() }).eq('id', convo.id);
-    return;
-  }
-
-  // If escalated, tag manager
-  if (convo.control_status === 'escalated') {
-    const managerHandle = await getManagerHandle(supabase);
-    await sendTelegramMessage(chatId, `${managerHandle} — a customer needs your attention here 🙏`);
-    return;
-  }
-
-  // Call GPT-4o for response
-  console.log('Group: Calling OpenAI...');
-  const aiResp = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'gpt-4o',
-      response_format: { type: 'json_object' },
-      temperature: 0.7,
-      max_tokens: 1000,
-      messages: [
-        { role: 'system', content: `You are Dre, the warm and professional AI sales assistant for Fuik, a fresh produce distributor in Curaçao. You communicate fluently in Papiamentu, Dutch, English, and Spanish. Always detect the language the customer is using and respond in that exact same language.
-
-Papiamentu produce terms: kaha=case/box, bolsa=bag, kilo=kg, pampuna=pumpkin, peper=pepper, mango=mango, patia=watermelon, fresa=strawberry, pina=pineapple, papaja=papaya, komkommer=cucumber, sla=lettuce, tomaat=tomato.
-
-This is a group chat. The sender is "${senderName}".
-
-You MUST respond with ONLY a valid JSON object. No text before or after. No markdown. No code blocks. Just the raw JSON object.
-
-Required format:
-{
-  "intent": "order",
-  "needs_escalation": false,
-  "language": "papiamentu",
-  "line_items": [{"product_name": "mango", "qty": 2, "unit": "kaha"}],
-  "customer_reply": "Ta bon! Mi a konfirmá bo orde: 2 kaha di mango. Bo lo recibi e entrega oy!"
+  return (langTerms || [])
+    .map((t: any) => `${t.term}=${t.translation_en}`)
+    .join(' | ');
 }
 
-Intent values: "order" | "question" | "complaint" | "casual" | "other"
-Language values: "english" | "dutch" | "papiamentu" | "spanish"
-For casual messages set line_items to [].
-The customer_reply must ALWAYS be in the same language as the customer's message.
-Never use the fallback phrase "Got it! Let me help you with that." — always write a real, warm, specific reply.` },
-        { role: 'user', content: text },
-      ],
-    }),
-  });
-
-  console.log('Group OpenAI raw response status:', aiResp.status);
-  const aiData = await aiResp.json();
-  console.log('Group OpenAI raw content:', aiData.choices?.[0]?.message?.content);
-  console.log('Group OpenAI finish reason:', aiData.choices?.[0]?.finish_reason);
-  console.log('Group OpenAI usage:', JSON.stringify(aiData.usage));
-
-  let parsed: any = {};
-  try {
-    const rawContent = aiData.choices?.[0]?.message?.content || '{}';
-    console.log('Group parsing content:', rawContent);
-
-    try {
-      parsed = JSON.parse(rawContent);
-    } catch {
-      const stripped = rawContent
-        .replace(/```json\s*/gi, '')
-        .replace(/```\s*/g, '')
-        .trim();
-      const match = stripped.match(/\{[\s\S]*\}/);
-      if (match) {
-        parsed = JSON.parse(match[0]);
-      }
-    }
-
-    console.log('Group parsed intent:', parsed.intent);
-    console.log('Group parsed reply:', parsed.customer_reply);
-    console.log('Group parsed line_items:', JSON.stringify(parsed.line_items));
-
-  } catch (e) {
-    console.error('Group JSON parse failed:', e);
-    parsed = {
-      intent: 'other',
-      language: 'english',
-      line_items: [],
-      customer_reply: 'Sorry, I had trouble understanding that. Could you please repeat your order?',
-      needs_escalation: false
-    };
+function buildFullSystemPrompt(termsList: string, extraContext?: string): string {
+  let prompt = DRE_SYSTEM_PROMPT;
+  if (termsList) {
+    prompt += `\n\nLIVE LANGUAGE TERMS FROM DATABASE:\n${termsList}`;
   }
-
-  console.log('Group OpenAI parsed:', JSON.stringify(parsed));
-
-  // Escalate if needed
-  if (parsed.intent === 'complaint' || parsed.needs_escalation) {
-    const managerHandle = await getManagerHandle(supabase);
-    await supabase.from('dre_conversations').update({ control_status: 'escalated', updated_at: new Date().toISOString() }).eq('id', convo.id);
-    await sendTelegramMessage(chatId, `${managerHandle} — a customer needs your attention here 🙏`);
-    // Still send Dre's reply if there is one
-    if (parsed.customer_reply) {
-      await supabase.from('dre_messages').insert({ conversation_id: convo.id, role: 'dre', content: parsed.customer_reply, media_type: 'text', language_detected: parsed.language || 'english' });
-      await sendTelegramMessage(chatId, parsed.customer_reply);
-    }
-    return;
+  if (extraContext) {
+    prompt += `\n\n${extraContext}`;
   }
-
-  const reply = parsed.customer_reply && parsed.customer_reply !== 'Got it! Let me help you with that.'
-    ? parsed.customer_reply
-    : 'Sorry, I had trouble understanding that. Could you please repeat your order?';
-  const language = parsed.language || 'english';
-
-  // If order intent, create order
-  if (parsed.intent === 'order' && parsed.line_items?.length > 0) {
-    const { data: order } = await supabase.from('distribution_orders').insert({
-      order_number: `TG-${Date.now().toString(36).toUpperCase()}`,
-      customer_id: customer.id,
-      source_channel: 'telegram',
-      status: 'confirmed',
-      delivery_date: new Date().toISOString().split('T')[0],
-    }).select().single();
-
-    if (order) {
-      // Load products with aliases for matching
-      const { data: products } = await supabase
-        .from('distribution_products')
-        .select('id, name, name_aliases, unit_options')
-        .eq('is_active', true);
-
-      for (const item of parsed.line_items) {
-        let matchedProductId: string | null = null;
-        const searchName = (item.product_name || '').toLowerCase().trim();
-
-        for (const p of (products || [])) {
-          if (p.name.toLowerCase().includes(searchName) || searchName.includes(p.name.toLowerCase())) {
-            matchedProductId = p.id;
-            break;
-          }
-          const aliases = p.name_aliases || [];
-          for (const alias of aliases) {
-            if (alias.toLowerCase() === searchName || searchName.includes(alias.toLowerCase())) {
-              matchedProductId = p.id;
-              break;
-            }
-          }
-          if (matchedProductId) break;
-        }
-
-        await supabase.from('distribution_order_items').insert({
-          order_id: order.id,
-          product_name_raw: item.product_name,
-          product_id: matchedProductId,
-          quantity: item.qty,
-          order_unit: item.unit || 'kg',
-        });
-      }
-      await supabase.from('dre_conversations').update({ order_id: order.id }).eq('id', convo.id);
-    }
-  }
-
-  // Update conversation language
-  await supabase.from('dre_conversations').update({ language_detected: language, updated_at: new Date().toISOString() }).eq('id', convo.id);
-
-  // Store and send Dre reply
-  await supabase.from('dre_messages').insert({ conversation_id: convo.id, role: 'dre', content: reply, media_type: 'text', language_detected: language });
-  await sendTelegramMessage(chatId, reply);
+  return prompt;
 }
 
-async function getManagerHandle(supabase: any): Promise<string> {
-  const { data } = await supabase
-    .from('app_settings')
-    .select('value')
-    .eq('key', 'manager_telegram_handle')
-    .maybeSingle();
-  return data?.value || '@FuikManager';
-}
-
-// ─── PRIVATE CHAT HANDLER (unchanged logic) ──────────────────────────
-async function handlePrivateMessage(
-  message: any,
-  chatId: string,
-  text: string,
-  supabase: any,
-  openaiKey: string,
-) {
-  // Identify customer
-  const { data: customer } = await supabase
-    .from('distribution_customers')
-    .select('id, name, preferred_language')
-    .eq('telegram_chat_id', chatId)
-    .maybeSingle();
-
-  if (!customer) {
-    console.log('No customer found for chatId:', chatId, '— checking pending_customers');
-
-    const { data: existingPending } = await supabase
-      .from('pending_customers')
-      .select('id, linked_customer_id, status')
-      .eq('telegram_chat_id', chatId)
-      .maybeSingle();
-
-    if (existingPending) {
-      console.log('Existing pending customer found:', existingPending.id, 'status:', existingPending.status);
-
-      if (existingPending.status === 'linked' && existingPending.linked_customer_id) {
-        console.log('Pending customer is linked to:', existingPending.linked_customer_id);
-        const { data: linkedCustomer } = await supabase
-          .from('distribution_customers')
-          .select('id, name, preferred_language')
-          .eq('id', existingPending.linked_customer_id)
-          .maybeSingle();
-
-        if (linkedCustomer) {
-          await supabase
-            .from('distribution_customers')
-            .update({ telegram_chat_id: chatId })
-            .eq('id', linkedCustomer.id);
-          console.log('Backfilled telegram_chat_id on customer:', linkedCustomer.id);
-          await sendTelegramMessage(chatId, `Welcome back, ${linkedCustomer.name}! How can I help you today?`);
-          return;
-        }
-      }
-
-      console.log('Pending customer exists but not yet linked, skipping duplicate creation');
-      return;
-    }
-
-    console.log('Creating new pending_customers row');
-    const { data: newPending } = await supabase
-      .from('pending_customers')
-      .insert({ telegram_chat_id: chatId, first_message: text, detected_language: 'unknown', status: 'unlinked' })
-      .select().single();
-    await supabase.from('dre_conversations').insert({
-      channel: 'telegram', external_chat_id: chatId,
-      control_status: 'escalated', pending_customer_id: newPending?.id || null,
-    });
-    await sendTelegramMessage(chatId, "Hi! I don't recognize your account yet. What is your business name?");
-    return;
-  }
-
-  console.log('Customer found:', customer.id, customer.name);
-
-  // Find or create conversation
-  let { data: convo } = await supabase
-    .from('dre_conversations')
-    .select('id, control_status')
-    .eq('external_chat_id', chatId)
-    .eq('channel', 'telegram')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (!convo) {
-    const { data: newConvo } = await supabase
-      .from('dre_conversations')
-      .insert({ customer_id: customer.id, channel: 'telegram', external_chat_id: chatId, control_status: 'dre_active' })
-      .select().single();
-    convo = newConvo;
-  }
-
-  console.log('Conversation:', convo?.id, convo?.control_status);
-
-  if (!convo) return;
-
-  if (convo.control_status === 'human_in_control') {
-    console.log('Human in control — storing message only');
-    await supabase.from('dre_messages').insert({ conversation_id: convo.id, role: 'customer', content: text, media_type: 'text' });
-    await supabase.from('dre_conversations').update({ updated_at: new Date().toISOString() }).eq('id', convo.id);
-    return;
-  }
-
-  // Store customer message
-  await supabase.from('dre_messages').insert({ conversation_id: convo.id, role: 'customer', content: text, media_type: 'text' });
-
-  // Call GPT-4o
-  console.log('Calling OpenAI...');
-  const aiResp = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'gpt-4o',
-      response_format: { type: 'json_object' },
-      temperature: 0.7,
-      max_tokens: 1000,
-      messages: [
-        { role: 'system', content: `You are Dre, the warm and professional AI sales assistant for Fuik, a fresh produce distributor in Curaçao. You communicate fluently in Papiamentu, Dutch, English, and Spanish. Always detect the language the customer is using and respond in that exact same language.
-
-Papiamentu produce terms: kaha=case/box, bolsa=bag, kilo=kg, pampuna=pumpkin, peper=pepper, mango=mango, patia=watermelon, fresa=strawberry, pina=pineapple, papaja=papaya, komkommer=cucumber, sla=lettuce, tomaat=tomato.
-
-You MUST respond with ONLY a valid JSON object. No text before or after. No markdown. No code blocks. Just the raw JSON object.
-
-Required format:
-{
-  "intent": "order",
-  "language": "papiamentu",
-  "line_items": [{"product_name": "mango", "qty": 2, "unit": "kaha"}],
-  "customer_reply": "Ta bon! Mi a konfirmá bo orde: 2 kaha di mango. Bo lo recibi e entrega oy!"
-}
-
-Intent values: "order" | "question" | "complaint" | "casual" | "other"
-Language values: "english" | "dutch" | "papiamentu" | "spanish"
-For casual messages set line_items to [].
-The customer_reply must ALWAYS be in the same language as the customer's message.
-Never use the fallback phrase "Got it! Let me help you with that." — always write a real, warm, specific reply.` },
-        { role: 'user', content: text },
-      ],
-    }),
-  });
-
-  console.log('OpenAI raw response status:', aiResp.status);
-  const aiData = await aiResp.json();
-  console.log('OpenAI raw content:', aiData.choices?.[0]?.message?.content);
-  console.log('OpenAI finish reason:', aiData.choices?.[0]?.finish_reason);
-  console.log('OpenAI usage:', JSON.stringify(aiData.usage));
-
+function parseAIResponse(aiData: any): any {
   let parsed: any = {};
   try {
     const rawContent = aiData.choices?.[0]?.message?.content || '{}';
@@ -457,6 +236,8 @@ Never use the fallback phrase "Got it! Let me help you with that." — always wr
     console.log('Parsed language:', parsed.language);
     console.log('Parsed reply:', parsed.customer_reply);
     console.log('Parsed line_items:', JSON.stringify(parsed.line_items));
+    console.log('Parsed customer_name_detected:', parsed.customer_name_detected);
+    console.log('Parsed requires_escalation:', parsed.requires_escalation);
 
   } catch (e) {
     console.error('JSON parse failed:', e);
@@ -464,64 +245,398 @@ Never use the fallback phrase "Got it! Let me help you with that." — always wr
       intent: 'other',
       language: 'english',
       line_items: [],
-      customer_reply: 'Sorry, I had trouble understanding that. Could you please repeat your order?'
+      customer_reply: 'Sorry, I had trouble understanding that. Could you please repeat your order?',
+      customer_name_detected: null,
+      requires_escalation: false,
     };
   }
 
-  const reply = parsed.customer_reply && parsed.customer_reply !== 'Got it! Let me help you with that.'
+  return parsed;
+}
+
+function getSafeReply(parsed: any): string {
+  return parsed.customer_reply && parsed.customer_reply !== 'Got it! Let me help you with that.'
     ? parsed.customer_reply
     : 'Sorry, I had trouble understanding that. Could you please repeat your order?';
-  const language = parsed.language || 'english';
+}
 
-  console.log('Sending reply:', reply);
+async function matchProduct(searchName: string, products: any[]): Promise<string | null> {
+  const lower = searchName.toLowerCase().trim();
+  for (const p of products) {
+    if (p.name.toLowerCase().includes(lower) || lower.includes(p.name.toLowerCase())) {
+      return p.id;
+    }
+    const aliases = p.name_aliases || [];
+    for (const alias of aliases) {
+      if (alias.toLowerCase() === lower || lower.includes(alias.toLowerCase())) {
+        return p.id;
+      }
+    }
+  }
+  return null;
+}
 
-  // If order intent, create order
-  if (parsed.intent === 'order' && parsed.line_items?.length > 0) {
+async function handleOrderFlow(
+  parsed: any,
+  customer: any,
+  convo: any,
+  products: any[],
+  supabase: any,
+) {
+  if (parsed.intent === 'order_step1' && parsed.line_items?.length > 0) {
+    // Step 1: Create a DRAFT order awaiting confirmation
     const { data: order } = await supabase.from('distribution_orders').insert({
       order_number: `TG-${Date.now().toString(36).toUpperCase()}`,
       customer_id: customer.id,
       source_channel: 'telegram',
-      status: 'confirmed',
-      delivery_date: new Date().toISOString().split('T')[0],
+      status: 'draft',
+      awaiting_customer_confirmation: true,
+      confirmation_requested_at: new Date().toISOString(),
     }).select().single();
 
     if (order) {
-      // Load products with aliases for matching
-      const { data: products } = await supabase
-        .from('distribution_products')
-        .select('id, name, name_aliases, unit_options')
-        .eq('is_active', true);
-
       for (const item of parsed.line_items) {
-        let matchedProductId: string | null = null;
-        const searchName = (item.product_name || '').toLowerCase().trim();
-
-        for (const p of (products || [])) {
-          if (p.name.toLowerCase().includes(searchName) || searchName.includes(p.name.toLowerCase())) {
-            matchedProductId = p.id;
-            break;
-          }
-          const aliases = p.name_aliases || [];
-          for (const alias of aliases) {
-            if (alias.toLowerCase() === searchName || searchName.includes(alias.toLowerCase())) {
-              matchedProductId = p.id;
-              break;
-            }
-          }
-          if (matchedProductId) break;
-        }
-
+        const matchedProductId = await matchProduct(item.product_name || '', products);
         await supabase.from('distribution_order_items').insert({
           order_id: order.id,
-          product_name_raw: item.product_name,
           product_id: matchedProductId,
+          product_name_raw: item.product_name,
           quantity: item.qty,
           order_unit: item.unit || 'kg',
         });
       }
-      await supabase.from('dre_conversations').update({ order_id: order.id }).eq('id', convo.id);
+      await supabase.from('dre_conversations').update({
+        order_id: order.id,
+        updated_at: new Date().toISOString(),
+      }).eq('id', convo.id);
+      console.log('Draft order created:', order.id, order.order_number);
     }
   }
+
+  if (parsed.intent === 'order_confirmed') {
+    // Step 2: Confirm the existing draft order
+    const { data: existingConvo } = await supabase
+      .from('dre_conversations')
+      .select('order_id')
+      .eq('id', convo.id)
+      .single();
+
+    if (existingConvo?.order_id) {
+      await supabase.from('distribution_orders').update({
+        status: 'confirmed',
+        awaiting_customer_confirmation: false,
+        confirmed_by_customer_at: new Date().toISOString(),
+      }).eq('id', existingConvo.order_id);
+      console.log('Order confirmed:', existingConvo.order_id);
+    }
+  }
+
+  if (parsed.intent === 'order_modified' && parsed.line_items?.length > 0) {
+    // Modified order: look for existing draft, update items
+    const { data: existingConvo } = await supabase
+      .from('dre_conversations')
+      .select('order_id')
+      .eq('id', convo.id)
+      .single();
+
+    if (existingConvo?.order_id) {
+      // Delete old items and re-insert
+      await supabase.from('distribution_order_items').delete().eq('order_id', existingConvo.order_id);
+      for (const item of parsed.line_items) {
+        const matchedProductId = await matchProduct(item.product_name || '', products);
+        await supabase.from('distribution_order_items').insert({
+          order_id: existingConvo.order_id,
+          product_id: matchedProductId,
+          product_name_raw: item.product_name,
+          quantity: item.qty,
+          order_unit: item.unit || 'kg',
+        });
+      }
+      await supabase.from('distribution_orders').update({
+        awaiting_customer_confirmation: true,
+        confirmation_requested_at: new Date().toISOString(),
+      }).eq('id', existingConvo.order_id);
+      console.log('Order modified:', existingConvo.order_id);
+    }
+  }
+}
+
+async function handlePostAI(parsed: any, customer: any, convo: any, supabase: any) {
+  // Save customer name if detected
+  if (parsed.customer_name_detected && customer?.id) {
+    await supabase.from('distribution_customers')
+      .update({ contact_name: parsed.customer_name_detected })
+      .eq('id', customer.id)
+      .is('contact_name', null);
+  }
+
+  // Escalate if needed
+  if (parsed.requires_escalation || parsed.intent === 'escalate' || parsed.intent === 'complaint') {
+    await supabase.from('dre_conversations').update({
+      control_status: 'escalated',
+      updated_at: new Date().toISOString(),
+    }).eq('id', convo.id);
+  }
+}
+
+// ─── GROUP CHAT HANDLER ───────────────────────────────────────────────
+async function handleGroupMessage(
+  message: any,
+  chatId: string,
+  text: string,
+  senderName: string,
+  supabase: any,
+  openaiKey: string,
+) {
+  const botId = await getBotId();
+  const botUsername = Deno.env.get('TELEGRAM_BOT_USERNAME') || '';
+
+  const mentionsBot = botUsername && text.toLowerCase().includes(`@${botUsername.toLowerCase()}`);
+  const isReplyToBot = message.reply_to_message?.from?.id === botId;
+  let shouldRespond = mentionsBot || isReplyToBot;
+
+  if (!shouldRespond) {
+    const intent = await checkGroupIntent(text, openaiKey);
+    console.log('Group intent classification:', intent);
+    if (intent === 'casual' || intent === 'other') {
+      console.log('Group: casual/other intent — staying silent');
+      return;
+    }
+    shouldRespond = true;
+  }
+
+  const { data: customer } = await supabase
+    .from('distribution_customers')
+    .select('id, name, preferred_language, contact_name')
+    .eq('telegram_chat_id', chatId)
+    .maybeSingle();
+
+  if (!customer) {
+    console.log('Group not linked to any customer:', chatId);
+    await sendTelegramMessage(chatId, "Hi! I'm Dre from FUIK 🌿 This group hasn't been linked to a customer account yet. Please contact us to get set up.");
+    return;
+  }
+
+  console.log('Group customer found:', customer.id, customer.name);
+
+  let { data: convo } = await supabase
+    .from('dre_conversations')
+    .select('id, control_status')
+    .eq('external_chat_id', chatId)
+    .eq('channel', 'telegram')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!convo) {
+    const { data: newConvo } = await supabase
+      .from('dre_conversations')
+      .insert({ customer_id: customer.id, channel: 'telegram', external_chat_id: chatId, control_status: 'dre_active' })
+      .select().single();
+    convo = newConvo;
+  }
+
+  if (!convo) return;
+
+  const prefixedContent = `[${senderName}]: ${text}`;
+  await supabase.from('dre_messages').insert({ conversation_id: convo.id, role: 'customer', content: prefixedContent, media_type: 'text' });
+
+  if (convo.control_status === 'human_in_control') {
+    await supabase.from('dre_conversations').update({ updated_at: new Date().toISOString() }).eq('id', convo.id);
+    return;
+  }
+
+  if (convo.control_status === 'escalated') {
+    const managerHandle = await getManagerHandle(supabase);
+    await sendTelegramMessage(chatId, `${managerHandle} — a customer needs your attention here 🙏`);
+    return;
+  }
+
+  // Load products and language terms
+  const { data: products } = await supabase
+    .from('distribution_products')
+    .select('id, name, name_aliases, unit_options')
+    .eq('is_active', true);
+
+  const termsList = await loadLanguageTerms(supabase);
+  const fullPrompt = buildFullSystemPrompt(termsList, `This is a group chat. The sender is "${senderName}".`);
+
+  console.log('Group: Calling OpenAI...');
+  const aiResp = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      response_format: { type: 'json_object' },
+      temperature: 0.7,
+      max_tokens: 1000,
+      messages: [
+        { role: 'system', content: fullPrompt },
+        { role: 'user', content: text },
+      ],
+    }),
+  });
+
+  console.log('Group OpenAI status:', aiResp.status);
+  const aiData = await aiResp.json();
+  console.log('Group OpenAI raw content:', aiData.choices?.[0]?.message?.content);
+
+  const parsed = parseAIResponse(aiData);
+  const reply = getSafeReply(parsed);
+  const language = parsed.language || 'english';
+
+  // Escalate if needed
+  if (parsed.requires_escalation || parsed.intent === 'complaint' || parsed.intent === 'escalate') {
+    const managerHandle = await getManagerHandle(supabase);
+    await supabase.from('dre_conversations').update({ control_status: 'escalated', updated_at: new Date().toISOString() }).eq('id', convo.id);
+    await sendTelegramMessage(chatId, `${managerHandle} — a customer needs your attention here 🙏`);
+  }
+
+  // Handle order flow
+  await handleOrderFlow(parsed, customer, convo, products || [], supabase);
+  await handlePostAI(parsed, customer, convo, supabase);
+
+  // Update conversation language
+  await supabase.from('dre_conversations').update({ language_detected: language, updated_at: new Date().toISOString() }).eq('id', convo.id);
+
+  // Store and send reply
+  await supabase.from('dre_messages').insert({ conversation_id: convo.id, role: 'dre', content: reply, media_type: 'text', language_detected: language });
+  await sendTelegramMessage(chatId, reply);
+}
+
+// ─── PRIVATE CHAT HANDLER ────────────────────────────────────────────
+async function handlePrivateMessage(
+  message: any,
+  chatId: string,
+  text: string,
+  supabase: any,
+  openaiKey: string,
+) {
+  const { data: customer } = await supabase
+    .from('distribution_customers')
+    .select('id, name, preferred_language, contact_name')
+    .eq('telegram_chat_id', chatId)
+    .maybeSingle();
+
+  if (!customer) {
+    console.log('No customer found for chatId:', chatId, '— checking pending_customers');
+
+    const { data: existingPending } = await supabase
+      .from('pending_customers')
+      .select('id, linked_customer_id, status')
+      .eq('telegram_chat_id', chatId)
+      .maybeSingle();
+
+    if (existingPending) {
+      console.log('Existing pending customer found:', existingPending.id, 'status:', existingPending.status);
+
+      if (existingPending.status === 'linked' && existingPending.linked_customer_id) {
+        const { data: linkedCustomer } = await supabase
+          .from('distribution_customers')
+          .select('id, name, preferred_language')
+          .eq('id', existingPending.linked_customer_id)
+          .maybeSingle();
+
+        if (linkedCustomer) {
+          await supabase
+            .from('distribution_customers')
+            .update({ telegram_chat_id: chatId })
+            .eq('id', linkedCustomer.id);
+          console.log('Backfilled telegram_chat_id on customer:', linkedCustomer.id);
+          await sendTelegramMessage(chatId, `Welcome back, ${linkedCustomer.name}! How can I help you today?`);
+          return;
+        }
+      }
+
+      console.log('Pending customer exists but not yet linked');
+      return;
+    }
+
+    console.log('Creating new pending_customers row');
+    const { data: newPending } = await supabase
+      .from('pending_customers')
+      .insert({ telegram_chat_id: chatId, first_message: text, detected_language: 'unknown', status: 'unlinked' })
+      .select().single();
+    await supabase.from('dre_conversations').insert({
+      channel: 'telegram', external_chat_id: chatId,
+      control_status: 'escalated', pending_customer_id: newPending?.id || null,
+    });
+    await sendTelegramMessage(chatId, "Hi! I don't recognize your account yet. What is your business name?");
+    return;
+  }
+
+  console.log('Customer found:', customer.id, customer.name);
+
+  let { data: convo } = await supabase
+    .from('dre_conversations')
+    .select('id, control_status')
+    .eq('external_chat_id', chatId)
+    .eq('channel', 'telegram')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!convo) {
+    const { data: newConvo } = await supabase
+      .from('dre_conversations')
+      .insert({ customer_id: customer.id, channel: 'telegram', external_chat_id: chatId, control_status: 'dre_active' })
+      .select().single();
+    convo = newConvo;
+  }
+
+  if (!convo) return;
+
+  if (convo.control_status === 'human_in_control') {
+    console.log('Human in control — storing message only');
+    await supabase.from('dre_messages').insert({ conversation_id: convo.id, role: 'customer', content: text, media_type: 'text' });
+    await supabase.from('dre_conversations').update({ updated_at: new Date().toISOString() }).eq('id', convo.id);
+    return;
+  }
+
+  // Store customer message
+  await supabase.from('dre_messages').insert({ conversation_id: convo.id, role: 'customer', content: text, media_type: 'text' });
+
+  // Load products and language terms
+  const { data: products } = await supabase
+    .from('distribution_products')
+    .select('id, name, name_aliases, unit_options')
+    .eq('is_active', true);
+
+  const termsList = await loadLanguageTerms(supabase);
+  const fullPrompt = buildFullSystemPrompt(termsList);
+
+  // Call GPT-4o
+  console.log('Calling OpenAI...');
+  const aiResp = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      response_format: { type: 'json_object' },
+      temperature: 0.7,
+      max_tokens: 1000,
+      messages: [
+        { role: 'system', content: fullPrompt },
+        { role: 'user', content: text },
+      ],
+    }),
+  });
+
+  console.log('OpenAI raw response status:', aiResp.status);
+  const aiData = await aiResp.json();
+  console.log('OpenAI raw content:', aiData.choices?.[0]?.message?.content);
+  console.log('OpenAI finish reason:', aiData.choices?.[0]?.finish_reason);
+  console.log('OpenAI usage:', JSON.stringify(aiData.usage));
+
+  const parsed = parseAIResponse(aiData);
+  const reply = getSafeReply(parsed);
+  const language = parsed.language || 'english';
+
+  console.log('Sending reply:', reply);
+
+  // Handle order flow (two-step confirmation)
+  await handleOrderFlow(parsed, customer, convo, products || [], supabase);
+  await handlePostAI(parsed, customer, convo, supabase);
 
   // Update conversation language
   await supabase.from('dre_conversations').update({ language_detected: language, updated_at: new Date().toISOString() }).eq('id', convo.id);
@@ -552,7 +667,6 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    // Debug ping
     if (text === '/ping') {
       await sendTelegramMessage(chatId, [
         '🤖 Dre Debug:',
