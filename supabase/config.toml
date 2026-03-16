@@ -173,3 +173,6 @@ verify_jwt = true
 
 [functions.test-telegram-token]
 verify_jwt = true
+
+[functions.check-webhook-status]
+verify_jwt = false
