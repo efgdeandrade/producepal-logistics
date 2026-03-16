@@ -178,6 +178,14 @@ const ProtectedAdmin = ({ children }: { children: React.ReactNode }) => (
   </ProtectedRoute>
 );
 
+const ProtectedIntake = ({ children }: { children: React.ReactNode }) => (
+  <ProtectedRoute>
+    <PasswordChangeRequired>
+      <IntakeLayout>{children}</IntakeLayout>
+    </PasswordChangeRequired>
+  </ProtectedRoute>
+);
+
 // Offline detection wrapper
 const OfflineWrapper = ({ children }: { children: React.ReactNode }) => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
