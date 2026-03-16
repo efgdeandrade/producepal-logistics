@@ -183,6 +183,17 @@ export default function IntakeConversations() {
   const handleLinkCustomer = async (customerId: string) => {
     if (!selected) return;
     await supabase.from('dre_conversations').update({ customer_id: customerId }).eq('id', selected.id);
+    // Issue 2: Write telegram_chat_id to distribution_customers so future messages are recognised
+    if (selected.external_chat_id) {
+      await supabase
+        .from('distribution_customers')
+        .update({ telegram_chat_id: selected.external_chat_id })
+        .eq('id', customerId);
+      await supabase.from('pending_customers').update({
+        status: 'linked',
+        linked_customer_id: customerId,
+      }).eq('telegram_chat_id', selected.external_chat_id);
+    }
     toast({ title: 'Customer linked' });
     fetchConversations();
   };
@@ -205,6 +216,11 @@ export default function IntakeConversations() {
     if (data && selected) {
       await supabase.from('dre_conversations').update({ customer_id: data.id }).eq('id', selected.id);
       if (selected.external_chat_id) {
+        // Issue 2: Write telegram_chat_id to the new customer record
+        await supabase
+          .from('distribution_customers')
+          .update({ telegram_chat_id: selected.external_chat_id })
+          .eq('id', data.id);
         await supabase.from('pending_customers').update({
           status: 'linked',
           linked_customer_id: data.id,
