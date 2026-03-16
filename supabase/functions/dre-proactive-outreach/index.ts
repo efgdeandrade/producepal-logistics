@@ -534,6 +534,49 @@ Deno.serve(async (req) => {
           status: 'sent'
         });
 
+        // === ANOMALY_LOG + DRE_CONVERSATIONS SYNC ===
+        try {
+          // Insert into anomaly_log
+          const anomalyType = anomaly.anomaly_type === 'missing_order' || anomaly.anomaly_type === 'missing_item' 
+            ? 'time_based' : 'volume_based';
+          const { data: anomalyLogRow } = await supabase.from('anomaly_log').insert({
+            customer_id: customer.id,
+            anomaly_type: anomalyType,
+            triggered_at: new Date().toISOString(),
+            resolved: false,
+          }).select().single();
+
+          // Find or create dre_conversations for proactive outreach
+          const telegramChatId = customer.telegram_chat_id || customer.whatsapp_phone || 'unknown';
+          const { data: dreConvo } = await supabase.from('dre_conversations').insert({
+            customer_id: customer.id,
+            channel: 'telegram',
+            external_chat_id: telegramChatId,
+            control_status: 'dre_active',
+            is_proactive_outreach: true,
+            anomaly_type: anomalyType,
+          }).select().single();
+
+          if (anomalyLogRow && dreConvo) {
+            await supabase.from('anomaly_log').update({
+              outreach_conversation_id: dreConvo.id,
+            }).eq('id', anomalyLogRow.id);
+          }
+
+          // Store outreach message in dre_messages
+          if (dreConvo) {
+            await supabase.from('dre_messages').insert({
+              conversation_id: dreConvo.id,
+              role: 'dre',
+              content: message,
+              media_type: 'text',
+              language_detected: language,
+            });
+          }
+        } catch (dreErr) {
+          console.error('Error syncing to anomaly_log/dre tables:', dreErr);
+        }
+
         results.details.push({ 
           customer_id: customer.id, 
           type: anomaly.anomaly_type, 
