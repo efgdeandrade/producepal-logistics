@@ -14,6 +14,177 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_agent_messages: {
+        Row: {
+          content: string
+          created_at: string | null
+          from_department: string
+          id: string
+          message_type: string
+          metadata: Json | null
+          to_department: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          from_department: string
+          id?: string
+          message_type: string
+          metadata?: Json | null
+          to_department: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          from_department?: string
+          id?: string
+          message_type?: string
+          metadata?: Json | null
+          to_department?: string
+        }
+        Relationships: []
+      }
+      ai_alerts: {
+        Row: {
+          created_at: string | null
+          department: string
+          id: string
+          message: string
+          resolved: boolean | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string | null
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          department: string
+          id?: string
+          message: string
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string | null
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          department?: string
+          id?: string
+          message?: string
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_alerts_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_alerts_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_chief_officers: {
+        Row: {
+          created_at: string | null
+          department: string
+          id: string
+          last_run_at: string | null
+          last_suggestion_at: string | null
+          officer_name: string
+          status: string | null
+          system_prompt: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          department: string
+          id?: string
+          last_run_at?: string | null
+          last_suggestion_at?: string | null
+          officer_name: string
+          status?: string | null
+          system_prompt?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          department?: string
+          id?: string
+          last_run_at?: string | null
+          last_suggestion_at?: string | null
+          officer_name?: string
+          status?: string | null
+          system_prompt?: string | null
+        }
+        Relationships: []
+      }
+      ai_suggestions: {
+        Row: {
+          actioned_at: string | null
+          actioned_by: string | null
+          content: string
+          created_at: string | null
+          department: string
+          id: string
+          priority: string | null
+          reasoning: string | null
+          status: string | null
+          suggestion_type: string
+          title: string
+        }
+        Insert: {
+          actioned_at?: string | null
+          actioned_by?: string | null
+          content: string
+          created_at?: string | null
+          department: string
+          id?: string
+          priority?: string | null
+          reasoning?: string | null
+          status?: string | null
+          suggestion_type: string
+          title: string
+        }
+        Update: {
+          actioned_at?: string | null
+          actioned_by?: string | null
+          content?: string
+          created_at?: string | null
+          department?: string
+          id?: string
+          priority?: string | null
+          reasoning?: string | null
+          status?: string | null
+          suggestion_type?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_suggestions_actioned_by_fkey"
+            columns: ["actioned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_suggestions_actioned_by_fkey"
+            columns: ["actioned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alert_executions: {
         Row: {
           alert_rule_id: string
@@ -97,6 +268,69 @@ export type Database = {
           trigger_config?: Json
           trigger_type?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      anomaly_log: {
+        Row: {
+          anomaly_type: string | null
+          customer_id: string | null
+          id: string
+          outreach_conversation_id: string | null
+          resolved: boolean | null
+          resolved_at: string | null
+          triggered_at: string | null
+        }
+        Insert: {
+          anomaly_type?: string | null
+          customer_id?: string | null
+          id?: string
+          outreach_conversation_id?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          triggered_at?: string | null
+        }
+        Update: {
+          anomaly_type?: string | null
+          customer_id?: string | null
+          id?: string
+          outreach_conversation_id?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          triggered_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anomaly_log_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anomaly_log_outreach_conversation_id_fkey"
+            columns: ["outreach_conversation_id"]
+            isOneToOne: false
+            referencedRelation: "dre_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      app_settings: {
+        Row: {
+          key: string
+          updated_at: string | null
+          value: string
+        }
+        Insert: {
+          key: string
+          updated_at?: string | null
+          value: string
+        }
+        Update: {
+          key?: string
+          updated_at?: string | null
+          value?: string
         }
         Relationships: []
       }
@@ -1718,14 +1952,20 @@ export type Database = {
           major_zone_id: string | null
           name: string
           notes: string | null
+          order_pattern_baseline: Json | null
+          payment_terms: string | null
           preferred_language: string | null
           preferred_payment_method:
             | Database["public"]["Enums"]["payment_method_type"]
             | null
           pricing_tier_id: string | null
+          qb_customer_id: string | null
           quickbooks_customer_id: string | null
+          shopify_customer_id: string | null
+          telegram_chat_id: string | null
           updated_at: string | null
           whatsapp_phone: string
+          zone: string | null
         }
         Insert: {
           address?: string | null
@@ -1740,14 +1980,20 @@ export type Database = {
           major_zone_id?: string | null
           name: string
           notes?: string | null
+          order_pattern_baseline?: Json | null
+          payment_terms?: string | null
           preferred_language?: string | null
           preferred_payment_method?:
             | Database["public"]["Enums"]["payment_method_type"]
             | null
           pricing_tier_id?: string | null
+          qb_customer_id?: string | null
           quickbooks_customer_id?: string | null
+          shopify_customer_id?: string | null
+          telegram_chat_id?: string | null
           updated_at?: string | null
           whatsapp_phone: string
+          zone?: string | null
         }
         Update: {
           address?: string | null
@@ -1762,14 +2008,20 @@ export type Database = {
           major_zone_id?: string | null
           name?: string
           notes?: string | null
+          order_pattern_baseline?: Json | null
+          payment_terms?: string | null
           preferred_language?: string | null
           preferred_payment_method?:
             | Database["public"]["Enums"]["payment_method_type"]
             | null
           pricing_tier_id?: string | null
+          qb_customer_id?: string | null
           quickbooks_customer_id?: string | null
+          shopify_customer_id?: string | null
+          telegram_chat_id?: string | null
           updated_at?: string | null
           whatsapp_phone?: string
+          zone?: string | null
         }
         Relationships: [
           {
@@ -2355,8 +2607,12 @@ export type Database = {
           has_special_requirements: boolean | null
           id: string
           invoice_id: string | null
+          is_late_order: boolean | null
           is_pickup: boolean | null
           language_used: string | null
+          late_order_decided_at: string | null
+          late_order_decided_by: string | null
+          late_order_manager_decision: string | null
           manual_override_at: string | null
           manual_override_by: string | null
           modification_type: string | null
@@ -2379,6 +2635,7 @@ export type Database = {
           receipt_verified_by: string | null
           requested_delivery_time: string | null
           source: string | null
+          source_channel: string | null
           source_conversation: string | null
           source_email_id: string | null
           standing_order_template_id: string | null
@@ -2408,8 +2665,12 @@ export type Database = {
           has_special_requirements?: boolean | null
           id?: string
           invoice_id?: string | null
+          is_late_order?: boolean | null
           is_pickup?: boolean | null
           language_used?: string | null
+          late_order_decided_at?: string | null
+          late_order_decided_by?: string | null
+          late_order_manager_decision?: string | null
           manual_override_at?: string | null
           manual_override_by?: string | null
           modification_type?: string | null
@@ -2432,6 +2693,7 @@ export type Database = {
           receipt_verified_by?: string | null
           requested_delivery_time?: string | null
           source?: string | null
+          source_channel?: string | null
           source_conversation?: string | null
           source_email_id?: string | null
           standing_order_template_id?: string | null
@@ -2461,8 +2723,12 @@ export type Database = {
           has_special_requirements?: boolean | null
           id?: string
           invoice_id?: string | null
+          is_late_order?: boolean | null
           is_pickup?: boolean | null
           language_used?: string | null
+          late_order_decided_at?: string | null
+          late_order_decided_by?: string | null
+          late_order_manager_decision?: string | null
           manual_override_at?: string | null
           manual_override_by?: string | null
           modification_type?: string | null
@@ -2485,6 +2751,7 @@ export type Database = {
           receipt_verified_by?: string | null
           requested_delivery_time?: string | null
           source?: string | null
+          source_channel?: string | null
           source_conversation?: string | null
           source_email_id?: string | null
           standing_order_template_id?: string | null
@@ -2498,6 +2765,20 @@ export type Database = {
             columns: ["dre_outreach_id"]
             isOneToOne: false
             referencedRelation: "dre_outreach_log"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distribution_orders_late_order_decided_by_fkey"
+            columns: ["late_order_decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distribution_orders_late_order_decided_by_fkey"
+            columns: ["late_order_decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
             referencedColumns: ["id"]
           },
           {
@@ -2817,9 +3098,13 @@ export type Database = {
       }
       distribution_products: {
         Row: {
+          case_height_cm: number | null
+          case_length_cm: number | null
           case_weight_kg: number | null
+          case_width_cm: number | null
           code: string
           created_at: string | null
+          gross_weight_per_case_kg: number | null
           id: string
           is_active: boolean | null
           is_ob_eligible: boolean | null
@@ -2827,6 +3112,7 @@ export type Database = {
           items_per_case: number | null
           min_order_qty: number | null
           name: string
+          name_aliases: string[] | null
           name_es: string | null
           name_nl: string | null
           name_pap: string | null
@@ -2840,13 +3126,19 @@ export type Database = {
           product_description: string | null
           quickbooks_item_id: string | null
           unit: string
+          unit_of_sale: string | null
+          units_per_case: number | null
           updated_at: string | null
           weight_unit: string | null
         }
         Insert: {
+          case_height_cm?: number | null
+          case_length_cm?: number | null
           case_weight_kg?: number | null
+          case_width_cm?: number | null
           code: string
           created_at?: string | null
+          gross_weight_per_case_kg?: number | null
           id?: string
           is_active?: boolean | null
           is_ob_eligible?: boolean | null
@@ -2854,6 +3146,7 @@ export type Database = {
           items_per_case?: number | null
           min_order_qty?: number | null
           name: string
+          name_aliases?: string[] | null
           name_es?: string | null
           name_nl?: string | null
           name_pap?: string | null
@@ -2867,13 +3160,19 @@ export type Database = {
           product_description?: string | null
           quickbooks_item_id?: string | null
           unit: string
+          unit_of_sale?: string | null
+          units_per_case?: number | null
           updated_at?: string | null
           weight_unit?: string | null
         }
         Update: {
+          case_height_cm?: number | null
+          case_length_cm?: number | null
           case_weight_kg?: number | null
+          case_width_cm?: number | null
           code?: string
           created_at?: string | null
+          gross_weight_per_case_kg?: number | null
           id?: string
           is_active?: boolean | null
           is_ob_eligible?: boolean | null
@@ -2881,6 +3180,7 @@ export type Database = {
           items_per_case?: number | null
           min_order_qty?: number | null
           name?: string
+          name_aliases?: string[] | null
           name_es?: string | null
           name_nl?: string | null
           name_pap?: string | null
@@ -2894,6 +3194,8 @@ export type Database = {
           product_description?: string | null
           quickbooks_item_id?: string | null
           unit?: string
+          unit_of_sale?: string | null
+          units_per_case?: number | null
           updated_at?: string | null
           weight_unit?: string | null
         }
@@ -3203,6 +3505,90 @@ export type Database = {
           },
         ]
       }
+      dre_conversations: {
+        Row: {
+          anomaly_type: string | null
+          assigned_agent_id: string | null
+          channel: string | null
+          control_status: string | null
+          created_at: string | null
+          customer_id: string | null
+          external_chat_id: string
+          id: string
+          is_proactive_outreach: boolean | null
+          language_detected: string | null
+          order_id: string | null
+          pending_customer_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          anomaly_type?: string | null
+          assigned_agent_id?: string | null
+          channel?: string | null
+          control_status?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          external_chat_id: string
+          id?: string
+          is_proactive_outreach?: boolean | null
+          language_detected?: string | null
+          order_id?: string | null
+          pending_customer_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          anomaly_type?: string | null
+          assigned_agent_id?: string | null
+          channel?: string | null
+          control_status?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          external_chat_id?: string
+          id?: string
+          is_proactive_outreach?: boolean | null
+          language_detected?: string | null
+          order_id?: string | null
+          pending_customer_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dre_conversations_assigned_agent_id_fkey"
+            columns: ["assigned_agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dre_conversations_assigned_agent_id_fkey"
+            columns: ["assigned_agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dre_conversations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dre_conversations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dre_conversations_pending_customer_id_fkey"
+            columns: ["pending_customer_id"]
+            isOneToOne: false
+            referencedRelation: "pending_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dre_direct_messages: {
         Row: {
           created_at: string | null
@@ -3285,6 +3671,47 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dre_messages: {
+        Row: {
+          content: string
+          conversation_id: string | null
+          created_at: string | null
+          id: string
+          language_detected: string | null
+          media_type: string | null
+          media_url: string | null
+          role: string | null
+        }
+        Insert: {
+          content: string
+          conversation_id?: string | null
+          created_at?: string | null
+          id?: string
+          language_detected?: string | null
+          media_type?: string | null
+          media_url?: string | null
+          role?: string | null
+        }
+        Update: {
+          content?: string
+          conversation_id?: string | null
+          created_at?: string | null
+          id?: string
+          language_detected?: string | null
+          media_type?: string | null
+          media_url?: string | null
+          role?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dre_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "dre_conversations"
             referencedColumns: ["id"]
           },
         ]
@@ -3727,8 +4154,13 @@ export type Database = {
           id: string
           last_collection_at: string | null
           last_deposit_at: string | null
+          manager_deposited_at: string | null
+          manager_deposited_by: string | null
+          supervisor_verified_at: string | null
+          supervisor_verified_by: string | null
           total_collected: number
           total_deposited: number
+          total_swipe_collected: number | null
           updated_at: string
         }
         Insert: {
@@ -3738,8 +4170,13 @@ export type Database = {
           id?: string
           last_collection_at?: string | null
           last_deposit_at?: string | null
+          manager_deposited_at?: string | null
+          manager_deposited_by?: string | null
+          supervisor_verified_at?: string | null
+          supervisor_verified_by?: string | null
           total_collected?: number
           total_deposited?: number
+          total_swipe_collected?: number | null
           updated_at?: string
         }
         Update: {
@@ -3749,8 +4186,13 @@ export type Database = {
           id?: string
           last_collection_at?: string | null
           last_deposit_at?: string | null
+          manager_deposited_at?: string | null
+          manager_deposited_by?: string | null
+          supervisor_verified_at?: string | null
+          supervisor_verified_by?: string | null
           total_collected?: number
           total_deposited?: number
+          total_swipe_collected?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -3765,6 +4207,34 @@ export type Database = {
             foreignKeyName: "driver_wallets_driver_id_fkey"
             columns: ["driver_id"]
             isOneToOne: true
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "driver_wallets_manager_deposited_by_fkey"
+            columns: ["manager_deposited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "driver_wallets_manager_deposited_by_fkey"
+            columns: ["manager_deposited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "driver_wallets_supervisor_verified_by_fkey"
+            columns: ["supervisor_verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "driver_wallets_supervisor_verified_by_fkey"
+            columns: ["supervisor_verified_by"]
+            isOneToOne: false
             referencedRelation: "profiles_directory"
             referencedColumns: ["id"]
           },
@@ -4388,6 +4858,72 @@ export type Database = {
           },
         ]
       }
+      invoice_audit_trail: {
+        Row: {
+          change_reason: string | null
+          changed_by: string | null
+          created_at: string | null
+          field_changed: string
+          id: string
+          invoice_id: string
+          new_value: string | null
+          original_value: string | null
+        }
+        Insert: {
+          change_reason?: string | null
+          changed_by?: string | null
+          created_at?: string | null
+          field_changed: string
+          id?: string
+          invoice_id: string
+          new_value?: string | null
+          original_value?: string | null
+        }
+        Update: {
+          change_reason?: string | null
+          changed_by?: string | null
+          created_at?: string | null
+          field_changed?: string
+          id?: string
+          invoice_id?: string
+          new_value?: string | null
+          original_value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_audit_trail_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_audit_trail_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_number_seq: {
+        Row: {
+          id: number
+          last_number: number
+          prefix: string
+        }
+        Insert: {
+          id?: number
+          last_number?: number
+          prefix?: string
+        }
+        Update: {
+          id?: number
+          last_number?: number
+          prefix?: string
+        }
+        Relationships: []
+      }
       invoices: {
         Row: {
           adjusted_total: number
@@ -4857,6 +5393,64 @@ export type Database = {
           },
         ]
       }
+      pending_customers: {
+        Row: {
+          created_at: string | null
+          detected_language: string | null
+          first_message: string | null
+          id: string
+          linked_customer_id: string | null
+          reviewed_by: string | null
+          status: string | null
+          telegram_chat_id: string | null
+          whatsapp_number: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          detected_language?: string | null
+          first_message?: string | null
+          id?: string
+          linked_customer_id?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          telegram_chat_id?: string | null
+          whatsapp_number?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          detected_language?: string | null
+          first_message?: string | null
+          id?: string
+          linked_customer_id?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          telegram_chat_id?: string | null
+          whatsapp_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_customers_linked_customer_id_fkey"
+            columns: ["linked_customer_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_customers_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_customers_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       predictions: {
         Row: {
           accuracy_score: number | null
@@ -5272,12 +5866,15 @@ export type Database = {
         Row: {
           created_at: string
           default_portal: string | null
+          department: string | null
           email: string
           full_name: string | null
           id: string
           is_fuik_team: boolean | null
           must_change_password: boolean | null
           notification_preferences: Json | null
+          phone: string | null
+          profile_photo_url: string | null
           team_role: string | null
           updated_at: string
           whatsapp_phone: string | null
@@ -5285,12 +5882,15 @@ export type Database = {
         Insert: {
           created_at?: string
           default_portal?: string | null
+          department?: string | null
           email: string
           full_name?: string | null
           id: string
           is_fuik_team?: boolean | null
           must_change_password?: boolean | null
           notification_preferences?: Json | null
+          phone?: string | null
+          profile_photo_url?: string | null
           team_role?: string | null
           updated_at?: string
           whatsapp_phone?: string | null
@@ -5298,12 +5898,15 @@ export type Database = {
         Update: {
           created_at?: string
           default_portal?: string | null
+          department?: string | null
           email?: string
           full_name?: string | null
           id?: string
           is_fuik_team?: boolean | null
           must_change_password?: boolean | null
           notification_preferences?: Json | null
+          phone?: string | null
+          profile_photo_url?: string | null
           team_role?: string | null
           updated_at?: string
           whatsapp_phone?: string | null
@@ -6823,6 +7426,36 @@ export type Database = {
           },
         ]
       }
+      whatsapp_settings: {
+        Row: {
+          id: number
+          redirect_message_en: string | null
+          redirect_message_es: string | null
+          redirect_message_nl: string | null
+          redirect_message_pap: string | null
+          telegram_link: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: number
+          redirect_message_en?: string | null
+          redirect_message_es?: string | null
+          redirect_message_nl?: string | null
+          redirect_message_pap?: string | null
+          telegram_link?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: number
+          redirect_message_en?: string | null
+          redirect_message_es?: string | null
+          redirect_message_nl?: string | null
+          redirect_message_pap?: string | null
+          telegram_link?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       whatsapp_template_sends: {
         Row: {
           customer_id: string | null
@@ -6902,6 +7535,10 @@ export type Database = {
       }
       claim_initial_admin: { Args: never; Returns: undefined }
       generate_receipt_number: { Args: never; Returns: string }
+      get_my_roles: {
+        Args: never
+        Returns: Database["public"]["Enums"]["app_role"][]
+      }
       get_user_roles: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"][]
