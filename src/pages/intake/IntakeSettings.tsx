@@ -351,6 +351,11 @@ export default function IntakeSettings() {
                 <Label>Telegram Link</Label>
                 <Input value={generalSettings.telegram_link || ''} onChange={(e) => updateGeneralSetting('telegram_link', e.target.value)} />
               </div>
+              <div>
+                <Label>Manager Telegram Handle</Label>
+                <Input value={generalSettings.manager_telegram_handle || ''} onChange={(e) => updateGeneralSetting('manager_telegram_handle', e.target.value)} placeholder="@FuikManager" />
+                <p className="text-xs text-intake-text-muted mt-1">Used when Dre needs to escalate in a group chat (e.g. @Eduardo)</p>
+              </div>
               <Button className="bg-intake-brand hover:bg-intake-accent text-white" onClick={saveGeneral}>Save</Button>
             </div>
           )}
