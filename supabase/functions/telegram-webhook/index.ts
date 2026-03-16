@@ -153,6 +153,25 @@ Deno.serve(async (req) => {
     const chatId = String(message.chat.id);
     const messageText = message.text || '';
 
+    // /ping debug command
+    if (messageText === '/ping') {
+      const hasOpenAI = !!Deno.env.get('OPENAI_API_KEY');
+      const hasTelegramToken = !!Deno.env.get('TELEGRAM_BOT_TOKEN');
+      const hasSupabaseUrl = !!Deno.env.get('SUPABASE_URL');
+      const hasServiceKey = !!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+      const debugMsg = [
+        '🤖 Dre Debug Report:',
+        `OPENAI_API_KEY: ${hasOpenAI ? '✅' : '❌ MISSING'}`,
+        `TELEGRAM_BOT_TOKEN: ${hasTelegramToken ? '✅' : '❌ MISSING'}`,
+        `SUPABASE_URL: ${hasSupabaseUrl ? '✅' : '❌ MISSING'}`,
+        `SERVICE_ROLE_KEY: ${hasServiceKey ? '✅' : '❌ MISSING'}`,
+      ].join('\n');
+
+      await sendTelegramMessage(chatId, debugMsg);
+      return new Response('OK', { status: 200 });
+    }
+
     // Check if OPENAI_API_KEY is configured before doing anything
     const openaiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openaiKey) {
