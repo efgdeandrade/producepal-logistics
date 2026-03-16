@@ -31,6 +31,7 @@ export interface Invoice {
   created_by: string | null;
   confirmed_by: string | null;
   confirmed_at: string | null;
+  fuik_invoice_number: string | null;
   quickbooks_invoice_id: string | null;
   quickbooks_invoice_number: string | null;
   quickbooks_sync_status: 'pending' | 'synced' | 'failed';
