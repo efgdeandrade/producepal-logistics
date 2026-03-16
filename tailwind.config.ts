@@ -64,6 +64,18 @@ export default {
   				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
+  			},
+  			intake: {
+  				brand: 'hsl(var(--intake-brand))',
+  				'brand-light': 'hsl(var(--intake-brand-light))',
+  				accent: 'hsl(var(--intake-accent))',
+  				bg: 'hsl(var(--intake-bg))',
+  				surface: 'hsl(var(--intake-surface))',
+  				text: 'hsl(var(--intake-text))',
+  				'text-muted': 'hsl(var(--intake-text-muted))',
+  				danger: 'hsl(var(--intake-danger))',
+  				warning: 'hsl(var(--intake-warning))',
+  				info: 'hsl(var(--intake-info))',
   			}
   		},
   		borderRadius: {

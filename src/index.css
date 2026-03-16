@@ -74,6 +74,18 @@ All colors MUST be HSL.
     --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
     --tracking-normal: 0em;
     --spacing: 0.25rem;
+
+    /* Intake portal design tokens */
+    --intake-brand: 145 63% 26%;
+    --intake-brand-light: 120 47% 93%;
+    --intake-accent: 122 39% 49%;
+    --intake-bg: 210 20% 98%;
+    --intake-surface: 0 0% 100%;
+    --intake-text: 0 0% 11%;
+    --intake-text-muted: 0 0% 46%;
+    --intake-danger: 0 70% 47%;
+    --intake-warning: 16 100% 45%;
+    --intake-info: 213 82% 24%;
   }
 
   .dark {

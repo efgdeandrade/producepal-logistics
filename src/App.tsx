@@ -117,6 +117,15 @@ import Offline from "./pages/Offline";
 import ResetPassword from "./pages/ResetPassword";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import EULA from "./pages/EULA";
+import SetupProfile from "./pages/SetupProfile";
+
+// Intake Portal
+import { IntakeLayout } from "@/layouts/IntakeLayout";
+import IntakeConversations from "./pages/intake/IntakeConversations";
+import IntakeEmailPO from "./pages/intake/IntakeEmailPO";
+import IntakeShopifyOrders from "./pages/intake/IntakeShopifyOrders";
+import IntakeProducts from "./pages/intake/IntakeProducts";
+import IntakeSettings from "./pages/intake/IntakeSettings";
 
 const queryClient = new QueryClient();
 
@@ -165,6 +174,14 @@ const ProtectedAdmin = ({ children }: { children: React.ReactNode }) => (
   <ProtectedRoute requiredRole="admin">
     <PasswordChangeRequired>
       <AdminLayout>{children}</AdminLayout>
+    </PasswordChangeRequired>
+  </ProtectedRoute>
+);
+
+const ProtectedIntake = ({ children }: { children: React.ReactNode }) => (
+  <ProtectedRoute>
+    <PasswordChangeRequired>
+      <IntakeLayout>{children}</IntakeLayout>
     </PasswordChangeRequired>
   </ProtectedRoute>
 );
@@ -237,6 +254,21 @@ const App = () => (
                       </PasswordChangeRequired>
                     </ProtectedRoute>
                   } />
+
+                  {/* ========== SETUP PROFILE ========== */}
+                  <Route path="/setup" element={
+                    <ProtectedRoute>
+                      <SetupProfile />
+                    </ProtectedRoute>
+                  } />
+
+                  {/* ========== INTAKE PORTAL ========== */}
+                  <Route path="/intake" element={<ProtectedIntake><IntakeConversations /></ProtectedIntake>} />
+                  <Route path="/intake/conversations" element={<ProtectedIntake><IntakeConversations /></ProtectedIntake>} />
+                  <Route path="/intake/email-po" element={<ProtectedIntake><IntakeEmailPO /></ProtectedIntake>} />
+                  <Route path="/intake/shopify" element={<ProtectedIntake><IntakeShopifyOrders /></ProtectedIntake>} />
+                  <Route path="/intake/products" element={<ProtectedIntake><IntakeProducts /></ProtectedIntake>} />
+                  <Route path="/intake/settings" element={<ProtectedIntake><IntakeSettings /></ProtectedIntake>} />
 
                   {/* ========== STANDALONE APPS ========== */}
                   <Route path="/dre" element={
