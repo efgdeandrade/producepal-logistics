@@ -42,6 +42,7 @@ export default function IntakeConversations() {
   const [linkCustomerId, setLinkCustomerId] = useState('');
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
   const [newCustomer, setNewCustomer] = useState({ name: '', customer_type: 'retail' as string, zone: '', payment_terms: 'cod', preferred_language: 'pap', delivery_address: '', phone: '', email: '', telegram_chat_id: '' });
+  const [linkedOrder, setLinkedOrder] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const selected = conversations.find((c) => c.id === selectedId);
@@ -90,15 +91,45 @@ export default function IntakeConversations() {
     fetchCustomers();
     fetchTeamMembers();
 
-    const channel = supabase.channel('intake-conversations')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'dre_conversations' }, () => fetchConversations())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'dre_messages' }, () => {
-        if (selectedId) fetchMessages(selectedId);
-      })
-      .subscribe();
+    const channel = supabase
+      .channel('intake-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'dre_conversations' },
+        async () => {
+          fetchConversations();
+          // Refresh linked order if conversation updated
+          if (selectedId) {
+            const updatedConv = conversations.find(c => c.id === selectedId);
+            if (updatedConv?.order_id) {
+              const { data: order } = await supabase
+                .from('distribution_orders')
+                .select('*, distribution_order_items(product_name_raw, quantity, order_unit)')
+                .eq('id', updatedConv.order_id)
+                .single();
+              setLinkedOrder(order);
+            }
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'dre_messages' },
+        (payload: any) => {
+          if (selectedId && payload.new.conversation_id === selectedId) {
+            fetchMessages(selectedId);
+          }
+          fetchConversations();
+        }
+      )
+      .subscribe((status) => {
+        console.log('Realtime status:', status);
+      });
 
-    return () => { supabase.removeChannel(channel); };
-  }, [filter]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [filter, selectedId]);
 
   // Fetch messages for selected conversation
   const fetchMessages = async (convId: string) => {
@@ -113,9 +144,21 @@ export default function IntakeConversations() {
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   };
 
-  const selectConversation = (id: string) => {
+  const selectConversation = async (id: string) => {
     setSelectedId(id);
     fetchMessages(id);
+    // Fetch linked order if exists
+    const conv = conversations.find(c => c.id === id);
+    if (conv?.order_id) {
+      const { data: order } = await supabase
+        .from('distribution_orders')
+        .select('*, distribution_order_items(product_name_raw, quantity, order_unit)')
+        .eq('id', conv.order_id)
+        .single();
+      setLinkedOrder(order);
+    } else {
+      setLinkedOrder(null);
+    }
   };
 
   // Control actions
@@ -533,11 +576,21 @@ export default function IntakeConversations() {
               )}
 
               {/* Linked order card */}
-              {selected.order_id && (
-                <div className="mt-4 p-3 border rounded-md bg-intake-surface">
-                  <p className="text-xs font-medium text-intake-text">
-                    Order #{selected.order_id.substring(0, 8)} linked
-                  </p>
+              {linkedOrder && (
+                <div className="mt-4 p-3 border rounded-md bg-intake-surface space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium text-intake-text">
+                      📦 Order #{linkedOrder.order_number}
+                    </p>
+                    <Badge variant="outline" className="text-[10px]">{linkedOrder.status}</Badge>
+                  </div>
+                  <div className="space-y-0.5">
+                    {(linkedOrder.distribution_order_items || []).map((item: any, i: number) => (
+                      <p key={i} className="text-xs text-intake-text-muted">
+                        • {item.product_name_raw} — {item.quantity} {item.order_unit || ''}
+                      </p>
+                    ))}
+                  </div>
                 </div>
               )}
             </ScrollArea>
