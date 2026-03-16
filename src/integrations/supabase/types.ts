@@ -2243,6 +2243,7 @@ export type Database = {
           customer_id: string
           customer_memo: string | null
           due_date: string
+          fuik_invoice_number: string | null
           id: string
           invoice_date: string
           notes: string | null
@@ -2265,6 +2266,7 @@ export type Database = {
           customer_id: string
           customer_memo?: string | null
           due_date?: string
+          fuik_invoice_number?: string | null
           id?: string
           invoice_date?: string
           notes?: string | null
@@ -2287,6 +2289,7 @@ export type Database = {
           customer_id?: string
           customer_memo?: string | null
           due_date?: string
+          fuik_invoice_number?: string | null
           id?: string
           invoice_date?: string
           notes?: string | null
@@ -3127,6 +3130,7 @@ export type Database = {
           quickbooks_item_id: string | null
           unit: string
           unit_of_sale: string | null
+          unit_options: string[] | null
           units_per_case: number | null
           updated_at: string | null
           weight_unit: string | null
@@ -3161,6 +3165,7 @@ export type Database = {
           quickbooks_item_id?: string | null
           unit: string
           unit_of_sale?: string | null
+          unit_options?: string[] | null
           units_per_case?: number | null
           updated_at?: string | null
           weight_unit?: string | null
@@ -3195,6 +3200,7 @@ export type Database = {
           quickbooks_item_id?: string | null
           unit?: string
           unit_of_sale?: string | null
+          unit_options?: string[] | null
           units_per_case?: number | null
           updated_at?: string | null
           weight_unit?: string | null
@@ -7534,6 +7540,7 @@ export type Database = {
         Returns: boolean
       }
       claim_initial_admin: { Args: never; Returns: undefined }
+      generate_fuik_invoice_number: { Args: never; Returns: string }
       generate_receipt_number: { Args: never; Returns: string }
       get_my_roles: {
         Args: never
