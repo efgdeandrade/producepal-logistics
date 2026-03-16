@@ -94,7 +94,7 @@ export default function IntakeSettings() {
     try {
       await supabase.rpc('update_user_roles', {
         target_user_id: userId,
-        new_roles: [newRole],
+        new_roles: [newRole] as any,
       });
       toast({ title: 'Role updated' });
       // Refresh
