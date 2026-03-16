@@ -139,36 +139,7 @@ export default function IntakeSettings() {
 
         {/* Telegram Tab */}
         <TabsContent value="telegram" className="space-y-4">
-          <div className="max-w-lg space-y-4 p-4 border rounded-lg bg-intake-surface">
-            <div>
-              <Label>Bot Token</Label>
-              <Input type="password" placeholder="••••••••" disabled />
-              <p className="text-xs text-intake-text-muted mt-1">Managed via backend secrets. Contact admin to update.</p>
-            </div>
-            <div>
-              <Label>Webhook URL</Label>
-              <Input readOnly value={`${import.meta.env.VITE_SUPABASE_URL || ''}/functions/v1/whatsapp-webhook`} />
-            </div>
-            <Button
-              variant="outline"
-              className="h-8 text-xs"
-              onClick={async () => {
-                try {
-                  const { data, error } = await supabase.functions.invoke('register-telegram-webhook');
-                  if (error) throw error;
-                  toast({
-                    title: data?.ok ? 'Webhook registered!' : 'Registration failed',
-                    description: data?.description || JSON.stringify(data),
-                    variant: data?.ok ? 'default' : 'destructive',
-                  });
-                } catch (e: any) {
-                  toast({ title: 'Error', description: e.message, variant: 'destructive' });
-                }
-              }}
-            >
-              Register Webhook
-            </Button>
-          </div>
+          <TelegramSettingsTab />
         </TabsContent>
 
         {/* WhatsApp Tab */}
