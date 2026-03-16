@@ -170,3 +170,6 @@ verify_jwt = false
 
 [functions.register-telegram-webhook]
 verify_jwt = true
+
+[functions.save-telegram-token]
+verify_jwt = true
