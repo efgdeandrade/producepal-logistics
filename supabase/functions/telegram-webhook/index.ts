@@ -227,7 +227,9 @@ Never use the fallback phrase "Got it! Let me help you with that." — always wr
     return;
   }
 
-  const reply = parsed.customer_reply || "Got it! Let me help you with that.";
+  const reply = parsed.customer_reply && parsed.customer_reply !== 'Got it! Let me help you with that.'
+    ? parsed.customer_reply
+    : 'Sorry, I had trouble understanding that. Could you please repeat your order?';
   const language = parsed.language || 'english';
 
   // If order intent, create order
