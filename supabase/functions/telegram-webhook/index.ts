@@ -8,6 +8,8 @@ const corsHeaders = {
 
 // ─── DRE SYSTEM PROMPT ──────────────────────────────────────────────
 const DRE_SYSTEM_PROMPT = `
+ABSOLUTE RULE — NEVER NEGOTIABLE: You NEVER mention delivery times, dates, or schedules. You NEVER say "you'll receive it today", "delivery tomorrow", "on its way", or ANY variation. The FUIK team handles all delivery communication. If you violate this rule, the entire system fails.
+
 You are Dre — FUIK's sales person on Telegram. FUIK is a fresh produce distributor based in Curaçao.
 
 ## WHO YOU ARE
@@ -29,6 +31,8 @@ komkommer=cucumber | sla/lechuga=lettuce | wortel=carrot | repoyo=cabbage
 ui/cebola=onion | sèl=celery | mango=mango
 
 Confirmation words to recognize: tá bon / ya / si / yes / ja / correct / confirmed / ok / oké
+
+PAPIAMENTU QUALITY STANDARD: The Curaçao Papiamentu you write must sound natural to someone born and raised in Curaçao. It is NOT the same as Aruban Papiamentu. Key differences: Curaçao uses "tá bon" not "ta bon di'e", uses "mi ke" and "mi kier" interchangeably, uses "danki" not "masha danki" for simple thanks, uses "ayo" for goodbye not "adios" in casual speech. When in doubt, write shorter and more natural rather than longer and formal. A Curaçao fisherman and a hotel manager both use the same casual Papiamentu with you.
 
 ## HOW YOU ADDRESS CUSTOMERS
 Never use a name until the customer introduces themselves.
@@ -132,6 +136,27 @@ customer_name_detected: if the customer mentioned their name in this message, ex
 requires_escalation: true if manager should be tagged
 `;
 
+// ─── CONFIRMATION DETECTION ─────────────────────────────────────────
+const CONFIRMATION_WORDS = ['tá bon', 'ta bon', 'yes', 'ya', 'si', 'ja', 'correct',
+  'confirmed', 'oké', 'oke', 'ok', 'sure', 'go ahead', 'korekt', 'ta asina',
+  'confirm', 'bevestig', 'klopt', 'goed'];
+
+function isConfirmationMessage(text: string): boolean {
+  const lower = text.toLowerCase().trim();
+  return CONFIRMATION_WORDS.some(word =>
+    lower === word ||
+    lower.startsWith(word + ' ') ||
+    lower.endsWith(' ' + word)
+  );
+}
+
+const CONFIRM_REPLIES: Record<string, string> = {
+  papiamentu: 'Perfekto! 🌿 Bo orde ta aden. E team di FUIK lo kontakta bo pa konfirmá e detayenan di entrega.',
+  english: 'Perfect! 🌿 Your order is in. The FUIK team will reach out to confirm delivery details.',
+  dutch: 'Perfect! 🌿 Je bestelling is ontvangen. Het FUIK team neemt contact op voor de bezorgdetails.',
+  spanish: '¡Perfecto! 🌿 Tu pedido está registrado. El equipo de FUIK se pondrá en contacto para confirmar los detalles de entrega.',
+};
+
 // ─── HELPERS ─────────────────────────────────────────────────────────
 
 async function sendTelegramMessage(chatId: string, text: string): Promise<void> {
@@ -192,13 +217,13 @@ async function checkGroupIntent(text: string, openaiKey: string): Promise<string
 
 async function loadLanguageTerms(supabase: any): Promise<string> {
   const { data: langTerms } = await supabase
-    .from('dre_language_terms')
-    .select('term, translation_en, category')
-    .eq('language', 'papiamentu')
-    .order('category');
+    .from('distribution_context_words')
+    .select('word, meaning, language, word_type')
+    .in('language', ['papiamentu', 'dutch'])
+    .order('word_type');
 
   return (langTerms || [])
-    .map((t: any) => `${t.term}=${t.translation_en}`)
+    .map((t: any) => `${t.word}=${t.meaning}`)
     .join(' | ');
 }
 
@@ -276,6 +301,62 @@ async function matchProduct(searchName: string, products: any[]): Promise<string
   return null;
 }
 
+// ─── TRAINING LOG HELPERS ────────────────────────────────────────────
+
+async function logMatchToTraining(
+  supabase: any,
+  item: any,
+  matchedProductId: string | null,
+  language: string,
+  convoId: string,
+  orderId: string | null,
+  customerId: string | null,
+) {
+  try {
+    await supabase.from('distribution_ai_match_logs').insert({
+      raw_text: item.product_name,
+      detected_language: language === 'papiamentu' ? 'pap' : language === 'dutch' ? 'nl' : language === 'spanish' ? 'es' : 'en',
+      matched_product_id: matchedProductId,
+      confidence: matchedProductId ? 'high' : 'low',
+      needs_review: !matchedProductId,
+      source_channel: 'telegram',
+      conversation_id: convoId,
+      order_id: orderId,
+      customer_id: customerId,
+      detected_quantity: item.qty || null,
+      detected_unit: item.unit || null,
+    });
+  } catch (e) {
+    console.error('logMatchToTraining error:', e);
+  }
+}
+
+async function logDreReplyForReview(
+  supabase: any,
+  customerMessage: string,
+  dreReply: string,
+  language: string,
+  convoId: string,
+  customerId: string | null,
+) {
+  try {
+    await supabase.from('distribution_ai_match_logs').insert({
+      raw_text: customerMessage,
+      detected_language: language === 'papiamentu' ? 'pap' : language === 'dutch' ? 'nl' : language === 'spanish' ? 'es' : 'en',
+      dre_reply: dreReply,
+      needs_language_review: true,
+      needs_review: false,
+      source_channel: 'telegram',
+      conversation_id: convoId,
+      customer_id: customerId,
+    });
+  } catch (e) {
+    console.error('logDreReplyForReview error:', e);
+  }
+}
+
+// ─── ORDER FLOW ──────────────────────────────────────────────────────
+
 async function handleOrderFlow(
   parsed: any,
   customer: any,
@@ -284,7 +365,6 @@ async function handleOrderFlow(
   supabase: any,
 ) {
   if (parsed.intent === 'order_step1' && parsed.line_items?.length > 0) {
-    // Step 1: Create a DRAFT order awaiting confirmation
     const { data: order } = await supabase.from('distribution_orders').insert({
       order_number: `TG-${Date.now().toString(36).toUpperCase()}`,
       customer_id: customer.id,
@@ -304,6 +384,8 @@ async function handleOrderFlow(
           quantity: item.qty,
           order_unit: item.unit || 'kg',
         });
+        // Log to training
+        await logMatchToTraining(supabase, item, matchedProductId, parsed.language || 'english', convo.id, order.id, customer.id);
       }
       await supabase.from('dre_conversations').update({
         order_id: order.id,
@@ -314,7 +396,6 @@ async function handleOrderFlow(
   }
 
   if (parsed.intent === 'order_confirmed') {
-    // Step 2: Confirm the existing draft order
     const { data: existingConvo } = await supabase
       .from('dre_conversations')
       .select('order_id')
@@ -332,7 +413,6 @@ async function handleOrderFlow(
   }
 
   if (parsed.intent === 'order_modified' && parsed.line_items?.length > 0) {
-    // Modified order: look for existing draft, update items
     const { data: existingConvo } = await supabase
       .from('dre_conversations')
       .select('order_id')
@@ -340,7 +420,6 @@ async function handleOrderFlow(
       .single();
 
     if (existingConvo?.order_id) {
-      // Delete old items and re-insert
       await supabase.from('distribution_order_items').delete().eq('order_id', existingConvo.order_id);
       for (const item of parsed.line_items) {
         const matchedProductId = await matchProduct(item.product_name || '', products);
@@ -351,6 +430,7 @@ async function handleOrderFlow(
           quantity: item.qty,
           order_unit: item.unit || 'kg',
         });
+        await logMatchToTraining(supabase, item, matchedProductId, parsed.language || 'english', convo.id, existingConvo.order_id, customer.id);
       }
       await supabase.from('distribution_orders').update({
         awaiting_customer_confirmation: true,
@@ -362,7 +442,6 @@ async function handleOrderFlow(
 }
 
 async function handlePostAI(parsed: any, customer: any, convo: any, supabase: any) {
-  // Save customer name if detected
   if (parsed.customer_name_detected && customer?.id) {
     await supabase.from('distribution_customers')
       .update({ contact_name: parsed.customer_name_detected })
@@ -370,13 +449,70 @@ async function handlePostAI(parsed: any, customer: any, convo: any, supabase: an
       .is('contact_name', null);
   }
 
-  // Escalate if needed
   if (parsed.requires_escalation || parsed.intent === 'escalate' || parsed.intent === 'complaint') {
     await supabase.from('dre_conversations').update({
       control_status: 'escalated',
       updated_at: new Date().toISOString(),
     }).eq('id', convo.id);
   }
+}
+
+// ─── CONFIRMATION SHORTCUT (before OpenAI) ──────────────────────────
+
+async function tryConfirmDraft(
+  text: string,
+  customer: any,
+  convo: any,
+  chatId: string,
+  supabase: any,
+): Promise<boolean> {
+  if (!isConfirmationMessage(text)) return false;
+
+  const { data: draftOrder } = await supabase
+    .from('distribution_orders')
+    .select('id, awaiting_customer_confirmation')
+    .eq('awaiting_customer_confirmation', true)
+    .eq('customer_id', customer.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!draftOrder) return false;
+
+  // Confirm without calling OpenAI
+  await supabase.from('distribution_orders').update({
+    status: 'confirmed',
+    awaiting_customer_confirmation: false,
+    confirmed_by_customer_at: new Date().toISOString(),
+  }).eq('id', draftOrder.id);
+
+  await supabase.from('dre_conversations').update({
+    updated_at: new Date().toISOString(),
+  }).eq('id', convo.id);
+
+  // Get language from last Dre message
+  const { data: lastMsg } = await supabase
+    .from('dre_messages')
+    .select('language_detected')
+    .eq('conversation_id', convo.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const lang = lastMsg?.language_detected || 'english';
+  const confirmReply = CONFIRM_REPLIES[lang] || CONFIRM_REPLIES.english;
+
+  await sendTelegramMessage(chatId, confirmReply);
+  await supabase.from('dre_messages').insert({
+    conversation_id: convo.id,
+    role: 'dre',
+    content: confirmReply,
+    media_type: 'text',
+    language_detected: lang,
+  });
+
+  console.log('Draft order confirmed via shortcut:', draftOrder.id);
+  return true;
 }
 
 // ─── GROUP CHAT HANDLER ───────────────────────────────────────────────
@@ -452,6 +588,10 @@ async function handleGroupMessage(
     return;
   }
 
+  // Check for draft confirmation shortcut
+  const confirmed = await tryConfirmDraft(text, customer, convo, chatId, supabase);
+  if (confirmed) return;
+
   // Load products and language terms
   const { data: products } = await supabase
     .from('distribution_products')
@@ -495,6 +635,9 @@ async function handleGroupMessage(
   // Handle order flow
   await handleOrderFlow(parsed, customer, convo, products || [], supabase);
   await handlePostAI(parsed, customer, convo, supabase);
+
+  // Log Dre reply for language review
+  await logDreReplyForReview(supabase, text, reply, language, convo.id, customer.id);
 
   // Update conversation language
   await supabase.from('dre_conversations').update({ language_detected: language, updated_at: new Date().toISOString() }).eq('id', convo.id);
@@ -596,6 +739,10 @@ async function handlePrivateMessage(
   // Store customer message
   await supabase.from('dre_messages').insert({ conversation_id: convo.id, role: 'customer', content: text, media_type: 'text' });
 
+  // Check for draft confirmation shortcut BEFORE calling OpenAI
+  const confirmed = await tryConfirmDraft(text, customer, convo, chatId, supabase);
+  if (confirmed) return;
+
   // Load products and language terms
   const { data: products } = await supabase
     .from('distribution_products')
@@ -637,6 +784,9 @@ async function handlePrivateMessage(
   // Handle order flow (two-step confirmation)
   await handleOrderFlow(parsed, customer, convo, products || [], supabase);
   await handlePostAI(parsed, customer, convo, supabase);
+
+  // Log Dre reply for language review
+  await logDreReplyForReview(supabase, text, reply, language, convo.id, customer.id);
 
   // Update conversation language
   await supabase.from('dre_conversations').update({ language_detected: language, updated_at: new Date().toISOString() }).eq('id', convo.id);
