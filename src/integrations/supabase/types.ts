@@ -6941,7 +6941,19 @@ export type Database = {
         | "import"
         | "finance"
         | "sales"
-      customer_type: "regular" | "supermarket" | "cod" | "credit"
+        | "director"
+        | "business_partner"
+        | "right_hand"
+        | "employee"
+      customer_type:
+        | "regular"
+        | "supermarket"
+        | "cod"
+        | "credit"
+        | "restaurant"
+        | "hotel"
+        | "walk_in"
+        | "online"
       payment_method_type: "cash" | "swipe" | "transfer" | "credit"
     }
     CompositeTypes: {
@@ -7083,8 +7095,21 @@ export const Constants = {
         "import",
         "finance",
         "sales",
+        "director",
+        "business_partner",
+        "right_hand",
+        "employee",
       ],
-      customer_type: ["regular", "supermarket", "cod", "credit"],
+      customer_type: [
+        "regular",
+        "supermarket",
+        "cod",
+        "credit",
+        "restaurant",
+        "hotel",
+        "walk_in",
+        "online",
+      ],
       payment_method_type: ["cash", "swipe", "transfer", "credit"],
     },
   },
