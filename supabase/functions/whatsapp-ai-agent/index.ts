@@ -828,6 +828,94 @@ ${escalation_reason}
       parsed_intent: intent
     });
 
+    // === DRE CONVERSATIONS & MESSAGES SYNC ===
+    // Write to unified dre_conversations and dre_messages tables
+    try {
+      const externalChatId = customer_phone?.replace(/\D/g, '') || customer_phone || 'unknown';
+      
+      // Find or create dre_conversations
+      let { data: dreConvo } = await supabase
+        .from('dre_conversations')
+        .select('id')
+        .eq('external_chat_id', externalChatId)
+        .eq('channel', 'whatsapp')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!dreConvo) {
+        const { data: newDreConvo } = await supabase.from('dre_conversations').insert({
+          channel: 'whatsapp',
+          external_chat_id: externalChatId,
+          control_status: 'dre_active',
+          customer_id: customer_id || null,
+          language_detected: detected_language,
+        }).select().single();
+        dreConvo = newDreConvo;
+      }
+
+      if (dreConvo) {
+        // Store customer message
+        await supabase.from('dre_messages').insert({
+          conversation_id: dreConvo.id,
+          role: 'customer',
+          content: message_text,
+          media_type: 'text',
+          language_detected: detected_language,
+        });
+
+        // Handle order intent — send redirect to Telegram
+        if (intent === 'order') {
+          const { data: waSettings } = await supabase
+            .from('whatsapp_settings')
+            .select('telegram_link, redirect_message_en, redirect_message_nl, redirect_message_pap, redirect_message_es')
+            .eq('id', 1)
+            .single();
+
+          if (waSettings) {
+            const langMap: Record<string, string> = {
+              en: waSettings.redirect_message_en || '',
+              nl: waSettings.redirect_message_nl || '',
+              pap: waSettings.redirect_message_pap || '',
+              es: waSettings.redirect_message_es || '',
+            };
+            let redirectMsg = langMap[detected_language] || langMap.en || '';
+            if (redirectMsg && waSettings.telegram_link) {
+              redirectMsg = redirectMsg.replace(/\{telegram_link\}/g, waSettings.telegram_link);
+              // Send redirect message via WhatsApp
+              await sendWhatsAppMessage(customer_phone, redirectMsg);
+              // Store redirect in dre_messages
+              await supabase.from('dre_messages').insert({
+                conversation_id: dreConvo.id,
+                role: 'dre',
+                content: redirectMsg,
+                media_type: 'text',
+                language_detected: detected_language,
+              });
+            }
+          }
+        }
+
+        // Store Dre's reply in dre_messages
+        await supabase.from('dre_messages').insert({
+          conversation_id: dreConvo.id,
+          role: 'dre',
+          content: responseMessage,
+          media_type: 'text',
+          language_detected: detected_language,
+        });
+
+        // Update conversation
+        await supabase.from('dre_conversations').update({
+          language_detected: detected_language,
+          updated_at: new Date().toISOString(),
+        }).eq('id', dreConvo.id);
+      }
+    } catch (dreErr) {
+      console.error('Error syncing to dre tables:', dreErr);
+      // Don't fail the main flow
+    }
+
     return new Response(JSON.stringify({ 
       success: true, 
       action: intent,

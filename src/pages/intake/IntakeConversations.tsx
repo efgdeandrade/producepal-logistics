@@ -164,18 +164,19 @@ export default function IntakeConversations() {
     fetchMessages(selected.id);
   };
 
-  // Send reply
+  // Send reply via edge function
   const sendReply = async () => {
-    if (!replyText.trim() || !selected) return;
-    await supabase.from('dre_messages').insert({
-      conversation_id: selected.id,
-      role: 'agent',
-      content: replyText.trim(),
-      media_type: 'text',
-    });
-    await supabase.from('dre_conversations').update({ updated_at: new Date().toISOString() }).eq('id', selected.id);
-    setReplyText('');
-    fetchMessages(selected.id);
+    if (!replyText.trim() || !selected || !user) return;
+    try {
+      const { data, error } = await supabase.functions.invoke('send-agent-reply', {
+        body: { conversation_id: selected.id, message_text: replyText.trim(), agent_id: user.id },
+      });
+      if (error) throw error;
+      setReplyText('');
+      fetchMessages(selected.id);
+    } catch (e: any) {
+      toast({ title: 'Error sending reply', description: e.message, variant: 'destructive' });
+    }
   };
 
   // Link customer

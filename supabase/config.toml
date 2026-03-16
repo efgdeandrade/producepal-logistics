@@ -158,3 +158,15 @@ verify_jwt = false
 
 [functions.audit-cif-pack]
 verify_jwt = true
+
+[functions.telegram-webhook]
+verify_jwt = false
+
+[functions.send-agent-reply]
+verify_jwt = false
+
+[functions.shopify-order-webhook]
+verify_jwt = false
+
+[functions.register-telegram-webhook]
+verify_jwt = true
