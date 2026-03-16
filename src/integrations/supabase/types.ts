@@ -2631,6 +2631,7 @@ export type Database = {
       }
       distribution_orders: {
         Row: {
+          agent_state_snapshot: Json | null
           assigned_at: string | null
           assignment_locked: boolean
           awaiting_customer_confirmation: boolean | null
@@ -2692,6 +2693,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          agent_state_snapshot?: Json | null
           assigned_at?: string | null
           assignment_locked?: boolean
           awaiting_customer_confirmation?: boolean | null
@@ -2753,6 +2755,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          agent_state_snapshot?: Json | null
           assigned_at?: string | null
           assignment_locked?: boolean
           awaiting_customer_confirmation?: boolean | null
@@ -3564,6 +3567,7 @@ export type Database = {
       }
       dre_conversations: {
         Row: {
+          agent_state: Json | null
           anomaly_type: string | null
           assigned_agent_id: string | null
           channel: string | null
@@ -3574,11 +3578,13 @@ export type Database = {
           id: string
           is_proactive_outreach: boolean | null
           language_detected: string | null
+          last_agent_state_at: string | null
           order_id: string | null
           pending_customer_id: string | null
           updated_at: string | null
         }
         Insert: {
+          agent_state?: Json | null
           anomaly_type?: string | null
           assigned_agent_id?: string | null
           channel?: string | null
@@ -3589,11 +3595,13 @@ export type Database = {
           id?: string
           is_proactive_outreach?: boolean | null
           language_detected?: string | null
+          last_agent_state_at?: string | null
           order_id?: string | null
           pending_customer_id?: string | null
           updated_at?: string | null
         }
         Update: {
+          agent_state?: Json | null
           anomaly_type?: string | null
           assigned_agent_id?: string | null
           channel?: string | null
@@ -3604,6 +3612,7 @@ export type Database = {
           id?: string
           is_proactive_outreach?: boolean | null
           language_detected?: string | null
+          last_agent_state_at?: string | null
           order_id?: string | null
           pending_customer_id?: string | null
           updated_at?: string | null
