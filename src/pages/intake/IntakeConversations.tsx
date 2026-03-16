@@ -576,11 +576,21 @@ export default function IntakeConversations() {
               )}
 
               {/* Linked order card */}
-              {selected.order_id && (
-                <div className="mt-4 p-3 border rounded-md bg-intake-surface">
-                  <p className="text-xs font-medium text-intake-text">
-                    Order #{selected.order_id.substring(0, 8)} linked
-                  </p>
+              {linkedOrder && (
+                <div className="mt-4 p-3 border rounded-md bg-intake-surface space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium text-intake-text">
+                      📦 Order #{linkedOrder.order_number}
+                    </p>
+                    <Badge variant="outline" className="text-[10px]">{linkedOrder.status}</Badge>
+                  </div>
+                  <div className="space-y-0.5">
+                    {(linkedOrder.distribution_order_items || []).map((item: any, i: number) => (
+                      <p key={i} className="text-xs text-intake-text-muted">
+                        • {item.product_name_raw} — {item.quantity} {item.order_unit || ''}
+                      </p>
+                    ))}
+                  </div>
                 </div>
               )}
             </ScrollArea>
