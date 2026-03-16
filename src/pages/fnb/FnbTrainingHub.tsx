@@ -2,24 +2,25 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Brain, BookOpen, Users, BarChart3, Languages } from "lucide-react";
+import { Brain, BookOpen, Users, BarChart3, Languages, MessageCircle } from "lucide-react";
 import { useAITraining } from "@/hooks/useAITraining";
 import { TrainingReviewCard } from "@/components/fnb/TrainingReviewCard";
+import { DreReplyReviewCard } from "@/components/fnb/DreReplyReviewCard";
 import { AIStatsOverview } from "@/components/fnb/AIStatsOverview";
 import { GlobalAliasManager } from "@/components/fnb/GlobalAliasManager";
 import { ContextWordsManager } from "@/components/fnb/ContextWordsManager";
 import { DictionaryImportDialog } from "@/components/fnb/DictionaryImportDialog";
 import { DictionaryBulkImport } from "@/components/fnb/DictionaryBulkImport";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase as supabaseClient } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
-// Cast the backend client to `any` in this page to avoid excessively-deep type instantiation errors
-// from complex selects (keeps runtime behavior the same).
 const supabase = supabaseClient as any;
 
 export default function FnbTrainingHub() {
   const [activeTab, setActiveTab] = useState("review");
+  const queryClient = useQueryClient();
   const { 
     reviewQueue, 
     isLoadingQueue, 
@@ -47,7 +48,68 @@ export default function FnbTrainingHub() {
     }
   });
 
+  // Fetch Dre reply review queue
+  const { data: dreReplyQueue, isLoading: isLoadingDreReplies } = useQuery({
+    queryKey: ['dre-reply-review-queue'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('distribution_ai_match_logs')
+        .select('id, raw_text, dre_reply, detected_language, created_at')
+        .eq('needs_language_review', true)
+        .eq('source_channel', 'telegram')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Approve Dre reply
+  const approveMutation = useMutation({
+    mutationFn: async (logId: string) => {
+      const { error } = await supabase
+        .from('distribution_ai_match_logs')
+        .update({ needs_language_review: false })
+        .eq('id', logId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dre-reply-review-queue'] });
+      toast.success('Reply approved');
+    },
+  });
+
+  // Correct Dre reply
+  const correctReplyMutation = useMutation({
+    mutationFn: async ({ logId, correctedReply }: { logId: string; correctedReply: string }) => {
+      const { data: { user } } = await supabaseClient.auth.getUser();
+      const { error } = await supabase
+        .from('distribution_ai_match_logs')
+        .update({
+          corrected_reply: correctedReply,
+          reply_corrected_by: user?.id || null,
+          reply_corrected_at: new Date().toISOString(),
+          needs_language_review: false,
+        })
+        .eq('id', logId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dre-reply-review-queue'] });
+      toast.success('Correction saved');
+    },
+  });
+
+  const [skippedIds, setSkippedIds] = useState<Set<string>>(new Set());
+
+  const handleSkipReply = (logId: string) => {
+    setSkippedIds((prev) => new Set(prev).add(logId));
+  };
+
+  const filteredDreQueue = (dreReplyQueue || []).filter((log: any) => !skippedIds.has(log.id));
+
   const pendingCount = stats?.pendingReview || 0;
+  const dreReplyCount = filteredDreQueue.length;
 
   return (
     <div className="flex-1 space-y-4 px-4 md:px-6 py-4 md:py-6 w-full max-w-full overflow-x-hidden">
@@ -77,7 +139,7 @@ export default function FnbTrainingHub() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
+        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
           <TabsTrigger value="review" className="gap-2">
             <BookOpen className="h-4 w-4" />
             <span className="hidden sm:inline">Review Queue</span>
@@ -85,6 +147,16 @@ export default function FnbTrainingHub() {
             {pendingCount > 0 && (
               <Badge variant="secondary" className="ml-1">
                 {pendingCount}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="dre-replies" className="gap-2">
+            <MessageCircle className="h-4 w-4" />
+            <span className="hidden sm:inline">Dre Replies</span>
+            <span className="sm:hidden">Replies</span>
+            {dreReplyCount > 0 && (
+              <Badge variant="secondary" className="ml-1">
+                {dreReplyCount}
               </Badge>
             )}
           </TabsTrigger>
@@ -155,6 +227,55 @@ export default function FnbTrainingHub() {
           </Card>
         </TabsContent>
 
+        {/* Dre Replies Tab */}
+        <TabsContent value="dre-replies" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                Dre Reply Review
+                {dreReplyCount > 0 && (
+                  <Badge variant="destructive">{dreReplyCount} replies need review</Badge>
+                )}
+              </CardTitle>
+              <CardDescription>
+                Review Dre's Telegram replies for language quality. Approve good replies or correct mistakes to improve Papiamentu accuracy.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingDreReplies ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-32 bg-muted animate-pulse rounded-lg" />
+                  ))}
+                </div>
+              ) : filteredDreQueue.length > 0 ? (
+                <ScrollArea className="h-[600px] pr-4">
+                  <div className="space-y-4">
+                    {filteredDreQueue.map((log: any) => (
+                      <DreReplyReviewCard
+                        key={log.id}
+                        log={log}
+                        onApprove={(id) => approveMutation.mutate(id)}
+                        onCorrect={(id, text) => correctReplyMutation.mutate({ logId: id, correctedReply: text })}
+                        onSkip={handleSkipReply}
+                        isLoading={approveMutation.isPending || correctReplyMutation.isPending}
+                      />
+                    ))}
+                  </div>
+                </ScrollArea>
+              ) : (
+                <div className="text-center py-12">
+                  <MessageCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium">All replies reviewed!</h3>
+                  <p className="text-muted-foreground">
+                    No Dre replies need language review right now.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Global Dictionary Tab */}
         <TabsContent value="dictionary">
           <GlobalAliasManager />
@@ -212,10 +333,10 @@ export default function FnbTrainingHub() {
                   </p>
                 </div>
                 <div>
-                  <h4 className="font-medium mb-2">📊 Customer Patterns</h4>
+                  <h4 className="font-medium mb-2">💬 Dre Reply Review</h4>
                   <p className="text-sm text-muted-foreground">
-                    The AI learns what each customer usually orders, making future 
-                    order parsing faster and more accurate.
+                    Review Dre's Telegram replies to ensure natural Curaçao Papiamentu. 
+                    Corrections improve future reply quality.
                   </p>
                 </div>
               </div>
