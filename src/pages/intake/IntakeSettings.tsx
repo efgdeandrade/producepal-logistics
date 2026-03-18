@@ -415,6 +415,11 @@ export default function IntakeSettings() {
             </>
           )}
         </TabsContent>
+
+        {/* Training Tab */}
+        <TabsContent value="training" className="space-y-4">
+          <TrainingSettingsTab generalSettings={generalSettings} updateGeneralSetting={updateGeneralSetting} saveGeneral={saveGeneral} />
+        </TabsContent>
       </Tabs>
     </div>
   );
