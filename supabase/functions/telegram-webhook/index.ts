@@ -199,49 +199,135 @@ Context words: ${contextWords}`,
 // STEP C — Generate natural reply in correct language
 // ═══════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════
+// CUSTOMER MEMORY LOADER
+// ═══════════════════════════════════════════════════════════
+
+async function loadCustomerMemory(supabase: any, customerId: string): Promise<string> {
+  try {
+    const { data } = await supabase.rpc('get_customer_memory', {
+      p_customer_id: customerId,
+    });
+
+    if (!data) return '';
+
+    const parts: string[] = [];
+
+    if (data.customer_name) parts.push(`Customer: ${data.customer_name}`);
+    if (data.customer_type) parts.push(`Type: ${data.customer_type}`);
+
+    const totalOrders = data.total_orders || 0;
+    if (totalOrders === 0) {
+      parts.push('Status: NEW CUSTOMER — first order ever. Give extra warm welcome.');
+    } else {
+      parts.push(`Total orders: ${totalOrders}`);
+    }
+
+    if (data.last_order_days_ago !== null) {
+      const days = data.last_order_days_ago;
+      if (days === 0) parts.push('Last order: today');
+      else if (days === 1) parts.push('Last order: yesterday');
+      else if (days > 14) parts.push(`Last order: ${days} days ago — LONG TIME, acknowledge this warmly`);
+      else parts.push(`Last order: ${days} days ago`);
+    }
+
+    if (data.last_order_items && data.last_order_items.length > 0) {
+      const items = data.last_order_items
+        .map((i: any) => `${i.qty} ${i.unit || ''} ${i.product}`.trim())
+        .join(', ');
+      parts.push(`Last order contained: ${items} — consider suggesting reorder`);
+    }
+
+    if (data.most_ordered_product) {
+      parts.push(`Favorite product: ${data.most_ordered_product} — reference this naturally`);
+    }
+
+    if (data.avg_order_frequency_days) {
+      parts.push(`Orders every ~${data.avg_order_frequency_days} days on average`);
+    }
+
+    return parts.join('\n');
+  } catch (e) {
+    console.error('loadCustomerMemory error:', e);
+    return '';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// STEP C — Generate natural reply in correct language
+// ═══════════════════════════════════════════════════════════
+
 async function generateReply(
   situation: string,
   language: string,
   customerName: string | null,
   extra: string = '',
   conversationHistory: Array<{ role: string; content: string }> = [],
-  curacaoTime: string = ''
+  curacaoTimeStr: string = '',
+  customerMemory: string = '',
+  conversationType: string = 'general'
 ): Promise<string> {
-  const nameNote = customerName ? ` The customer's name is ${customerName}. Use their name naturally — not every message, only when it feels right.` : '';
-  const timeNote = curacaoTime ? ` Current time in Curaçao: ${curacaoTime}.` : '';
+
+  const nameNote = customerName
+    ? ` The customer's name is ${customerName}. Use their name occasionally — not every message, only when it feels natural and warm.`
+    : '';
+  const timeNote = curacaoTimeStr ? ` Current time in Curaçao: ${curacaoTimeStr}.` : '';
+  const memoryNote = customerMemory ? `\n\nCUSTOMER MEMORY:\n${customerMemory}` : '';
 
   const languageGuide: Record<string, string> = {
     papiamentu: `Write in natural Curaçao Papiamentu. NOT Aruban Papiamentu.
-Rules for natural Curaçao Papiamentu:
-- NEVER start with "Bon dia" unless it is actually morning (before 12:00). Use "Bon tardi" in the afternoon (12:00-18:00) and "Bon nochi" in the evening (after 18:00). After the first greeting, NEVER greet again in the same conversation — it sounds robotic.
-- Do NOT greet at all after the first message — just respond naturally like a normal conversation
-- Use short sentences. Real islanders text like this: "Ta bon", "Mi ta wak", "Kuantu bo ke?", "No problema"
-- Do NOT say "Nos ta bende fruta i berdura fresco" — that sounds like a Google translation
-- Sound like a person texting their customer, not a customer service script
-- Natural phrases: "Ta bon 👌", "Mi ta registrá esaki", "E team lo yama bo", "Kiko mas?", "Ta tur kos?"
-- NEVER repeat the same opening twice in a conversation`,
-    english: `Write in casual English like texting a business contact. Short sentences.
-- NEVER greet with "Good morning/afternoon" after the first message — just respond naturally
-- Do not start every message with "Hi" or "Hello" — just get to the point warmly
-- Sound like a real person texting, not a customer service bot`,
-    dutch: `Schrijf in casual Nederlands zoals je een zakelijk contact zou appen.
-- Begroet NIET bij elk bericht — alleen de eerste keer
-- Kort en direct, vriendelijk maar niet overdreven formeel`,
-    spanish: `Escribe en español casual como si estuvieras enviando un mensaje de texto a un cliente.
-- NO saludar en cada mensaje — solo la primera vez
-- Corto y directo, cálido pero natural`,
+CURAÇAO PAPIAMENTU RULES:
+- Only greet with time-appropriate greeting on the VERY FIRST message. After that, never greet again — just respond.
+- "Bon dia" = morning only (before 12:00). "Bon tardi" = afternoon (12:00-18:00). "Bon nochi" = evening.
+- Short sentences. Real texting rhythm: "Ta bon 👌", "Mi ta registrá", "Kiko mas?", "Tur kos?"
+- NEVER say "Nos ta bende fruta i berdura fresco" — too formal, sounds translated
+- Natural closings: "Ta bon!", "Kiko mas?", "Danki, ayo!", "Un momento 🙏"
+- Energy: calm, warm, like a trusted friend who knows their business`,
+    english: `Casual but professional English. Short sentences. Texting rhythm.
+- Only greet on the first message — never say "Good morning/afternoon" again after that
+- Get straight to the point warmly — no filler phrases like "Absolutely!" or "Of course!"
+- Sound like a real person texting, not a customer service script`,
+    dutch: `Casual Nederlands. Kort en direct. Vriendelijk maar niet overdreven.
+- Begroet alleen de eerste keer — daarna gewoon reageren
+- Vermijd clichés zoals "Zeker!" of "Natuurlijk!"`,
+    spanish: `Español casual. Mensajes cortos. Tono de amigo de confianza.
+- Saluda solo la primera vez — después responde directamente
+- Sin frases de relleno tipo "¡Claro que sí!" o "¡Por supuesto!"`,
   };
 
-  // Build messages with history
-  const messages: Array<{ role: string; content: string }> = [
-    {
-      role: 'system',
-      content: `You are Dre, a calm and friendly sales assistant for FUIK fresh produce in Curaçao.${nameNote}${timeNote}
+  const objectionPatterns = conversationType === 'objection' ? `
+OBJECTION HANDLING PATTERNS:
+- Price too high: Never apologize for price. Acknowledge briefly, pivot to quality/freshness. Offer to check with team on bulk options. NEVER offer discounts without manager approval.
+- Partial order: Confirm what they ordered first. Then offer ONE soft suggestion of their usual items. If they decline, accept immediately — never push twice.
+- Slow payer: Warm, never aggressive. One gentle message then escalate. Never shame or threaten.
+- New customer: Extra warm welcome. Keep it simple — tell them how easy it is. Don't dump info.` : '';
+
+  const rhythmRules = `
+CONVERSATION RHYTHM RULES — MANDATORY:
+1. Maximum 2 sentences for casual chat. Never a wall of text.
+2. Ask only ONE question per message. Never two.
+3. Always end with either a clear next step OR a warm closing. Never just stop.
+4. Never use the same opener twice in a row.
+5. Match the customer's energy — if they're brief, be brief. If chatty, warm up.
+6. After confirming an order, one warm closing line then stop.
+ABSOLUTE RULE: Never mention delivery times, dates, or schedules. Never say "today", "tomorrow", "this afternoon", or any delivery promise. The FUIK team handles all delivery.`;
+
+  const systemPrompt = `You are Dre — the best salesperson FUIK has ever had. FUIK is a fresh produce distributor in Curaçao.${nameNote}${timeNote}${memoryNote}
+
+WHO YOU ARE:
+You are warm, confident, slightly playful, and never desperate. You feel like a trusted contact — someone who knows every customer by name, remembers their usual orders, notices when they order something different, and always makes them feel valued. You never sound scripted. Every message feels typed by a real person on their phone.
+
 ${languageGuide[language] || languageGuide.english}
-ABSOLUTE RULE: Never mention delivery times, dates, or schedules. Never say "today", "tomorrow", "this afternoon", "on its way" or any delivery promise. The FUIK team handles all delivery communication.
-${extra}`,
-    },
-    ...conversationHistory,
+
+${objectionPatterns}
+
+${rhythmRules}
+
+${extra}`;
+
+  const messages: Array<{ role: string; content: string }> = [
+    { role: 'system', content: systemPrompt },
+    ...conversationHistory.slice(-8),
     { role: 'user', content: situation },
   ];
 
@@ -699,6 +785,43 @@ serve(async (req) => {
     const period = hours < 12 ? 'morning' : hours < 18 ? 'afternoon' : 'evening';
     const curacaoTimeStr = `${timeStr} (${period})`;
 
+    // ── Load customer memory for personalization ─────────
+    const customerMemory = customer?.id
+      ? await loadCustomerMemory(supabase, customer.id)
+      : '';
+
+    // Detect if this is a new customer
+    const isNewCustomer = customerMemory.includes('NEW CUSTOMER');
+
+    // Detect conversation type for objection handling
+    let conversationType = 'general';
+    const textLower = text.toLowerCase();
+    if (
+      textLower.includes('price') || textLower.includes('expensive') ||
+      textLower.includes('karu') || textLower.includes('duur') || textLower.includes('caro') ||
+      textLower.includes('too much') || textLower.includes('hopi plaka')
+    ) {
+      conversationType = 'objection';
+    }
+
+    // ── Load Bolenga's training phrases for natural Papiamentu ──
+    const { data: trainingEntries } = await supabase
+      .from('papiamentu_training_entries')
+      .select('corrected_phrase, category, example_context')
+      .gte('confidence_score', 0.65)
+      .eq('is_active', true)
+      .neq('category', 'vocabulary')
+      .order('times_used', { ascending: false })
+      .limit(20);
+
+    const trainingContext = (trainingEntries || [])
+      .map((e: any) => `[${e.category}] "${e.corrected_phrase}"${e.example_context ? ` — use when: ${e.example_context}` : ''}`)
+      .join('\n');
+
+    const dreExtra = trainingContext
+      ? `BOLENGA'S VERIFIED PAPIAMENTU PHRASES — use these naturally when relevant:\n${trainingContext}`
+      : '';
+
     let reply = '';
 
     // ════════════════════════════════════════════════════
@@ -850,16 +973,17 @@ serve(async (req) => {
         // Not an order — generate conversational reply
         state.phase = 'idle';
         const customerNameStr = senderName || customer.name || null;
-        const trainingExtra = trainingPhrases
-          ? `\nBolenga-verified Papiamentu phrases to use:\n${trainingPhrases}\n`
-          : '';
+        const baseExtra = 'You can help with: placing orders, product questions, pricing questions. For complaints, delivery issues, or anything you cannot handle — say you will connect them with the team.';
+        const fullExtra = dreExtra ? `${baseExtra}\n${dreExtra}` : baseExtra;
         reply = await generateReply(
           text,
           detectedLanguage,
           customerNameStr,
-          'You can help with: placing orders, product questions, pricing questions. For complaints, delivery issues, or anything you cannot handle — say you will connect them with the team.' + trainingExtra,
+          fullExtra,
           conversationHistory,
-          curacaoTimeStr
+          curacaoTimeStr,
+          customerMemory,
+          conversationType
         );
       }
     }

@@ -7825,6 +7825,7 @@ export type Database = {
       claim_initial_admin: { Args: never; Returns: undefined }
       generate_fuik_invoice_number: { Args: never; Returns: string }
       generate_receipt_number: { Args: never; Returns: string }
+      get_customer_memory: { Args: { p_customer_id: string }; Returns: Json }
       get_my_roles: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"][]
