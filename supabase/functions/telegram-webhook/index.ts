@@ -346,10 +346,10 @@ Only extract what is NEW information in this answer.`,
 }
 
 // ═══════════════════════════════════════════════════════════
-// KATHY TRAINING RESPONSE HANDLER
+// BOLENGA TRAINING RESPONSE HANDLER
 // ═══════════════════════════════════════════════════════════
 
-async function handleKathyResponse(
+async function handleBolengaResponse(
   supabase: any,
   chatId: string,
   message: any,
