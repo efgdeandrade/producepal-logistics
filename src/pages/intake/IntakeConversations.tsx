@@ -318,8 +318,9 @@ export default function IntakeConversations() {
   };
 
   const channelBadge = (ch: string) => {
-    if (ch === 'telegram') return <Badge className="bg-intake-info text-white text-[10px]">Telegram</Badge>;
-    return <Badge className="bg-intake-brand text-white text-[10px]">WhatsApp</Badge>;
+    if (ch === 'telegram') return <Badge className="bg-[hsl(200,80%,50%)] text-white text-[10px]">Telegram</Badge>;
+    if (ch === 'email') return <Badge className="bg-[hsl(33,100%,50%)] text-white text-[10px]">Email</Badge>;
+    return <Badge className="bg-[hsl(142,70%,45%)] text-white text-[10px]">WhatsApp</Badge>;
   };
 
   const langBadge = (lang: string | null) => {
