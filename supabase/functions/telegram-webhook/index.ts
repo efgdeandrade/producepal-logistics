@@ -394,7 +394,7 @@ async function handleBolengaResponse(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chat_id: chatId,
-        text: '✅ All questions for today are answered! Danki Kathy 🙏 Dre is getting smarter!',
+        text: '✅ All questions for today are answered! Danki Bolenga 🙏 Dre is getting smarter!',
       }),
     });
 
