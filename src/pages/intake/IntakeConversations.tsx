@@ -135,7 +135,7 @@ export default function IntakeConversations() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [filter, selectedId]);
+  }, [filter, channelFilter, selectedId]);
 
   // Fetch messages for selected conversation
   const fetchMessages = async (convId: string) => {
