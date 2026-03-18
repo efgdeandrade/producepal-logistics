@@ -81,6 +81,22 @@ const portals: PortalOption[] = [
     path: '/marketing',
     color: 'bg-purple-600',
   },
+  {
+    id: 'administration',
+    title: 'Administration',
+    description: 'Supplier documents, import permits, admin tasks, Axel AI insights',
+    icon: ClipboardList,
+    path: '/administration',
+    color: 'bg-slate-600',
+  },
+  {
+    id: 'rd',
+    title: 'R&D',
+    description: 'Market opportunities, new products, innovation pipeline, Kayden AI insights',
+    icon: Lightbulb,
+    path: '/rd',
+    color: 'bg-amber-600',
+  },
 ];
 
 const adminOptions: PortalOption[] = [
