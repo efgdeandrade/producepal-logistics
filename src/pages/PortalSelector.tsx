@@ -66,7 +66,7 @@ const portals: PortalOption[] = [
   {
     id: 'finance',
     title: 'Finance',
-    description: 'Accounts, billing, financial reports, cash flow',
+    description: 'Revenue, invoices, outstanding balances, Ace AI insights',
     icon: DollarSign,
     path: '/finance',
     color: 'bg-primary',
