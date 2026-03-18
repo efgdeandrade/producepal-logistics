@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
-import { MessageSquare, Mail, ShoppingBag, Package, Settings, Bot } from 'lucide-react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { MessageSquare, Mail, ShoppingBag, Package, Settings, Bot, ChevronLeft } from 'lucide-react';
 import { AiOversightPanel } from '@/components/intake/AiOversightPanel';
 import { cn } from '@/lib/utils';
 
@@ -14,11 +14,21 @@ const navItems = [
 
 export function IntakeLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
+  const navigate = useNavigate();
 
   return (
     <div className="flex h-screen overflow-hidden bg-intake-bg">
       {/* Sidebar */}
       <aside className="w-[220px] flex-shrink-0 flex flex-col border-r border-border bg-intake-surface">
+        {/* Back to Portal */}
+        <button
+          onClick={() => navigate('/select-portal')}
+          className="flex items-center gap-1.5 px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full border-b border-border"
+        >
+          <ChevronLeft className="h-3.5 w-3.5" />
+          Back to Portal
+        </button>
+
         {/* Brand */}
         <div className="p-4 border-b border-border">
           <div className="flex items-center gap-2">
