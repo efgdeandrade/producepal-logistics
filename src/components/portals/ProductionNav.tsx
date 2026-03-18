@@ -6,7 +6,7 @@ const navItems = [
   { path: '/production', label: 'Dashboard', icon: Home },
   { path: '/production/input', label: 'Input', icon: ClipboardList, highlight: true },
   { path: '/production/dashboard', label: 'History', icon: History },
-  { path: '/production/dashboard', label: 'Settings', icon: Settings },
+  { path: '/production/stock', label: 'Stock', icon: Settings },
 ];
 
 export function ProductionNav() {
