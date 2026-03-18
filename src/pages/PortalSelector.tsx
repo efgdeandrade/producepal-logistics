@@ -61,6 +61,22 @@ const portals: PortalOption[] = [
     path: '/hr',
     color: 'bg-purple-500',
   },
+  {
+    id: 'finance',
+    title: 'Finance',
+    description: 'Accounts, billing, financial reports, cash flow',
+    icon: BarChart3,
+    path: '/finance',
+    color: 'bg-primary',
+  },
+  {
+    id: 'marketing',
+    title: 'Marketing',
+    description: 'Campaigns, customer outreach, brand management',
+    icon: Shield,
+    path: '/marketing',
+    color: 'bg-purple-600',
+  },
 ];
 
 const adminOptions: PortalOption[] = [

@@ -76,9 +76,9 @@ All colors MUST be HSL.
     --spacing: 0.25rem;
 
     /* Intake portal design tokens */
-    --intake-brand: 145 63% 26%;
-    --intake-brand-light: 120 47% 93%;
-    --intake-accent: 122 39% 49%;
+    --intake-brand: 186 90% 45%;
+    --intake-brand-light: 186 90% 95%;
+    --intake-accent: 188 86% 53%;
     --intake-bg: 210 20% 98%;
     --intake-surface: 0 0% 100%;
     --intake-text: 0 0% 11%;
