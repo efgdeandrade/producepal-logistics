@@ -346,6 +346,168 @@ Only extract what is NEW information in this answer.`,
 }
 
 // ═══════════════════════════════════════════════════════════
+// KATHY TRAINING RESPONSE HANDLER
+// ═══════════════════════════════════════════════════════════
+
+async function handleKathyResponse(
+  supabase: any,
+  chatId: string,
+  message: any,
+  text: string,
+  telegramToken: string
+): Promise<void> {
+  const openaiKey = Deno.env.get('OPENAI_API_KEY') || '';
+
+  // Find the most recent unanswered training question
+  const { data: latestSession } = await supabase
+    .from('papiamentu_training_sessions')
+    .select('id')
+    .eq('status', 'in_progress')
+    .order('started_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!latestSession) {
+    await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: 'No active training session found. Training starts automatically each morning! 🌿',
+      }),
+    });
+    return;
+  }
+
+  const { data: nextQuestion } = await supabase
+    .from('papiamentu_training_questions')
+    .select('*')
+    .eq('session_id', latestSession.id)
+    .eq('status', 'sent')
+    .order('question_number', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (!nextQuestion) {
+    await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: '✅ All questions for today are answered! Danki Kathy 🙏 Dre is getting smarter!',
+      }),
+    });
+
+    await supabase.from('papiamentu_training_sessions').update({
+      status: 'completed',
+      completed_at: new Date().toISOString(),
+    }).eq('id', latestSession.id);
+    return;
+  }
+
+  let responseText = text;
+  let responseAudioUrl: string | null = null;
+
+  // Handle voice response from Kathy
+  if (message.voice || message.audio) {
+    const fileId = message.voice?.file_id || message.audio?.file_id;
+    try {
+      const fileResp = await fetch(
+        `https://api.telegram.org/bot${telegramToken}/getFile`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file_id: fileId }) }
+      );
+      const fileData = await fileResp.json();
+      const filePath = fileData.result?.file_path;
+      if (filePath) {
+        const dlResp = await fetch(`https://api.telegram.org/file/bot${telegramToken}/${filePath}`);
+        const audioData = new Uint8Array(await dlResp.arrayBuffer());
+
+        // Upload to storage
+        const storagePath = `training/responses/${nextQuestion.id}.ogg`;
+        await supabase.storage.from('order-media').upload(storagePath, audioData, {
+          contentType: 'audio/ogg', upsert: true,
+        });
+        const { data: urlData } = supabase.storage.from('order-media').getPublicUrl(storagePath);
+        responseAudioUrl = urlData?.publicUrl || null;
+
+        // Transcribe with Whisper
+        const formData = new FormData();
+        formData.append('file', new Blob([audioData], { type: 'audio/ogg' }), 'response.ogg');
+        formData.append('model', 'whisper-1');
+        formData.append('language', 'nl'); // closest to Papiamentu for Whisper
+
+        const whisperResp = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${openaiKey}` },
+          body: formData,
+        });
+        const whisperData = await whisperResp.json();
+        responseText = whisperData.text || '[voice response - transcription failed]';
+      }
+    } catch (e) {
+      console.error('Voice processing error:', e);
+    }
+  }
+
+  // Save response to question
+  await supabase.from('papiamentu_training_questions').update({
+    kathy_response_text: responseText,
+    kathy_response_audio_url: responseAudioUrl,
+    kathy_response_transcription: responseAudioUrl ? responseText : null,
+    responded_at: new Date().toISOString(),
+    status: 'responded',
+  }).eq('id', nextQuestion.id);
+
+  // Create training entry from response
+  const { data: entry } = await supabase.from('papiamentu_training_entries').insert({
+    original_question: nextQuestion.question_text,
+    kathy_response: responseText,
+    corrected_phrase: responseText,
+    category: nextQuestion.category,
+    example_context: nextQuestion.context,
+    audio_url: responseAudioUrl,
+    transcription: responseAudioUrl ? responseText : null,
+    confidence_score: 0.7,
+    added_by: 'kathy',
+  }).select().single();
+
+  if (entry) {
+    await supabase.from('papiamentu_training_questions').update({
+      entry_id: entry.id,
+      status: 'entry_created',
+    }).eq('id', nextQuestion.id);
+  }
+
+  // Count remaining questions
+  const { count } = await supabase
+    .from('papiamentu_training_questions')
+    .select('*', { count: 'exact', head: true })
+    .eq('session_id', latestSession.id)
+    .eq('status', 'sent');
+
+  const remaining = (count || 1) - 1;
+
+  const ackMsg = remaining > 0
+    ? `✅ Saved! ${remaining} question${remaining !== 1 ? 's' : ''} remaining today.`
+    : '✅ Last one done! Danki Kathy 🙏 Training complete for today!';
+
+  await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, text: ackMsg }),
+  });
+
+  if (remaining === 0) {
+    await supabase.from('papiamentu_training_sessions').update({
+      status: 'completed',
+      completed_at: new Date().toISOString(),
+      responses_received: nextQuestion.question_number,
+      entries_created: nextQuestion.question_number,
+    }).eq('id', latestSession.id);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
 // MAIN HANDLER
 // ═══════════════════════════════════════════════════════════
 
