@@ -1009,7 +1009,7 @@ serve(async (req) => {
             });
 
             // Log match with confidence and match type
-            await supabase.from('distribution_ai_match_logs').insert({
+            const { error: matchLogErr } = await supabase.from('distribution_ai_match_logs').insert({
               raw_text: item.product_name,
               detected_language: detectedLanguage,
               matched_product_id: match.product_id,
@@ -1018,7 +1018,8 @@ serve(async (req) => {
               source_channel: 'telegram',
               conversation_id: convo.id,
               match_source: match.match_type,
-            }).catch(() => {});
+            });
+            if (matchLogErr) console.warn('Match log insert error:', matchLogErr.message);
 
             console.log(`Matched "${item.product_name}" → ${match.product_id || 'NONE'} (${match.match_type}, ${(match.confidence * 100).toFixed(0)}%)`);
           }
