@@ -480,6 +480,29 @@ serve(async (req) => {
       content: text, media_type: 'text', language_detected: detectedLanguage,
     });
 
+    // ── Load conversation history for GPT context ────────
+    const { data: recentMessages } = await supabase
+      .from('dre_messages')
+      .select('role, content')
+      .eq('conversation_id', convo.id)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    const conversationHistory = (recentMessages || [])
+      .reverse()
+      .map(m => ({
+        role: m.role === 'customer' ? 'user' : 'assistant',
+        content: m.content,
+      }));
+
+    // ── Get current Curaçao time (UTC-4) ─────────────────
+    const curacaoNow = new Date(Date.now() - 4 * 60 * 60 * 1000);
+    const hours = curacaoNow.getUTCHours();
+    const minutes = curacaoNow.getUTCMinutes();
+    const timeStr = `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}`;
+    const period = hours < 12 ? 'morning' : hours < 18 ? 'afternoon' : 'evening';
+    const curacaoTimeStr = `${timeStr} (${period})`;
+
     let reply = '';
 
     // ════════════════════════════════════════════════════
