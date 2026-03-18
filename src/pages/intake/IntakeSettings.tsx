@@ -132,6 +132,103 @@ function TelegramSettingsTab() {
   );
 }
 
+function TrainingSettingsTab({ generalSettings, updateGeneralSetting, saveGeneral }: {
+  generalSettings: Record<string, string>;
+  updateGeneralSetting: (key: string, value: string) => void;
+  saveGeneral: () => Promise<void>;
+}) {
+  const { toast } = useToast();
+  const [sending, setSending] = useState(false);
+  const [testingTTS, setTestingTTS] = useState(false);
+
+  const sendTrainingNow = async () => {
+    setSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-daily-training');
+      if (error) throw error;
+      toast({ title: 'Training sent!', description: `${data?.questions_sent || 0} questions sent to Kathy` });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const testTTS = async () => {
+    setTestingTTS(true);
+    toast({ title: 'TTS test', description: 'Sending a sample voice message to Kathy...' });
+    try {
+      const { error } = await supabase.functions.invoke('send-daily-training');
+      if (error) throw error;
+      toast({ title: 'Sample sent!' });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setTestingTTS(false);
+    }
+  };
+
+  return (
+    <div className="max-w-lg space-y-4 p-4 border rounded-lg bg-intake-surface">
+      <div>
+        <Label>Kathy's Telegram Chat ID</Label>
+        <Input
+          value={generalSettings.kathy_telegram_chat_id || ''}
+          onChange={(e) => updateGeneralSetting('kathy_telegram_chat_id', e.target.value)}
+        />
+        <p className="text-xs text-intake-text-muted mt-1">
+          Ask Kathy to message the bot and copy the Chat ID from /intake/conversations
+        </p>
+      </div>
+      <div>
+        <Label>Daily Training Time</Label>
+        <Input
+          type="time"
+          value={generalSettings.training_schedule_time || '09:00'}
+          onChange={(e) => updateGeneralSetting('training_schedule_time', e.target.value)}
+        />
+      </div>
+      <div>
+        <Label>Questions Per Day (10-25)</Label>
+        <Input
+          type="number"
+          min={10}
+          max={25}
+          value={generalSettings.training_questions_per_day || '15'}
+          onChange={(e) => updateGeneralSetting('training_questions_per_day', e.target.value)}
+        />
+      </div>
+      <div>
+        <Label>TTS Voice</Label>
+        <Select
+          value={generalSettings.tts_voice || 'nova'}
+          onValueChange={(v) => updateGeneralSetting('tts_voice', v)}
+        >
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="nova">Nova</SelectItem>
+            <SelectItem value="alloy">Alloy</SelectItem>
+            <SelectItem value="shimmer">Shimmer</SelectItem>
+            <SelectItem value="echo">Echo</SelectItem>
+            <SelectItem value="onyx">Onyx</SelectItem>
+            <SelectItem value="fable">Fable</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-intake-text-muted mt-1">Nova and Shimmer sound most natural for Papiamentu</p>
+      </div>
+      <div className="flex gap-2 pt-2">
+        <Button className="bg-intake-brand hover:bg-intake-accent text-white" onClick={saveGeneral}>Save Settings</Button>
+        <Button variant="outline" onClick={sendTrainingNow} disabled={sending}>
+          {sending ? 'Sending...' : 'Send Training Now'}
+        </Button>
+        <Button variant="outline" onClick={testTTS} disabled={testingTTS}>
+          {testingTTS ? 'Sending...' : 'Test TTS'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function IntakeSettings() {
   const { user, hasRole } = useAuth();
   const { toast } = useToast();
