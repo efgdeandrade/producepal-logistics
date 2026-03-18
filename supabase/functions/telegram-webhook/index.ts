@@ -644,13 +644,31 @@ serve(async (req) => {
     const detectedLanguage = await detectLanguage(text);
     state.language = detectedLanguage;
 
-    // ── Load context words for parser ────────────────────
-    const { data: contextWords } = await supabase
-      .from('distribution_context_words')
-      .select('word, meaning')
-      .eq('language', 'papiamentu')
-      .limit(50);
-    const contextString = (contextWords || []).map(w => `${w.word}=${w.meaning}`).join(', ');
+    // ── Load language context: context words + training entries ──
+    const [contextResult, trainingResult] = await Promise.all([
+      supabase.from('distribution_context_words')
+        .select('word, meaning')
+        .eq('language', 'papiamentu')
+        .limit(40),
+      supabase.from('papiamentu_training_entries')
+        .select('corrected_phrase, category, example_context')
+        .gte('confidence_score', 0.6)
+        .eq('is_active', true)
+        .order('times_used', { ascending: false })
+        .limit(60),
+    ]);
+
+    const contextString = [
+      ...(contextResult.data || []).map((w: any) => `${w.word}=${w.meaning}`),
+      ...(trainingResult.data || [])
+        .filter((e: any) => e.category === 'vocabulary' || e.category === 'product_name')
+        .map((e: any) => e.corrected_phrase),
+    ].join(' | ');
+
+    const trainingPhrases = (trainingResult.data || [])
+      .filter((e: any) => e.category !== 'vocabulary')
+      .map((e: any) => `[${e.category}] ${e.corrected_phrase}${e.example_context ? ` (${e.example_context})` : ''}`)
+      .join('\n');
 
     // ── Store customer message ───────────────────────────
     await supabase.from('dre_messages').insert({
