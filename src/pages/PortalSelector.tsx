@@ -74,7 +74,7 @@ const portals: PortalOption[] = [
   {
     id: 'marketing',
     title: 'Marketing',
-    description: 'Campaigns, customer outreach, brand management',
+    description: 'Customer segments, top products, broadcast, Maya AI insights',
     icon: Megaphone,
     path: '/marketing',
     color: 'bg-purple-600',
