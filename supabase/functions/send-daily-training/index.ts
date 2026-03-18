@@ -147,7 +147,7 @@ serve(async (req) => {
     const { data: settings } = await supabase
       .from('app_settings')
       .select('key, value')
-      .in('key', ['kathy_telegram_chat_id', 'training_questions_per_day', 'tts_voice']);
+      .in('key', ['bolenga_telegram_chat_id', 'training_questions_per_day', 'tts_voice']);
 
     const settingsMap: Record<string, string> = {};
     (settings || []).forEach((s: any) => { settingsMap[s.key] = s.value; });
