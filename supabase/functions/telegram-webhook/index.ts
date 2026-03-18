@@ -265,7 +265,7 @@ async function detectLanguage(text: string): Promise<string> {
 
 async function parseOrderItems(text: string, language: string, contextWords: string): Promise<ParsedItem[]> {
   try {
-    const result = await callOpenAI([
+    const result = await callAI([
       {
         role: 'system',
         content: `You are an order parser for FUIK, a fresh produce distributor in Curaçao.
