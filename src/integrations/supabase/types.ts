@@ -304,7 +304,21 @@ export type Database = {
             foreignKeyName: "anomaly_log_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "customer_outstanding_balances"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "anomaly_log_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anomaly_log_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_customer_segments"
             referencedColumns: ["id"]
           },
           {
@@ -1626,7 +1640,21 @@ export type Database = {
             foreignKeyName: "fnb_ai_match_logs_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "customer_outstanding_balances"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "fnb_ai_match_logs_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_ai_match_logs_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_customer_segments"
             referencedColumns: ["id"]
           },
           {
@@ -1823,7 +1851,21 @@ export type Database = {
             foreignKeyName: "fnb_conversations_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "customer_outstanding_balances"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "fnb_conversations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_conversations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_customer_segments"
             referencedColumns: ["id"]
           },
           {
@@ -1874,7 +1916,21 @@ export type Database = {
             foreignKeyName: "fnb_customer_patterns_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "customer_outstanding_balances"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "fnb_customer_patterns_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_customer_patterns_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_customer_segments"
             referencedColumns: ["id"]
           },
           {
@@ -1925,7 +1981,21 @@ export type Database = {
             foreignKeyName: "fnb_customer_product_mappings_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "customer_outstanding_balances"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "fnb_customer_product_mappings_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_customer_product_mappings_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_customer_segments"
             referencedColumns: ["id"]
           },
           {
@@ -1985,7 +2055,21 @@ export type Database = {
             foreignKeyName: "distribution_customer_schedules_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: true
+            referencedRelation: "customer_outstanding_balances"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "distribution_customer_schedules_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
             referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distribution_customer_schedules_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "marketing_customer_segments"
             referencedColumns: ["id"]
           },
         ]
@@ -2361,7 +2445,21 @@ export type Database = {
             foreignKeyName: "fnb_invoices_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "customer_outstanding_balances"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "fnb_invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_customer_segments"
             referencedColumns: ["id"]
           },
         ]
@@ -2426,7 +2524,21 @@ export type Database = {
             foreignKeyName: "distribution_order_anomalies_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "customer_outstanding_balances"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "distribution_order_anomalies_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distribution_order_anomalies_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_customer_segments"
             referencedColumns: ["id"]
           },
         ]
@@ -2634,7 +2746,21 @@ export type Database = {
             foreignKeyName: "distribution_order_sessions_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "customer_outstanding_balances"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "distribution_order_sessions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distribution_order_sessions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_customer_segments"
             referencedColumns: ["id"]
           },
         ]
@@ -2678,11 +2804,14 @@ export type Database = {
           notes: string | null
           order_date: string
           order_number: string
+          paid_at: string | null
+          paid_by: string | null
           parent_order_id: string | null
           payment_method: string | null
           payment_method_used:
             | Database["public"]["Enums"]["payment_method_type"]
             | null
+          payment_status: string | null
           po_number: string | null
           priority: number | null
           quickbooks_invoice_id: string | null
@@ -2740,11 +2869,14 @@ export type Database = {
           notes?: string | null
           order_date?: string
           order_number: string
+          paid_at?: string | null
+          paid_by?: string | null
           parent_order_id?: string | null
           payment_method?: string | null
           payment_method_used?:
             | Database["public"]["Enums"]["payment_method_type"]
             | null
+          payment_status?: string | null
           po_number?: string | null
           priority?: number | null
           quickbooks_invoice_id?: string | null
@@ -2802,11 +2934,14 @@ export type Database = {
           notes?: string | null
           order_date?: string
           order_number?: string
+          paid_at?: string | null
+          paid_by?: string | null
           parent_order_id?: string | null
           payment_method?: string | null
           payment_method_used?:
             | Database["public"]["Enums"]["payment_method_type"]
             | null
+          payment_status?: string | null
           po_number?: string | null
           priority?: number | null
           quickbooks_invoice_id?: string | null
@@ -2849,6 +2984,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "distribution_orders_paid_by_fkey"
+            columns: ["paid_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distribution_orders_paid_by_fkey"
+            columns: ["paid_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "distribution_orders_parent_order_id_fkey"
             columns: ["parent_order_id"]
             isOneToOne: false
@@ -2866,7 +3015,21 @@ export type Database = {
             foreignKeyName: "fnb_orders_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "customer_outstanding_balances"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "fnb_orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_customer_segments"
             referencedColumns: ["id"]
           },
           {
@@ -3000,7 +3163,21 @@ export type Database = {
             foreignKeyName: "fnb_po_imports_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "customer_outstanding_balances"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "fnb_po_imports_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_po_imports_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_customer_segments"
             referencedColumns: ["id"]
           },
           {
@@ -3349,7 +3526,21 @@ export type Database = {
             foreignKeyName: "fnb_standing_order_items_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "customer_outstanding_balances"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "fnb_standing_order_items_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_standing_order_items_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_customer_segments"
             referencedColumns: ["id"]
           },
           {
@@ -3504,7 +3695,21 @@ export type Database = {
             foreignKeyName: "fnb_unmatched_items_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "customer_outstanding_balances"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "fnb_unmatched_items_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fnb_unmatched_items_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_customer_segments"
             referencedColumns: ["id"]
           },
           {
@@ -3646,7 +3851,21 @@ export type Database = {
             foreignKeyName: "dre_conversations_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "customer_outstanding_balances"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "dre_conversations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dre_conversations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_customer_segments"
             referencedColumns: ["id"]
           },
           {
@@ -3746,7 +3965,21 @@ export type Database = {
             foreignKeyName: "dre_escalation_queue_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "customer_outstanding_balances"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "dre_escalation_queue_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dre_escalation_queue_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_customer_segments"
             referencedColumns: ["id"]
           },
         ]
@@ -3886,7 +4119,21 @@ export type Database = {
             foreignKeyName: "dre_outreach_log_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "customer_outstanding_balances"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "dre_outreach_log_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dre_outreach_log_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_customer_segments"
             referencedColumns: ["id"]
           },
           {
@@ -4072,7 +4319,21 @@ export type Database = {
             foreignKeyName: "dre_team_messages_related_customer_id_fkey"
             columns: ["related_customer_id"]
             isOneToOne: false
+            referencedRelation: "customer_outstanding_balances"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "dre_team_messages_related_customer_id_fkey"
+            columns: ["related_customer_id"]
+            isOneToOne: false
             referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dre_team_messages_related_customer_id_fkey"
+            columns: ["related_customer_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_customer_segments"
             referencedColumns: ["id"]
           },
         ]
@@ -4555,7 +4816,21 @@ export type Database = {
             foreignKeyName: "email_inbox_matched_customer_id_fkey"
             columns: ["matched_customer_id"]
             isOneToOne: false
+            referencedRelation: "customer_outstanding_balances"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "email_inbox_matched_customer_id_fkey"
+            columns: ["matched_customer_id"]
+            isOneToOne: false
             referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_inbox_matched_customer_id_fkey"
+            columns: ["matched_customer_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_customer_segments"
             referencedColumns: ["id"]
           },
           {
@@ -5721,7 +5996,21 @@ export type Database = {
             foreignKeyName: "pending_customers_linked_customer_id_fkey"
             columns: ["linked_customer_id"]
             isOneToOne: false
+            referencedRelation: "customer_outstanding_balances"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "pending_customers_linked_customer_id_fkey"
+            columns: ["linked_customer_id"]
+            isOneToOne: false
             referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_customers_linked_customer_id_fkey"
+            columns: ["linked_customer_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_customer_segments"
             referencedColumns: ["id"]
           },
           {
@@ -7531,7 +7820,21 @@ export type Database = {
             foreignKeyName: "whatsapp_conversations_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "customer_outstanding_balances"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_customer_segments"
             referencedColumns: ["id"]
           },
         ]
@@ -7689,7 +7992,21 @@ export type Database = {
             foreignKeyName: "whatsapp_messages_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "customer_outstanding_balances"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_customer_segments"
             referencedColumns: ["id"]
           },
           {
@@ -7784,7 +8101,21 @@ export type Database = {
             foreignKeyName: "whatsapp_template_sends_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
+            referencedRelation: "customer_outstanding_balances"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "whatsapp_template_sends_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
             referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_template_sends_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_customer_segments"
             referencedColumns: ["id"]
           },
           {
@@ -7798,6 +8129,49 @@ export type Database = {
       }
     }
     Views: {
+      customer_outstanding_balances: {
+        Row: {
+          customer_id: string | null
+          customer_name: string | null
+          customer_type: Database["public"]["Enums"]["customer_type"] | null
+          last_order_date: string | null
+          oldest_unpaid_date: string | null
+          outstanding_xcg: number | null
+          payment_terms: string | null
+          unpaid_orders: number | null
+          zone: string | null
+        }
+        Relationships: []
+      }
+      finance_revenue_summary: {
+        Row: {
+          cod_revenue_xcg: number | null
+          credit_revenue_xcg: number | null
+          customer_count: number | null
+          month_start: string | null
+          order_count: number | null
+          total_revenue_xcg: number | null
+          week_start: string | null
+        }
+        Relationships: []
+      }
+      marketing_customer_segments: {
+        Row: {
+          customer_since: string | null
+          customer_type: Database["public"]["Enums"]["customer_type"] | null
+          days_since_last_order: number | null
+          first_order_date: string | null
+          id: string | null
+          last_order_date: string | null
+          lifetime_revenue_xcg: number | null
+          name: string | null
+          preferred_language: string | null
+          segment: string | null
+          total_orders: number | null
+          zone: string | null
+        }
+        Relationships: []
+      }
       profiles_directory: {
         Row: {
           created_at: string | null
