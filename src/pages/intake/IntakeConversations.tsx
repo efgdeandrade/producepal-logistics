@@ -17,6 +17,7 @@ type Conversation = any;
 type Message = any;
 
 const FILTER_TABS = ['All', 'Dre Active', 'Human in Control', 'Escalated', 'Proactive'];
+const CHANNEL_OPTIONS = ['All Channels', 'Telegram', 'WhatsApp', 'Email'];
 const filterMap: Record<string, string | null> = {
   'All': null,
   'Dre Active': 'dre_active',

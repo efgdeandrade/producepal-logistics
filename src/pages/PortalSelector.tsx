@@ -35,6 +35,14 @@ interface PortalOption {
 
 const portals: PortalOption[] = [
   {
+    id: 'intake',
+    title: 'Order Intake',
+    description: 'Dre conversations, Email PO inbox, Shopify orders, products, settings',
+    icon: Inbox,
+    path: '/intake',
+    color: 'bg-primary',
+  },
+  {
     id: 'distribution',
     title: 'Distribution',
     description: 'Orders, picking, invoicing, customers, WhatsApp & Email inbox',
