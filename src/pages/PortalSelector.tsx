@@ -16,7 +16,9 @@ import {
   Settings,
   Loader2,
   DollarSign,
-  Megaphone
+  Megaphone,
+  ClipboardList,
+  Lightbulb
 } from 'lucide-react';
 import { useState } from 'react';
 
