@@ -203,35 +203,50 @@ async function generateReply(
   situation: string,
   language: string,
   customerName: string | null,
-  extra: string = ''
+  extra: string = '',
+  conversationHistory: Array<{ role: string; content: string }> = [],
+  curacaoTime: string = ''
 ): Promise<string> {
-  const namePrefix = customerName ? ` Address them as "${customerName}".` : '';
+  const nameNote = customerName ? ` The customer's name is ${customerName}. Use their name naturally — not every message, only when it feels right.` : '';
+  const timeNote = curacaoTime ? ` Current time in Curaçao: ${curacaoTime}.` : '';
 
   const languageGuide: Record<string, string> = {
-    papiamentu: `Write in Curaçao Papiamentu (NOT Aruban). Natural, warm, island pace.
-Real Curaçao examples:
-- "Bon dia! Kon ta bo?" (Good morning, how are you?)
-- "Ta bon, mi a risibí bo orde." (Ok, I received your order.)
-- "Kuantu kaha di mango bo ke?" (How many cases of mango do you want?)
-- "E team di FUIK lo yama bo." (The FUIK team will call you.)
-- "Danki, ayo!" (Thanks, bye!)
-Keep it short. Max 2 sentences. 1 emoji max.`,
-    english: 'Write in casual but professional English. Short, warm, friendly. Max 2 sentences. 1 emoji max.',
-    dutch: 'Write in casual Dutch. Short, warm, friendly. Max 2 sentences. 1 emoji max.',
-    spanish: 'Write in casual Latin American Spanish. Short, warm, friendly. Max 2 sentences. 1 emoji max.',
+    papiamentu: `Write in natural Curaçao Papiamentu. NOT Aruban Papiamentu.
+Rules for natural Curaçao Papiamentu:
+- NEVER start with "Bon dia" unless it is actually morning (before 12:00). Use "Bon tardi" in the afternoon (12:00-18:00) and "Bon nochi" in the evening (after 18:00). After the first greeting, NEVER greet again in the same conversation — it sounds robotic.
+- Do NOT greet at all after the first message — just respond naturally like a normal conversation
+- Use short sentences. Real islanders text like this: "Ta bon", "Mi ta wak", "Kuantu bo ke?", "No problema"
+- Do NOT say "Nos ta bende fruta i berdura fresco" — that sounds like a Google translation
+- Sound like a person texting their customer, not a customer service script
+- Natural phrases: "Ta bon 👌", "Mi ta registrá esaki", "E team lo yama bo", "Kiko mas?", "Ta tur kos?"
+- NEVER repeat the same opening twice in a conversation`,
+    english: `Write in casual English like texting a business contact. Short sentences.
+- NEVER greet with "Good morning/afternoon" after the first message — just respond naturally
+- Do not start every message with "Hi" or "Hello" — just get to the point warmly
+- Sound like a real person texting, not a customer service bot`,
+    dutch: `Schrijf in casual Nederlands zoals je een zakelijk contact zou appen.
+- Begroet NIET bij elk bericht — alleen de eerste keer
+- Kort en direct, vriendelijk maar niet overdreven formeel`,
+    spanish: `Escribe en español casual como si estuvieras enviando un mensaje de texto a un cliente.
+- NO saludar en cada mensaje — solo la primera vez
+- Corto y directo, cálido pero natural`,
   };
 
-  try {
-    const reply = await callOpenAI([
-      {
-        role: 'system',
-        content: `You are Dre, a calm and friendly sales assistant for FUIK fresh produce in Curaçao.${namePrefix}
+  // Build messages with history
+  const messages: Array<{ role: string; content: string }> = [
+    {
+      role: 'system',
+      content: `You are Dre, a calm and friendly sales assistant for FUIK fresh produce in Curaçao.${nameNote}${timeNote}
 ${languageGuide[language] || languageGuide.english}
-ABSOLUTE RULE: Never mention delivery times, dates, or schedules. Never say "today", "tomorrow", "tonight", or any delivery promise. The team handles this.
+ABSOLUTE RULE: Never mention delivery times, dates, or schedules. Never say "today", "tomorrow", "this afternoon", "on its way" or any delivery promise. The FUIK team handles all delivery communication.
 ${extra}`,
-      },
-      { role: 'user', content: situation },
-    ]);
+    },
+    ...conversationHistory,
+    { role: 'user', content: situation },
+  ];
+
+  try {
+    const reply = await callOpenAI(messages);
     return sanitizeReply(reply.trim(), language);
   } catch {
     return SAFE_FALLBACK[language] || SAFE_FALLBACK.english;
