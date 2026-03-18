@@ -136,6 +136,10 @@ import IntakeSettings from "./pages/intake/IntakeSettings";
 import FinancePortal from "./pages/finance/FinancePortal";
 import MarketingPortal from "./pages/marketing/MarketingPortal";
 
+// Administration & R&D Portals
+import AdminPortalPage from "./pages/admin/AdminPortal";
+import RDPortal from "./pages/rd/RDPortal";
+
 const queryClient = new QueryClient();
 
 // Layout wrapper components for each portal
