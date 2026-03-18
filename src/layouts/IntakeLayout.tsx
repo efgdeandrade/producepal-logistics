@@ -88,7 +88,7 @@ export function IntakeLayout({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className={cn("flex-1 overflow-y-auto", permission === 'default' && "mt-10")}>
         {children}
       </main>
     </div>
