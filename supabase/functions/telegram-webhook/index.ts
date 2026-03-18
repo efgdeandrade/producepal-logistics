@@ -160,37 +160,82 @@ function isConfirmationMessage(text: string): boolean {
   );
 }
 
-async function callOpenAI(
-  messages: Array<{ role: string; content: string }>,
+function extractJSON(content: string): any {
+  // Try direct parse first
+  try { return JSON.parse(content); } catch {}
+  // Strip markdown code blocks
+  const stripped = content.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+  try { return JSON.parse(stripped); } catch {}
+  // Extract JSON object
+  const match = stripped.match(/\{[\s\S]*\}/);
+  if (match) { try { return JSON.parse(match[0]); } catch {} }
+  return {};
+}
+
+async function callAI(
+  messages: Array<{ role: string; content: any }>,
   jsonMode = false
 ): Promise<string> {
-  const apiKey = Deno.env.get('OPENAI_API_KEY');
-  if (!apiKey) throw new Error('OPENAI_API_KEY not set');
+  const lovableKey = Deno.env.get('LOVABLE_API_KEY');
+  const openaiKey = Deno.env.get('OPENAI_API_KEY');
 
-  const body: any = {
-    model: 'gpt-4o',
-    messages,
-    temperature: 0.4,
-    max_tokens: 600,
-  };
-  if (jsonMode) body.response_format = { type: 'json_object' };
-
-  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!resp.ok) {
-    const err = await resp.text();
-    throw new Error(`OpenAI error ${resp.status}: ${err}`);
+  // Try Lovable gateway (Gemini Flash) first — same as WhatsApp agent
+  if (lovableKey) {
+    try {
+      const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${lovableKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-3-flash-preview',
+          messages,
+          temperature: 0.4,
+          max_tokens: 600,
+        }),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        const content = data.choices?.[0]?.message?.content || '';
+        console.log('Lovable AI response received, length:', content.length);
+        return content;
+      }
+      console.warn('Lovable gateway failed, status:', resp.status, 'falling back to OpenAI');
+    } catch (e) {
+      console.warn('Lovable gateway exception:', e);
+    }
   }
 
-  const data = await resp.json();
-  return data.choices?.[0]?.message?.content || '';
+  // Fallback to OpenAI GPT-4o
+  if (openaiKey) {
+    const body: any = {
+      model: 'gpt-4o',
+      messages,
+      temperature: 0.4,
+      max_tokens: 600,
+    };
+    if (jsonMode) body.response_format = { type: 'json_object' };
+
+    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.text();
+      throw new Error(`OpenAI error ${resp.status}: ${err}`);
+    }
+
+    const data = await resp.json();
+    return data.choices?.[0]?.message?.content || '';
+  }
+
+  throw new Error('No AI API key configured (neither LOVABLE_API_KEY nor OPENAI_API_KEY)');
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -199,7 +244,7 @@ async function callOpenAI(
 
 async function detectLanguage(text: string): Promise<string> {
   try {
-    const result = await callOpenAI([
+    const result = await callAI([
       {
         role: 'system',
         content: 'Detect the language of the message. Reply with ONLY one word: papiamentu, english, dutch, or spanish. Papiamentu examples: "mi ke", "ta bon", "kuantu", "danki", "bon dia", "pampuna", "kaha". If unsure between Papiamentu and another language, choose papiamentu.',
@@ -220,7 +265,7 @@ async function detectLanguage(text: string): Promise<string> {
 
 async function parseOrderItems(text: string, language: string, contextWords: string): Promise<ParsedItem[]> {
   try {
-    const result = await callOpenAI([
+    const result = await callAI([
       {
         role: 'system',
         content: `You are an order parser for FUIK, a fresh produce distributor in Curaçao.
@@ -248,7 +293,7 @@ Context words: ${contextWords}`,
       { role: 'user', content: text },
     ], true);
 
-    const parsed = JSON.parse(result);
+    const parsed = extractJSON(result);
     return parsed.items || [];
   } catch (e) {
     console.error('parseOrderItems error:', e);
@@ -393,7 +438,7 @@ ${extra}`;
   ];
 
   try {
-    const reply = await callOpenAI(messages);
+    const reply = await callAI(messages);
     return sanitizeReply(reply.trim(), language);
   } catch {
     return SAFE_FALLBACK[language] || SAFE_FALLBACK.english;
@@ -468,7 +513,7 @@ async function parseClarificationAnswer(
   language: string
 ): Promise<ParsedItem> {
   try {
-    const result = await callOpenAI([
+    const result = await callAI([
       {
         role: 'system',
         content: `Extract quantity and unit from the customer's answer about "${item.product_name}".
@@ -481,7 +526,7 @@ Only extract what is NEW information in this answer.`,
       { role: 'user', content: answer },
     ], true);
 
-    const parsed = JSON.parse(result);
+    const parsed = extractJSON(result);
     return {
       ...item,
       qty: parsed.qty ?? item.qty,
@@ -699,12 +744,14 @@ serve(async (req) => {
     // ── /ping debug ──────────────────────────────────────
     if (text === '/ping') {
       await sendTelegramMessage(chatId, [
-        '🤖 Dre Agent v2:',
-        `OPENAI_API_KEY: ${Deno.env.get('OPENAI_API_KEY') ? '✅' : '❌'}`,
+        '🤖 Dre Agent v3:',
+        `LOVABLE_API_KEY: ${Deno.env.get('LOVABLE_API_KEY') ? '✅' : '❌'}`,
+        `OPENAI_API_KEY (fallback): ${Deno.env.get('OPENAI_API_KEY') ? '✅' : '❌'}`,
         `TELEGRAM_BOT_TOKEN: ${Deno.env.get('TELEGRAM_BOT_TOKEN') ? '✅' : '❌'}`,
         `SUPABASE_URL: ${Deno.env.get('SUPABASE_URL') ? '✅' : '❌'}`,
         `SERVICE_ROLE_KEY: ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ? '✅' : '❌'}`,
-        'Architecture: State Machine v2 ✅',
+        'AI: Gemini Flash (Lovable) → GPT-4o fallback',
+        'Architecture: State Machine v3 ✅',
       ].join('\n'));
       return new Response('OK', { status: 200 });
     }
@@ -964,7 +1011,7 @@ serve(async (req) => {
             });
 
             // Log match with confidence and match type
-            await supabase.from('distribution_ai_match_logs').insert({
+            const { error: matchLogErr } = await supabase.from('distribution_ai_match_logs').insert({
               raw_text: item.product_name,
               detected_language: detectedLanguage,
               matched_product_id: match.product_id,
@@ -973,7 +1020,8 @@ serve(async (req) => {
               source_channel: 'telegram',
               conversation_id: convo.id,
               match_source: match.match_type,
-            }).catch(() => {});
+            });
+            if (matchLogErr) console.warn('Match log insert error:', matchLogErr.message);
 
             console.log(`Matched "${item.product_name}" → ${match.product_id || 'NONE'} (${match.match_type}, ${(match.confidence * 100).toFixed(0)}%)`);
           }
@@ -1100,14 +1148,15 @@ serve(async (req) => {
       });
 
       // Log reply for training review
-      await supabase.from('distribution_ai_match_logs').insert({
+      const { error: replyLogErr } = await supabase.from('distribution_ai_match_logs').insert({
         raw_text: text,
         detected_language: detectedLanguage,
         dre_reply: reply,
         needs_language_review: true,
         source_channel: 'telegram',
         conversation_id: convo.id,
-      }).catch(() => {});
+      });
+      if (replyLogErr) console.warn('Reply log insert error:', replyLogErr.message);
     }
 
     // Save updated state
