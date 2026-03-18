@@ -542,7 +542,7 @@ export default function PapiamentuTraining() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Papiamentu Training</h1>
-        <p className="text-muted-foreground">Kathy's language training system for Dre AI</p>
+        <p className="text-muted-foreground">Bolenga's language training system for Dre AI</p>
       </div>
 
       <Tabs defaultValue="knowledge" className="w-full">

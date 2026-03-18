@@ -535,17 +535,17 @@ serve(async (req) => {
 
     const telegramToken = Deno.env.get('TELEGRAM_BOT_TOKEN') || '';
 
-    // ── Route Kathy training responses ───────────────────
-    const { data: kathySetting } = await supabase
+     // ── Route Bolenga training responses ───────────────────
+    const { data: bolengaSetting } = await supabase
       .from('app_settings')
       .select('value')
-      .eq('key', 'kathy_telegram_chat_id')
+      .eq('key', 'bolenga_telegram_chat_id')
       .maybeSingle();
 
-    const kathyChatId = kathySetting?.value;
+    const bolengaChatId = bolengaSetting?.value;
 
-    if (kathyChatId && chatId === kathyChatId) {
-      await handleKathyResponse(supabase, chatId, message, text, telegramToken);
+    if (bolengaChatId && chatId === bolengaChatId) {
+      await handleBolengaResponse(supabase, chatId, message, text, telegramToken);
       return new Response('OK', { status: 200 });
     }
 

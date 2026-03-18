@@ -171,13 +171,13 @@ function TrainingSettingsTab({ generalSettings, updateGeneralSetting, saveGenera
   return (
     <div className="max-w-lg space-y-4 p-4 border rounded-lg bg-intake-surface">
       <div>
-        <Label>Kathy's Telegram Chat ID</Label>
+        <Label>Bolenga's Telegram Chat ID</Label>
         <Input
-          value={generalSettings.kathy_telegram_chat_id || ''}
-          onChange={(e) => updateGeneralSetting('kathy_telegram_chat_id', e.target.value)}
+          value={generalSettings.bolenga_telegram_chat_id || ''}
+          onChange={(e) => updateGeneralSetting('bolenga_telegram_chat_id', e.target.value)}
         />
         <p className="text-xs text-intake-text-muted mt-1">
-          Ask Kathy to message the bot and copy the Chat ID from /intake/conversations
+          Ask Bolenga to message the bot and copy the Chat ID from /intake/conversations
         </p>
       </div>
       <div>

@@ -240,8 +240,8 @@ serve(async (req) => {
     }).eq('id', session.id);
 
     await sendTelegramText(
-      kathyChatId,
-      `✅ All ${sentCount} questions sent! Reply to each one in order. You can reply with text or a voice message. Danki Kathy! 🙏`,
+      bolengaChatId,
+      `✅ All ${sentCount} questions sent! Reply to each one in order. You can reply with text or a voice message. Danki Bolenga! 🙏`,
       telegramToken
     );
 
