@@ -101,6 +101,58 @@ function sanitizeReply(reply: string, language: string): string {
   return reply;
 }
 
+// ═══════════════════════════════════════════════════════════
+// THREE-TIER PRODUCT MATCHING (unified with WhatsApp agent)
+// ═══════════════════════════════════════════════════════════
+
+function matchProduct(
+  searchName: string,
+  products: any[],
+  aliases: any[]
+): { product_id: string | null; confidence: number; match_type: string } {
+  const search = searchName.toLowerCase().trim();
+
+  // Tier 1: Alias exact match
+  for (const alias of aliases) {
+    if (alias.alias.toLowerCase() === search) {
+      return { product_id: alias.product_id, confidence: 0.95, match_type: 'alias_exact' };
+    }
+  }
+
+  // Tier 2: Alias partial match
+  for (const alias of aliases) {
+    if (search.includes(alias.alias.toLowerCase()) || alias.alias.toLowerCase().includes(search)) {
+      return { product_id: alias.product_id, confidence: 0.80, match_type: 'alias_partial' };
+    }
+  }
+
+  // Tier 3: Product name exact/partial match
+  for (const p of products) {
+    const names = [p.name, p.name_pap, p.name_nl, p.name_es, ...(p.name_aliases || [])]
+      .filter(Boolean).map((n: string) => n.toLowerCase());
+    if (names.some(n => n === search)) {
+      return { product_id: p.id, confidence: 0.90, match_type: 'name_exact' };
+    }
+    if (names.some(n => n.includes(search) || search.includes(n))) {
+      return { product_id: p.id, confidence: 0.70, match_type: 'name_partial' };
+    }
+  }
+
+  // Tier 4: Fuzzy word match
+  const searchWords = search.split(/\s+/);
+  for (const p of products) {
+    const names = [p.name, p.name_pap, p.name_nl, p.name_es, ...(p.name_aliases || [])]
+      .filter(Boolean).map((n: string) => n.toLowerCase());
+    const allWords = names.join(' ').split(/\s+/);
+    const matches = searchWords.filter(w => allWords.some(aw => aw.includes(w) || w.includes(aw)));
+    if (matches.length > 0 && matches.length >= searchWords.length * 0.6) {
+      return { product_id: p.id, confidence: 0.50, match_type: 'fuzzy' };
+    }
+  }
+
+  return { product_id: null, confidence: 0.20, match_type: 'no_match' };
+}
+
 function isConfirmationMessage(text: string): boolean {
   const t = text.toLowerCase().trim();
   return CONFIRMATION_WORDS.some(w =>
