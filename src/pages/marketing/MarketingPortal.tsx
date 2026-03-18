@@ -32,6 +32,7 @@ const SEGMENT_STYLES: Record<Segment, { label: string; border: string; badgeClas
 export default function MarketingPortal() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [selectedSegment, setSelectedSegment] = useState<Segment | null>(null);
   const [search, setSearch] = useState('');
   const [dateRange, setDateRange] = useState('month');
