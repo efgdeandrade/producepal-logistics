@@ -14,6 +14,7 @@ import {
   Clock,
   FileText,
   CalendarDays,
+  DollarSign,
   ArrowLeft
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
