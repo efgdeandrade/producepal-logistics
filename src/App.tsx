@@ -317,7 +317,7 @@ const App = () => (
                         <RDPortal />
                       </PasswordChangeRequired>
                     </ProtectedRoute>
-                  }
+                  } />
 
                   {/* ========== STANDALONE APPS ========== */}
                   <Route path="/dre" element={
