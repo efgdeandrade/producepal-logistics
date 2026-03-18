@@ -607,7 +607,7 @@ Deno.serve(async (req) => {
 
       // Update conversation metadata
       const updateData: any = {
-        language_detected: detected_language,
+        language_detected: dreLang,
         updated_at: new Date().toISOString(),
       };
       if (orderId) updateData.order_id = orderId;
