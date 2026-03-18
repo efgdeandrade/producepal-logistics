@@ -15,6 +15,7 @@ export function AiOversightPanel() {
   const [alerts, setAlerts] = useState<any[]>([]);
   const [agentMessages, setAgentMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [runningAll, setRunningAll] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
