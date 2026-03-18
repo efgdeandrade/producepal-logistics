@@ -346,11 +346,16 @@ export default function FinancePortal() {
             </CardHeader>
             <CardContent>
               {suggestions.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Brain className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p>No pending suggestions from Ace</p>
-                  <Button className="mt-4" onClick={handleRunAce} disabled={runningAce}>
-                    {runningAce ? 'Running...' : 'Run Ace Now'}
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="text-4xl mb-4">🤖</div>
+                  <h3 className="font-semibold text-lg mb-2">Ace hasn't run yet today</h3>
+                  <p className="text-muted-foreground text-sm mb-4 max-w-sm">
+                    Click "Run Ace Now" to generate your first financial analysis.
+                    Ace will analyze your orders, customers, and balances to surface actionable insights.
+                  </p>
+                  <Button onClick={handleRunAce} disabled={runningAce}>
+                    {runningAce ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Zap className="h-4 w-4 mr-1" />}
+                    Run Ace Now
                   </Button>
                 </div>
               ) : (
