@@ -275,6 +275,24 @@ const App = () => (
                   <Route path="/intake/products" element={<ProtectedIntake><IntakeProducts /></ProtectedIntake>} />
                   <Route path="/intake/settings" element={<ProtectedIntake><IntakeSettings /></ProtectedIntake>} />
 
+                  {/* ========== FINANCE PORTAL ========== */}
+                  <Route path="/finance" element={
+                    <ProtectedRoute>
+                      <PasswordChangeRequired>
+                        <FinancePortal />
+                      </PasswordChangeRequired>
+                    </ProtectedRoute>
+                  } />
+
+                  {/* ========== MARKETING PORTAL ========== */}
+                  <Route path="/marketing" element={
+                    <ProtectedRoute>
+                      <PasswordChangeRequired>
+                        <MarketingPortal />
+                      </PasswordChangeRequired>
+                    </ProtectedRoute>
+                  } />
+
                   {/* ========== STANDALONE APPS ========== */}
                   <Route path="/dre" element={
                     <ProtectedRoute>
