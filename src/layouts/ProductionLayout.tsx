@@ -12,7 +12,7 @@ import {
   Home, 
   ClipboardList,
   History,
-  Settings,
+  Package,
   ArrowLeft
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
