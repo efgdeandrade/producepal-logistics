@@ -569,7 +569,7 @@ Deno.serve(async (req) => {
           external_chat_id: externalChatId,
           control_status: controlStatus,
           customer_id: customer_id || null,
-          language_detected: detected_language,
+          language_detected: dreLang,
         }).select().single();
         
         if (insertError) {
