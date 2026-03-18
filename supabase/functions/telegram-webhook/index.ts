@@ -468,7 +468,7 @@ async function handleBolengaResponse(
     audio_url: responseAudioUrl,
     transcription: responseAudioUrl ? responseText : null,
     confidence_score: 0.7,
-    added_by: 'kathy',
+    added_by: 'bolenga',
   }).select().single();
 
   if (entry) {
