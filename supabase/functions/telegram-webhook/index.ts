@@ -438,7 +438,7 @@ ${extra}`;
   ];
 
   try {
-    const reply = await callOpenAI(messages);
+    const reply = await callAI(messages);
     return sanitizeReply(reply.trim(), language);
   } catch {
     return SAFE_FALLBACK[language] || SAFE_FALLBACK.english;
