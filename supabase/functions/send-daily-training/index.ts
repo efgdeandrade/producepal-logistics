@@ -196,7 +196,7 @@ serve(async (req) => {
       );
 
       if (audioBuffer) {
-        await sendTelegramVoice(kathyChatId, audioBuffer, telegramToken);
+        await sendTelegramVoice(bolengaChatId, audioBuffer, telegramToken);
 
         const audioPath = `training/${session.id}/q${i + 1}.mp3`;
         await supabase.storage
