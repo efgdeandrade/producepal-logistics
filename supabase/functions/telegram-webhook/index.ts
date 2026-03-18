@@ -162,21 +162,27 @@ async function parseOrderItems(text: string, language: string, contextWords: str
     const result = await callOpenAI([
       {
         role: 'system',
-        content: `You are an order parser for a fresh produce distributor in Curaçao.
+        content: `You are an order parser for FUIK, a fresh produce distributor in Curaçao.
 Extract ALL products the customer wants to order.
 Return ONLY valid JSON: {"items": [{"product_name": string, "qty": number | null, "unit": string | null}]}
+
 Rules:
-- product_name: the actual produce name in English (translate if needed)
-- qty: the number they want. null if not mentioned.
-- unit: "kg", "case", "bag", "piece", "bunch" or null if not mentioned
-- If customer says "kaha" = case, "bolsa" or "saku" = bag, "kilo" = kg
-- If customer says just a product name with no qty, set qty to null
-- Produce terms: ${contextWords}
-Examples:
+- product_name: English name of the produce
+- qty: number they want, null if not mentioned
+- unit: "kg", "case", "bag", "piece", "bunch", null if not mentioned
+- kaha = case, bolsa = bag, saku = bag, kilo = kg, misa = head
+
+Real Curaçao order examples:
 "2 kaha di mango" → {"product_name":"mango","qty":2,"unit":"case"}
-"1 bolsa di pampuna" → {"product_name":"pumpkin","qty":1,"unit":"bag"}
+"un bolsa di pampuna" → {"product_name":"pumpkin","qty":1,"unit":"bag"}
+"mi ke mango ku wortel" → [{"product_name":"mango","qty":null,"unit":null},{"product_name":"carrot","qty":null,"unit":null}]
+"3 kilo di tomaat" → {"product_name":"tomato","qty":3,"unit":"kg"}
 "I want mango and grapes" → [{"product_name":"mango","qty":null,"unit":null},{"product_name":"grapes","qty":null,"unit":null}]
-"3 kg tomato" → {"product_name":"tomato","qty":3,"unit":"kg"}`,
+"dame 2 cajas de mango" → {"product_name":"mango","qty":2,"unit":"case"}
+"2 kaha mango, 1 saku pampuna, 5 kilo wortel" → 3 items
+"bontardi mi ke mago ku wortel" → [{"product_name":"mango","qty":null,"unit":null},{"product_name":"carrot","qty":null,"unit":null}]
+
+Context words: ${contextWords}`,
       },
       { role: 'user', content: text },
     ], true);
@@ -197,35 +203,50 @@ async function generateReply(
   situation: string,
   language: string,
   customerName: string | null,
-  extra: string = ''
+  extra: string = '',
+  conversationHistory: Array<{ role: string; content: string }> = [],
+  curacaoTime: string = ''
 ): Promise<string> {
-  const namePrefix = customerName ? ` Address them as "${customerName}".` : '';
+  const nameNote = customerName ? ` The customer's name is ${customerName}. Use their name naturally — not every message, only when it feels right.` : '';
+  const timeNote = curacaoTime ? ` Current time in Curaçao: ${curacaoTime}.` : '';
 
   const languageGuide: Record<string, string> = {
-    papiamentu: `Write in Curaçao Papiamentu (NOT Aruban). Natural, warm, island pace.
-Real Curaçao examples:
-- "Bon dia! Kon ta bo?" (Good morning, how are you?)
-- "Ta bon, mi a risibí bo orde." (Ok, I received your order.)
-- "Kuantu kaha di mango bo ke?" (How many cases of mango do you want?)
-- "E team di FUIK lo yama bo." (The FUIK team will call you.)
-- "Danki, ayo!" (Thanks, bye!)
-Keep it short. Max 2 sentences. 1 emoji max.`,
-    english: 'Write in casual but professional English. Short, warm, friendly. Max 2 sentences. 1 emoji max.',
-    dutch: 'Write in casual Dutch. Short, warm, friendly. Max 2 sentences. 1 emoji max.',
-    spanish: 'Write in casual Latin American Spanish. Short, warm, friendly. Max 2 sentences. 1 emoji max.',
+    papiamentu: `Write in natural Curaçao Papiamentu. NOT Aruban Papiamentu.
+Rules for natural Curaçao Papiamentu:
+- NEVER start with "Bon dia" unless it is actually morning (before 12:00). Use "Bon tardi" in the afternoon (12:00-18:00) and "Bon nochi" in the evening (after 18:00). After the first greeting, NEVER greet again in the same conversation — it sounds robotic.
+- Do NOT greet at all after the first message — just respond naturally like a normal conversation
+- Use short sentences. Real islanders text like this: "Ta bon", "Mi ta wak", "Kuantu bo ke?", "No problema"
+- Do NOT say "Nos ta bende fruta i berdura fresco" — that sounds like a Google translation
+- Sound like a person texting their customer, not a customer service script
+- Natural phrases: "Ta bon 👌", "Mi ta registrá esaki", "E team lo yama bo", "Kiko mas?", "Ta tur kos?"
+- NEVER repeat the same opening twice in a conversation`,
+    english: `Write in casual English like texting a business contact. Short sentences.
+- NEVER greet with "Good morning/afternoon" after the first message — just respond naturally
+- Do not start every message with "Hi" or "Hello" — just get to the point warmly
+- Sound like a real person texting, not a customer service bot`,
+    dutch: `Schrijf in casual Nederlands zoals je een zakelijk contact zou appen.
+- Begroet NIET bij elk bericht — alleen de eerste keer
+- Kort en direct, vriendelijk maar niet overdreven formeel`,
+    spanish: `Escribe en español casual como si estuvieras enviando un mensaje de texto a un cliente.
+- NO saludar en cada mensaje — solo la primera vez
+- Corto y directo, cálido pero natural`,
   };
 
-  try {
-    const reply = await callOpenAI([
-      {
-        role: 'system',
-        content: `You are Dre, a calm and friendly sales assistant for FUIK fresh produce in Curaçao.${namePrefix}
+  // Build messages with history
+  const messages: Array<{ role: string; content: string }> = [
+    {
+      role: 'system',
+      content: `You are Dre, a calm and friendly sales assistant for FUIK fresh produce in Curaçao.${nameNote}${timeNote}
 ${languageGuide[language] || languageGuide.english}
-ABSOLUTE RULE: Never mention delivery times, dates, or schedules. Never say "today", "tomorrow", "tonight", or any delivery promise. The team handles this.
+ABSOLUTE RULE: Never mention delivery times, dates, or schedules. Never say "today", "tomorrow", "this afternoon", "on its way" or any delivery promise. The FUIK team handles all delivery communication.
 ${extra}`,
-      },
-      { role: 'user', content: situation },
-    ]);
+    },
+    ...conversationHistory,
+    { role: 'user', content: situation },
+  ];
+
+  try {
+    const reply = await callOpenAI(messages);
     return sanitizeReply(reply.trim(), language);
   } catch {
     return SAFE_FALLBACK[language] || SAFE_FALLBACK.english;
@@ -459,6 +480,29 @@ serve(async (req) => {
       content: text, media_type: 'text', language_detected: detectedLanguage,
     });
 
+    // ── Load conversation history for GPT context ────────
+    const { data: recentMessages } = await supabase
+      .from('dre_messages')
+      .select('role, content')
+      .eq('conversation_id', convo.id)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    const conversationHistory = (recentMessages || [])
+      .reverse()
+      .map(m => ({
+        role: m.role === 'customer' ? 'user' : 'assistant',
+        content: m.content,
+      }));
+
+    // ── Get current Curaçao time (UTC-4) ─────────────────
+    const curacaoNow = new Date(Date.now() - 4 * 60 * 60 * 1000);
+    const hours = curacaoNow.getUTCHours();
+    const minutes = curacaoNow.getUTCMinutes();
+    const timeStr = `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}`;
+    const period = hours < 12 ? 'morning' : hours < 18 ? 'afternoon' : 'evening';
+    const curacaoTimeStr = `${timeStr} (${period})`;
+
     let reply = '';
 
     // ════════════════════════════════════════════════════
@@ -614,7 +658,9 @@ serve(async (req) => {
           text,
           detectedLanguage,
           customerNameStr,
-          'You can help with: placing orders, product questions, pricing questions. For complaints, delivery issues, or anything you cannot handle — say you will connect them with the team.'
+          'You can help with: placing orders, product questions, pricing questions. For complaints, delivery issues, or anything you cannot handle — say you will connect them with the team.',
+          conversationHistory,
+          curacaoTimeStr
         );
       }
     }
