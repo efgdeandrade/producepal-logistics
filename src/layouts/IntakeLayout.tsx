@@ -1,8 +1,10 @@
 import { ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { MessageSquare, Mail, ShoppingBag, Package, Settings, Bot, ChevronLeft } from 'lucide-react';
+import { MessageSquare, Mail, ShoppingBag, Package, Settings, Bot, ChevronLeft, Bell } from 'lucide-react';
 import { AiOversightPanel } from '@/components/intake/AiOversightPanel';
 import { cn } from '@/lib/utils';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { Button } from '@/components/ui/button';
 
 const navItems = [
   { label: 'Conversations', path: '/intake/conversations', icon: MessageSquare },
