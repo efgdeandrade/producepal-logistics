@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface PushNotificationSettings {
@@ -14,6 +15,9 @@ const DEFAULT_SETTINGS: PushNotificationSettings = {
 };
 
 const SETTINGS_KEY = 'dre-push-settings';
+
+// VAPID public key — set via VITE_VAPID_PUBLIC_KEY env var
+const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || '';
 
 export function usePushNotifications() {
   const [isSupported, setIsSupported] = useState(false);
@@ -42,10 +46,42 @@ export function usePushNotifications() {
     }
   }, []);
 
+  // Check existing subscription on mount
+  useEffect(() => {
+    const checkSubscription = async () => {
+      if (!isSupported) return;
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        const sub = await registration.pushManager.getSubscription();
+        setSubscription(sub);
+      } catch (error) {
+        console.error('Failed to check subscription:', error);
+      }
+    };
+    checkSubscription();
+  }, [isSupported]);
+
+  // Helper to convert VAPID key
+  const urlBase64ToUint8Array = (base64String: string): Uint8Array => {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  };
+
   // Request permission and subscribe
   const requestPermission = useCallback(async () => {
     if (!isSupported) {
       toast.error('Push notifications are not supported on this device');
+      return false;
+    }
+
+    if (!VAPID_PUBLIC_KEY) {
+      toast.error('Push notifications are not configured yet');
       return false;
     }
 
@@ -56,21 +92,36 @@ export function usePushNotifications() {
       setPermission(result);
 
       if (result === 'granted') {
-        // Register service worker if not already registered
         const registration = await navigator.serviceWorker.ready;
 
-        // Subscribe to push - use a placeholder VAPID key
-        // In production, this should come from server/secrets
         try {
-          const sub = await (registration as any).pushManager.subscribe({
+          const sub = await registration.pushManager.subscribe({
             userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(
-              'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U'
-            ),
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
           });
 
           setSubscription(sub);
-          toast.success('Push notifications enabled!');
+
+          // Save subscription to database
+          const subJson = sub.toJSON();
+          const { data: { user } } = await supabase.auth.getUser();
+
+          if (user) {
+            // Upsert: delete old subscriptions for this endpoint, then insert
+            await supabase
+              .from('push_subscriptions')
+              .delete()
+              .eq('endpoint', subJson.endpoint!);
+
+            await supabase.from('push_subscriptions').insert({
+              user_id: user.id,
+              endpoint: subJson.endpoint!,
+              p256dh: subJson.keys?.p256dh || '',
+              auth: subJson.keys?.auth || '',
+            });
+          }
+
+          toast.success('Push notifications enabled! 🔔');
           return true;
         } catch (subError) {
           console.warn('Push subscription failed, but local notifications work:', subError);
@@ -97,8 +148,15 @@ export function usePushNotifications() {
     setIsLoading(true);
 
     try {
+      const subJson = subscription.toJSON();
       await subscription.unsubscribe();
       setSubscription(null);
+
+      // Remove from database
+      if (subJson.endpoint) {
+        await supabase.from('push_subscriptions').delete().eq('endpoint', subJson.endpoint);
+      }
+
       toast.success('Push notifications disabled');
     } catch (error) {
       console.error('Unsubscribe error:', error);
@@ -114,23 +172,6 @@ export function usePushNotifications() {
     setSettings(updated);
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
   }, [settings]);
-
-  // Check existing subscription on mount
-  useEffect(() => {
-    const checkSubscription = async () => {
-      if (!isSupported) return;
-
-      try {
-        const registration = await navigator.serviceWorker.ready;
-        const sub = await (registration as any).pushManager.getSubscription();
-        setSubscription(sub);
-      } catch (error) {
-        console.error('Failed to check subscription:', error);
-      }
-    };
-
-    checkSubscription();
-  }, [isSupported]);
 
   // Show local notification (for in-app alerts)
   const showLocalNotification = useCallback((title: string, options?: NotificationOptions) => {
@@ -176,20 +217,4 @@ export function usePushNotifications() {
     updateSettings,
     showLocalNotification,
   };
-}
-
-// Helper function to convert VAPID key
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding)
-    .replace(/-/g, '+')
-    .replace(/_/g, '/');
-
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
 }

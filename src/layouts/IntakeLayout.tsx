@@ -17,11 +17,33 @@ const navItems = [
 export function IntakeLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { permission, requestPermission, isLoading: pushLoading } = usePushNotifications();
 
   return (
     <div className="flex h-screen overflow-hidden bg-intake-bg">
+      {/* Push notification banner */}
+      {permission === 'default' && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-primary/10 border-b border-primary/20 px-4 py-2 flex items-center justify-between text-sm">
+          <span className="text-foreground flex items-center gap-2">
+            <Bell className="h-4 w-4" />
+            Enable push notifications to get alerted when customers message Dre
+          </span>
+          <Button
+            size="sm"
+            variant="default"
+            onClick={requestPermission}
+            disabled={pushLoading}
+          >
+            {pushLoading ? 'Enabling...' : 'Enable'}
+          </Button>
+        </div>
+      )}
+
       {/* Sidebar */}
-      <aside className="w-[220px] flex-shrink-0 flex flex-col border-r border-border bg-intake-surface">
+      <aside className={cn(
+        "w-[220px] flex-shrink-0 flex flex-col border-r border-border bg-intake-surface",
+        permission === 'default' && "mt-10"
+      )}>
         {/* Back to Portal */}
         <button
           onClick={() => navigate('/select-portal')}
