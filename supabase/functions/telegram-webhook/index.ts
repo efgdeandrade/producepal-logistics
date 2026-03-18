@@ -842,11 +842,20 @@ serve(async (req) => {
       ? `Customer has active order: #${activeOrder.order_number} (status: ${activeOrder.status}${activeOrder.awaiting_customer_confirmation ? ', awaiting confirmation' : ''})`
       : 'No active orders currently.';
 
+    // Build enriched context string with product aliases
+    const productCatalogContext = productsFull.map(p => {
+      const pAliases = productAliases.filter(a => a.product_id === p.id).map(a => a.alias);
+      const allNames = [p.name, p.name_pap, p.name_nl, p.name_es, ...pAliases, ...(p.name_aliases || [])]
+        .filter(Boolean).join(' / ');
+      return `${p.name}(${p.code}): ${allNames}`;
+    }).join(' | ');
+
     const contextString = [
       ...(contextResult.data || []).map((w: any) => `${w.word}=${w.meaning}`),
       ...(trainingResult.data || [])
         .filter((e: any) => e.category === 'vocabulary' || e.category === 'product_name')
         .map((e: any) => e.corrected_phrase),
+      productCatalogContext,
     ].join(' | ');
 
     const trainingPhrases = (trainingResult.data || [])
