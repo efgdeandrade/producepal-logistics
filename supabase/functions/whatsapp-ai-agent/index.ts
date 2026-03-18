@@ -273,22 +273,50 @@ async function checkOrderPickingStatus(supabase: any, orderId: string): Promise<
   return (items as Array<{ picked_quantity?: number }>).some(item => (item.picked_quantity || 0) > 0);
 }
 
-// Build conversation context for AI
+// Greeting words for session detection
+const GREETING_WORDS = [
+  'hi', 'hello', 'hey', 'halo', 'bon dia', 'bon tardi', 'bon nochi',
+  'ayo', 'good morning', 'good afternoon', 'good evening', 'goedemorgen',
+  'goedemiddag', 'hola', 'buenos días', 'buenas tardes', 'buenos dias',
+];
+
+function isGreetingMessage(text: string): boolean {
+  const lower = text.toLowerCase().trim();
+  return GREETING_WORDS.some(g =>
+    lower === g || lower.startsWith(g + ' ') || lower.startsWith(g + '!') || lower.startsWith(g + ',')
+  );
+}
+
+// Build conversation context for AI with session awareness
 function buildConversationContext(
   messages: Array<{ direction: string; message_text: string; created_at: string }>,
   currentMessage: string
 ): Array<{ role: string; content: string }> {
   const history: Array<{ role: string; content: string }> = [];
-  
-  // Add recent conversation history (last 20 messages)
-  for (const msg of messages.slice(-20)) {
-    const role = msg.direction === 'inbound' ? 'user' : 'assistant';
-    history.push({ role, content: msg.message_text });
+
+  // Detect if this is a new session
+  const lastInbound = [...messages].reverse().find(m => m.direction === 'inbound');
+  const lastMessageTime = lastInbound ? new Date(lastInbound.created_at) : null;
+  const hoursSinceLastMessage = lastMessageTime
+    ? (Date.now() - lastMessageTime.getTime()) / (1000 * 60 * 60)
+    : 999;
+
+  const isNewSession = hoursSinceLastMessage > 4 || isGreetingMessage(currentMessage);
+
+  if (!isNewSession) {
+    // Only pass messages from the current session (last 4 hours), max 10
+    const sessionStart = new Date(Date.now() - 4 * 60 * 60 * 1000);
+    const sessionMessages = messages.filter(m => new Date(m.created_at) > sessionStart);
+    for (const msg of sessionMessages.slice(-10)) {
+      const role = msg.direction === 'inbound' ? 'user' : 'assistant';
+      history.push({ role, content: msg.message_text });
+    }
   }
-  
+  // If new session: pass empty history — fresh start
+
   // Add current message
   history.push({ role: 'user', content: currentMessage });
-  
+
   return history;
 }
 
