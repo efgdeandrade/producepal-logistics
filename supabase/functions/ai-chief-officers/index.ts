@@ -261,6 +261,138 @@ Note: If data is sparse, provide production optimization recommendations for a g
 }
 
 // ═══════════════════════════════════════
+// AXEL — Administration
+// ═══════════════════════════════════════
+async function runAxel(supabase: any, key: string): Promise<void> {
+  console.log('=== AXEL STARTING ===');
+  const { data: summary } = await supabase.from('administration_summary').select('*').single();
+  const { data: overdueTasks } = await supabase.from('admin_tasks')
+    .select('title, category, due_date, priority')
+    .in('status', ['open', 'in_progress'])
+    .lt('due_date', new Date().toISOString().split('T')[0])
+    .limit(5);
+
+  const dataContext = `
+ADMINISTRATION DATA — FUIK Curaçao:
+Open tasks: ${summary?.open_tasks || 0}
+Overdue tasks: ${summary?.overdue_tasks || 0}
+Supplier documents expiring (30 days): ${summary?.docs_expiring_soon || 0}
+Expired documents: ${summary?.docs_expired || 0}
+Total supplier documents: ${summary?.total_supplier_docs || 0}
+Active shipments: ${summary?.active_shipments || 0}
+${overdueTasks?.length ? `Overdue: ${overdueTasks.map((t: any) => `${t.title} (${t.category})`).join(', ')}` : ''}
+`;
+
+  const result = await callGPT(
+    `You are Axel, the AI Chief Administration Officer for FUIK, a fresh produce distributor in Curaçao. You manage supplier documents, import permits, customs paperwork, and administrative tasks. Generate practical admin suggestions.`,
+    `Analyze and generate 2-3 actionable suggestions:\n${dataContext}\nReturn: {"suggestions":[{"title":string,"content":string,"priority":"low"|"medium"|"high"|"critical","reasoning":string}]}`,
+    key
+  );
+
+  console.log('Axel suggestions:', result.suggestions?.length || 0);
+  for (const s of (result.suggestions || [])) {
+    await supabase.from('ai_suggestions').insert({
+      department: 'administration', suggestion_type: 'admin_analysis',
+      title: s.title, content: s.content, reasoning: s.reasoning,
+      priority: s.priority || 'medium', status: 'pending',
+    });
+  }
+  await supabase.from('ai_chief_officers').update({
+    last_run_at: new Date().toISOString(), last_suggestion_at: new Date().toISOString(), status: 'active',
+  }).eq('department', 'administration');
+}
+
+// ═══════════════════════════════════════
+// KAYDEN — R&D
+// ═══════════════════════════════════════
+async function runKayden(supabase: any, key: string): Promise<void> {
+  console.log('=== KAYDEN STARTING ===');
+  const { data: summary } = await supabase.from('rd_summary').select('*').single();
+  const { data: signals } = await supabase.from('rd_market_signals')
+    .select('signal_type, title, description').eq('status', 'new').limit(5);
+  const { data: topOrdered } = await supabase.from('distribution_order_items')
+    .select('product_name_raw').limit(200);
+
+  const productCounts: Record<string, number> = {};
+  (topOrdered || []).forEach((i: any) => {
+    const n = (i.product_name_raw || '').toLowerCase();
+    productCounts[n] = (productCounts[n] || 0) + 1;
+  });
+  const topProducts = Object.entries(productCounts).sort(([, a], [, b]) => b - a).slice(0, 5).map(([n, c]) => `${n}(${c})`).join(', ');
+
+  const dataContext = `
+R&D DATA — FUIK Curaçao:
+Ideas pending review: ${summary?.ideas_pending || 0}
+In research: ${summary?.in_research || 0}
+Validated opportunities: ${summary?.validated || 0}
+Implemented: ${summary?.implemented || 0}
+New market signals: ${summary?.new_signals || 0}
+Customer requests: ${summary?.customer_requests || 0}
+Top ordered products: ${topProducts}
+${signals?.length ? `New signals: ${signals.map((s: any) => s.title).join(', ')}` : ''}
+`;
+
+  const result = await callGPT(
+    `You are Kayden, the AI Chief R&D Officer for FUIK, a fresh produce distributor in Curaçao. You identify new product opportunities, new suppliers, and market trends. Generate strategic R&D suggestions.`,
+    `Analyze and generate 2-3 actionable suggestions:\n${dataContext}\nReturn: {"suggestions":[{"title":string,"content":string,"priority":"low"|"medium"|"high"|"critical","reasoning":string}]}`,
+    key
+  );
+
+  console.log('Kayden suggestions:', result.suggestions?.length || 0);
+  for (const s of (result.suggestions || [])) {
+    await supabase.from('ai_suggestions').insert({
+      department: 'research_development', suggestion_type: 'rd_analysis',
+      title: s.title, content: s.content, reasoning: s.reasoning,
+      priority: s.priority || 'medium', status: 'pending',
+    });
+  }
+  await supabase.from('ai_chief_officers').update({
+    last_run_at: new Date().toISOString(), last_suggestion_at: new Date().toISOString(), status: 'active',
+  }).eq('department', 'research_development');
+}
+
+// ═══════════════════════════════════════
+// ZYA — Import
+// ═══════════════════════════════════════
+async function runZya(supabase: any, key: string): Promise<void> {
+  console.log('=== ZYA STARTING ===');
+  const { data: summary } = await supabase.from('import_summary').select('*').single();
+  const { data: shipments } = await supabase.from('import_shipments')
+    .select('shipment_number, supplier_name, status, estimated_arrival, total_cif_xcg')
+    .in('status', ['ordered', 'in_transit', 'customs', 'arrived'])
+    .order('estimated_arrival', { ascending: true })
+    .limit(5);
+
+  const dataContext = `
+IMPORT DATA — FUIK Curaçao:
+Shipments in transit: ${summary?.shipments_in_transit || 0}
+Shipments in customs: ${summary?.shipments_in_customs || 0}
+Shipments arrived (pending clearance): ${summary?.shipments_arrived || 0}
+Valid import documents: ${summary?.valid_import_docs || 0}
+Monthly import value: XCG ${Number(summary?.monthly_import_value || 0).toFixed(2)}
+${shipments?.length ? `Active shipments: ${shipments.map((s: any) => `${s.shipment_number} from ${s.supplier_name} - ${s.status} (ETA: ${s.estimated_arrival || 'TBD'})`).join(', ')}` : 'No active shipments yet'}
+`;
+
+  const result = await callGPT(
+    `You are Zya, the AI Chief Import Officer for FUIK, a fresh produce distributor in Curaçao importing from Colombia and other countries. You monitor shipments, customs compliance, and import documentation. Generate practical import suggestions.`,
+    `Analyze and generate 2-3 actionable suggestions:\n${dataContext}\nReturn: {"suggestions":[{"title":string,"content":string,"priority":"low"|"medium"|"high"|"critical","reasoning":string}]}`,
+    key
+  );
+
+  console.log('Zya suggestions:', result.suggestions?.length || 0);
+  for (const s of (result.suggestions || [])) {
+    await supabase.from('ai_suggestions').insert({
+      department: 'import', suggestion_type: 'import_analysis',
+      title: s.title, content: s.content, reasoning: s.reasoning,
+      priority: s.priority || 'medium', status: 'pending',
+    });
+  }
+  await supabase.from('ai_chief_officers').update({
+    last_run_at: new Date().toISOString(), last_suggestion_at: new Date().toISOString(), status: 'active',
+  }).eq('department', 'import');
+}
+
+// ═══════════════════════════════════════
 // ORACLE — Oversight
 // ═══════════════════════════════════════
 async function runOracle(supabase: any, key: string): Promise<void> {
@@ -313,6 +445,9 @@ serve(async (req) => {
     if (officer === 'maya' || officer === 'all') await runMaya(supabase, key);
     if (officer === 'rosa' || officer === 'all') await runRosa(supabase, key);
     if (officer === 'gino' || officer === 'all') await runGino(supabase, key);
+    if (officer === 'axel' || officer === 'all') await runAxel(supabase, key);
+    if (officer === 'kayden' || officer === 'all') await runKayden(supabase, key);
+    if (officer === 'zya' || officer === 'all') await runZya(supabase, key);
     if (officer === 'oracle' || officer === 'all') await runOracle(supabase, key);
 
     return new Response(JSON.stringify({ success: true, officer }), {

@@ -136,6 +136,10 @@ import IntakeSettings from "./pages/intake/IntakeSettings";
 import FinancePortal from "./pages/finance/FinancePortal";
 import MarketingPortal from "./pages/marketing/MarketingPortal";
 
+// Administration & R&D Portals
+import AdminPortalPage from "./pages/admin/AdminPortal";
+import RDPortal from "./pages/rd/RDPortal";
+
 const queryClient = new QueryClient();
 
 // Layout wrapper components for each portal
@@ -293,6 +297,24 @@ const App = () => (
                     <ProtectedRoute>
                       <PasswordChangeRequired>
                         <MarketingPortal />
+                      </PasswordChangeRequired>
+                    </ProtectedRoute>
+                  } />
+
+                  {/* ========== ADMINISTRATION PORTAL ========== */}
+                  <Route path="/administration" element={
+                    <ProtectedRoute>
+                      <PasswordChangeRequired>
+                        <AdminPortalPage />
+                      </PasswordChangeRequired>
+                    </ProtectedRoute>
+                  } />
+
+                  {/* ========== R&D PORTAL ========== */}
+                  <Route path="/rd" element={
+                    <ProtectedRoute>
+                      <PasswordChangeRequired>
+                        <RDPortal />
                       </PasswordChangeRequired>
                     </ProtectedRoute>
                   } />
