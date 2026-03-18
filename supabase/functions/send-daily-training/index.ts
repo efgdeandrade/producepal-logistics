@@ -219,7 +219,7 @@ serve(async (req) => {
           status: 'sent',
         });
       } else {
-        await sendTelegramText(kathyChatId, questionText, telegramToken);
+        await sendTelegramText(bolengaChatId, questionText, telegramToken);
         await supabase.from('papiamentu_training_questions').insert({
           session_id: session.id,
           question_number: i + 1,
