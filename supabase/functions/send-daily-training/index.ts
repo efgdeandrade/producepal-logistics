@@ -74,7 +74,7 @@ async function generateQuestions(
     .map((e: any) => e.corrected_phrase)
     .join(', ');
 
-  const prompt = `You are generating daily Papiamentu language training questions for Kathy, a native Curaçao Papiamentu speaker and language expert. She teaches Dre (an AI sales bot) how to speak natural Curaçao Papiamentu.
+  const prompt = `You are generating daily Papiamentu language training questions for Bolenga, a native Curaçao Papiamentu speaker and language expert. She teaches Dre (an AI sales bot) how to speak natural Curaçao Papiamentu.
 
 Generate exactly ${count} training questions covering these categories:
 - vocabulary (3 questions): local produce names, units, grocery terms
