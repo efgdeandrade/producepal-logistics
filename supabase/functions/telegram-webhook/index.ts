@@ -162,21 +162,27 @@ async function parseOrderItems(text: string, language: string, contextWords: str
     const result = await callOpenAI([
       {
         role: 'system',
-        content: `You are an order parser for a fresh produce distributor in Curaçao.
+        content: `You are an order parser for FUIK, a fresh produce distributor in Curaçao.
 Extract ALL products the customer wants to order.
 Return ONLY valid JSON: {"items": [{"product_name": string, "qty": number | null, "unit": string | null}]}
+
 Rules:
-- product_name: the actual produce name in English (translate if needed)
-- qty: the number they want. null if not mentioned.
-- unit: "kg", "case", "bag", "piece", "bunch" or null if not mentioned
-- If customer says "kaha" = case, "bolsa" or "saku" = bag, "kilo" = kg
-- If customer says just a product name with no qty, set qty to null
-- Produce terms: ${contextWords}
-Examples:
+- product_name: English name of the produce
+- qty: number they want, null if not mentioned
+- unit: "kg", "case", "bag", "piece", "bunch", null if not mentioned
+- kaha = case, bolsa = bag, saku = bag, kilo = kg, misa = head
+
+Real Curaçao order examples:
 "2 kaha di mango" → {"product_name":"mango","qty":2,"unit":"case"}
-"1 bolsa di pampuna" → {"product_name":"pumpkin","qty":1,"unit":"bag"}
+"un bolsa di pampuna" → {"product_name":"pumpkin","qty":1,"unit":"bag"}
+"mi ke mango ku wortel" → [{"product_name":"mango","qty":null,"unit":null},{"product_name":"carrot","qty":null,"unit":null}]
+"3 kilo di tomaat" → {"product_name":"tomato","qty":3,"unit":"kg"}
 "I want mango and grapes" → [{"product_name":"mango","qty":null,"unit":null},{"product_name":"grapes","qty":null,"unit":null}]
-"3 kg tomato" → {"product_name":"tomato","qty":3,"unit":"kg"}`,
+"dame 2 cajas de mango" → {"product_name":"mango","qty":2,"unit":"case"}
+"2 kaha mango, 1 saku pampuna, 5 kilo wortel" → 3 items
+"bontardi mi ke mago ku wortel" → [{"product_name":"mango","qty":null,"unit":null},{"product_name":"carrot","qty":null,"unit":null}]
+
+Context words: ${contextWords}`,
       },
       { role: 'user', content: text },
     ], true);
