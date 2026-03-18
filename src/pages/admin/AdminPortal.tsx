@@ -220,9 +220,16 @@ export default function AdminPortal() {
 
   const runAxel = async () => {
     setRunningAxel(true);
-    await supabase.functions.invoke('ai-chief-officers', { body: { officer: 'axel' } });
-    setRunningAxel(false);
-    queryClient.invalidateQueries({ queryKey: ['axel-officer'] });
+    try {
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000));
+      const invokePromise = supabase.functions.invoke('ai-chief-officers', { body: { officer: 'axel' } });
+      await Promise.race([invokePromise, timeoutPromise]);
+    } catch (e: any) {
+      if (e.message !== 'timeout') console.error('Axel error:', e);
+    } finally {
+      setRunningAxel(false);
+      queryClient.invalidateQueries({ queryKey: ['axel-officer'] });
+    }
   };
 
   const handleSuggestion = async (id: string, action: 'approved' | 'dismissed') => {

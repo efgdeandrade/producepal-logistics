@@ -92,10 +92,20 @@ export default function ProductionDashboardNew() {
 
   const handleRunGino = async () => {
     setRunningGino(true);
-    const { error } = await supabase.functions.invoke("ai-chief-officers", { body: { officer: "gino" } });
-    setRunningGino(false);
-    if (error) toast({ title: "Error running Gino", description: String(error), variant: "destructive" });
-    else toast({ title: "Gino analysis complete" });
+    try {
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000));
+      const invokePromise = supabase.functions.invoke("ai-chief-officers", { body: { officer: "gino" } });
+      await Promise.race([invokePromise, timeoutPromise]);
+      toast({ title: "✅ Gino analysis complete" });
+    } catch (e: any) {
+      if (e.message === 'timeout') {
+        toast({ title: "⚡ Gino is running", description: "Suggestions will appear shortly." });
+      } else {
+        toast({ title: "Error running Gino", description: e.message, variant: "destructive" });
+      }
+    } finally {
+      setRunningGino(false);
+    }
   };
 
   const handleSuggestionAction = async (id: string, status: "approved" | "dismissed") => {

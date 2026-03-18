@@ -181,9 +181,16 @@ export default function RDPortal() {
 
   const runKayden = async () => {
     setRunningKayden(true);
-    await supabase.functions.invoke('ai-chief-officers', { body: { officer: 'kayden' } });
-    setRunningKayden(false);
-    queryClient.invalidateQueries({ queryKey: ['kayden-officer'] });
+    try {
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000));
+      const invokePromise = supabase.functions.invoke('ai-chief-officers', { body: { officer: 'kayden' } });
+      await Promise.race([invokePromise, timeoutPromise]);
+    } catch (e: any) {
+      if (e.message !== 'timeout') console.error('Kayden error:', e);
+    } finally {
+      setRunningKayden(false);
+      queryClient.invalidateQueries({ queryKey: ['kayden-officer'] });
+    }
   };
 
   const handleSuggestion = async (id: string, action: 'approved' | 'dismissed') => {

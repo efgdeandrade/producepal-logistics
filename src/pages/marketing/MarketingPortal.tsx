@@ -117,10 +117,20 @@ export default function MarketingPortal() {
 
   const handleRunMaya = async () => {
     setRunningMaya(true);
-    const { error } = await supabase.functions.invoke('ai-chief-officers', { body: { officer: 'maya' } });
-    setRunningMaya(false);
-    if (error) toast({ title: 'Error running Maya', variant: 'destructive' });
-    else toast({ title: 'Maya analysis complete' });
+    try {
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000));
+      const invokePromise = supabase.functions.invoke('ai-chief-officers', { body: { officer: 'maya' } });
+      await Promise.race([invokePromise, timeoutPromise]);
+      toast({ title: '✅ Maya analysis complete' });
+    } catch (e: any) {
+      if (e.message === 'timeout') {
+        toast({ title: '⚡ Maya is running', description: 'Suggestions will appear shortly.' });
+      } else {
+        toast({ title: 'Error running Maya', description: e.message, variant: 'destructive' });
+      }
+    } finally {
+      setRunningMaya(false);
+    }
   };
 
   const handleSuggestionAction = async (id: string, status: 'approved' | 'dismissed') => {
