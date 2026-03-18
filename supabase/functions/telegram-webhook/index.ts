@@ -408,7 +408,7 @@ async function handleBolengaResponse(
   let responseText = text;
   let responseAudioUrl: string | null = null;
 
-  // Handle voice response from Kathy
+  // Handle voice response from Bolenga
   if (message.voice || message.audio) {
     const fileId = message.voice?.file_id || message.audio?.file_id;
     try {
