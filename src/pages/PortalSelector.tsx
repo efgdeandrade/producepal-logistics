@@ -14,7 +14,9 @@ import {
   Shield,
   BarChart3,
   Settings,
-  Loader2
+  Loader2,
+  DollarSign,
+  Megaphone
 } from 'lucide-react';
 import { useState } from 'react';
 
