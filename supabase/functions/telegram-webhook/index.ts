@@ -1146,14 +1146,15 @@ serve(async (req) => {
       });
 
       // Log reply for training review
-      await supabase.from('distribution_ai_match_logs').insert({
+      const { error: replyLogErr } = await supabase.from('distribution_ai_match_logs').insert({
         raw_text: text,
         detected_language: detectedLanguage,
         dre_reply: reply,
         needs_language_review: true,
         source_channel: 'telegram',
         conversation_id: convo.id,
-      }).catch(() => {});
+      });
+      if (replyLogErr) console.warn('Reply log insert error:', replyLogErr.message);
     }
 
     // Save updated state
