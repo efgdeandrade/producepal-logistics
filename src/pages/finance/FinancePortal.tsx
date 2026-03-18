@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { DollarSign, AlertTriangle, ShoppingCart, CreditCard, Check, X, Loader2, ChevronDown, ChevronUp, Zap, Brain } from 'lucide-react';
+import { DollarSign, AlertTriangle, ShoppingCart, CreditCard, Check, X, Loader2, ChevronDown, ChevronUp, Zap, Brain, ChevronLeft } from 'lucide-react';
 import { format, subWeeks, startOfWeek } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
