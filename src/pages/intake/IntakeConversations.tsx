@@ -365,6 +365,22 @@ export default function IntakeConversations() {
               </button>
             ))}
           </div>
+          {/* Channel filter */}
+          <div className="flex gap-1 mt-1.5 overflow-x-auto pb-1">
+            {CHANNEL_OPTIONS.map((ch) => (
+              <button
+                key={ch}
+                onClick={() => setChannelFilter(ch)}
+                className={`px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap transition-colors ${
+                  channelFilter === ch
+                    ? 'bg-intake-accent text-white'
+                    : 'bg-muted/60 text-intake-text-muted hover:bg-muted'
+                }`}
+              >
+                {ch}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Conversation list */}
