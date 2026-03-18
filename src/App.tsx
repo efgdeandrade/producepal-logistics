@@ -109,6 +109,10 @@ import Employees from "./pages/hr/Employees";
 import TimeAttendance from "./pages/hr/TimeAttendance";
 import Timesheets from "./pages/hr/Timesheets";
 import Documents from "./pages/hr/Documents";
+import HRPayroll from "./pages/hr/HRPayroll";
+
+// Production Stock
+import ProductionStock from "./pages/production/ProductionStock";
 
 // Public/Auth Pages
 import Auth from "./pages/Auth";
