@@ -133,7 +133,7 @@ export default defineConfig(({ mode }) => ({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api/, /^\/supabase/],
         // Import share target handler into service worker
-        importScripts: ['/sw-share-target.js'],
+        importScripts: ['/sw-share-target.js', '/sw-push.js'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/api\.mapbox\.com\/.*/i,
