@@ -102,6 +102,18 @@ export function AiOversightPanel() {
 
       {expanded && (
         <div className="border-t border-border bg-intake-surface max-h-[400px]">
+          <div className="p-2 border-b border-border">
+            <Button size="sm" className="w-full h-7 text-xs" onClick={async () => {
+              setRunningAll(true);
+              const { error } = await supabase.functions.invoke('ai-chief-officers', { body: { officer: 'all' } });
+              setRunningAll(false);
+              if (error) toast({ title: 'Error running officers', variant: 'destructive' });
+              else toast({ title: 'All officers analysis complete' });
+            }} disabled={runningAll}>
+              {runningAll ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Zap className="h-3 w-3 mr-1" />}
+              ⚡ Run All Officers
+            </Button>
+          </div>
           <Tabs defaultValue="suggestions" className="w-full">
             <TabsList className="w-full grid grid-cols-3 h-8 text-xs rounded-none">
               <TabsTrigger value="suggestions" className="text-xs">Suggestions</TabsTrigger>
