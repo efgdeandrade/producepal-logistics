@@ -101,6 +101,58 @@ function sanitizeReply(reply: string, language: string): string {
   return reply;
 }
 
+// ═══════════════════════════════════════════════════════════
+// THREE-TIER PRODUCT MATCHING (unified with WhatsApp agent)
+// ═══════════════════════════════════════════════════════════
+
+function matchProduct(
+  searchName: string,
+  products: any[],
+  aliases: any[]
+): { product_id: string | null; confidence: number; match_type: string } {
+  const search = searchName.toLowerCase().trim();
+
+  // Tier 1: Alias exact match
+  for (const alias of aliases) {
+    if (alias.alias.toLowerCase() === search) {
+      return { product_id: alias.product_id, confidence: 0.95, match_type: 'alias_exact' };
+    }
+  }
+
+  // Tier 2: Alias partial match
+  for (const alias of aliases) {
+    if (search.includes(alias.alias.toLowerCase()) || alias.alias.toLowerCase().includes(search)) {
+      return { product_id: alias.product_id, confidence: 0.80, match_type: 'alias_partial' };
+    }
+  }
+
+  // Tier 3: Product name exact/partial match
+  for (const p of products) {
+    const names = [p.name, p.name_pap, p.name_nl, p.name_es, ...(p.name_aliases || [])]
+      .filter(Boolean).map((n: string) => n.toLowerCase());
+    if (names.some(n => n === search)) {
+      return { product_id: p.id, confidence: 0.90, match_type: 'name_exact' };
+    }
+    if (names.some(n => n.includes(search) || search.includes(n))) {
+      return { product_id: p.id, confidence: 0.70, match_type: 'name_partial' };
+    }
+  }
+
+  // Tier 4: Fuzzy word match
+  const searchWords = search.split(/\s+/);
+  for (const p of products) {
+    const names = [p.name, p.name_pap, p.name_nl, p.name_es, ...(p.name_aliases || [])]
+      .filter(Boolean).map((n: string) => n.toLowerCase());
+    const allWords = names.join(' ').split(/\s+/);
+    const matches = searchWords.filter(w => allWords.some(aw => aw.includes(w) || w.includes(aw)));
+    if (matches.length > 0 && matches.length >= searchWords.length * 0.6) {
+      return { product_id: p.id, confidence: 0.50, match_type: 'fuzzy' };
+    }
+  }
+
+  return { product_id: null, confidence: 0.20, match_type: 'no_match' };
+}
+
 function isConfirmationMessage(text: string): boolean {
   const t = text.toLowerCase().trim();
   return CONFIRMATION_WORDS.some(w =>
@@ -758,7 +810,7 @@ serve(async (req) => {
     state.language = detectedLanguage;
 
     // ── Load language context: context words + training entries ──
-    const [contextResult, trainingResult] = await Promise.all([
+    const [contextResult, trainingResult, productAliasesResult, productsFullResult, activeOrderResult] = await Promise.all([
       supabase.from('distribution_context_words')
         .select('word, meaning')
         .eq('language', 'papiamentu')
@@ -769,13 +821,41 @@ serve(async (req) => {
         .eq('is_active', true)
         .order('times_used', { ascending: false })
         .limit(60),
+      supabase.from('distribution_product_aliases')
+        .select('alias, product_id, language'),
+      supabase.from('distribution_products')
+        .select('id, code, name, name_pap, name_nl, name_es, price_xcg, unit, name_aliases, is_active')
+        .eq('is_active', true),
+      supabase.from('distribution_orders')
+        .select('id, order_number, status, created_at, awaiting_customer_confirmation')
+        .eq('customer_id', customer.id)
+        .in('status', ['draft', 'confirmed'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
+
+    const productAliases = productAliasesResult.data || [];
+    const productsFull = productsFullResult.data || [];
+    const activeOrder = activeOrderResult.data;
+    const activeOrderContext = activeOrder
+      ? `Customer has active order: #${activeOrder.order_number} (status: ${activeOrder.status}${activeOrder.awaiting_customer_confirmation ? ', awaiting confirmation' : ''})`
+      : 'No active orders currently.';
+
+    // Build enriched context string with product aliases
+    const productCatalogContext = productsFull.map(p => {
+      const pAliases = productAliases.filter(a => a.product_id === p.id).map(a => a.alias);
+      const allNames = [p.name, p.name_pap, p.name_nl, p.name_es, ...pAliases, ...(p.name_aliases || [])]
+        .filter(Boolean).join(' / ');
+      return `${p.name}(${p.code}): ${allNames}`;
+    }).join(' | ');
 
     const contextString = [
       ...(contextResult.data || []).map((w: any) => `${w.word}=${w.meaning}`),
       ...(trainingResult.data || [])
         .filter((e: any) => e.category === 'vocabulary' || e.category === 'product_name')
         .map((e: any) => e.corrected_phrase),
+      productCatalogContext,
     ].join(' | ');
 
     const trainingPhrases = (trainingResult.data || [])
@@ -871,45 +951,31 @@ serve(async (req) => {
         }).select().single();
 
         if (order) {
-          // Match and insert items
-          const { data: products } = await supabase
-            .from('distribution_products')
-            .select('id, name, name_aliases')
-            .eq('is_active', true);
-
+          // Use three-tier matching with pre-loaded products and aliases
           for (const item of state.pending_items) {
-            let matchedId: string | null = null;
-            const search = item.product_name.toLowerCase();
-            for (const p of (products || [])) {
-              if (p.name.toLowerCase().includes(search) || search.includes(p.name.toLowerCase())) {
-                matchedId = p.id; break;
-              }
-              for (const alias of (p.name_aliases || [])) {
-                if (alias.toLowerCase().includes(search) || search.includes(alias.toLowerCase())) {
-                  matchedId = p.id; break;
-                }
-              }
-              if (matchedId) break;
-            }
+            const match = matchProduct(item.product_name, productsFull, productAliases);
 
             await supabase.from('distribution_order_items').insert({
               order_id: order.id,
-              product_id: matchedId,
+              product_id: match.product_id,
               product_name_raw: item.product_name,
               quantity: item.qty || 0,
               order_unit: item.unit || 'kg',
             });
 
-            // Log to training
+            // Log match with confidence and match type
             await supabase.from('distribution_ai_match_logs').insert({
               raw_text: item.product_name,
               detected_language: detectedLanguage,
-              matched_product_id: matchedId,
-              confidence: matchedId ? 0.9 : 0.3,
-              needs_review: !matchedId,
+              matched_product_id: match.product_id,
+              confidence: match.confidence >= 0.8 ? 'high' : match.confidence >= 0.5 ? 'medium' : 'low',
+              needs_review: match.confidence < 0.7,
               source_channel: 'telegram',
               conversation_id: convo.id,
+              match_source: match.match_type,
             }).catch(() => {});
+
+            console.log(`Matched "${item.product_name}" → ${match.product_id || 'NONE'} (${match.match_type}, ${(match.confidence * 100).toFixed(0)}%)`);
           }
 
           await supabase.from('dre_conversations').update({
@@ -1000,7 +1066,7 @@ serve(async (req) => {
         // Not an order — generate conversational reply
         state.phase = 'idle';
         const customerNameStr = senderName || customer.name || null;
-        const baseExtra = 'You can help with: placing orders, product questions, pricing questions. For complaints, delivery issues, or anything you cannot handle — say you will connect them with the team.';
+        const baseExtra = `You can help with: placing orders, product questions, pricing questions. For complaints, delivery issues, or anything you cannot handle — say you will connect them with the team.\n${activeOrderContext}`;
         const fullExtra = dreExtra ? `${baseExtra}\n${dreExtra}` : baseExtra;
         reply = await generateReply(
           text,

@@ -18,7 +18,8 @@ import {
   DollarSign,
   Megaphone,
   ClipboardList,
-  Lightbulb
+  Lightbulb,
+  Inbox
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -33,6 +34,14 @@ interface PortalOption {
 }
 
 const portals: PortalOption[] = [
+  {
+    id: 'intake',
+    title: 'Order Intake',
+    description: 'Dre conversations, Email PO inbox, Shopify orders, products, settings',
+    icon: Inbox,
+    path: '/intake',
+    color: 'bg-primary',
+  },
   {
     id: 'distribution',
     title: 'Distribution',

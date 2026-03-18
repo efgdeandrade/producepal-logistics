@@ -17,6 +17,7 @@ type Conversation = any;
 type Message = any;
 
 const FILTER_TABS = ['All', 'Dre Active', 'Human in Control', 'Escalated', 'Proactive'];
+const CHANNEL_OPTIONS = ['All Channels', 'Telegram', 'WhatsApp', 'Email'];
 const filterMap: Record<string, string | null> = {
   'All': null,
   'Dre Active': 'dre_active',
@@ -32,6 +33,7 @@ export default function IntakeConversations() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [filter, setFilter] = useState('All');
+  const [channelFilter, setChannelFilter] = useState('All Channels');
   const [loading, setLoading] = useState(true);
   const [msgLoading, setMsgLoading] = useState(false);
   const [replyText, setReplyText] = useState('');
@@ -56,6 +58,10 @@ export default function IntakeConversations() {
     } else if (filterMap[filter]) {
       query = query.eq('control_status', filterMap[filter]);
     }
+
+    if (channelFilter === 'Telegram') query = query.eq('channel', 'telegram');
+    else if (channelFilter === 'WhatsApp') query = query.eq('channel', 'whatsapp');
+    else if (channelFilter === 'Email') query = query.eq('channel', 'email');
 
     const { data } = await query;
     setConversations(data || []);
@@ -129,7 +135,7 @@ export default function IntakeConversations() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [filter, selectedId]);
+  }, [filter, channelFilter, selectedId]);
 
   // Fetch messages for selected conversation
   const fetchMessages = async (convId: string) => {
@@ -312,8 +318,9 @@ export default function IntakeConversations() {
   };
 
   const channelBadge = (ch: string) => {
-    if (ch === 'telegram') return <Badge className="bg-intake-info text-white text-[10px]">Telegram</Badge>;
-    return <Badge className="bg-intake-brand text-white text-[10px]">WhatsApp</Badge>;
+    if (ch === 'telegram') return <Badge className="bg-[hsl(200,80%,50%)] text-white text-[10px]">Telegram</Badge>;
+    if (ch === 'email') return <Badge className="bg-[hsl(33,100%,50%)] text-white text-[10px]">Email</Badge>;
+    return <Badge className="bg-[hsl(142,70%,45%)] text-white text-[10px]">WhatsApp</Badge>;
   };
 
   const langBadge = (lang: string | null) => {
@@ -355,6 +362,22 @@ export default function IntakeConversations() {
                 }`}
               >
                 {tab}
+              </button>
+            ))}
+          </div>
+          {/* Channel filter */}
+          <div className="flex gap-1 mt-1.5 overflow-x-auto pb-1">
+            {CHANNEL_OPTIONS.map((ch) => (
+              <button
+                key={ch}
+                onClick={() => setChannelFilter(ch)}
+                className={`px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap transition-colors ${
+                  channelFilter === ch
+                    ? 'bg-intake-accent text-white'
+                    : 'bg-muted/60 text-intake-text-muted hover:bg-muted'
+                }`}
+              >
+                {ch}
               </button>
             ))}
           </div>
