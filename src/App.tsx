@@ -128,6 +128,10 @@ import IntakeShopifyOrders from "./pages/intake/IntakeShopifyOrders";
 import IntakeProducts from "./pages/intake/IntakeProducts";
 import IntakeSettings from "./pages/intake/IntakeSettings";
 
+// Finance & Marketing Portals
+import FinancePortal from "./pages/finance/FinancePortal";
+import MarketingPortal from "./pages/marketing/MarketingPortal";
+
 const queryClient = new QueryClient();
 
 // Layout wrapper components for each portal
