@@ -658,7 +658,9 @@ serve(async (req) => {
           text,
           detectedLanguage,
           customerNameStr,
-          'You can help with: placing orders, product questions, pricing questions. For complaints, delivery issues, or anything you cannot handle — say you will connect them with the team.'
+          'You can help with: placing orders, product questions, pricing questions. For complaints, delivery issues, or anything you cannot handle — say you will connect them with the team.',
+          conversationHistory,
+          curacaoTimeStr
         );
       }
     }
