@@ -207,7 +207,7 @@ serve(async (req) => {
           .from('order-media')
           .getPublicUrl(audioPath);
 
-        await sendTelegramText(kathyChatId, questionText, telegramToken);
+        await sendTelegramText(bolengaChatId, questionText, telegramToken);
 
         await supabase.from('papiamentu_training_questions').insert({
           session_id: session.id,
