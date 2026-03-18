@@ -160,37 +160,82 @@ function isConfirmationMessage(text: string): boolean {
   );
 }
 
-async function callOpenAI(
-  messages: Array<{ role: string; content: string }>,
+function extractJSON(content: string): any {
+  // Try direct parse first
+  try { return JSON.parse(content); } catch {}
+  // Strip markdown code blocks
+  const stripped = content.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+  try { return JSON.parse(stripped); } catch {}
+  // Extract JSON object
+  const match = stripped.match(/\{[\s\S]*\}/);
+  if (match) { try { return JSON.parse(match[0]); } catch {} }
+  return {};
+}
+
+async function callAI(
+  messages: Array<{ role: string; content: any }>,
   jsonMode = false
 ): Promise<string> {
-  const apiKey = Deno.env.get('OPENAI_API_KEY');
-  if (!apiKey) throw new Error('OPENAI_API_KEY not set');
+  const lovableKey = Deno.env.get('LOVABLE_API_KEY');
+  const openaiKey = Deno.env.get('OPENAI_API_KEY');
 
-  const body: any = {
-    model: 'gpt-4o',
-    messages,
-    temperature: 0.4,
-    max_tokens: 600,
-  };
-  if (jsonMode) body.response_format = { type: 'json_object' };
-
-  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!resp.ok) {
-    const err = await resp.text();
-    throw new Error(`OpenAI error ${resp.status}: ${err}`);
+  // Try Lovable gateway (Gemini Flash) first — same as WhatsApp agent
+  if (lovableKey) {
+    try {
+      const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${lovableKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-3-flash-preview',
+          messages,
+          temperature: 0.4,
+          max_tokens: 600,
+        }),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        const content = data.choices?.[0]?.message?.content || '';
+        console.log('Lovable AI response received, length:', content.length);
+        return content;
+      }
+      console.warn('Lovable gateway failed, status:', resp.status, 'falling back to OpenAI');
+    } catch (e) {
+      console.warn('Lovable gateway exception:', e);
+    }
   }
 
-  const data = await resp.json();
-  return data.choices?.[0]?.message?.content || '';
+  // Fallback to OpenAI GPT-4o
+  if (openaiKey) {
+    const body: any = {
+      model: 'gpt-4o',
+      messages,
+      temperature: 0.4,
+      max_tokens: 600,
+    };
+    if (jsonMode) body.response_format = { type: 'json_object' };
+
+    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.text();
+      throw new Error(`OpenAI error ${resp.status}: ${err}`);
+    }
+
+    const data = await resp.json();
+    return data.choices?.[0]?.message?.content || '';
+  }
+
+  throw new Error('No AI API key configured (neither LOVABLE_API_KEY nor OPENAI_API_KEY)');
 }
 
 // ═══════════════════════════════════════════════════════════

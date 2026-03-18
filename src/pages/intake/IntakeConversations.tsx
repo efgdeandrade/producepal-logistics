@@ -91,6 +91,14 @@ export default function IntakeConversations() {
     setTeamMembers(data || []);
   };
 
+  // Polling fallback — safety net alongside Realtime
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchConversations();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [filter, channelFilter]);
+
   useEffect(() => {
     fetchConversations();
     fetchLateOrders();
