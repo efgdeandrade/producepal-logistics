@@ -20,6 +20,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 export default function FinancePortal() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [payDialog, setPayDialog] = useState<any>(null);
   const [payMethod, setPayMethod] = useState('cod_cash');
   const [paying, setPaying] = useState(false);
