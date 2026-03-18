@@ -301,6 +301,24 @@ const App = () => (
                     </ProtectedRoute>
                   } />
 
+                  {/* ========== ADMINISTRATION PORTAL ========== */}
+                  <Route path="/administration" element={
+                    <ProtectedRoute>
+                      <PasswordChangeRequired>
+                        <AdminPortalPage />
+                      </PasswordChangeRequired>
+                    </ProtectedRoute>
+                  } />
+
+                  {/* ========== R&D PORTAL ========== */}
+                  <Route path="/rd" element={
+                    <ProtectedRoute>
+                      <PasswordChangeRequired>
+                        <RDPortal />
+                      </PasswordChangeRequired>
+                    </ProtectedRoute>
+                  }
+
                   {/* ========== STANDALONE APPS ========== */}
                   <Route path="/dre" element={
                     <ProtectedRoute>
