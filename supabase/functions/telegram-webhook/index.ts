@@ -926,7 +926,23 @@ serve(async (req) => {
       content: text, media_type: 'text', language_detected: detectedLanguage,
     });
 
-    // ── Load conversation history for GPT context (session-aware) ──
+    // Send push notification to managers for new customer messages
+    if (convo && ['dre_active', 'escalated'].includes(convo.control_status || 'dre_active')) {
+      try {
+        await supabase.functions.invoke('send-push-notification', {
+          body: {
+            notify_all_managers: true,
+            title: `New Telegram — ${customer.name || 'Customer'}`,
+            message: (text || '[media message]').substring(0, 100),
+            url: '/intake/conversations',
+          },
+        });
+      } catch (pushErr) {
+        console.error('Push notification failed (non-blocking):', pushErr);
+      }
+    }
+
+
     const { data: recentMessages } = await supabase
       .from('dre_messages')
       .select('role, content, created_at')

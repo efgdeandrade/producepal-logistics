@@ -649,7 +649,22 @@ Deno.serve(async (req) => {
       });
       if (inboundErr) console.error('DRE sync: inbound message error:', JSON.stringify(inboundErr));
 
-      // Store Dre's reply
+      // Send push notification to managers for new customer messages
+      if (dreConvo && ['dre_active', 'escalated'].includes(dreConvo.control_status || 'dre_active')) {
+        try {
+          await supabase.functions.invoke('send-push-notification', {
+            body: {
+              notify_all_managers: true,
+              title: `New WhatsApp — ${customer_name || customer_phone}`,
+              message: (message_text || '[media message]').substring(0, 100),
+              url: '/intake/conversations',
+            },
+          });
+        } catch (pushErr) {
+          console.error('Push notification failed (non-blocking):', pushErr);
+        }
+      }
+
       const { error: outboundErr } = await supabase.from('dre_messages').insert({
         conversation_id: dreConvo.id,
         role: 'dre',
