@@ -14,6 +14,7 @@ import {
   Clock,
   FileText,
   CalendarDays,
+  DollarSign,
   ArrowLeft
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,7 @@ const hrNavItems: PortalNavItem[] = [
   { path: '/hr/employees', label: 'Employees', icon: UserCircle },
   { path: '/hr/attendance', label: 'Time & Attendance', icon: Clock },
   { path: '/hr/timesheets', label: 'Timesheets', icon: CalendarDays },
+  { path: '/hr/payroll', label: 'Payroll', icon: DollarSign },
   { path: '/hr/documents', label: 'Documents', icon: FileText },
 ];
 

@@ -109,6 +109,10 @@ import Employees from "./pages/hr/Employees";
 import TimeAttendance from "./pages/hr/TimeAttendance";
 import Timesheets from "./pages/hr/Timesheets";
 import Documents from "./pages/hr/Documents";
+import HRPayroll from "./pages/hr/HRPayroll";
+
+// Production Stock
+import ProductionStock from "./pages/production/ProductionStock";
 
 // Public/Auth Pages
 import Auth from "./pages/Auth";
@@ -393,6 +397,7 @@ const App = () => (
                   <Route path="/production/dashboard" element={<ProtectedProduction><ProductionDashboard /></ProtectedProduction>} />
                   <Route path="/production/input" element={<ProtectedProduction><ProductionInput /></ProtectedProduction>} />
                   <Route path="/production/edit/:orderId" element={<ProtectedProduction><ProductionEdit /></ProtectedProduction>} />
+                  <Route path="/production/stock" element={<ProtectedProduction><ProductionStock /></ProtectedProduction>} />
 
                   {/* ========== HR PORTAL ========== */}
                   <Route path="/hr" element={<ProtectedHR><HRDashboard /></ProtectedHR>} />
@@ -400,6 +405,7 @@ const App = () => (
                   <Route path="/hr/attendance" element={<ProtectedHR><TimeAttendance /></ProtectedHR>} />
                   <Route path="/hr/timesheets" element={<ProtectedHR><Timesheets /></ProtectedHR>} />
                   <Route path="/hr/documents" element={<ProtectedHR><Documents /></ProtectedHR>} />
+                  <Route path="/hr/payroll" element={<ProtectedHR><HRPayroll /></ProtectedHR>} />
 
                   {/* ========== 404 ========== */}
                   <Route path="*" element={<NotFound />} />

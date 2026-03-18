@@ -4948,6 +4948,7 @@ export type Database = {
       employees: {
         Row: {
           address: string | null
+          annual_leave_days: number | null
           created_at: string | null
           department: string | null
           email: string | null
@@ -4958,15 +4959,18 @@ export type Database = {
           hire_date: string | null
           hourly_rate: number | null
           id: string
+          leave_days_used: number | null
           phone: string | null
           position: string | null
           profile_photo_url: string | null
+          sick_leave_days: number | null
           status: string | null
           updated_at: string | null
           user_id: string | null
         }
         Insert: {
           address?: string | null
+          annual_leave_days?: number | null
           created_at?: string | null
           department?: string | null
           email?: string | null
@@ -4977,15 +4981,18 @@ export type Database = {
           hire_date?: string | null
           hourly_rate?: number | null
           id?: string
+          leave_days_used?: number | null
           phone?: string | null
           position?: string | null
           profile_photo_url?: string | null
+          sick_leave_days?: number | null
           status?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
         Update: {
           address?: string | null
+          annual_leave_days?: number | null
           created_at?: string | null
           department?: string | null
           email?: string | null
@@ -4996,9 +5003,11 @@ export type Database = {
           hire_date?: string | null
           hourly_rate?: number | null
           id?: string
+          leave_days_used?: number | null
           phone?: string | null
           position?: string | null
           profile_photo_url?: string | null
+          sick_leave_days?: number | null
           status?: string | null
           updated_at?: string | null
           user_id?: string | null
@@ -5367,6 +5376,73 @@ export type Database = {
             columns: ["delivery_id"]
             isOneToOne: false
             referencedRelation: "deliveries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leave_requests: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string | null
+          days_requested: number
+          employee_id: string | null
+          end_date: string
+          id: string
+          leave_type: string
+          reason: string | null
+          rejection_reason: string | null
+          start_date: string
+          status: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          days_requested?: number
+          employee_id?: string | null
+          end_date: string
+          id?: string
+          leave_type: string
+          reason?: string | null
+          rejection_reason?: string | null
+          start_date: string
+          status?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          days_requested?: number
+          employee_id?: string | null
+          end_date?: string
+          id?: string
+          leave_type?: string
+          reason?: string | null
+          rejection_reason?: string | null
+          start_date?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_requests_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
         ]
@@ -5957,6 +6033,96 @@ export type Database = {
         }
         Relationships: []
       }
+      payroll_records: {
+        Row: {
+          approved_by: string | null
+          created_at: string | null
+          created_by: string | null
+          deductions: number | null
+          employee_id: string | null
+          gross_amount: number
+          id: string
+          net_amount: number
+          notes: string | null
+          payment_date: string | null
+          payment_method: string | null
+          period_end: string
+          period_start: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          deductions?: number | null
+          employee_id?: string | null
+          gross_amount?: number
+          id?: string
+          net_amount?: number
+          notes?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+          period_end: string
+          period_start: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          deductions?: number | null
+          employee_id?: string | null
+          gross_amount?: number
+          id?: string
+          net_amount?: number
+          notes?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+          period_end?: string
+          period_start?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_records_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_records_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_records_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_records_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pending_customers: {
         Row: {
           created_at: string | null
@@ -6326,6 +6492,64 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      production_stock: {
+        Row: {
+          id: string
+          last_updated_at: string | null
+          notes: string | null
+          product_id: string | null
+          product_name: string
+          quantity_available: number | null
+          quantity_reserved: number | null
+          unit: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          last_updated_at?: string | null
+          notes?: string | null
+          product_id?: string | null
+          product_name: string
+          quantity_available?: number | null
+          quantity_reserved?: number | null
+          unit?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          last_updated_at?: string | null
+          notes?: string | null
+          product_id?: string | null
+          product_name?: string
+          quantity_available?: number | null
+          quantity_reserved?: number | null
+          unit?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_stock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_stock_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_stock_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       products: {
         Row: {
@@ -7085,6 +7309,64 @@ export type Database = {
           value?: Json
         }
         Relationships: []
+      }
+      shifts: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          employee_id: string | null
+          end_time: string
+          id: string
+          notes: string | null
+          shift_date: string
+          shift_type: string | null
+          start_time: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          employee_id?: string | null
+          end_time: string
+          id?: string
+          notes?: string | null
+          shift_date: string
+          shift_type?: string | null
+          start_time: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          employee_id?: string | null
+          end_time?: string
+          id?: string
+          notes?: string | null
+          shift_date?: string
+          shift_type?: string | null
+          start_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shifts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shifts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shifts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       supplier_cost_config: {
         Row: {
@@ -8155,6 +8437,18 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_summary: {
+        Row: {
+          active_employees: number | null
+          clocked_in_today: number | null
+          documents_expired: number | null
+          documents_expiring_soon: number | null
+          inactive_employees: number | null
+          pending_leave_requests: number | null
+          pending_payroll: number | null
+        }
+        Relationships: []
+      }
       marketing_customer_segments: {
         Row: {
           customer_since: string | null
@@ -8169,6 +8463,16 @@ export type Database = {
           segment: string | null
           total_orders: number | null
           zone: string | null
+        }
+        Relationships: []
+      }
+      production_summary: {
+        Row: {
+          completed_today: number | null
+          confirmed_orders_week: number | null
+          overdue_orders: number | null
+          pending_today: number | null
+          picker_queue_pending: number | null
         }
         Relationships: []
       }
