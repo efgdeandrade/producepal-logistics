@@ -489,7 +489,7 @@ async function handleBolengaResponse(
 
   const ackMsg = remaining > 0
     ? `✅ Saved! ${remaining} question${remaining !== 1 ? 's' : ''} remaining today.`
-    : '✅ Last one done! Danki Kathy 🙏 Training complete for today!';
+    : '✅ Last one done! Danki Bolenga 🙏 Training complete for today!';
 
   await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
     method: 'POST',
