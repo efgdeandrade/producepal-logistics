@@ -34,6 +34,7 @@ export default function IntakeConversations() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [filter, setFilter] = useState('All');
   const [channelFilter, setChannelFilter] = useState('All Channels');
+  const [loading, setLoading] = useState(true);
   const [msgLoading, setMsgLoading] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [lateOrders, setLateOrders] = useState<any[]>([]);
