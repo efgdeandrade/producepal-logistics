@@ -179,3 +179,6 @@ verify_jwt = false
 
 [functions.send-daily-training]
 verify_jwt = true
+
+[functions.ai-chief-officers]
+verify_jwt = false
