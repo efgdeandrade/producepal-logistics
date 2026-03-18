@@ -25,7 +25,7 @@ const productionNavItems: PortalNavItem[] = [
   { path: '/production', label: 'Dashboard', icon: Home },
   { path: '/production/input', label: 'Production Input', icon: ClipboardList },
   { path: '/production/dashboard', label: 'History', icon: History },
-  { path: '/distribution/settings', label: 'Settings', icon: Settings },
+  { path: '/production/stock', label: 'Stock', icon: Package },
 ];
 
 export function ProductionLayout({ children }: ProductionLayoutProps) {
