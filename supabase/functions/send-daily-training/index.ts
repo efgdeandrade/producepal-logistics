@@ -178,8 +178,8 @@ serve(async (req) => {
     const curacaoHour = new Date(Date.now() - 4 * 60 * 60 * 1000).getUTCHours();
     const greeting = curacaoHour < 12 ? 'Bon dia' : curacaoHour < 18 ? 'Bon tardi' : 'Bon nochi';
     await sendTelegramText(
-      kathyChatId,
-      `${greeting} Kathy! 🌿 Here are today's ${questions.length} Papiamentu training questions for Dre. Please answer each one — your responses will be saved directly into Dre's knowledge base. Take your time! 💪`,
+      bolengaChatId,
+      `${greeting} Bolenga! 🌿 Here are today's ${questions.length} Papiamentu training questions for Dre. Please answer each one — your responses will be saved directly into Dre's knowledge base. Take your time! 💪`,
       telegramToken
     );
 
