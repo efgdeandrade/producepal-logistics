@@ -810,7 +810,7 @@ serve(async (req) => {
     state.language = detectedLanguage;
 
     // ── Load language context: context words + training entries ──
-    const [contextResult, trainingResult] = await Promise.all([
+    const [contextResult, trainingResult, productAliasesResult, productsFullResult, activeOrderResult] = await Promise.all([
       supabase.from('distribution_context_words')
         .select('word, meaning')
         .eq('language', 'papiamentu')
@@ -821,7 +821,26 @@ serve(async (req) => {
         .eq('is_active', true)
         .order('times_used', { ascending: false })
         .limit(60),
+      supabase.from('distribution_product_aliases')
+        .select('alias, product_id, language'),
+      supabase.from('distribution_products')
+        .select('id, code, name, name_pap, name_nl, name_es, price_xcg, unit, name_aliases, is_active')
+        .eq('is_active', true),
+      supabase.from('distribution_orders')
+        .select('id, order_number, status, created_at, awaiting_customer_confirmation')
+        .eq('customer_id', customer.id)
+        .in('status', ['draft', 'confirmed'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
+
+    const productAliases = productAliasesResult.data || [];
+    const productsFull = productsFullResult.data || [];
+    const activeOrder = activeOrderResult.data;
+    const activeOrderContext = activeOrder
+      ? `Customer has active order: #${activeOrder.order_number} (status: ${activeOrder.status}${activeOrder.awaiting_customer_confirmation ? ', awaiting confirmation' : ''})`
+      : 'No active orders currently.';
 
     const contextString = [
       ...(contextResult.data || []).map((w: any) => `${w.word}=${w.meaning}`),
