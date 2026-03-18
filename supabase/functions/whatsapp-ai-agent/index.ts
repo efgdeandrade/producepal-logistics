@@ -540,7 +540,12 @@ Deno.serve(async (req) => {
     // === DRE SYNC HELPER — runs for ALL code paths ===
     async function syncToDre(dreReplyText: string, dreIntent: string, orderId?: string) {
       const externalChatId = customer_phone?.replace(/\D/g, '') || customer_phone || 'unknown';
-      console.log('DRE sync: starting for chat', externalChatId);
+      // Map short language codes to full names for dre_conversations check constraint
+      const langMap: Record<string, string> = { pap: 'papiamentu', en: 'english', nl: 'dutch', es: 'spanish' };
+      const dreLang = langMap[detected_language] || (
+        ['papiamentu','english','dutch','spanish'].includes(detected_language) ? detected_language : null
+      );
+      console.log('DRE sync: starting for chat', externalChatId, 'lang:', detected_language, '→', dreLang);
       
       // Find or create dre_conversations
       let { data: dreConvo, error: findError } = await supabase
