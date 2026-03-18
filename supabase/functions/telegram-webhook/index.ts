@@ -667,6 +667,8 @@ serve(async (req) => {
       .maybeSingle();
 
     if (!customer) {
+      console.log('UNRECOGNIZED CONTACT chat_id:', chatId, 'first message:', text.substring(0, 50));
+
       const { data: pending } = await supabase
         .from('pending_customers')
         .select('id')
@@ -675,17 +677,33 @@ serve(async (req) => {
         .maybeSingle();
 
       if (!pending) {
-        const { data: newPending } = await supabase
+        const { data: newPending, error: pendingError } = await supabase
           .from('pending_customers')
           .insert({ telegram_chat_id: chatId, first_message: text, status: 'unlinked' })
           .select().single();
-        await supabase.from('dre_conversations').insert({
+
+        if (pendingError) {
+          console.error('Failed to create pending customer:', JSON.stringify(pendingError));
+        } else {
+          console.log('Created pending customer:', newPending?.id, 'for chat:', chatId);
+        }
+
+        const { error: convoError } = await supabase.from('dre_conversations').insert({
           channel: 'telegram', external_chat_id: chatId,
           control_status: 'escalated', pending_customer_id: newPending?.id,
         });
+
+        if (convoError) {
+          console.error('Failed to create escalated conversation:', JSON.stringify(convoError));
+        } else {
+          console.log('Created escalated conversation for chat:', chatId);
+        }
+
         await sendTelegramMessage(chatId,
           "Hi! I don't recognize your account yet. What is your business name? 🌿"
         );
+      } else {
+        console.log('Existing pending customer found for chat:', chatId, 'id:', pending.id);
       }
       return new Response('OK', { status: 200 });
     }

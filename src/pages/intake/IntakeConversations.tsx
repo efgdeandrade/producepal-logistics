@@ -329,7 +329,18 @@ export default function IntakeConversations() {
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-lg text-intake-text">Conversations</h2>
-            <Badge variant="secondary">{conversations.length}</Badge>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => { setLoading(true); fetchConversations(); }}
+                title="Refresh conversations"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+              </Button>
+              <Badge variant="secondary">{conversations.length}</Badge>
+            </div>
           </div>
           {/* Filter tabs */}
           <div className="flex gap-1 overflow-x-auto pb-1">
