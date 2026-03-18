@@ -293,7 +293,7 @@ Context words: ${contextWords}`,
       { role: 'user', content: text },
     ], true);
 
-    const parsed = JSON.parse(result);
+    const parsed = extractJSON(result);
     return parsed.items || [];
   } catch (e) {
     console.error('parseOrderItems error:', e);
