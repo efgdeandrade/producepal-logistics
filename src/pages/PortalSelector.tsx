@@ -14,7 +14,9 @@ import {
   Shield,
   BarChart3,
   Settings,
-  Loader2
+  Loader2,
+  DollarSign,
+  Megaphone
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -60,6 +62,22 @@ const portals: PortalOption[] = [
     icon: Users,
     path: '/hr',
     color: 'bg-purple-500',
+  },
+  {
+    id: 'finance',
+    title: 'Finance',
+    description: 'Accounts, billing, financial reports, cash flow',
+    icon: DollarSign,
+    path: '/finance',
+    color: 'bg-primary',
+  },
+  {
+    id: 'marketing',
+    title: 'Marketing',
+    description: 'Campaigns, customer outreach, brand management',
+    icon: Megaphone,
+    path: '/marketing',
+    color: 'bg-purple-600',
   },
 ];
 
