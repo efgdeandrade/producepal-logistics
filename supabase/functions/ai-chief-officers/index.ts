@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 async function callGPT(system: string, user: string, key: string): Promise<any> {
+  console.log('OpenAI API call - model: gpt-4o');
   const resp = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
@@ -18,7 +19,13 @@ async function callGPT(system: string, user: string, key: string): Promise<any> 
       max_tokens: 1500,
     }),
   });
+
+  console.log('OpenAI response status:', resp.status);
   const data = await resp.json();
+  console.log('OpenAI choices:', data.choices?.length);
+  console.log('OpenAI content:', data.choices?.[0]?.message?.content?.substring(0, 200));
+  if (data.error) console.error('OpenAI error:', JSON.stringify(data.error));
+
   return JSON.parse(data.choices?.[0]?.message?.content || '{}');
 }
 
@@ -47,6 +54,12 @@ async function runAce(supabase: any, key: string): Promise<void> {
   const totalRevenue = orders.reduce((s: number, o: any) => s + (o.total_xcg || 0), 0);
   const totalOutstanding = balances.reduce((s: number, b: any) => s + (b.outstanding_xcg || 0), 0);
 
+  console.log('=== ACE STARTING ===');
+  console.log('Orders fetched:', orders.length);
+  console.log('Balances fetched:', balances.length);
+  console.log('Total revenue:', totalRevenue);
+  console.log('Calling GPT-4o...');
+
   const dataContext = `
 FUIK Distribution Business — Curaçao
 Total orders in system: ${allOrders.length}
@@ -69,6 +82,9 @@ Note: This is a growing business — provide setup recommendations if data is sp
     `Analyze and generate 2-3 actionable suggestions:\n${dataContext}\nReturn: {"suggestions":[{"title":string,"content":string,"priority":"low"|"medium"|"high"|"critical","reasoning":string}]}`,
     key
   );
+
+  console.log('GPT raw result:', JSON.stringify(result));
+  console.log('Suggestions count:', result.suggestions?.length || 0);
 
   for (const s of (result.suggestions || [])) {
     await supabase.from('ai_suggestions').insert({
@@ -98,6 +114,11 @@ async function runMaya(supabase: any, key: string): Promise<void> {
   items.forEach((i: any) => { const n = (i.product_name_raw || '').toLowerCase(); counts[n] = (counts[n] || 0) + 1; });
   const topProducts = Object.entries(counts).sort(([, a], [, b]) => b - a).slice(0, 5).map(([n, c]) => `${n}(${c})`).join(', ');
 
+  console.log('=== MAYA STARTING ===');
+  console.log('Segments fetched:', segments.length);
+  console.log('Items fetched:', items.length);
+  console.log('Calling GPT-4o...');
+
   const dataContext = `
 FUIK Distribution Business — Curaçao
 Total customers in system: ${customers.length}
@@ -115,6 +136,9 @@ Note: This is a growing business — if data is sparse, generate suggestions abo
     `Analyze and generate 2-3 actionable suggestions:\n${dataContext}\nReturn: {"suggestions":[{"title":string,"content":string,"priority":"low"|"medium"|"high"|"critical","reasoning":string}]}`,
     key
   );
+
+  console.log('GPT raw result:', JSON.stringify(result));
+  console.log('Suggestions count:', result.suggestions?.length || 0);
 
   for (const s of (result.suggestions || [])) {
     await supabase.from('ai_suggestions').insert({
