@@ -59,6 +59,10 @@ export default function IntakeConversations() {
       query = query.eq('control_status', filterMap[filter]);
     }
 
+    if (channelFilter === 'Telegram') query = query.eq('channel', 'telegram');
+    else if (channelFilter === 'WhatsApp') query = query.eq('channel', 'whatsapp');
+    else if (channelFilter === 'Email') query = query.eq('channel', 'email');
+
     const { data } = await query;
     setConversations(data || []);
     setLoading(false);
