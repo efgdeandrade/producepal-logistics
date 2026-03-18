@@ -145,7 +145,7 @@ function KnowledgeBaseTab() {
               <TableRow>
                 <TableHead>Category</TableHead>
                 <TableHead>Original Question</TableHead>
-                <TableHead>Kathy's Response</TableHead>
+                <TableHead>Bolenga's Response</TableHead>
                 <TableHead>Confidence</TableHead>
                 <TableHead>Used</TableHead>
                 <TableHead>Status</TableHead>
