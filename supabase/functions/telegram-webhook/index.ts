@@ -533,6 +533,22 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
+    const telegramToken = Deno.env.get('TELEGRAM_BOT_TOKEN') || '';
+
+    // ── Route Kathy training responses ───────────────────
+    const { data: kathySetting } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'kathy_telegram_chat_id')
+      .maybeSingle();
+
+    const kathyChatId = kathySetting?.value;
+
+    if (kathyChatId && chatId === kathyChatId) {
+      await handleKathyResponse(supabase, chatId, message, text, telegramToken);
+      return new Response('OK', { status: 200 });
+    }
+
     // ── /ping debug ──────────────────────────────────────
     if (text === '/ping') {
       await sendTelegramMessage(chatId, [
