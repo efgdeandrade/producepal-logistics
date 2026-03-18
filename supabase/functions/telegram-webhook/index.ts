@@ -62,15 +62,24 @@ interface AgentState {
 
 async function sendTelegramMessage(chatId: string, text: string): Promise<void> {
   const token = Deno.env.get('TELEGRAM_BOT_TOKEN');
-  if (!token) return;
+  if (!token) {
+    console.error('CRITICAL: TELEGRAM_BOT_TOKEN not set');
+    return;
+  }
   try {
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    const resp = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
     });
+    const result = await resp.json();
+    if (!result.ok) {
+      console.error('Telegram send failed:', JSON.stringify(result));
+    } else {
+      console.log('Telegram message sent to:', chatId);
+    }
   } catch (e) {
-    console.error('sendTelegramMessage error:', e);
+    console.error('sendTelegramMessage exception:', e);
   }
 }
 
