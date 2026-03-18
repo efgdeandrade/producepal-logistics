@@ -244,7 +244,7 @@ async function callAI(
 
 async function detectLanguage(text: string): Promise<string> {
   try {
-    const result = await callOpenAI([
+    const result = await callAI([
       {
         role: 'system',
         content: 'Detect the language of the message. Reply with ONLY one word: papiamentu, english, dutch, or spanish. Papiamentu examples: "mi ke", "ta bon", "kuantu", "danki", "bon dia", "pampuna", "kaha". If unsure between Papiamentu and another language, choose papiamentu.',
