@@ -166,9 +166,15 @@ export default function MarketingPortal() {
 
   return (
     <div className="space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Marketing</h1>
-        <p className="text-muted-foreground">Customer segments, product trends, and outreach</p>
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="mr-2">
+          <ChevronLeft className="h-4 w-4" />
+          Back
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Marketing</h1>
+          <p className="text-muted-foreground">Customer segments, product trends, and outreach</p>
+        </div>
       </div>
 
       <Tabs defaultValue="segments" className="space-y-4">

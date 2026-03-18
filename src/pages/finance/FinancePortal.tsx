@@ -149,9 +149,15 @@ export default function FinancePortal() {
 
   return (
     <div className="space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Finance</h1>
-        <p className="text-muted-foreground">Revenue, payments, and financial insights</p>
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="mr-2">
+          <ChevronLeft className="h-4 w-4" />
+          Back
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Finance</h1>
+          <p className="text-muted-foreground">Revenue, payments, and financial insights</p>
+        </div>
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4">
