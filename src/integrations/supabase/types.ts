@@ -1503,6 +1503,7 @@ export type Database = {
       }
       distribution_ai_match_logs: {
         Row: {
+          boosted_entry_id: string | null
           confidence: string | null
           conversation_id: string | null
           corrected_product_id: string | null
@@ -1530,6 +1531,7 @@ export type Database = {
           was_corrected: boolean | null
         }
         Insert: {
+          boosted_entry_id?: string | null
           confidence?: string | null
           conversation_id?: string | null
           corrected_product_id?: string | null
@@ -1557,6 +1559,7 @@ export type Database = {
           was_corrected?: boolean | null
         }
         Update: {
+          boosted_entry_id?: string | null
           confidence?: string | null
           conversation_id?: string | null
           corrected_product_id?: string | null
@@ -1584,6 +1587,13 @@ export type Database = {
           was_corrected?: boolean | null
         }
         Relationships: [
+          {
+            foreignKeyName: "distribution_ai_match_logs_boosted_entry_id_fkey"
+            columns: ["boosted_entry_id"]
+            isOneToOne: false
+            referencedRelation: "papiamentu_training_entries"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "distribution_ai_match_logs_conversation_id_fkey"
             columns: ["conversation_id"]
@@ -5488,6 +5498,189 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      papiamentu_training_entries: {
+        Row: {
+          added_by: string | null
+          audio_url: string | null
+          category: string
+          confidence_score: number | null
+          corrected_phrase: string | null
+          created_at: string | null
+          example_context: string | null
+          flagged_by: string | null
+          flagged_for_review: boolean | null
+          flagged_reason: string | null
+          id: string
+          is_active: boolean | null
+          kathy_response: string
+          language_from: string | null
+          original_question: string
+          times_corrected: number | null
+          times_used: number | null
+          transcription: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          added_by?: string | null
+          audio_url?: string | null
+          category: string
+          confidence_score?: number | null
+          corrected_phrase?: string | null
+          created_at?: string | null
+          example_context?: string | null
+          flagged_by?: string | null
+          flagged_for_review?: boolean | null
+          flagged_reason?: string | null
+          id?: string
+          is_active?: boolean | null
+          kathy_response: string
+          language_from?: string | null
+          original_question: string
+          times_corrected?: number | null
+          times_used?: number | null
+          transcription?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          added_by?: string | null
+          audio_url?: string | null
+          category?: string
+          confidence_score?: number | null
+          corrected_phrase?: string | null
+          created_at?: string | null
+          example_context?: string | null
+          flagged_by?: string | null
+          flagged_for_review?: boolean | null
+          flagged_reason?: string | null
+          id?: string
+          is_active?: boolean | null
+          kathy_response?: string
+          language_from?: string | null
+          original_question?: string
+          times_corrected?: number | null
+          times_used?: number | null
+          transcription?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "papiamentu_training_entries_flagged_by_fkey"
+            columns: ["flagged_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "papiamentu_training_entries_flagged_by_fkey"
+            columns: ["flagged_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      papiamentu_training_questions: {
+        Row: {
+          audio_url: string | null
+          category: string
+          context: string | null
+          entry_id: string | null
+          id: string
+          kathy_response_audio_url: string | null
+          kathy_response_text: string | null
+          kathy_response_transcription: string | null
+          question_number: number
+          question_text: string
+          responded_at: string | null
+          sent_at: string | null
+          session_id: string | null
+          status: string | null
+        }
+        Insert: {
+          audio_url?: string | null
+          category: string
+          context?: string | null
+          entry_id?: string | null
+          id?: string
+          kathy_response_audio_url?: string | null
+          kathy_response_text?: string | null
+          kathy_response_transcription?: string | null
+          question_number: number
+          question_text: string
+          responded_at?: string | null
+          sent_at?: string | null
+          session_id?: string | null
+          status?: string | null
+        }
+        Update: {
+          audio_url?: string | null
+          category?: string
+          context?: string | null
+          entry_id?: string | null
+          id?: string
+          kathy_response_audio_url?: string | null
+          kathy_response_text?: string | null
+          kathy_response_transcription?: string | null
+          question_number?: number
+          question_text?: string
+          responded_at?: string | null
+          sent_at?: string | null
+          session_id?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "papiamentu_training_questions_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "papiamentu_training_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "papiamentu_training_questions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "papiamentu_training_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      papiamentu_training_sessions: {
+        Row: {
+          completed_at: string | null
+          entries_created: number | null
+          id: string
+          notes: string | null
+          questions_sent: number | null
+          responses_received: number | null
+          session_date: string
+          started_at: string | null
+          status: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          entries_created?: number | null
+          id?: string
+          notes?: string | null
+          questions_sent?: number | null
+          responses_received?: number | null
+          session_date?: string
+          started_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          entries_created?: number | null
+          id?: string
+          notes?: string | null
+          questions_sent?: number | null
+          responses_received?: number | null
+          session_date?: string
+          started_at?: string | null
+          status?: string | null
+        }
+        Relationships: []
       }
       pending_customers: {
         Row: {
