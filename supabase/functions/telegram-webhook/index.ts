@@ -744,12 +744,14 @@ serve(async (req) => {
     // ── /ping debug ──────────────────────────────────────
     if (text === '/ping') {
       await sendTelegramMessage(chatId, [
-        '🤖 Dre Agent v2:',
-        `OPENAI_API_KEY: ${Deno.env.get('OPENAI_API_KEY') ? '✅' : '❌'}`,
+        '🤖 Dre Agent v3:',
+        `LOVABLE_API_KEY: ${Deno.env.get('LOVABLE_API_KEY') ? '✅' : '❌'}`,
+        `OPENAI_API_KEY (fallback): ${Deno.env.get('OPENAI_API_KEY') ? '✅' : '❌'}`,
         `TELEGRAM_BOT_TOKEN: ${Deno.env.get('TELEGRAM_BOT_TOKEN') ? '✅' : '❌'}`,
         `SUPABASE_URL: ${Deno.env.get('SUPABASE_URL') ? '✅' : '❌'}`,
         `SERVICE_ROLE_KEY: ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ? '✅' : '❌'}`,
-        'Architecture: State Machine v2 ✅',
+        'AI: Gemini Flash (Lovable) → GPT-4o fallback',
+        'Architecture: State Machine v3 ✅',
       ].join('\n'));
       return new Response('OK', { status: 200 });
     }
