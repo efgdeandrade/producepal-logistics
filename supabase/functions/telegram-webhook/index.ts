@@ -850,11 +850,14 @@ serve(async (req) => {
         // Not an order — generate conversational reply
         state.phase = 'idle';
         const customerNameStr = senderName || customer.name || null;
+        const trainingExtra = trainingPhrases
+          ? `\nKathy-verified Papiamentu phrases to use:\n${trainingPhrases}\n`
+          : '';
         reply = await generateReply(
           text,
           detectedLanguage,
           customerNameStr,
-          'You can help with: placing orders, product questions, pricing questions. For complaints, delivery issues, or anything you cannot handle — say you will connect them with the team.',
+          'You can help with: placing orders, product questions, pricing questions. For complaints, delivery issues, or anything you cannot handle — say you will connect them with the team.' + trainingExtra,
           conversationHistory,
           curacaoTimeStr
         );

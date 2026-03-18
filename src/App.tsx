@@ -352,6 +352,7 @@ const App = () => (
                   <Route path="/distribution/dre-command-center" element={<ProtectedDistribution><FnbDreCommandCenter /></ProtectedDistribution>} />
                   <Route path="/distribution/dre-mobile" element={<ProtectedDistribution><FnbDreMobile /></ProtectedDistribution>} />
                   <Route path="/distribution/dre-analytics" element={<ProtectedDistribution><FnbDreAnalytics /></ProtectedDistribution>} />
+                  <Route path="/distribution/papiamentu-training" element={<ProtectedDistribution><PapiamentuTraining /></ProtectedDistribution>} />
                   <Route path="/quick-paste" element={<ProtectedDistribution><FnbQuickPaste /></ProtectedDistribution>} />
 
                   {/* ========== LOGISTICS PORTAL ========== */}

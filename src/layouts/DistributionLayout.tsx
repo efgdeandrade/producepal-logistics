@@ -58,6 +58,7 @@ const distributionNavItems: PortalNavItem[] = [
   { path: '/distribution/cod', label: 'COD Reconciliation', icon: Wallet },
   { path: '/distribution/analytics', label: 'Analytics', icon: BarChart },
   { path: '/distribution/training', label: 'AI Training', icon: GraduationCap },
+  { path: '/distribution/papiamentu-training', label: 'Papiamentu Training', icon: Languages },
   { path: '/distribution/settings', label: 'Settings', icon: Settings },
 ];
 
