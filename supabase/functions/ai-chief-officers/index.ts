@@ -23,7 +23,7 @@ async function callGPT(system: string, user: string, key: string): Promise<any> 
 }
 
 async function runAce(supabase: any, key: string): Promise<void> {
-  const [ordersRes, balancesRes] = await Promise.all([
+  const [ordersRes, balancesRes, allOrdersRes, allCustomersRes] = await Promise.all([
     supabase.from('distribution_orders')
       .select('id, total_xcg, payment_status, payment_method, created_at, status')
       .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
@@ -32,22 +32,41 @@ async function runAce(supabase: any, key: string): Promise<void> {
       .select('customer_name, outstanding_xcg, unpaid_orders')
       .order('outstanding_xcg', { ascending: false })
       .limit(10),
+    supabase.from('distribution_orders')
+      .select('id, status, created_at, customer_id, source_channel')
+      .order('created_at', { ascending: false })
+      .limit(50),
+    supabase.from('distribution_customers')
+      .select('id, name, customer_type, payment_terms, zone'),
   ]);
 
   const orders = ordersRes.data || [];
   const balances = balancesRes.data || [];
+  const allOrders = allOrdersRes.data || [];
+  const allCustomers = allCustomersRes.data || [];
   const totalRevenue = orders.reduce((s: number, o: any) => s + (o.total_xcg || 0), 0);
   const totalOutstanding = balances.reduce((s: number, b: any) => s + (b.outstanding_xcg || 0), 0);
 
-  const result = await callGPT(
-    `You are Ace, the AI Chief Finance Officer for FUIK, a fresh produce distributor in Curaçao. Generate specific, actionable financial insights for management.`,
-    `Analyze and generate 2-3 actionable suggestions:
-Total orders (30 days): ${orders.length}
-Total revenue: XCG ${totalRevenue.toFixed(2)}
-Unpaid orders: ${orders.filter((o: any) => o.payment_status !== 'paid').length}
+  const dataContext = `
+FUIK Distribution Business — Curaçao
+Total orders in system: ${allOrders.length}
+Recent orders (30 days): ${orders.length}
+Order sources: ${[...new Set(allOrders.map((o: any) => o.source_channel).filter(Boolean))].join(', ') || 'manual, telegram'}
+Total customers: ${allCustomers.length}
+Customer types: ${[...new Set(allCustomers.map((c: any) => c.customer_type).filter(Boolean))].join(', ') || 'not categorized yet'}
+Payment terms in use: ${[...new Set(allCustomers.map((c: any) => c.payment_terms).filter(Boolean))].join(', ') || 'not set'}
+Zones served: ${[...new Set(allCustomers.map((c: any) => c.zone).filter(Boolean))].join(', ') || 'not zoned yet'}
+Outstanding balances tracked: ${balances.length} customers
+Total revenue tracked: XCG ${totalRevenue.toFixed(2)}${totalRevenue === 0 ? ' (pricing setup may be pending)' : ''}
 Total outstanding: XCG ${totalOutstanding.toFixed(2)}
-Top outstanding: ${balances.slice(0, 3).map((b: any) => `${b.customer_name}: XCG ${(b.outstanding_xcg || 0).toFixed(2)}`).join(', ')}
-Return: {"suggestions":[{"title":string,"content":string,"priority":"low"|"medium"|"high"|"critical","reasoning":string}]}`,
+Top outstanding: ${balances.slice(0, 3).map((b: any) => `${b.customer_name}: XCG ${(b.outstanding_xcg || 0).toFixed(2)}`).join(', ') || 'none yet'}
+Unpaid orders: ${orders.filter((o: any) => o.payment_status !== 'paid').length}
+Note: This is a growing business — provide setup recommendations if data is sparse.
+`;
+
+  const result = await callGPT(
+    `You are Ace, the AI Chief Finance Officer for FUIK, a fresh produce distributor in Curaçao. Analyze the available data and generate 2-3 actionable suggestions. If financial data is sparse or pricing is not yet set up, generate suggestions about setting up proper financial tracking, pricing strategy, and payment collection processes that would benefit a growing produce distributor in Curaçao.`,
+    `Analyze and generate 2-3 actionable suggestions:\n${dataContext}\nReturn: {"suggestions":[{"title":string,"content":string,"priority":"low"|"medium"|"high"|"critical","reasoning":string}]}`,
     key
   );
 
@@ -66,27 +85,34 @@ Return: {"suggestions":[{"title":string,"content":string,"priority":"low"|"mediu
 }
 
 async function runMaya(supabase: any, key: string): Promise<void> {
-  const [segRes, itemsRes] = await Promise.all([
+  const [segRes, itemsRes, customersRes] = await Promise.all([
     supabase.from('marketing_customer_segments').select('*'),
     supabase.from('distribution_order_items').select('product_name_raw').limit(300),
+    supabase.from('distribution_customers').select('id, name, customer_type, zone, preferred_language, created_at'),
   ]);
 
   const segments = segRes.data || [];
   const items = itemsRes.data || [];
+  const customers = customersRes.data || [];
   const counts: Record<string, number> = {};
   items.forEach((i: any) => { const n = (i.product_name_raw || '').toLowerCase(); counts[n] = (counts[n] || 0) + 1; });
   const topProducts = Object.entries(counts).sort(([, a], [, b]) => b - a).slice(0, 5).map(([n, c]) => `${n}(${c})`).join(', ');
 
-  const result = await callGPT(
-    `You are Maya, the AI Chief Marketing Officer for FUIK, a fresh produce distributor in Curaçao. Generate practical marketing suggestions a small team can execute immediately.`,
-    `Analyze and generate 2-3 actionable suggestions:
-Total customers: ${segments.length}
-Active (last 7 days): ${segments.filter((s: any) => s.segment === 'active').length}
-At risk (last 90 days): ${segments.filter((s: any) => s.segment === 'at_risk').length}
-Churned: ${segments.filter((s: any) => s.segment === 'churned').length}
-Top products: ${topProducts}
+  const dataContext = `
+FUIK Distribution Business — Curaçao
+Total customers in system: ${customers.length}
+Customer types: ${[...new Set(customers.map((c: any) => c.customer_type).filter(Boolean))].join(', ') || 'not categorized'}
+Languages: ${[...new Set(customers.map((c: any) => c.preferred_language).filter(Boolean))].join(', ') || 'papiamentu, dutch, english'}
 Zones: Pariba ${segments.filter((s: any) => s.zone === 'pariba').length}, Meimei ${segments.filter((s: any) => s.zone === 'meimei').length}, Pabou ${segments.filter((s: any) => s.zone === 'pabou').length}
-Return: {"suggestions":[{"title":string,"content":string,"priority":"low"|"medium"|"high"|"critical","reasoning":string}]}`,
+Segments from view: Active ${segments.filter((s: any) => s.segment === 'active').length}, Regular ${segments.filter((s: any) => s.segment === 'regular').length}, At risk ${segments.filter((s: any) => s.segment === 'at_risk').length}, Churned ${segments.filter((s: any) => s.segment === 'churned').length}, Inactive ${segments.filter((s: any) => s.segment === 'inactive').length}
+Top products ordered: ${topProducts || 'no order items yet'}
+Total order items tracked: ${items.length}
+Note: This is a growing business — if data is sparse, generate suggestions about customer onboarding, engagement strategies, and growth tactics for a Caribbean fresh produce distributor.
+`;
+
+  const result = await callGPT(
+    `You are Maya, the AI Chief Marketing Officer for FUIK, a fresh produce distributor in Curaçao. Generate practical marketing suggestions a small team can execute immediately. If customer or order data is sparse, focus on customer acquisition, onboarding workflows, and engagement strategies for a growing Caribbean produce business.`,
+    `Analyze and generate 2-3 actionable suggestions:\n${dataContext}\nReturn: {"suggestions":[{"title":string,"content":string,"priority":"low"|"medium"|"high"|"critical","reasoning":string}]}`,
     key
   );
 

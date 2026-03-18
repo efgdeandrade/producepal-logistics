@@ -408,11 +408,16 @@ export default function MarketingPortal() {
             </CardHeader>
             <CardContent>
               {suggestions.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Brain className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p>No pending suggestions from Maya</p>
-                  <Button className="mt-4" onClick={handleRunMaya} disabled={runningMaya}>
-                    {runningMaya ? 'Running...' : 'Run Maya Now'}
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="text-4xl mb-4">🤖</div>
+                  <h3 className="font-semibold text-lg mb-2">Maya hasn't run yet today</h3>
+                  <p className="text-muted-foreground text-sm mb-4 max-w-sm">
+                    Click "Run Maya Now" to generate your first marketing analysis.
+                    Maya will analyze your customer segments, product trends, and zones to surface growth opportunities.
+                  </p>
+                  <Button onClick={handleRunMaya} disabled={runningMaya}>
+                    {runningMaya ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Zap className="h-4 w-4 mr-1" />}
+                    Run Maya Now
                   </Button>
                 </div>
               ) : (
