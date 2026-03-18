@@ -513,7 +513,7 @@ async function parseClarificationAnswer(
   language: string
 ): Promise<ParsedItem> {
   try {
-    const result = await callOpenAI([
+    const result = await callAI([
       {
         role: 'system',
         content: `Extract quantity and unit from the customer's answer about "${item.product_name}".
