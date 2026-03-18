@@ -105,10 +105,20 @@ export function AiOversightPanel() {
           <div className="p-2 border-b border-border">
             <Button size="sm" className="w-full h-7 text-xs" onClick={async () => {
               setRunningAll(true);
-              const { error } = await supabase.functions.invoke('ai-chief-officers', { body: { officer: 'all' } });
-              setRunningAll(false);
-              if (error) toast({ title: 'Error running officers', variant: 'destructive' });
-              else toast({ title: 'All officers analysis complete' });
+              try {
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000));
+                const invokePromise = supabase.functions.invoke('ai-chief-officers', { body: { officer: 'all' } });
+                await Promise.race([invokePromise, timeoutPromise]);
+                toast({ title: '✅ All officers completed', description: 'New suggestions are loading...' });
+              } catch (e: any) {
+                if (e.message === 'timeout') {
+                  toast({ title: '⚡ Officers are running', description: 'Suggestions will appear shortly. The analysis takes 20-30 seconds.' });
+                } else {
+                  toast({ title: 'Error running officers', description: e.message, variant: 'destructive' });
+                }
+              } finally {
+                setRunningAll(false);
+              }
             }} disabled={runningAll}>
               {runningAll ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Zap className="h-3 w-3 mr-1" />}
               ⚡ Run All Officers

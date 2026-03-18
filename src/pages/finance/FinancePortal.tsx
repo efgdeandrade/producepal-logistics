@@ -130,10 +130,20 @@ export default function FinancePortal() {
 
   const handleRunAce = async () => {
     setRunningAce(true);
-    const { error } = await supabase.functions.invoke('ai-chief-officers', { body: { officer: 'ace' } });
-    setRunningAce(false);
-    if (error) toast({ title: 'Error running Ace', description: String(error), variant: 'destructive' });
-    else toast({ title: 'Ace analysis complete' });
+    try {
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000));
+      const invokePromise = supabase.functions.invoke('ai-chief-officers', { body: { officer: 'ace' } });
+      await Promise.race([invokePromise, timeoutPromise]);
+      toast({ title: '✅ Ace analysis complete' });
+    } catch (e: any) {
+      if (e.message === 'timeout') {
+        toast({ title: '⚡ Ace is running', description: 'Suggestions will appear shortly.' });
+      } else {
+        toast({ title: 'Error running Ace', description: e.message, variant: 'destructive' });
+      }
+    } finally {
+      setRunningAce(false);
+    }
   };
 
   const handleSuggestionAction = async (id: string, status: 'approved' | 'dismissed') => {

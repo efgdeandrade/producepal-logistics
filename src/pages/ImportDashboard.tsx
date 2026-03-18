@@ -122,9 +122,16 @@ export default function ImportDashboard() {
 
   const runZya = async () => {
     setRunningZya(true);
-    await supabase.functions.invoke('ai-chief-officers', { body: { officer: 'zya' } });
-    setRunningZya(false);
-    queryClient.invalidateQueries({ queryKey: ['zya-officer'] });
+    try {
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000));
+      const invokePromise = supabase.functions.invoke('ai-chief-officers', { body: { officer: 'zya' } });
+      await Promise.race([invokePromise, timeoutPromise]);
+    } catch (e: any) {
+      if (e.message !== 'timeout') console.error('Zya error:', e);
+    } finally {
+      setRunningZya(false);
+      queryClient.invalidateQueries({ queryKey: ['zya-officer'] });
+    }
   };
 
   const handleSuggestion = async (id: string, action: 'approved' | 'dismissed') => {

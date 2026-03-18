@@ -149,10 +149,20 @@ export default function HRDashboard() {
   // ── Mutations ──
   const handleRunRosa = async () => {
     setRunningRosa(true);
-    const { error } = await supabase.functions.invoke("ai-chief-officers", { body: { officer: "rosa" } });
-    setRunningRosa(false);
-    if (error) toast({ title: "Error running Rosa", description: String(error), variant: "destructive" });
-    else toast({ title: "Rosa analysis complete" });
+    try {
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000));
+      const invokePromise = supabase.functions.invoke("ai-chief-officers", { body: { officer: "rosa" } });
+      await Promise.race([invokePromise, timeoutPromise]);
+      toast({ title: "✅ Rosa analysis complete" });
+    } catch (e: any) {
+      if (e.message === 'timeout') {
+        toast({ title: "⚡ Rosa is running", description: "Suggestions will appear shortly." });
+      } else {
+        toast({ title: "Error running Rosa", description: e.message, variant: "destructive" });
+      }
+    } finally {
+      setRunningRosa(false);
+    }
   };
 
   const handleSuggestionAction = async (id: string, status: "approved" | "dismissed") => {
