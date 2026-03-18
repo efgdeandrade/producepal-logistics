@@ -136,12 +136,12 @@ export default function MarketingPortal() {
       try {
         // Create conversation if needed
         const { data: existing } = await supabase.from('dre_conversations')
-          .select('id').eq('customer_id', r.id).limit(1).single();
+          .select('id').eq('customer_id', r.id).limit(1).maybeSingle();
         let convId = existing?.id;
         if (!convId) {
           const { data: newConv } = await supabase.from('dre_conversations').insert({
             customer_id: r.id, customer_name: r.name, channel: 'telegram',
-            control_status: 'dre_active',
+            control_status: 'dre_active', external_chat_id: r.id,
           }).select('id').single();
           convId = newConv?.id;
         }
