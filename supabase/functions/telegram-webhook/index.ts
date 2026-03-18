@@ -785,6 +785,43 @@ serve(async (req) => {
     const period = hours < 12 ? 'morning' : hours < 18 ? 'afternoon' : 'evening';
     const curacaoTimeStr = `${timeStr} (${period})`;
 
+    // ── Load customer memory for personalization ─────────
+    const customerMemory = customer?.id
+      ? await loadCustomerMemory(supabase, customer.id)
+      : '';
+
+    // Detect if this is a new customer
+    const isNewCustomer = customerMemory.includes('NEW CUSTOMER');
+
+    // Detect conversation type for objection handling
+    let conversationType = 'general';
+    const textLower = text.toLowerCase();
+    if (
+      textLower.includes('price') || textLower.includes('expensive') ||
+      textLower.includes('karu') || textLower.includes('duur') || textLower.includes('caro') ||
+      textLower.includes('too much') || textLower.includes('hopi plaka')
+    ) {
+      conversationType = 'objection';
+    }
+
+    // ── Load Bolenga's training phrases for natural Papiamentu ──
+    const { data: trainingEntries } = await supabase
+      .from('papiamentu_training_entries')
+      .select('corrected_phrase, category, example_context')
+      .gte('confidence_score', 0.65)
+      .eq('is_active', true)
+      .neq('category', 'vocabulary')
+      .order('times_used', { ascending: false })
+      .limit(20);
+
+    const trainingContext = (trainingEntries || [])
+      .map((e: any) => `[${e.category}] "${e.corrected_phrase}"${e.example_context ? ` — use when: ${e.example_context}` : ''}`)
+      .join('\n');
+
+    const dreExtra = trainingContext
+      ? `BOLENGA'S VERIFIED PAPIAMENTU PHRASES — use these naturally when relevant:\n${trainingContext}`
+      : '';
+
     let reply = '';
 
     // ════════════════════════════════════════════════════
