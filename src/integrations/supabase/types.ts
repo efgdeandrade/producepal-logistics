@@ -14,6 +14,97 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_tasks: {
+        Row: {
+          assigned_to: string | null
+          category: string | null
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          priority: string | null
+          status: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          category?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          category?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_tasks_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_tasks_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_agent_messages: {
         Row: {
           content: string
@@ -5248,6 +5339,75 @@ export type Database = {
           },
         ]
       }
+      import_shipments: {
+        Row: {
+          actual_arrival: string | null
+          container_count: number | null
+          created_at: string | null
+          created_by: string | null
+          estimated_arrival: string | null
+          id: string
+          notes: string | null
+          order_date: string | null
+          origin_country: string | null
+          shipment_number: string
+          status: string | null
+          supplier_name: string
+          total_cif_xcg: number | null
+          total_weight_kg: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          actual_arrival?: string | null
+          container_count?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          estimated_arrival?: string | null
+          id?: string
+          notes?: string | null
+          order_date?: string | null
+          origin_country?: string | null
+          shipment_number: string
+          status?: string | null
+          supplier_name: string
+          total_cif_xcg?: number | null
+          total_weight_kg?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          actual_arrival?: string | null
+          container_count?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          estimated_arrival?: string | null
+          id?: string
+          notes?: string | null
+          order_date?: string | null
+          origin_country?: string | null
+          shipment_number?: string
+          status?: string | null
+          supplier_name?: string
+          total_cif_xcg?: number | null
+          total_weight_kg?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_shipments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_shipments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_audit_trail: {
         Row: {
           change_reason: string | null
@@ -6825,6 +6985,153 @@ export type Database = {
         }
         Relationships: []
       }
+      rd_market_signals: {
+        Row: {
+          created_at: string | null
+          description: string
+          detected_at: string | null
+          id: string
+          linked_opportunity_id: string | null
+          relevance_score: number | null
+          reviewed_by: string | null
+          signal_type: string
+          source: string | null
+          status: string | null
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          detected_at?: string | null
+          id?: string
+          linked_opportunity_id?: string | null
+          relevance_score?: number | null
+          reviewed_by?: string | null
+          signal_type: string
+          source?: string | null
+          status?: string | null
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          detected_at?: string | null
+          id?: string
+          linked_opportunity_id?: string | null
+          relevance_score?: number | null
+          reviewed_by?: string | null
+          signal_type?: string
+          source?: string | null
+          status?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rd_market_signals_linked_opportunity_id_fkey"
+            columns: ["linked_opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "rd_opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rd_market_signals_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rd_market_signals_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rd_opportunities: {
+        Row: {
+          assigned_to: string | null
+          category: string | null
+          created_at: string | null
+          description: string | null
+          estimated_cost_xcg: number | null
+          id: string
+          notes: string | null
+          potential_revenue_xcg: number | null
+          priority: string | null
+          source: string | null
+          status: string | null
+          submitted_by: string | null
+          target_date: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          estimated_cost_xcg?: number | null
+          id?: string
+          notes?: string | null
+          potential_revenue_xcg?: number | null
+          priority?: string | null
+          source?: string | null
+          status?: string | null
+          submitted_by?: string | null
+          target_date?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          estimated_cost_xcg?: number | null
+          id?: string
+          notes?: string | null
+          potential_revenue_xcg?: number | null
+          priority?: string | null
+          source?: string | null
+          status?: string | null
+          submitted_by?: string | null
+          target_date?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rd_opportunities_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rd_opportunities_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rd_opportunities_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rd_opportunities_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       receipt_line_items: {
         Row: {
           created_at: string
@@ -7402,6 +7709,69 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: true
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_documents: {
+        Row: {
+          created_at: string | null
+          document_number: string | null
+          document_type: string
+          expiry_date: string | null
+          id: string
+          issue_date: string | null
+          notes: string | null
+          status: string | null
+          storage_path: string | null
+          supplier_name: string
+          title: string
+          updated_at: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          document_number?: string | null
+          document_type: string
+          expiry_date?: string | null
+          id?: string
+          issue_date?: string | null
+          notes?: string | null
+          status?: string | null
+          storage_path?: string | null
+          supplier_name: string
+          title: string
+          updated_at?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          document_number?: string | null
+          document_type?: string
+          expiry_date?: string | null
+          id?: string
+          issue_date?: string | null
+          notes?: string | null
+          status?: string | null
+          storage_path?: string | null
+          supplier_name?: string
+          title?: string
+          updated_at?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -8411,6 +8781,17 @@ export type Database = {
       }
     }
     Views: {
+      administration_summary: {
+        Row: {
+          active_shipments: number | null
+          docs_expired: number | null
+          docs_expiring_soon: number | null
+          open_tasks: number | null
+          overdue_tasks: number | null
+          total_supplier_docs: number | null
+        }
+        Relationships: []
+      }
       customer_outstanding_balances: {
         Row: {
           customer_id: string | null
@@ -8446,6 +8827,16 @@ export type Database = {
           inactive_employees: number | null
           pending_leave_requests: number | null
           pending_payroll: number | null
+        }
+        Relationships: []
+      }
+      import_summary: {
+        Row: {
+          monthly_import_value: number | null
+          shipments_arrived: number | null
+          shipments_in_customs: number | null
+          shipments_in_transit: number | null
+          valid_import_docs: number | null
         }
         Relationships: []
       }
@@ -8491,6 +8882,17 @@ export type Database = {
           created_at?: string | null
           full_name?: string | null
           id?: string | null
+        }
+        Relationships: []
+      }
+      rd_summary: {
+        Row: {
+          customer_requests: number | null
+          ideas_pending: number | null
+          implemented: number | null
+          in_research: number | null
+          new_signals: number | null
+          validated: number | null
         }
         Relationships: []
       }
