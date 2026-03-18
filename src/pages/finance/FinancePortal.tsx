@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,13 +13,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { DollarSign, AlertTriangle, ShoppingCart, CreditCard, Check, X, Loader2, ChevronDown, ChevronUp, Zap, Brain } from 'lucide-react';
+import { DollarSign, AlertTriangle, ShoppingCart, CreditCard, Check, X, Loader2, ChevronDown, ChevronUp, Zap, Brain, ChevronLeft } from 'lucide-react';
 import { format, subWeeks, startOfWeek } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
 export default function FinancePortal() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [payDialog, setPayDialog] = useState<any>(null);
   const [payMethod, setPayMethod] = useState('cod_cash');
   const [paying, setPaying] = useState(false);
@@ -147,9 +149,15 @@ export default function FinancePortal() {
 
   return (
     <div className="space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Finance</h1>
-        <p className="text-muted-foreground">Revenue, payments, and financial insights</p>
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="mr-2">
+          <ChevronLeft className="h-4 w-4" />
+          Back
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Finance</h1>
+          <p className="text-muted-foreground">Revenue, payments, and financial insights</p>
+        </div>
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4">

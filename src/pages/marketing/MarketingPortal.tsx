@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { Users, TrendingUp, Megaphone, Brain, Zap, Check, X, Loader2, ChevronDown, ChevronUp, Search } from 'lucide-react';
+import { Users, TrendingUp, Megaphone, Brain, Zap, Check, X, Loader2, ChevronDown, ChevronUp, Search, ChevronLeft } from 'lucide-react';
 import { format } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -31,6 +32,7 @@ const SEGMENT_STYLES: Record<Segment, { label: string; border: string; badgeClas
 export default function MarketingPortal() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [selectedSegment, setSelectedSegment] = useState<Segment | null>(null);
   const [search, setSearch] = useState('');
   const [dateRange, setDateRange] = useState('month');
@@ -164,9 +166,15 @@ export default function MarketingPortal() {
 
   return (
     <div className="space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Marketing</h1>
-        <p className="text-muted-foreground">Customer segments, product trends, and outreach</p>
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="mr-2">
+          <ChevronLeft className="h-4 w-4" />
+          Back
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Marketing</h1>
+          <p className="text-muted-foreground">Customer segments, product trends, and outreach</p>
+        </div>
       </div>
 
       <Tabs defaultValue="segments" className="space-y-4">
