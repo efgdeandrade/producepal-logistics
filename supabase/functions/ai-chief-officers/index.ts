@@ -13,7 +13,7 @@ async function callGPT(system: string, user: string, key: string): Promise<any> 
     headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'gpt-4o',
-      messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+      messages: [{ role: 'system', content: system + '\n\nRespond in JSON.' }, { role: 'user', content: user }],
       response_format: { type: 'json_object' },
       temperature: 0.4,
       max_tokens: 1500,
