@@ -526,7 +526,7 @@ Only extract what is NEW information in this answer.`,
       { role: 'user', content: answer },
     ], true);
 
-    const parsed = JSON.parse(result);
+    const parsed = extractJSON(result);
     return {
       ...item,
       qty: parsed.qty ?? item.qty,
