@@ -851,7 +851,7 @@ serve(async (req) => {
         state.phase = 'idle';
         const customerNameStr = senderName || customer.name || null;
         const trainingExtra = trainingPhrases
-          ? `\nKathy-verified Papiamentu phrases to use:\n${trainingPhrases}\n`
+          ? `\nBolenga-verified Papiamentu phrases to use:\n${trainingPhrases}\n`
           : '';
         reply = await generateReply(
           text,
