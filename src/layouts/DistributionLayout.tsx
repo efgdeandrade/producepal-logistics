@@ -28,7 +28,8 @@ import {
   FileText,
   Mail,
   MessageSquare,
-  Bot
+  Bot,
+  Languages
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
