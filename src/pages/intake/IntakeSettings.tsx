@@ -251,6 +251,7 @@ export default function IntakeSettings() {
           <TabsTrigger value="email-po">Email PO</TabsTrigger>
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
+          <TabsTrigger value="training">Training</TabsTrigger>
         </TabsList>
 
         {/* Telegram Tab */}
