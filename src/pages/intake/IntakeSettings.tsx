@@ -156,7 +156,7 @@ function TrainingSettingsTab({ generalSettings, updateGeneralSetting, saveGenera
 
   const testTTS = async () => {
     setTestingTTS(true);
-    toast({ title: 'TTS test', description: 'Sending a sample voice message to Kathy...' });
+    toast({ title: 'TTS test', description: 'Sending a sample voice message to Bolenga...' });
     try {
       const { error } = await supabase.functions.invoke('send-daily-training');
       if (error) throw error;
