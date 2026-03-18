@@ -135,7 +135,15 @@ export default function FinancePortal() {
       const invokePromise = supabase.functions.invoke('ai-chief-officers', { body: { officer: 'ace' } });
       await Promise.race([invokePromise, timeoutPromise]);
       toast({ title: '✅ Ace analysis complete' });
-    else toast({ title: 'Ace analysis complete' });
+    } catch (e: any) {
+      if (e.message === 'timeout') {
+        toast({ title: '⚡ Ace is running', description: 'Suggestions will appear shortly.' });
+      } else {
+        toast({ title: 'Error running Ace', description: e.message, variant: 'destructive' });
+      }
+    } finally {
+      setRunningAce(false);
+    }
   };
 
   const handleSuggestionAction = async (id: string, status: 'approved' | 'dismissed') => {
