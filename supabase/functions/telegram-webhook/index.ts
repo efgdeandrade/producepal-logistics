@@ -1057,7 +1057,7 @@ serve(async (req) => {
         // Not an order — generate conversational reply
         state.phase = 'idle';
         const customerNameStr = senderName || customer.name || null;
-        const baseExtra = 'You can help with: placing orders, product questions, pricing questions. For complaints, delivery issues, or anything you cannot handle — say you will connect them with the team.';
+        const baseExtra = `You can help with: placing orders, product questions, pricing questions. For complaints, delivery issues, or anything you cannot handle — say you will connect them with the team.\n${activeOrderContext}`;
         const fullExtra = dreExtra ? `${baseExtra}\n${dreExtra}` : baseExtra;
         reply = await generateReply(
           text,
