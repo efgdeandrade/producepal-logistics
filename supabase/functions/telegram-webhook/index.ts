@@ -942,45 +942,31 @@ serve(async (req) => {
         }).select().single();
 
         if (order) {
-          // Match and insert items
-          const { data: products } = await supabase
-            .from('distribution_products')
-            .select('id, name, name_aliases')
-            .eq('is_active', true);
-
+          // Use three-tier matching with pre-loaded products and aliases
           for (const item of state.pending_items) {
-            let matchedId: string | null = null;
-            const search = item.product_name.toLowerCase();
-            for (const p of (products || [])) {
-              if (p.name.toLowerCase().includes(search) || search.includes(p.name.toLowerCase())) {
-                matchedId = p.id; break;
-              }
-              for (const alias of (p.name_aliases || [])) {
-                if (alias.toLowerCase().includes(search) || search.includes(alias.toLowerCase())) {
-                  matchedId = p.id; break;
-                }
-              }
-              if (matchedId) break;
-            }
+            const match = matchProduct(item.product_name, productsFull, productAliases);
 
             await supabase.from('distribution_order_items').insert({
               order_id: order.id,
-              product_id: matchedId,
+              product_id: match.product_id,
               product_name_raw: item.product_name,
               quantity: item.qty || 0,
               order_unit: item.unit || 'kg',
             });
 
-            // Log to training
+            // Log match with confidence and match type
             await supabase.from('distribution_ai_match_logs').insert({
               raw_text: item.product_name,
               detected_language: detectedLanguage,
-              matched_product_id: matchedId,
-              confidence: matchedId ? 0.9 : 0.3,
-              needs_review: !matchedId,
+              matched_product_id: match.product_id,
+              confidence: match.confidence >= 0.8 ? 'high' : match.confidence >= 0.5 ? 'medium' : 'low',
+              needs_review: match.confidence < 0.7,
               source_channel: 'telegram',
               conversation_id: convo.id,
+              match_source: match.match_type,
             }).catch(() => {});
+
+            console.log(`Matched "${item.product_name}" → ${match.product_id || 'NONE'} (${match.match_type}, ${(match.confidence * 100).toFixed(0)}%)`);
           }
 
           await supabase.from('dre_conversations').update({
