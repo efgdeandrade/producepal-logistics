@@ -146,7 +146,7 @@ function TrainingSettingsTab({ generalSettings, updateGeneralSetting, saveGenera
     try {
       const { data, error } = await supabase.functions.invoke('send-daily-training');
       if (error) throw error;
-      toast({ title: 'Training sent!', description: `${data?.questions_sent || 0} questions sent to Kathy` });
+      toast({ title: 'Training sent!', description: `${data?.questions_sent || 0} questions sent to Bolenga` });
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     } finally {
