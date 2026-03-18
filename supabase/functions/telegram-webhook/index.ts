@@ -346,10 +346,10 @@ Only extract what is NEW information in this answer.`,
 }
 
 // ═══════════════════════════════════════════════════════════
-// KATHY TRAINING RESPONSE HANDLER
+// BOLENGA TRAINING RESPONSE HANDLER
 // ═══════════════════════════════════════════════════════════
 
-async function handleKathyResponse(
+async function handleBolengaResponse(
   supabase: any,
   chatId: string,
   message: any,
@@ -394,7 +394,7 @@ async function handleKathyResponse(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chat_id: chatId,
-        text: '✅ All questions for today are answered! Danki Kathy 🙏 Dre is getting smarter!',
+        text: '✅ All questions for today are answered! Danki Bolenga 🙏 Dre is getting smarter!',
       }),
     });
 
@@ -408,7 +408,7 @@ async function handleKathyResponse(
   let responseText = text;
   let responseAudioUrl: string | null = null;
 
-  // Handle voice response from Kathy
+  // Handle voice response from Bolenga
   if (message.voice || message.audio) {
     const fileId = message.voice?.file_id || message.audio?.file_id;
     try {
@@ -468,7 +468,7 @@ async function handleKathyResponse(
     audio_url: responseAudioUrl,
     transcription: responseAudioUrl ? responseText : null,
     confidence_score: 0.7,
-    added_by: 'kathy',
+    added_by: 'bolenga',
   }).select().single();
 
   if (entry) {
@@ -489,7 +489,7 @@ async function handleKathyResponse(
 
   const ackMsg = remaining > 0
     ? `✅ Saved! ${remaining} question${remaining !== 1 ? 's' : ''} remaining today.`
-    : '✅ Last one done! Danki Kathy 🙏 Training complete for today!';
+    : '✅ Last one done! Danki Bolenga 🙏 Training complete for today!';
 
   await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
     method: 'POST',
@@ -535,17 +535,17 @@ serve(async (req) => {
 
     const telegramToken = Deno.env.get('TELEGRAM_BOT_TOKEN') || '';
 
-    // ── Route Kathy training responses ───────────────────
-    const { data: kathySetting } = await supabase
+     // ── Route Bolenga training responses ───────────────────
+    const { data: bolengaSetting } = await supabase
       .from('app_settings')
       .select('value')
-      .eq('key', 'kathy_telegram_chat_id')
+      .eq('key', 'bolenga_telegram_chat_id')
       .maybeSingle();
 
-    const kathyChatId = kathySetting?.value;
+    const bolengaChatId = bolengaSetting?.value;
 
-    if (kathyChatId && chatId === kathyChatId) {
-      await handleKathyResponse(supabase, chatId, message, text, telegramToken);
+    if (bolengaChatId && chatId === bolengaChatId) {
+      await handleBolengaResponse(supabase, chatId, message, text, telegramToken);
       return new Response('OK', { status: 200 });
     }
 
@@ -851,7 +851,7 @@ serve(async (req) => {
         state.phase = 'idle';
         const customerNameStr = senderName || customer.name || null;
         const trainingExtra = trainingPhrases
-          ? `\nKathy-verified Papiamentu phrases to use:\n${trainingPhrases}\n`
+          ? `\nBolenga-verified Papiamentu phrases to use:\n${trainingPhrases}\n`
           : '';
         reply = await generateReply(
           text,

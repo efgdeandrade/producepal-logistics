@@ -74,7 +74,7 @@ async function generateQuestions(
     .map((e: any) => e.corrected_phrase)
     .join(', ');
 
-  const prompt = `You are generating daily Papiamentu language training questions for Kathy, a native Curaçao Papiamentu speaker and language expert. She teaches Dre (an AI sales bot) how to speak natural Curaçao Papiamentu.
+  const prompt = `You are generating daily Papiamentu language training questions for Bolenga, a native Curaçao Papiamentu speaker and language expert. She teaches Dre (an AI sales bot) how to speak natural Curaçao Papiamentu.
 
 Generate exactly ${count} training questions covering these categories:
 - vocabulary (3 questions): local produce names, units, grocery terms
@@ -147,17 +147,17 @@ serve(async (req) => {
     const { data: settings } = await supabase
       .from('app_settings')
       .select('key, value')
-      .in('key', ['kathy_telegram_chat_id', 'training_questions_per_day', 'tts_voice']);
+      .in('key', ['bolenga_telegram_chat_id', 'training_questions_per_day', 'tts_voice']);
 
     const settingsMap: Record<string, string> = {};
     (settings || []).forEach((s: any) => { settingsMap[s.key] = s.value; });
 
-    const kathyChatId = settingsMap.kathy_telegram_chat_id;
+    const bolengaChatId = settingsMap.bolenga_telegram_chat_id;
     const questionCount = parseInt(settingsMap.training_questions_per_day || '15');
     const ttsVoice = settingsMap.tts_voice || 'nova';
 
-    if (!kathyChatId) {
-      return new Response(JSON.stringify({ error: 'Kathy Telegram chat ID not configured' }), {
+    if (!bolengaChatId) {
+      return new Response(JSON.stringify({ error: 'Bolenga Telegram chat ID not configured' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -178,8 +178,8 @@ serve(async (req) => {
     const curacaoHour = new Date(Date.now() - 4 * 60 * 60 * 1000).getUTCHours();
     const greeting = curacaoHour < 12 ? 'Bon dia' : curacaoHour < 18 ? 'Bon tardi' : 'Bon nochi';
     await sendTelegramText(
-      kathyChatId,
-      `${greeting} Kathy! 🌿 Here are today's ${questions.length} Papiamentu training questions for Dre. Please answer each one — your responses will be saved directly into Dre's knowledge base. Take your time! 💪`,
+      bolengaChatId,
+      `${greeting} Bolenga! 🌿 Here are today's ${questions.length} Papiamentu training questions for Dre. Please answer each one — your responses will be saved directly into Dre's knowledge base. Take your time! 💪`,
       telegramToken
     );
 
@@ -196,7 +196,7 @@ serve(async (req) => {
       );
 
       if (audioBuffer) {
-        await sendTelegramVoice(kathyChatId, audioBuffer, telegramToken);
+        await sendTelegramVoice(bolengaChatId, audioBuffer, telegramToken);
 
         const audioPath = `training/${session.id}/q${i + 1}.mp3`;
         await supabase.storage
@@ -207,7 +207,7 @@ serve(async (req) => {
           .from('order-media')
           .getPublicUrl(audioPath);
 
-        await sendTelegramText(kathyChatId, questionText, telegramToken);
+        await sendTelegramText(bolengaChatId, questionText, telegramToken);
 
         await supabase.from('papiamentu_training_questions').insert({
           session_id: session.id,
@@ -219,7 +219,7 @@ serve(async (req) => {
           status: 'sent',
         });
       } else {
-        await sendTelegramText(kathyChatId, questionText, telegramToken);
+        await sendTelegramText(bolengaChatId, questionText, telegramToken);
         await supabase.from('papiamentu_training_questions').insert({
           session_id: session.id,
           question_number: i + 1,
@@ -240,8 +240,8 @@ serve(async (req) => {
     }).eq('id', session.id);
 
     await sendTelegramText(
-      kathyChatId,
-      `✅ All ${sentCount} questions sent! Reply to each one in order. You can reply with text or a voice message. Danki Kathy! 🙏`,
+      bolengaChatId,
+      `✅ All ${sentCount} questions sent! Reply to each one in order. You can reply with text or a voice message. Danki Bolenga! 🙏`,
       telegramToken
     );
 

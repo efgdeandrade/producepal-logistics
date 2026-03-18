@@ -51,7 +51,7 @@ function KnowledgeBaseTab() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [showInactive, setShowInactive] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  const [newEntry, setNewEntry] = useState({ category: 'vocabulary', original_question: '', kathy_response: '', confidence_score: 0.5 });
+  const [newEntry, setNewEntry] = useState({ category: 'vocabulary', original_question: '', kathy_response: '' as string, confidence_score: 0.5 });
 
   const fetchEntries = async () => {
     let query = supabase.from('papiamentu_training_entries').select('*').order('created_at', { ascending: false });
@@ -123,7 +123,7 @@ function KnowledgeBaseTab() {
                 <Textarea value={newEntry.original_question} onChange={e => setNewEntry({ ...newEntry, original_question: e.target.value })} />
               </div>
               <div>
-                <Label>Kathy's Response / Correct Phrase</Label>
+                <Label>Bolenga's Response / Correct Phrase</Label>
                 <Textarea value={newEntry.kathy_response} onChange={e => setNewEntry({ ...newEntry, kathy_response: e.target.value })} />
               </div>
               <div>
@@ -145,7 +145,7 @@ function KnowledgeBaseTab() {
               <TableRow>
                 <TableHead>Category</TableHead>
                 <TableHead>Original Question</TableHead>
-                <TableHead>Kathy's Response</TableHead>
+                <TableHead>Bolenga's Response</TableHead>
                 <TableHead>Confidence</TableHead>
                 <TableHead>Used</TableHead>
                 <TableHead>Status</TableHead>
@@ -201,7 +201,7 @@ function DailySessionsTab() {
     try {
       const { data, error } = await supabase.functions.invoke('send-daily-training');
       if (error) throw error;
-      toast({ title: 'Training sent!', description: `${data?.questions_sent || 0} questions sent to Kathy` });
+      toast({ title: 'Training sent!', description: `${data?.questions_sent || 0} questions sent to Bolenga` });
       // Refresh
       const { data: updated } = await supabase.from('papiamentu_training_sessions').select('*').order('started_at', { ascending: false }).limit(30);
       setSessions(updated || []);
@@ -542,7 +542,7 @@ export default function PapiamentuTraining() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Papiamentu Training</h1>
-        <p className="text-muted-foreground">Kathy's language training system for Dre AI</p>
+        <p className="text-muted-foreground">Bolenga's language training system for Dre AI</p>
       </div>
 
       <Tabs defaultValue="knowledge" className="w-full">

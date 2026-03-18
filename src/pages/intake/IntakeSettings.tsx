@@ -146,7 +146,7 @@ function TrainingSettingsTab({ generalSettings, updateGeneralSetting, saveGenera
     try {
       const { data, error } = await supabase.functions.invoke('send-daily-training');
       if (error) throw error;
-      toast({ title: 'Training sent!', description: `${data?.questions_sent || 0} questions sent to Kathy` });
+      toast({ title: 'Training sent!', description: `${data?.questions_sent || 0} questions sent to Bolenga` });
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     } finally {
@@ -156,7 +156,7 @@ function TrainingSettingsTab({ generalSettings, updateGeneralSetting, saveGenera
 
   const testTTS = async () => {
     setTestingTTS(true);
-    toast({ title: 'TTS test', description: 'Sending a sample voice message to Kathy...' });
+    toast({ title: 'TTS test', description: 'Sending a sample voice message to Bolenga...' });
     try {
       const { error } = await supabase.functions.invoke('send-daily-training');
       if (error) throw error;
@@ -171,13 +171,13 @@ function TrainingSettingsTab({ generalSettings, updateGeneralSetting, saveGenera
   return (
     <div className="max-w-lg space-y-4 p-4 border rounded-lg bg-intake-surface">
       <div>
-        <Label>Kathy's Telegram Chat ID</Label>
+        <Label>Bolenga's Telegram Chat ID</Label>
         <Input
-          value={generalSettings.kathy_telegram_chat_id || ''}
-          onChange={(e) => updateGeneralSetting('kathy_telegram_chat_id', e.target.value)}
+          value={generalSettings.bolenga_telegram_chat_id || ''}
+          onChange={(e) => updateGeneralSetting('bolenga_telegram_chat_id', e.target.value)}
         />
         <p className="text-xs text-intake-text-muted mt-1">
-          Ask Kathy to message the bot and copy the Chat ID from /intake/conversations
+          Ask Bolenga to message the bot and copy the Chat ID from /intake/conversations
         </p>
       </div>
       <div>
