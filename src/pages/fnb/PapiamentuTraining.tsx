@@ -51,7 +51,7 @@ function KnowledgeBaseTab() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [showInactive, setShowInactive] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  const [newEntry, setNewEntry] = useState({ category: 'vocabulary', original_question: '', kathy_response: '', confidence_score: 0.5 });
+  const [newEntry, setNewEntry] = useState({ category: 'vocabulary', original_question: '', kathy_response: '' as string, confidence_score: 0.5 });
 
   const fetchEntries = async () => {
     let query = supabase.from('papiamentu_training_entries').select('*').order('created_at', { ascending: false });
