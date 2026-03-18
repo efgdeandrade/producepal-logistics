@@ -529,15 +529,30 @@ Deno.serve(async (req) => {
     const productContext = buildProductContext(products, aliases, dictionary);
     const conversation = buildConversationContext(conversationHistory, message_text);
     
+    // Detect if this is a new session for pending order context
+    const isNewSessionNow = isGreetingMessage(message_text) || (() => {
+      const lastInbound = [...conversationHistory].reverse().find(m => m.direction === 'inbound');
+      if (!lastInbound) return true;
+      const hours = (Date.now() - new Date(lastInbound.created_at).getTime()) / (1000 * 60 * 60);
+      return hours > 4;
+    })();
+    
     // Add customer context to system prompt
     const isNewCustomer = !customer_id;
+    
+    // Handle pending orders gracefully on new session
+    const pendingOrderContext = isNewSessionNow && recentOrder && recentOrder.status === 'pending'
+      ? `\nPENDING ORDER NOTE: This customer had an unconfirmed order from a previous conversation (#${recentOrder.order_number}). If they start a new order, let them proceed normally. Only mention the pending order if they bring it up, OR if their message seems related to it. If you do mention it, say it naturally once — like "By the way, you had a pending order last time — want to continue with that or start fresh?" — then let them decide. Never assume they still want it.`
+      : '';
+    
     const customerContext = `
 ## CURRENT CUSTOMER CONTEXT
 - Name: ${customer_name || 'Unknown (new customer)'}
 - Phone: ${customer_phone}
 - Is new customer: ${isNewCustomer}
 - Has active order: ${recentOrder ? `Yes - ${recentOrder.order_number} (${recentOrder.status})` : 'No'}
-- Preferred language: ${preferred_language || 'Not set'}`;
+- Preferred language: ${preferred_language || 'Not set'}
+- Is new session: ${isNewSessionNow ? 'YES — greet fresh, do NOT continue old conversations' : 'No — same session, continue naturally'}${pendingOrderContext}`;
     
     const fullSystemPrompt = DRE_SYSTEM_PROMPT + customerContext;
     
