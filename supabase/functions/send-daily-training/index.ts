@@ -152,12 +152,12 @@ serve(async (req) => {
     const settingsMap: Record<string, string> = {};
     (settings || []).forEach((s: any) => { settingsMap[s.key] = s.value; });
 
-    const kathyChatId = settingsMap.kathy_telegram_chat_id;
+    const bolengaChatId = settingsMap.bolenga_telegram_chat_id;
     const questionCount = parseInt(settingsMap.training_questions_per_day || '15');
     const ttsVoice = settingsMap.tts_voice || 'nova';
 
-    if (!kathyChatId) {
-      return new Response(JSON.stringify({ error: 'Kathy Telegram chat ID not configured' }), {
+    if (!bolengaChatId) {
+      return new Response(JSON.stringify({ error: 'Bolenga Telegram chat ID not configured' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
