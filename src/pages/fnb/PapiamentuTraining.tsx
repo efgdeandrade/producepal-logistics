@@ -201,7 +201,7 @@ function DailySessionsTab() {
     try {
       const { data, error } = await supabase.functions.invoke('send-daily-training');
       if (error) throw error;
-      toast({ title: 'Training sent!', description: `${data?.questions_sent || 0} questions sent to Kathy` });
+      toast({ title: 'Training sent!', description: `${data?.questions_sent || 0} questions sent to Bolenga` });
       // Refresh
       const { data: updated } = await supabase.from('papiamentu_training_sessions').select('*').order('started_at', { ascending: false }).limit(30);
       setSessions(updated || []);
