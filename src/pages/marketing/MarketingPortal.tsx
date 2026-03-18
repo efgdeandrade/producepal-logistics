@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { Users, TrendingUp, Megaphone, Brain, Zap, Check, X, Loader2, ChevronDown, ChevronUp, Search } from 'lucide-react';
+import { Users, TrendingUp, Megaphone, Brain, Zap, Check, X, Loader2, ChevronDown, ChevronUp, Search, ChevronLeft } from 'lucide-react';
 import { format } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
