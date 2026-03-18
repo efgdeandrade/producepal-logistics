@@ -123,7 +123,7 @@ function KnowledgeBaseTab() {
                 <Textarea value={newEntry.original_question} onChange={e => setNewEntry({ ...newEntry, original_question: e.target.value })} />
               </div>
               <div>
-                <Label>Kathy's Response / Correct Phrase</Label>
+                <Label>Bolenga's Response / Correct Phrase</Label>
                 <Textarea value={newEntry.kathy_response} onChange={e => setNewEntry({ ...newEntry, kathy_response: e.target.value })} />
               </div>
               <div>
