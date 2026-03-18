@@ -22,6 +22,17 @@ const DRE_SYSTEM_PROMPT = `You are DRE, the friendly WhatsApp sales assistant fo
 - You're patient and never get frustrated, even with confused customers
 - You celebrate with customers when orders are placed ("Got you covered! 🎉")
 
+## MEMORY BEHAVIOR — CRITICAL
+You remember customers as people — their name, preferences, and order history.
+But you do NOT continue previous conversation threads automatically.
+Each new greeting or session is a fresh conversation.
+If a customer had an unconfirmed order last time, you may mention it ONCE and naturally — 
+never more than once, never assume they still want it.
+Example of what NOT to do: Customer says "Hi" → You say "So you wanted 2kg orange and 2 watermelon?"
+Example of what TO do: Customer says "Hi" → You say "Bon tardi! Good to hear from you. What can I get for you today?"
+If you are unsure about a previous order, say: "If you had an order in mind, feel free to send it again and I'll take care of it 😊"
+Never repeat the same sentence twice. Never sound like a robot reading from a script.
+
 ## LANGUAGE RULES
 - ALWAYS respond in the same language the customer uses
 - You speak Papiamento (primary), English, Dutch, and Spanish fluently
@@ -262,22 +273,50 @@ async function checkOrderPickingStatus(supabase: any, orderId: string): Promise<
   return (items as Array<{ picked_quantity?: number }>).some(item => (item.picked_quantity || 0) > 0);
 }
 
-// Build conversation context for AI
+// Greeting words for session detection
+const GREETING_WORDS = [
+  'hi', 'hello', 'hey', 'halo', 'bon dia', 'bon tardi', 'bon nochi',
+  'ayo', 'good morning', 'good afternoon', 'good evening', 'goedemorgen',
+  'goedemiddag', 'hola', 'buenos días', 'buenas tardes', 'buenos dias',
+];
+
+function isGreetingMessage(text: string): boolean {
+  const lower = text.toLowerCase().trim();
+  return GREETING_WORDS.some(g =>
+    lower === g || lower.startsWith(g + ' ') || lower.startsWith(g + '!') || lower.startsWith(g + ',')
+  );
+}
+
+// Build conversation context for AI with session awareness
 function buildConversationContext(
   messages: Array<{ direction: string; message_text: string; created_at: string }>,
   currentMessage: string
 ): Array<{ role: string; content: string }> {
   const history: Array<{ role: string; content: string }> = [];
-  
-  // Add recent conversation history (last 20 messages)
-  for (const msg of messages.slice(-20)) {
-    const role = msg.direction === 'inbound' ? 'user' : 'assistant';
-    history.push({ role, content: msg.message_text });
+
+  // Detect if this is a new session
+  const lastInbound = [...messages].reverse().find(m => m.direction === 'inbound');
+  const lastMessageTime = lastInbound ? new Date(lastInbound.created_at) : null;
+  const hoursSinceLastMessage = lastMessageTime
+    ? (Date.now() - lastMessageTime.getTime()) / (1000 * 60 * 60)
+    : 999;
+
+  const isNewSession = hoursSinceLastMessage > 4 || isGreetingMessage(currentMessage);
+
+  if (!isNewSession) {
+    // Only pass messages from the current session (last 4 hours), max 10
+    const sessionStart = new Date(Date.now() - 4 * 60 * 60 * 1000);
+    const sessionMessages = messages.filter(m => new Date(m.created_at) > sessionStart);
+    for (const msg of sessionMessages.slice(-10)) {
+      const role = msg.direction === 'inbound' ? 'user' : 'assistant';
+      history.push({ role, content: msg.message_text });
+    }
   }
-  
+  // If new session: pass empty history — fresh start
+
   // Add current message
   history.push({ role: 'user', content: currentMessage });
-  
+
   return history;
 }
 
@@ -490,15 +529,30 @@ Deno.serve(async (req) => {
     const productContext = buildProductContext(products, aliases, dictionary);
     const conversation = buildConversationContext(conversationHistory, message_text);
     
+    // Detect if this is a new session for pending order context
+    const isNewSessionNow = isGreetingMessage(message_text) || (() => {
+      const lastInbound = [...conversationHistory].reverse().find(m => m.direction === 'inbound');
+      if (!lastInbound) return true;
+      const hours = (Date.now() - new Date(lastInbound.created_at).getTime()) / (1000 * 60 * 60);
+      return hours > 4;
+    })();
+    
     // Add customer context to system prompt
     const isNewCustomer = !customer_id;
+    
+    // Handle pending orders gracefully on new session
+    const pendingOrderContext = isNewSessionNow && recentOrder && recentOrder.status === 'pending'
+      ? `\nPENDING ORDER NOTE: This customer had an unconfirmed order from a previous conversation (#${recentOrder.order_number}). If they start a new order, let them proceed normally. Only mention the pending order if they bring it up, OR if their message seems related to it. If you do mention it, say it naturally once — like "By the way, you had a pending order last time — want to continue with that or start fresh?" — then let them decide. Never assume they still want it.`
+      : '';
+    
     const customerContext = `
 ## CURRENT CUSTOMER CONTEXT
 - Name: ${customer_name || 'Unknown (new customer)'}
 - Phone: ${customer_phone}
 - Is new customer: ${isNewCustomer}
 - Has active order: ${recentOrder ? `Yes - ${recentOrder.order_number} (${recentOrder.status})` : 'No'}
-- Preferred language: ${preferred_language || 'Not set'}`;
+- Preferred language: ${preferred_language || 'Not set'}
+- Is new session: ${isNewSessionNow ? 'YES — greet fresh, do NOT continue old conversations' : 'No — same session, continue naturally'}${pendingOrderContext}`;
     
     const fullSystemPrompt = DRE_SYSTEM_PROMPT + customerContext;
     

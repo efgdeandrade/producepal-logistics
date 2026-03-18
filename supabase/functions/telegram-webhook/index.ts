@@ -423,6 +423,16 @@ ABSOLUTE RULE: Never mention delivery times, dates, or schedules. Never say "tod
 WHO YOU ARE:
 You are warm, confident, slightly playful, and never desperate. You feel like a trusted contact — someone who knows every customer by name, remembers their usual orders, notices when they order something different, and always makes them feel valued. You never sound scripted. Every message feels typed by a real person on their phone.
 
+MEMORY BEHAVIOR — CRITICAL:
+You remember customers as people — their name, preferences, and order history.
+But you do NOT continue previous conversation threads automatically.
+Each new greeting or session is a fresh conversation.
+If a customer had an unconfirmed order last time, you may mention it ONCE and naturally — never more than once, never assume they still want it.
+Example of what NOT to do: Customer says "Hi" → You say "So you wanted 2kg orange and 2 watermelon?"
+Example of what TO do: Customer says "Hi" → You say "Bon tardi! Good to hear from you. What can I get for you today?"
+If you are unsure about a previous order, say: "If you had an order in mind, feel free to send it again and I'll take care of it 😊"
+Never repeat the same sentence twice. Never sound like a robot reading from a script.
+
 ${languageGuide[language] || languageGuide.english}
 
 ${objectionPatterns}
@@ -916,20 +926,60 @@ serve(async (req) => {
       content: text, media_type: 'text', language_detected: detectedLanguage,
     });
 
-    // ── Load conversation history for GPT context ────────
+    // ── Load conversation history for GPT context (session-aware) ──
     const { data: recentMessages } = await supabase
       .from('dre_messages')
-      .select('role, content')
+      .select('role, content, created_at')
       .eq('conversation_id', convo.id)
       .order('created_at', { ascending: false })
-      .limit(10);
+      .limit(20);
 
-    const conversationHistory = (recentMessages || [])
-      .reverse()
-      .map(m => ({
-        role: m.role === 'customer' ? 'user' : 'assistant',
-        content: m.content,
-      }));
+    const allMessages = (recentMessages || []).reverse();
+
+    // Session detection: new session if >4h gap or greeting
+    const GREETING_WORDS_TG = [
+      'hi', 'hello', 'hey', 'halo', 'bon dia', 'bon tardi', 'bon nochi',
+      'ayo', 'good morning', 'good afternoon', 'good evening', 'goedemorgen',
+      'goedemiddag', 'hola', 'buenos días', 'buenas tardes', 'buenos dias',
+    ];
+    const textLowerTrim = text.toLowerCase().trim();
+    const isGreeting = GREETING_WORDS_TG.some(g =>
+      textLowerTrim === g || textLowerTrim.startsWith(g + ' ') || textLowerTrim.startsWith(g + '!') || textLowerTrim.startsWith(g + ',')
+    );
+
+    const lastCustomerMsg = allMessages.filter(m => m.role === 'customer').pop();
+    const hoursSinceLastMsg = lastCustomerMsg?.created_at
+      ? (Date.now() - new Date(lastCustomerMsg.created_at).getTime()) / (1000 * 60 * 60)
+      : 999;
+    const isNewSession = hoursSinceLastMsg > 4 || isGreeting;
+
+    let conversationHistory: Array<{ role: string; content: string }>;
+    if (isNewSession) {
+      // Fresh session — no history
+      conversationHistory = [];
+      // Reset state machine on new session
+      if (state.phase !== 'idle') {
+        console.log('New session detected — resetting state from', state.phase, 'to idle');
+        state.phase = 'idle';
+        state.pending_items = [];
+        state.clarification_index = 0;
+      }
+    } else {
+      // Same session — last 8 messages from current session (last 4 hours)
+      const sessionStart = new Date(Date.now() - 4 * 60 * 60 * 1000);
+      conversationHistory = allMessages
+        .filter(m => new Date(m.created_at) > sessionStart)
+        .slice(-8)
+        .map(m => ({
+          role: m.role === 'customer' ? 'user' : 'assistant',
+          content: m.content,
+        }));
+    }
+
+    // Build pending order context for new sessions
+    const pendingOrderContext = isNewSession && activeOrder && activeOrder.awaiting_customer_confirmation
+      ? `\nPENDING ORDER NOTE: This customer had an unconfirmed order from a previous conversation (#${activeOrder.order_number}). If they start a new order, let them proceed normally. Only mention the pending order if they bring it up, OR if their message seems related to it. If you do mention it, say it naturally once — like "By the way, you had a pending order last time — want to continue with that or start fresh?" — then let them decide. Never assume they still want it.`
+      : '';
 
     // ── Get current Curaçao time (UTC-4) ─────────────────
     const curacaoNow = new Date(Date.now() - 4 * 60 * 60 * 1000);
@@ -1114,7 +1164,7 @@ serve(async (req) => {
         // Not an order — generate conversational reply
         state.phase = 'idle';
         const customerNameStr = senderName || customer.name || null;
-        const baseExtra = `You can help with: placing orders, product questions, pricing questions. For complaints, delivery issues, or anything you cannot handle — say you will connect them with the team.\n${activeOrderContext}`;
+        const baseExtra = `You can help with: placing orders, product questions, pricing questions. For complaints, delivery issues, or anything you cannot handle — say you will connect them with the team.\n${activeOrderContext}${pendingOrderContext}`;
         const fullExtra = dreExtra ? `${baseExtra}\n${dreExtra}` : baseExtra;
         reply = await generateReply(
           text,
