@@ -388,6 +388,7 @@ const App = () => (
                   <Route path="/distribution" element={<ProtectedDistribution><DistributionDashboard /></ProtectedDistribution>} />
                   <Route path="/distribution/orders" element={<ProtectedDistribution><FnbOrders /></ProtectedDistribution>} />
                   <Route path="/distribution/orders/new" element={<ProtectedDistribution><FnbNewOrder /></ProtectedDistribution>} />
+                  <Route path="/distribution/orders/:orderId" element={<ProtectedDistribution><FnbOrderDetail /></ProtectedDistribution>} />
                   <Route path="/distribution/orders/edit/:orderId" element={<ProtectedDistribution><FnbNewOrder /></ProtectedDistribution>} />
                   <Route path="/distribution/weekly" element={<ProtectedDistribution><FnbWeeklyBoard /></ProtectedDistribution>} />
                   <Route path="/distribution/standing-orders" element={<ProtectedDistribution><FnbStandingOrders /></ProtectedDistribution>} />
