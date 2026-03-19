@@ -160,7 +160,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   if (isMobile) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
+        <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur safe-area-top">
           <div className="flex h-14 items-center px-4 gap-3">
             <Button variant="ghost" size="icon" asChild>
               <Link to="/select-portal">
@@ -181,7 +181,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </div>
         </header>
 
-        <main className="flex-1 p-4">
+        <main className="flex-1 pb-20 p-4">
           {children}
         </main>
       </div>

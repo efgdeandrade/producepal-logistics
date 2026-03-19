@@ -159,26 +159,28 @@ export default function ImportDashboard() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Import Dashboard</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl md:text-3xl font-bold tracking-tight">Import Dashboard</h1>
+          <p className="text-sm text-muted-foreground">
             Supplier orders, shipments, and import logistics
           </p>
         </div>
-        <Button onClick={() => navigate('/import/orders/new')}>
+        <Button size="sm" onClick={() => navigate('/import/orders/new')}>
           <ShoppingCart className="h-4 w-4 mr-2" />
           New Order
         </Button>
       </div>
 
       <Tabs defaultValue="overview">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="shipments"><Plane className="h-4 w-4 mr-2" />Shipments</TabsTrigger>
-          <TabsTrigger value="zya"><Brain className="h-4 w-4 mr-2" />Zya</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-4 px-4 scrollbar-hide">
+          <TabsList className="inline-flex w-max min-w-full">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="shipments"><Plane className="h-4 w-4 mr-2" />Shipments</TabsTrigger>
+            <TabsTrigger value="zya"><Brain className="h-4 w-4 mr-2" />Zya</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* ═══ OVERVIEW TAB (original content) ═══ */}
         <TabsContent value="overview" className="space-y-6">

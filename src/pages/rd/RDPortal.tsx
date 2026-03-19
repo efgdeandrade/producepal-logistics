@@ -201,24 +201,37 @@ export default function RDPortal() {
   const pipelineStatuses = ['idea', 'researching', 'validated', 'approved', 'implemented', 'rejected'];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/select-portal')}>
-          <ChevronLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-xl md:text-3xl font-bold tracking-tight">R&D</h1>
-          <p className="text-muted-foreground">Market opportunities, innovation pipeline & Kayden AI</p>
+    <div className="min-h-screen bg-background flex flex-col">
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 safe-area-top">
+        <div className="flex h-14 items-center px-4 gap-3">
+          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigate('/select-portal')}>
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+              <Lightbulb className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <span className="font-semibold">R&D</span>
+          </div>
+          <div className="flex-1" />
         </div>
+      </header>
+
+      <div className="flex-1 p-4 space-y-4">
+      <div className="flex-shrink-0">
+        <h1 className="text-xl md:text-3xl font-bold tracking-tight">R&D</h1>
+        <p className="text-sm text-muted-foreground">Market opportunities, innovation pipeline & Kayden AI</p>
       </div>
 
       <Tabs defaultValue="opportunities">
-        <TabsList className="w-full overflow-x-auto flex">
-          <TabsTrigger value="opportunities"><Lightbulb className="h-4 w-4 mr-1" />Pipeline</TabsTrigger>
-          <TabsTrigger value="signals"><Radio className="h-4 w-4 mr-1" />Signals{newSignals > 0 && <Badge variant="destructive" className="ml-1 h-5 px-1.5">{newSignals}</Badge>}</TabsTrigger>
-          <TabsTrigger value="customers"><Users className="h-4 w-4 mr-1" />Requests</TabsTrigger>
-          <TabsTrigger value="kayden"><Brain className="h-4 w-4 mr-1" />Kayden</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-4 px-4 scrollbar-hide">
+          <TabsList className="inline-flex w-max min-w-full">
+            <TabsTrigger value="opportunities"><Lightbulb className="h-4 w-4 mr-1" />Pipeline</TabsTrigger>
+            <TabsTrigger value="signals"><Radio className="h-4 w-4 mr-1" />Signals{newSignals > 0 && <Badge variant="destructive" className="ml-1 h-5 px-1.5">{newSignals}</Badge>}</TabsTrigger>
+            <TabsTrigger value="customers"><Users className="h-4 w-4 mr-1" />Requests</TabsTrigger>
+            <TabsTrigger value="kayden"><Brain className="h-4 w-4 mr-1" />Kayden</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* ═══ OPPORTUNITIES PIPELINE ═══ */}
         <TabsContent value="opportunities" className="space-y-4">

@@ -114,23 +114,25 @@ export default function ProductionDashboardNew() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Production Dashboard</h1>
-          <p className="text-muted-foreground">Production orders, scheduling, and inventory</p>
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight">Production Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Production orders, scheduling, and inventory</p>
         </div>
-        <Button onClick={() => navigate("/production/input")}>
+        <Button size="sm" onClick={() => navigate("/production/input")}>
           <Factory className="h-4 w-4 mr-2" />
-          New Production Order
+          New Order
         </Button>
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="gino">Gino Insights</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-4 px-4 scrollbar-hide">
+          <TabsList className="inline-flex w-max min-w-full">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="gino">Gino Insights</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* ══════ TAB: Overview ══════ */}
         <TabsContent value="overview" className="space-y-6">

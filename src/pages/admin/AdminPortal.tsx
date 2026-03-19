@@ -243,24 +243,21 @@ export default function AdminPortal() {
   const completedThisWeek = (tasks || []).filter(t => t.status === 'completed' && t.completed_at && new Date(t.completed_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/select-portal')}>
-          <ChevronLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-xl md:text-3xl font-bold tracking-tight">Administration</h1>
-          <p className="text-muted-foreground">Supplier documents, tasks, shipments & Axel AI</p>
-        </div>
+    <div className="space-y-4">
+      <div className="flex-shrink-0">
+        <h1 className="text-xl md:text-3xl font-bold tracking-tight">Administration</h1>
+        <p className="text-sm text-muted-foreground">Supplier documents, tasks, shipments & Axel AI</p>
       </div>
 
       <Tabs defaultValue="tasks">
-        <TabsList className="w-full overflow-x-auto flex">
-          <TabsTrigger value="tasks"><ClipboardList className="h-4 w-4 mr-1" />Tasks</TabsTrigger>
-          <TabsTrigger value="documents"><FileText className="h-4 w-4 mr-1" />Docs</TabsTrigger>
-          <TabsTrigger value="shipments"><Truck className="h-4 w-4 mr-1" />Ships</TabsTrigger>
-          <TabsTrigger value="axel"><Brain className="h-4 w-4 mr-1" />Axel</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-4 px-4 scrollbar-hide">
+          <TabsList className="inline-flex w-max min-w-full">
+            <TabsTrigger value="tasks"><ClipboardList className="h-4 w-4 mr-1" />Tasks</TabsTrigger>
+            <TabsTrigger value="documents"><FileText className="h-4 w-4 mr-1" />Docs</TabsTrigger>
+            <TabsTrigger value="shipments"><Truck className="h-4 w-4 mr-1" />Ships</TabsTrigger>
+            <TabsTrigger value="axel"><Brain className="h-4 w-4 mr-1" />Axel</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* ═══ TASKS TAB ═══ */}
         <TabsContent value="tasks" className="space-y-4">

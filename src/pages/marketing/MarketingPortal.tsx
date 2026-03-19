@@ -175,25 +175,37 @@ export default function MarketingPortal() {
   };
 
   return (
-    <div className="space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="mr-2">
-          <ChevronLeft className="h-4 w-4" />
-          Back
-        </Button>
-        <div>
-          <h1 className="text-xl md:text-3xl font-bold tracking-tight">Marketing</h1>
-          <p className="text-muted-foreground">Customer segments, product trends, and outreach</p>
+    <div className="min-h-screen bg-background flex flex-col">
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 safe-area-top">
+        <div className="flex h-14 items-center px-4 gap-3">
+          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigate('/select-portal')}>
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+              <Megaphone className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <span className="font-semibold">Marketing</span>
+          </div>
+          <div className="flex-1" />
         </div>
+      </header>
+
+      <div className="flex-1 p-4 md:p-6 max-w-7xl mx-auto w-full space-y-4">
+      <div className="flex-shrink-0">
+        <h1 className="text-xl md:text-3xl font-bold tracking-tight">Marketing</h1>
+        <p className="text-sm text-muted-foreground">Customer segments, product trends, and outreach</p>
       </div>
 
       <Tabs defaultValue="segments" className="space-y-4">
-        <TabsList className="w-full overflow-x-auto flex">
-          <TabsTrigger value="segments">Segments</TabsTrigger>
-          <TabsTrigger value="products">Products</TabsTrigger>
-          <TabsTrigger value="broadcast">Broadcast</TabsTrigger>
-          <TabsTrigger value="maya">Maya</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-4 px-4 scrollbar-hide">
+          <TabsList className="inline-flex w-max min-w-full">
+            <TabsTrigger value="segments">Segments</TabsTrigger>
+            <TabsTrigger value="products">Products</TabsTrigger>
+            <TabsTrigger value="broadcast">Broadcast</TabsTrigger>
+            <TabsTrigger value="maya">Maya</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* TAB 1 — Segments */}
         <TabsContent value="segments" className="space-y-4">
