@@ -518,6 +518,11 @@ export default function IntakeSettings() {
         <TabsContent value="training" className="space-y-4">
           <TrainingSettingsTab generalSettings={generalSettings} updateGeneralSetting={updateGeneralSetting} saveGeneral={saveGeneral} />
         </TabsContent>
+
+        {/* Proactive Outreach Tab */}
+        <TabsContent value="outreach" className="space-y-4">
+          <ProactiveOutreachTab generalSettings={generalSettings} updateGeneralSetting={updateGeneralSetting} saveGeneral={saveGeneral} />
+        </TabsContent>
       </Tabs>
     </div>
   );
