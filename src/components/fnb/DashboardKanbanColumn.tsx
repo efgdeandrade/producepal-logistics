@@ -4,6 +4,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
 import { Clock, User, Package, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
 
 interface Order {
   id: string;
@@ -69,13 +70,17 @@ export function DashboardKanbanColumn({
 }
 
 function OrderCard({ order }: { order: Order }) {
+  const navigate = useNavigate();
   const isUrgent = order.delivery_type === 'same_day';
 
   return (
-    <div className={cn(
-      "p-3 rounded-lg border bg-card hover:shadow-sm transition-shadow cursor-pointer",
-      isUrgent && "border-l-4 border-l-orange-500"
-    )}>
+    <div
+      className={cn(
+        "p-3 rounded-lg border bg-card hover:shadow-sm transition-shadow cursor-pointer",
+        isUrgent && "border-l-4 border-l-orange-500"
+      )}
+      onClick={() => navigate(`/distribution/orders/${order.id}`)}
+    >
       <div className="flex items-start justify-between mb-2">
         <span className="font-mono text-xs font-medium">{order.order_number}</span>
         {isUrgent && (
