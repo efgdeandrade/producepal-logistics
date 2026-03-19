@@ -261,7 +261,50 @@ export default function RDPortal() {
             </Sheet>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 overflow-x-auto">
+          {/* Mobile view - vertical stages */}
+          <div className="block md:hidden space-y-3">
+            {pipelineStatuses.map(status => (
+              <div key={status} className="border rounded-lg overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 bg-muted/30">
+                  <span className="font-medium capitalize text-sm">{status}</span>
+                  <span className="text-xs bg-background border rounded-full px-2 py-0.5">
+                    {(opportunities || []).filter(o => o.status === status).length}
+                  </span>
+                </div>
+                {(opportunities || []).filter(o => o.status === status).length === 0 ? (
+                  <div className="px-4 py-3 text-xs text-muted-foreground">No opportunities</div>
+                ) : (
+                  <div className="divide-y">
+                    {(opportunities || []).filter(o => o.status === status).map(opp => (
+                      <div key={opp.id} className="px-4 py-3">
+                        <p className="font-medium text-sm">{opp.title}</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          <Badge variant="outline" className="text-xs">{(opp.category || '').replace(/_/g, ' ')}</Badge>
+                          <Badge variant={priorityColor(opp.priority)} className="text-xs">{opp.priority}</Badge>
+                        </div>
+                        {opp.potential_revenue_xcg && <p className="text-xs text-muted-foreground mt-1">XCG {Number(opp.potential_revenue_xcg).toLocaleString()}</p>}
+                        <div className="flex gap-1 mt-2">
+                          {status !== 'implemented' && status !== 'rejected' && (
+                            <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => advanceOpp(opp.id, status)}>
+                              <ArrowRight className="h-3 w-3 mr-1" />Next
+                            </Button>
+                          )}
+                          {status !== 'rejected' && status !== 'implemented' && (
+                            <Button size="sm" variant="ghost" className="h-6 text-xs text-destructive" onClick={() => rejectOpp(opp.id)}>
+                              <X className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop view - horizontal kanban */}
+          <div className="hidden md:grid grid-cols-3 lg:grid-cols-6 gap-3">
             {pipelineStatuses.map(status => (
               <div key={status} className="space-y-2">
                 <div className="flex items-center justify-between">

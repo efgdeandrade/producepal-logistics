@@ -244,10 +244,6 @@ export default function AdminPortal() {
 
   return (
     <div className="space-y-4">
-      <div className="flex-shrink-0">
-        <h1 className="text-xl md:text-3xl font-bold tracking-tight">Administration</h1>
-        <p className="text-sm text-muted-foreground">Supplier documents, tasks, shipments & Axel AI</p>
-      </div>
 
       <Tabs defaultValue="tasks">
         <div className="overflow-x-auto -mx-4 px-4 scrollbar-hide">

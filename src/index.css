@@ -304,6 +304,19 @@ All colors MUST be HSL.
   padding-top: env(safe-area-inset-top, 0px);
 }
 
+/* Dynamic Island / notch safe area for portal headers */
+.portal-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background-color: hsl(var(--background));
+  border-bottom: 1px solid hsl(var(--border));
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-bottom: 0.75rem;
+}
+
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
