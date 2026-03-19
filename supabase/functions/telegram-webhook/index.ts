@@ -726,9 +726,43 @@ serve(async (req) => {
     const isGroup = message.chat.type === 'group' || message.chat.type === 'supergroup';
     const senderName = message.from?.first_name || null;
 
-    console.log('Received:', { chatId, text: text.substring(0, 50), isGroup });
+    console.log('Received:', { chatId, text: text.substring(0, 50), isGroup, chatType: message.chat.type });
 
     if (!text) return new Response('OK', { status: 200 });
+
+    // ── Group chat filtering ─────────────────────────────
+    // In groups, only respond when relevant — stay silent on casual human chat
+    if (isGroup) {
+      const botUsername = 'FuikOrdersBot';
+      const textLowerGroup = text.toLowerCase();
+      const isMentioned = textLowerGroup.includes(`@${botUsername.toLowerCase()}`);
+      const isReplyToBot = message.reply_to_message?.from?.username === botUsername;
+
+      const BUSINESS_KEYWORDS = [
+        // Order keywords (Papiamentu, English, Dutch, Spanish)
+        'kaha', 'bolsa', 'saku', 'kilo', 'kg', 'mi ke', 'mi kier', 'order', 'orde',
+        'mango', 'pampuna', 'tomaat', 'wortel', 'papaja', 'fresa', 'patia',
+        'want', 'need', 'quiero', 'wil', 'bestelling',
+        // Question keywords
+        'price', 'precio', 'prijs', 'preis', 'available', 'stock',
+        'when', 'kuando', 'wanneer', 'delivery', 'entrega',
+        // Greetings (respond to these in groups too)
+        'bon dia', 'bon tardi', 'bon nochi', 'hello', 'halo', 'hi ',
+      ];
+
+      const hasBusinessContent = BUSINESS_KEYWORDS.some(kw =>
+        textLowerGroup.includes(kw)
+      );
+
+      const shouldRespondInGroup = isMentioned || isReplyToBot || hasBusinessContent;
+
+      if (!shouldRespondInGroup) {
+        console.log('Group message — not business related, staying silent. Chat:', chatId);
+        return new Response('OK', { status: 200 });
+      }
+
+      console.log('Group message — responding. Mentioned:', isMentioned, 'ReplyToBot:', isReplyToBot, 'BusinessContent:', hasBusinessContent);
+    }
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
