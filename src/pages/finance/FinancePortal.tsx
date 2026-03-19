@@ -171,11 +171,11 @@ export default function FinancePortal() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
+        <TabsList className="w-full overflow-x-auto flex">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="balances">Outstanding Balances</TabsTrigger>
+          <TabsTrigger value="balances">Balances</TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
-          <TabsTrigger value="ace">Ace Insights</TabsTrigger>
+          <TabsTrigger value="ace">Ace</TabsTrigger>
         </TabsList>
 
         {/* TAB 1 — Overview */}
