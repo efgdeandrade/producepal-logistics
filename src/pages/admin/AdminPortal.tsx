@@ -411,6 +411,7 @@ export default function AdminPortal() {
                   {!docs?.length && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No documents yet</TableCell></TableRow>}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

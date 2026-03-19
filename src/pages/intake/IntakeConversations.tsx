@@ -30,6 +30,7 @@ const filterMap: Record<string, string | null> = {
 export default function IntakeConversations() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -46,6 +47,7 @@ export default function IntakeConversations() {
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
   const [newCustomer, setNewCustomer] = useState({ name: '', customer_type: 'retail' as string, zone: '', payment_terms: 'cod', preferred_language: 'pap', delivery_address: '', phone: '', email: '', telegram_chat_id: '' });
   const [linkedOrder, setLinkedOrder] = useState<any>(null);
+  const [mobileView, setMobileView] = useState<'list' | 'thread'>('list');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const selected = conversations.find((c) => c.id === selectedId);

@@ -361,6 +361,7 @@ export default function RDPortal() {
                   {!signals?.length && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No signals yet</TableCell></TableRow>}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
