@@ -289,8 +289,9 @@ export default function MarketingPortal() {
             </Card>
           )}
 
-          <Card>
-            <Table>
+            <Card>
+              <div className="overflow-x-auto">
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Product</TableHead>
