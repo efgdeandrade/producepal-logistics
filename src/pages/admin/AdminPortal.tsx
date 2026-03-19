@@ -249,7 +249,7 @@ export default function AdminPortal() {
           <ChevronLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Administration</h1>
+          <h1 className="text-xl md:text-3xl font-bold tracking-tight">Administration</h1>
           <p className="text-muted-foreground">Supplier documents, tasks, shipments & Axel AI</p>
         </div>
       </div>
