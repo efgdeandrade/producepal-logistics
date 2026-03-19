@@ -255,7 +255,7 @@ export default function RDPortal() {
             </Sheet>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 overflow-x-auto">
             {pipelineStatuses.map(status => (
               <div key={status} className="space-y-2">
                 <div className="flex items-center justify-between">

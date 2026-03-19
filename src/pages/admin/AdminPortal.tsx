@@ -332,8 +332,8 @@ export default function AdminPortal() {
                   {!tasks?.length && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No tasks yet</TableCell></TableRow>}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
-          </Card>
         </TabsContent>
 
         {/* ═══ DOCUMENTS TAB ═══ */}

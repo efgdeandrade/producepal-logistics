@@ -310,8 +310,9 @@ export default function MarketingPortal() {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
-          </Card>
+              </Table>
+              </div>
+            </Card>
         </TabsContent>
 
         {/* TAB 3 — Broadcast */}
