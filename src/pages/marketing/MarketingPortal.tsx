@@ -182,17 +182,17 @@ export default function MarketingPortal() {
           Back
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Marketing</h1>
+          <h1 className="text-xl md:text-3xl font-bold tracking-tight">Marketing</h1>
           <p className="text-muted-foreground">Customer segments, product trends, and outreach</p>
         </div>
       </div>
 
       <Tabs defaultValue="segments" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="segments">Customer Segments</TabsTrigger>
-          <TabsTrigger value="products">Top Products</TabsTrigger>
+        <TabsList className="w-full overflow-x-auto flex">
+          <TabsTrigger value="segments">Segments</TabsTrigger>
+          <TabsTrigger value="products">Products</TabsTrigger>
           <TabsTrigger value="broadcast">Broadcast</TabsTrigger>
-          <TabsTrigger value="maya">Maya Insights</TabsTrigger>
+          <TabsTrigger value="maya">Maya</TabsTrigger>
         </TabsList>
 
         {/* TAB 1 — Segments */}
@@ -224,6 +224,7 @@ export default function MarketingPortal() {
             <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
           ) : (
             <Card>
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -254,6 +255,7 @@ export default function MarketingPortal() {
                   )}
                 </TableBody>
               </Table>
+              </div>
             </Card>
           )}
         </TabsContent>
@@ -287,8 +289,9 @@ export default function MarketingPortal() {
             </Card>
           )}
 
-          <Card>
-            <Table>
+            <Card>
+              <div className="overflow-x-auto">
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Product</TableHead>
@@ -307,8 +310,9 @@ export default function MarketingPortal() {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
-          </Card>
+              </Table>
+              </div>
+            </Card>
         </TabsContent>
 
         {/* TAB 3 — Broadcast */}

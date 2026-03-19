@@ -249,22 +249,22 @@ export default function AdminPortal() {
           <ChevronLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Administration</h1>
+          <h1 className="text-xl md:text-3xl font-bold tracking-tight">Administration</h1>
           <p className="text-muted-foreground">Supplier documents, tasks, shipments & Axel AI</p>
         </div>
       </div>
 
       <Tabs defaultValue="tasks">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="tasks"><ClipboardList className="h-4 w-4 mr-2" />Tasks</TabsTrigger>
-          <TabsTrigger value="documents"><FileText className="h-4 w-4 mr-2" />Documents</TabsTrigger>
-          <TabsTrigger value="shipments"><Truck className="h-4 w-4 mr-2" />Shipments</TabsTrigger>
-          <TabsTrigger value="axel"><Brain className="h-4 w-4 mr-2" />Axel</TabsTrigger>
+        <TabsList className="w-full overflow-x-auto flex">
+          <TabsTrigger value="tasks"><ClipboardList className="h-4 w-4 mr-1" />Tasks</TabsTrigger>
+          <TabsTrigger value="documents"><FileText className="h-4 w-4 mr-1" />Docs</TabsTrigger>
+          <TabsTrigger value="shipments"><Truck className="h-4 w-4 mr-1" />Ships</TabsTrigger>
+          <TabsTrigger value="axel"><Brain className="h-4 w-4 mr-1" />Axel</TabsTrigger>
         </TabsList>
 
         {/* ═══ TASKS TAB ═══ */}
         <TabsContent value="tasks" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
             <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Open</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{openTasks}</div></CardContent></Card>
             <Card className={overdueTasks > 0 ? 'border-destructive' : ''}><CardHeader className="pb-2"><CardTitle className="text-sm">Overdue</CardTitle></CardHeader><CardContent><div className={`text-2xl font-bold ${overdueTasks > 0 ? 'text-destructive' : ''}`}>{overdueTasks}</div></CardContent></Card>
             <Card><CardHeader className="pb-2"><CardTitle className="text-sm">In Progress</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{inProgressTasks}</div></CardContent></Card>
@@ -298,40 +298,42 @@ export default function AdminPortal() {
 
           <Card>
             <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Priority</TableHead>
-                    <TableHead>Due Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(tasks || []).map(t => (
-                    <TableRow key={t.id}>
-                      <TableCell className="font-medium">{t.title}</TableCell>
-                      <TableCell><Badge variant="outline">{t.category}</Badge></TableCell>
-                      <TableCell><Badge variant={priorityColor(t.priority)}>{t.priority}</Badge></TableCell>
-                      <TableCell className={t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed' ? 'text-destructive font-medium' : ''}>
-                        {t.due_date ? format(new Date(t.due_date), 'MMM d, yyyy') : '—'}
-                      </TableCell>
-                      <TableCell><Badge variant="outline">{t.status}</Badge></TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          {t.status !== 'completed' && (
-                            <Button size="icon" variant="ghost" onClick={() => completeTask(t.id)}><Check className="h-4 w-4 text-green-600" /></Button>
-                          )}
-                          <Button size="icon" variant="ghost" onClick={() => deleteTask(t.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                        </div>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Priority</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
-                  ))}
-                  {!tasks?.length && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No tasks yet</TableCell></TableRow>}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {(tasks || []).map(t => (
+                      <TableRow key={t.id}>
+                        <TableCell className="font-medium">{t.title}</TableCell>
+                        <TableCell><Badge variant="outline">{t.category}</Badge></TableCell>
+                        <TableCell><Badge variant={priorityColor(t.priority)}>{t.priority}</Badge></TableCell>
+                        <TableCell className={t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed' ? 'text-destructive font-medium' : ''}>
+                          {t.due_date ? format(new Date(t.due_date), 'MMM d, yyyy') : '—'}
+                        </TableCell>
+                        <TableCell><Badge variant="outline">{t.status}</Badge></TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            {t.status !== 'completed' && (
+                              <Button size="icon" variant="ghost" onClick={() => completeTask(t.id)}><Check className="h-4 w-4 text-green-600" /></Button>
+                            )}
+                            <Button size="icon" variant="ghost" onClick={() => deleteTask(t.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {!tasks?.length && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No tasks yet</TableCell></TableRow>}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -374,7 +376,8 @@ export default function AdminPortal() {
 
           <Card>
             <CardContent className="p-0">
-              <Table>
+              <div className="overflow-x-auto">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Supplier</TableHead>
@@ -409,6 +412,7 @@ export default function AdminPortal() {
                   {!docs?.length && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No documents yet</TableCell></TableRow>}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -462,7 +466,8 @@ export default function AdminPortal() {
 
           <Card>
             <CardContent className="p-0">
-              <Table>
+              <div className="overflow-x-auto">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Shipment #</TableHead>
@@ -494,6 +499,7 @@ export default function AdminPortal() {
                   {!shipments?.length && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No shipments yet</TableCell></TableRow>}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

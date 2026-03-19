@@ -165,22 +165,22 @@ export default function FinancePortal() {
           Back
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Finance</h1>
+          <h1 className="text-xl md:text-3xl font-bold tracking-tight">Finance</h1>
           <p className="text-muted-foreground">Revenue, payments, and financial insights</p>
         </div>
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
+        <TabsList className="w-full overflow-x-auto flex">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="balances">Outstanding Balances</TabsTrigger>
+          <TabsTrigger value="balances">Balances</TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
-          <TabsTrigger value="ace">Ace Insights</TabsTrigger>
+          <TabsTrigger value="ace">Ace</TabsTrigger>
         </TabsList>
 
         {/* TAB 1 — Overview */}
         <TabsContent value="overview" className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
             {[
               { label: 'Revenue This Month', value: `XCG ${monthRevenue.toFixed(2)}`, icon: DollarSign },
               { label: 'Outstanding Balance', value: `XCG ${totalOutstanding.toFixed(2)}`, icon: AlertTriangle },
@@ -261,44 +261,46 @@ export default function FinancePortal() {
             <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
           ) : (
             <Card>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Zone</TableHead>
-                    <TableHead>Terms</TableHead>
-                    <TableHead>Unpaid Orders</TableHead>
-                    <TableHead>Outstanding XCG</TableHead>
-                    <TableHead>Last Order</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredBalances?.map((b: any) => (
-                    <TableRow key={b.customer_id}>
-                      <TableCell className="font-medium">{b.customer_name}</TableCell>
-                      <TableCell><Badge variant="outline">{b.customer_type}</Badge></TableCell>
-                      <TableCell>{b.zone || '—'}</TableCell>
-                      <TableCell>{b.payment_terms || '—'}</TableCell>
-                      <TableCell>{b.unpaid_orders}</TableCell>
-                      <TableCell className={outstandingColor(Number(b.outstanding_xcg))}>{Number(b.outstanding_xcg).toFixed(2)}</TableCell>
-                      <TableCell>{b.last_order_date ? format(new Date(b.last_order_date), 'MMM d') : '—'}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button size="sm" variant="default" className="h-7 text-xs" onClick={() => setPayDialog(b)}>Mark Paid</Button>
-                          <Button size="sm" variant="outline" className="h-7 text-xs" asChild>
-                            <a href={`https://wa.me/?text=${encodeURIComponent(`Hi ${b.customer_name}, this is a friendly reminder about your outstanding balance of XCG ${Number(b.outstanding_xcg).toFixed(2)} with FUIK. Please arrange payment at your earliest convenience. Thank you!`)}`} target="_blank" rel="noopener">Remind</a>
-                          </Button>
-                        </div>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Zone</TableHead>
+                      <TableHead>Terms</TableHead>
+                      <TableHead>Unpaid Orders</TableHead>
+                      <TableHead>Outstanding XCG</TableHead>
+                      <TableHead>Last Order</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
-                  ))}
-                  {(!filteredBalances || filteredBalances.length === 0) && (
-                    <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No outstanding balances</TableCell></TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredBalances?.map((b: any) => (
+                      <TableRow key={b.customer_id}>
+                        <TableCell className="font-medium">{b.customer_name}</TableCell>
+                        <TableCell><Badge variant="outline">{b.customer_type}</Badge></TableCell>
+                        <TableCell>{b.zone || '—'}</TableCell>
+                        <TableCell>{b.payment_terms || '—'}</TableCell>
+                        <TableCell>{b.unpaid_orders}</TableCell>
+                        <TableCell className={outstandingColor(Number(b.outstanding_xcg))}>{Number(b.outstanding_xcg).toFixed(2)}</TableCell>
+                        <TableCell>{b.last_order_date ? format(new Date(b.last_order_date), 'MMM d') : '—'}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="default" className="h-7 text-xs" onClick={() => setPayDialog(b)}>Mark Paid</Button>
+                            <Button size="sm" variant="outline" className="h-7 text-xs" asChild>
+                              <a href={`https://wa.me/?text=${encodeURIComponent(`Hi ${b.customer_name}, this is a friendly reminder about your outstanding balance of XCG ${Number(b.outstanding_xcg).toFixed(2)} with FUIK. Please arrange payment at your earliest convenience. Thank you!`)}`} target="_blank" rel="noopener">Remind</a>
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {(!filteredBalances || filteredBalances.length === 0) && (
+                      <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No outstanding balances</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </Card>
           )}
         </TabsContent>
@@ -309,31 +311,33 @@ export default function FinancePortal() {
             <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
           ) : (
             <Card>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Invoice #</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Total XCG</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {invoices?.map((inv: any) => (
-                    <TableRow key={inv.id}>
-                      <TableCell className="font-medium">{inv.invoice_number || inv.id.slice(0, 8)}</TableCell>
-                      <TableCell>{inv.customer_name || '—'}</TableCell>
-                      <TableCell>{inv.created_at ? format(new Date(inv.created_at), 'MMM d, yyyy') : '—'}</TableCell>
-                      <TableCell><Badge variant="outline">{inv.status || 'draft'}</Badge></TableCell>
-                      <TableCell>{Number(inv.total_xcg || inv.total || 0).toFixed(2)}</TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Invoice #</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Total XCG</TableHead>
                     </TableRow>
-                  ))}
-                  {(!invoices || invoices.length === 0) && (
-                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No invoices found</TableCell></TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {invoices?.map((inv: any) => (
+                      <TableRow key={inv.id}>
+                        <TableCell className="font-medium">{inv.invoice_number || inv.id.slice(0, 8)}</TableCell>
+                        <TableCell>{inv.customer_name || '—'}</TableCell>
+                        <TableCell>{inv.created_at ? format(new Date(inv.created_at), 'MMM d, yyyy') : '—'}</TableCell>
+                        <TableCell><Badge variant="outline">{inv.status || 'draft'}</Badge></TableCell>
+                        <TableCell>{Number(inv.total_xcg || inv.total || 0).toFixed(2)}</TableCell>
+                      </TableRow>
+                    ))}
+                    {(!invoices || invoices.length === 0) && (
+                      <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No invoices found</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </Card>
           )}
         </TabsContent>

@@ -207,17 +207,17 @@ export default function RDPortal() {
           <ChevronLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">R&D</h1>
+          <h1 className="text-xl md:text-3xl font-bold tracking-tight">R&D</h1>
           <p className="text-muted-foreground">Market opportunities, innovation pipeline & Kayden AI</p>
         </div>
       </div>
 
       <Tabs defaultValue="opportunities">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="opportunities"><Lightbulb className="h-4 w-4 mr-2" />Pipeline</TabsTrigger>
-          <TabsTrigger value="signals"><Radio className="h-4 w-4 mr-2" />Signals{newSignals > 0 && <Badge variant="destructive" className="ml-1 h-5 px-1.5">{newSignals}</Badge>}</TabsTrigger>
-          <TabsTrigger value="customers"><Users className="h-4 w-4 mr-2" />Requests</TabsTrigger>
-          <TabsTrigger value="kayden"><Brain className="h-4 w-4 mr-2" />Kayden</TabsTrigger>
+        <TabsList className="w-full overflow-x-auto flex">
+          <TabsTrigger value="opportunities"><Lightbulb className="h-4 w-4 mr-1" />Pipeline</TabsTrigger>
+          <TabsTrigger value="signals"><Radio className="h-4 w-4 mr-1" />Signals{newSignals > 0 && <Badge variant="destructive" className="ml-1 h-5 px-1.5">{newSignals}</Badge>}</TabsTrigger>
+          <TabsTrigger value="customers"><Users className="h-4 w-4 mr-1" />Requests</TabsTrigger>
+          <TabsTrigger value="kayden"><Brain className="h-4 w-4 mr-1" />Kayden</TabsTrigger>
         </TabsList>
 
         {/* ═══ OPPORTUNITIES PIPELINE ═══ */}
@@ -255,7 +255,7 @@ export default function RDPortal() {
             </Sheet>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 overflow-x-auto">
             {pipelineStatuses.map(status => (
               <div key={status} className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -327,7 +327,8 @@ export default function RDPortal() {
 
           <Card>
             <CardContent className="p-0">
-              <Table>
+              <div className="overflow-x-auto">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Type</TableHead>
@@ -361,6 +362,7 @@ export default function RDPortal() {
                   {!signals?.length && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No signals yet</TableCell></TableRow>}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

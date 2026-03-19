@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { MessageSquare, Send, ChevronDown, ChevronUp, Mic, Image as ImageIcon, User, RefreshCw } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { MessageSquare, Send, ChevronDown, ChevronUp, Mic, Image as ImageIcon, User, RefreshCw, ChevronLeft } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 type Conversation = any;
@@ -29,6 +30,7 @@ const filterMap: Record<string, string | null> = {
 export default function IntakeConversations() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -45,6 +47,7 @@ export default function IntakeConversations() {
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
   const [newCustomer, setNewCustomer] = useState({ name: '', customer_type: 'retail' as string, zone: '', payment_terms: 'cod', preferred_language: 'pap', delivery_address: '', phone: '', email: '', telegram_chat_id: '' });
   const [linkedOrder, setLinkedOrder] = useState<any>(null);
+  const [mobileView, setMobileView] = useState<'list' | 'thread'>('list');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const selected = conversations.find((c) => c.id === selectedId);
@@ -161,6 +164,7 @@ export default function IntakeConversations() {
   const selectConversation = async (id: string) => {
     setSelectedId(id);
     fetchMessages(id);
+    if (isMobile) setMobileView('thread');
     // Fetch linked order if exists
     const conv = conversations.find(c => c.id === id);
     if (conv?.order_id) {
@@ -339,7 +343,7 @@ export default function IntakeConversations() {
   return (
     <div className="flex h-full">
       {/* LEFT PANEL */}
-      <div className="w-[340px] flex-shrink-0 border-r border-border flex flex-col bg-intake-surface">
+      <div className={`${isMobile && mobileView !== 'list' ? 'hidden' : 'flex'} ${isMobile ? 'w-full' : 'w-[340px]'} flex-shrink-0 border-r border-border flex-col bg-intake-surface md:flex`}>
         {/* Header */}
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between mb-3">
@@ -477,7 +481,15 @@ export default function IntakeConversations() {
       </div>
 
       {/* RIGHT PANEL */}
-      <div className="flex-1 flex flex-col bg-intake-bg">
+      <div className={`${isMobile && mobileView !== 'thread' ? 'hidden' : 'flex'} flex-1 flex-col bg-intake-bg md:flex`}>
+        {isMobile && mobileView === 'thread' && (
+          <button
+            className="flex items-center gap-1 text-sm text-muted-foreground p-3 border-b hover:text-foreground"
+            onClick={() => setMobileView('list')}
+          >
+            <ChevronLeft className="h-4 w-4" /> Back to conversations
+          </button>
+        )}
         {!selected ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
