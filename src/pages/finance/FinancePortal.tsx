@@ -135,12 +135,11 @@ export default function FinancePortal() {
       .in('status', ['confirmed', 'delivered'])
       .or('payment_status.is.null,payment_status.neq.paid');
 
-    // Also update linked invoices
+    // Also update linked invoices - mark sync status
     if (!error) {
       await supabase.from('distribution_invoices')
-        .update({ payment_status: 'paid', paid_at: new Date().toISOString() })
-        .eq('customer_id', payDialog.customer_id)
-        .neq('payment_status', 'paid');
+        .update({ quickbooks_sync_status: 'pending' } as any)
+        .eq('customer_id', payDialog.customer_id);
     }
 
     setPaying(false);

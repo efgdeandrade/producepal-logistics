@@ -320,6 +320,15 @@ const App = () => (
                     </ProtectedRoute>
                   } />
 
+                  {/* ========== MARKET RESEARCH PORTAL ========== */}
+                  <Route path="/market-research" element={
+                    <ProtectedRoute>
+                      <PasswordChangeRequired>
+                        <AmirPortal />
+                      </PasswordChangeRequired>
+                    </ProtectedRoute>
+                  } />
+
                   {/* ========== STANDALONE APPS ========== */}
                   <Route path="/dre" element={
                     <ProtectedRoute>
