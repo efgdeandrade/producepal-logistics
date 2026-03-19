@@ -165,7 +165,7 @@ export default function FinancePortal() {
           Back
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Finance</h1>
+          <h1 className="text-xl md:text-3xl font-bold tracking-tight">Finance</h1>
           <p className="text-muted-foreground">Revenue, payments, and financial insights</p>
         </div>
       </div>
