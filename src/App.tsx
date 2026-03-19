@@ -84,7 +84,7 @@ import FnbDreCommandCenter from "./pages/fnb/FnbDreCommandCenter";
 import FnbDreMobile from "./pages/fnb/FnbDreMobile";
 import DreApp from "./pages/DreApp";
 import FnbDreAnalytics from "./pages/fnb/FnbDreAnalytics";
-import PapiamentuTraining from "./pages/fnb/PapiamentuTraining";
+import FnbOrderDetail from "./pages/fnb/FnbOrderDetail";
 
 // Logistics/Driver
 import LogisticsDashboard from "./pages/LogisticsDashboard";
