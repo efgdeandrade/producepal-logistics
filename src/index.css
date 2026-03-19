@@ -297,9 +297,11 @@ All colors MUST be HSL.
   padding-top: env(safe-area-inset-top, 0px);
 }
 
-/* For sticky/fixed headers: offset top position to avoid iOS status bar */
-.sticky.safe-area-top {
-  top: env(safe-area-inset-top, 0px);
+/* For sticky/fixed headers: keep top:0 but add padding inside */
+.sticky.safe-area-top,
+.fixed.safe-area-top {
+  top: 0;
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 .safe-area-bottom {
