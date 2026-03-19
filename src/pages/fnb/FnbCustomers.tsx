@@ -13,7 +13,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Plus, Pencil, Trash2, ArrowLeft, Search, MessageSquare, Route, Upload, FileSpreadsheet, Loader2, MapPin, Wand2, GitMerge, X, Map as MapIcon, Copy, Send, CheckCircle, XCircle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { CustomerMergeDialog } from '@/components/fnb/CustomerMergeDialog';
 import { CustomerLocationPicker } from '@/components/fnb/CustomerLocationPicker';
 import { Link } from 'react-router-dom';
