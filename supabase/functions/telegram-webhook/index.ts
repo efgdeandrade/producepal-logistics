@@ -1068,12 +1068,22 @@ serve(async (req) => {
           for (const item of state.pending_items) {
             const match = matchProduct(item.product_name, productsFull, productAliases);
 
+            // Get price from matched product
+            const matchedProduct = match.product_id
+              ? (productsFull || []).find((p: any) => p.id === match.product_id)
+              : null;
+            const unitPrice = matchedProduct?.price_xcg || 0;
+            const qty = item.qty || 0;
+            const lineTotal = unitPrice * qty;
+
             await supabase.from('distribution_order_items').insert({
               order_id: order.id,
               product_id: match.product_id,
               product_name_raw: item.product_name,
-              quantity: item.qty || 0,
+              quantity: qty,
               order_unit: item.unit || 'kg',
+              unit_price_xcg: unitPrice,
+              total_xcg: lineTotal,
             });
 
             // Log match with confidence and match type
@@ -1092,9 +1102,25 @@ serve(async (req) => {
             console.log(`Matched "${item.product_name}" → ${match.product_id || 'NONE'} (${match.match_type}, ${(match.confidence * 100).toFixed(0)}%)`);
           }
 
+          // Recalculate order total from inserted items
+          const { data: insertedItems } = await supabase
+            .from('distribution_order_items')
+            .select('total_xcg')
+            .eq('order_id', order.id);
+
+          const calculatedTotal = (insertedItems || []).reduce(
+            (sum: number, i: any) => sum + (Number(i.total_xcg) || 0), 0
+          );
+
+          await supabase.from('distribution_orders').update({
+            total_xcg: calculatedTotal,
+          }).eq('id', order.id);
+
           await supabase.from('dre_conversations').update({
             order_id: order.id,
           }).eq('id', convo.id);
+
+          console.log(`Order ${order.order_number} total: ${calculatedTotal} XCG (${state.pending_items.length} items)`);
         }
 
         // Reset state
