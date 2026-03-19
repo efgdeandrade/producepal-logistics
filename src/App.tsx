@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -429,8 +429,8 @@ const App = () => (
                   <Route path="/hr/documents" element={<ProtectedHR><Documents /></ProtectedHR>} />
                   <Route path="/hr/payroll" element={<ProtectedHR><HRPayroll /></ProtectedHR>} />
 
-                  {/* ========== 404 ========== */}
-                  <Route path="*" element={<NotFound />} />
+                  {/* ========== Catch-all: redirect to portal selector ========== */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </BrowserRouter>
             </OfflineWrapper>
