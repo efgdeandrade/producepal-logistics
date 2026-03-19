@@ -1157,6 +1157,7 @@ export default function FnbCustomers() {
                     {isMergeMode && <TableHead className="w-10"></TableHead>}
                     <TableHead>Name</TableHead>
                     <TableHead>WhatsApp</TableHead>
+                    <TableHead>Telegram</TableHead>
                     <TableHead>Zone</TableHead>
                     <TableHead>Language</TableHead>
                     <TableHead>Address</TableHead>
