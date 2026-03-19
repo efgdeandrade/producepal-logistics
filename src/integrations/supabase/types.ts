@@ -365,7 +365,9 @@ export type Database = {
       anomaly_log: {
         Row: {
           anomaly_type: string | null
+          created_at: string | null
           customer_id: string | null
+          details: Json | null
           id: string
           outreach_conversation_id: string | null
           resolved: boolean | null
@@ -374,7 +376,9 @@ export type Database = {
         }
         Insert: {
           anomaly_type?: string | null
+          created_at?: string | null
           customer_id?: string | null
+          details?: Json | null
           id?: string
           outreach_conversation_id?: string | null
           resolved?: boolean | null
@@ -383,7 +387,9 @@ export type Database = {
         }
         Update: {
           anomaly_type?: string | null
+          created_at?: string | null
           customer_id?: string | null
+          details?: Json | null
           id?: string
           outreach_conversation_id?: string | null
           resolved?: boolean | null
