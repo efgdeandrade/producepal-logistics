@@ -10,8 +10,9 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Pencil, Trash2, ArrowLeft, Search, MessageSquare, Route, Upload, FileSpreadsheet, Loader2, MapPin, Wand2, GitMerge, X, Map as MapIcon, Copy } from 'lucide-react';
+import { Plus, Pencil, Trash2, ArrowLeft, Search, MessageSquare, Route, Upload, FileSpreadsheet, Loader2, MapPin, Wand2, GitMerge, X, Map as MapIcon, Copy, Send, CheckCircle, XCircle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Progress } from '@/components/ui/progress';
 import { CustomerMergeDialog } from '@/components/fnb/CustomerMergeDialog';
 import { CustomerLocationPicker } from '@/components/fnb/CustomerLocationPicker';
 import { Link } from 'react-router-dom';
@@ -38,7 +39,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Progress } from '@/components/ui/progress';
 import { ExportButton } from '@/components/reports/ExportButton';
 
 type CustomerType = "regular" | "supermarket" | "cod" | "credit";
@@ -56,6 +56,7 @@ interface FnbCustomer {
   latitude?: number | null;
   longitude?: number | null;
   pricing_tier_id?: string | null;
+  telegram_chat_id?: string | null;
 }
 
 interface MajorZone {
@@ -132,6 +133,7 @@ export default function FnbCustomers() {
   const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
   const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
   const [pendingLocation, setPendingLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [settingUpGroup, setSettingUpGroup] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
@@ -385,6 +387,23 @@ export default function FnbCustomers() {
     },
   });
 
+  // Fetch Telegram group stats
+  const { data: telegramGroups } = useQuery({
+    queryKey: ['customer-telegram-groups'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('customer_telegram_groups')
+        .select('customer_id, status, group_chat_id, group_name, activated_at')
+        .eq('status', 'activated');
+      if (error) throw error;
+      return (data || []) as { customer_id: string; status: string; group_chat_id: string; group_name: string; activated_at: string }[];
+    },
+  });
+
+  const telegramGroupMap = new Map(telegramGroups?.map(g => [g.customer_id, g]) || []);
+  const customersWithTelegram = customers?.filter(c => c.telegram_chat_id) || [];
+  const customersWithoutTelegram = customers?.filter(c => !c.telegram_chat_id) || [];
+
   // Create zone name lookup for display
   const majorZoneMap = new Map(majorZones?.map(z => [z.id, z.name]) || []);
   const subZoneNames = subZones?.map(z => z.name) || [];
@@ -434,6 +453,39 @@ export default function FnbCustomers() {
       toast.error(error.message || 'Failed to delete customer');
     },
   });
+
+  const handleSetupTelegramGroup = async (customer: FnbCustomer) => {
+    try {
+      setSettingUpGroup(customer.id);
+      const { data, error } = await supabase.functions.invoke('setup-telegram-group', {
+        body: { customer_id: customer.id },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success(`📱 Instructions sent! Code: ${data.activation_code}`);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to setup Telegram group');
+    } finally {
+      setSettingUpGroup(null);
+    }
+  };
+
+  const handleDeactivateGroup = async (customerId: string) => {
+    if (!confirm('Deactivate this Telegram group? The customer will no longer receive orders via this group.')) return;
+    try {
+      await supabase.from('distribution_customers').update({ telegram_chat_id: null } as any).eq('id', customerId);
+      await supabase.from('customer_telegram_groups').update({ status: 'deactivated' } as any)
+        .eq('customer_id', customerId)
+        .eq('status', 'activated');
+      queryClient.invalidateQueries({ queryKey: ['fnb-customers'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-telegram-groups'] });
+      toast.success('Telegram group deactivated');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to deactivate');
+    }
+  };
 
   const resetForm = () => {
     setFormData(emptyCustomer);
@@ -954,6 +1006,49 @@ export default function FnbCustomers() {
                       rows={2}
                     />
                   </div>
+
+                  {/* Telegram Group Status (read-only in edit mode) */}
+                  {editingCustomer && (
+                    <div className="space-y-2 pt-4 border-t">
+                      <Label>Telegram Group</Label>
+                      {editingCustomer.telegram_chat_id ? (
+                        <div className="flex items-center justify-between p-3 rounded-md bg-muted">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <div>
+                              <p className="text-sm font-medium">Group active</p>
+                              <p className="text-xs text-muted-foreground">{editingCustomer.telegram_chat_id}</p>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDeactivateGroup(editingCustomer.id)}
+                          >
+                            Deactivate
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="p-3 rounded-md bg-muted">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleSetupTelegramGroup(editingCustomer as FnbCustomer)}
+                            disabled={settingUpGroup === editingCustomer.id}
+                          >
+                            {settingUpGroup === editingCustomer.id ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <Send className="h-4 w-4 mr-2" />
+                            )}
+                            {settingUpGroup === editingCustomer.id ? 'Sending instructions...' : 'Setup Telegram Group'}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </form>
               </ScrollArea>
               <div className="flex justify-end gap-2 pt-4 border-t flex-shrink-0">
@@ -1042,6 +1137,26 @@ export default function FnbCustomers() {
           </Card>
         )}
 
+        {/* Telegram Groups Overview */}
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Send className="h-5 w-5 text-primary" />
+                <span className="font-semibold">Telegram Groups</span>
+              </div>
+              <Badge variant="outline">
+                {customersWithTelegram.length} of {customers?.length || 0} customers on Telegram
+              </Badge>
+            </div>
+            <Progress value={customers?.length ? (customersWithTelegram.length / customers.length) * 100 : 0} className="h-2" />
+            <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1"><CheckCircle className="h-3 w-3 text-green-600" /> {customersWithTelegram.length} active</span>
+              <span className="flex items-center gap-1"><XCircle className="h-3 w-3 text-muted-foreground" /> {customersWithoutTelegram.length} not set up</span>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <div className="flex flex-col md:flex-row gap-4">
@@ -1085,6 +1200,7 @@ export default function FnbCustomers() {
                     {isMergeMode && <TableHead className="w-10"></TableHead>}
                     <TableHead>Name</TableHead>
                     <TableHead>WhatsApp</TableHead>
+                    <TableHead>Telegram</TableHead>
                     <TableHead>Zone</TableHead>
                     <TableHead>Language</TableHead>
                     <TableHead>Address</TableHead>
@@ -1112,6 +1228,29 @@ export default function FnbCustomers() {
                           <MessageSquare className="h-4 w-4 text-green-600" />
                           {customer.whatsapp_phone}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {customer.telegram_chat_id ? (
+                          <Badge variant="secondary" className="text-xs">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Group active
+                          </Badge>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => handleSetupTelegramGroup(customer)}
+                            disabled={settingUpGroup === customer.id}
+                          >
+                            {settingUpGroup === customer.id ? (
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            ) : (
+                              <Send className="h-3 w-3 mr-1" />
+                            )}
+                            Setup Group
+                          </Button>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-0.5">

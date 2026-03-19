@@ -532,6 +532,11 @@ export default function IntakeSettings() {
                 <Input value={generalSettings.manager_telegram_handle || ''} onChange={(e) => updateGeneralSetting('manager_telegram_handle', e.target.value)} placeholder="@FuikManager" />
                 <p className="text-xs text-intake-text-muted mt-1">Used when Dre needs to escalate in a group chat (e.g. @Eduardo)</p>
               </div>
+              <div>
+                <Label>Manager Telegram Chat ID</Label>
+                <Input value={generalSettings.manager_telegram_chat_id || ''} onChange={(e) => updateGeneralSetting('manager_telegram_chat_id', e.target.value)} placeholder="e.g. 123456789" />
+                <p className="text-xs text-intake-text-muted mt-1">Your personal Telegram chat ID. Eduardo receives group setup instructions here. Send /ping to @FuikOrdersBot to find your chat ID.</p>
+              </div>
               <Button className="bg-intake-brand hover:bg-intake-accent text-white" onClick={saveGeneral}>Save</Button>
             </div>
           )}

@@ -730,6 +730,99 @@ serve(async (req) => {
 
     if (!text) return new Response('OK', { status: 200 });
 
+    // ── Activation code detection (before group filtering) ──
+    const ACTIVATION_PREFIX = 'FUIK-';
+    if (text.startsWith(ACTIVATION_PREFIX) && isGroup) {
+      console.log('Activation code detected in group:', text, 'chat:', chatId);
+
+      const supabaseEarly = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      );
+      const telegramTokenEarly = Deno.env.get('TELEGRAM_BOT_TOKEN') || '';
+
+      const { data: pending } = await supabaseEarly
+        .from('customer_telegram_groups')
+        .select('*, distribution_customers(id, name, preferred_language)')
+        .eq('activation_code', text.trim())
+        .eq('status', 'pending')
+        .maybeSingle();
+
+      if (pending) {
+        const activationCustomer = pending.distribution_customers as any;
+        const groupName = message.chat.title || `FUIK | ${activationCustomer.name}`;
+
+        // Activate the group
+        await supabaseEarly.from('customer_telegram_groups').update({
+          group_chat_id: chatId,
+          group_name: groupName,
+          status: 'activated',
+          activated_at: new Date().toISOString(),
+        }).eq('id', pending.id);
+
+        // Link group chat ID to customer
+        await supabaseEarly.from('distribution_customers').update({
+          telegram_chat_id: chatId,
+        }).eq('id', activationCustomer.id);
+
+        console.log(`Group activated for customer: ${activationCustomer.name} (${chatId})`);
+
+        // Send welcome message in all 4 languages
+        const curacaoHour = new Date(Date.now() - 4 * 60 * 60 * 1000).getUTCHours();
+        const greeting = curacaoHour < 12 ? 'Bon dia' : curacaoHour < 18 ? 'Bon tardi' : 'Bon nochi';
+
+        const welcomeMessage = `${greeting}! 🌿
+
+Papiamentu:
+Bon bini na bo grupo di FUIK, ${activationCustomer.name}! Mi ta Dre, bo asistente dijital pa tur bo orde di fruta i berdura fresco. Simplemente dimi kiko bo ke i mi ta yuda bo mes ora. 🥭
+
+English:
+Welcome to your FUIK ordering group, ${activationCustomer.name}! I'm Dre, your digital assistant for all fresh produce orders. Just tell me what you need and I'll take care of it right away. 🌿
+
+Español:
+¡Bienvenido al grupo de pedidos de FUIK, ${activationCustomer.name}! Soy Dre, tu asistente digital para todos tus pedidos de frutas y verduras frescas. Solo dime qué necesitas y lo gestiono de inmediato. 🍍
+
+Nederlands:
+Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digitale assistent voor al je bestellingen van vers fruit en groenten. Vertel me gewoon wat je nodig hebt en ik regel het meteen. 🥦
+
+━━━━━━━━━━━━━━━
+💬 Papiamentu: Mi ke 2 kaha di mango
+💬 English: I want 2 cases of mango
+💬 Español: Quiero 2 cajas de mango
+💬 Nederlands: Ik wil 2 dozen mango`;
+
+        await sendTelegramMessage(chatId, welcomeMessage);
+
+        // Update welcome_sent_at
+        await supabaseEarly.from('customer_telegram_groups').update({
+          welcome_sent_at: new Date().toISOString(),
+        }).eq('id', pending.id);
+
+        // Notify Eduardo via his personal chat
+        const { data: managerSetting } = await supabaseEarly
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'manager_telegram_chat_id')
+          .maybeSingle();
+
+        if (managerSetting?.value) {
+          await sendTelegramMessage(
+            managerSetting.value,
+            `✅ Telegram group activated for ${activationCustomer.name}!\nGroup: ${groupName}\nDre is ready to take orders. 🌿`
+          );
+        }
+
+        return new Response('OK', { status: 200 });
+      } else {
+        // Invalid or expired code
+        await sendTelegramMessage(
+          chatId,
+          '⚠️ Invalid or expired activation code. Please generate a new one from the FUIK ERP.'
+        );
+        return new Response('OK', { status: 200 });
+      }
+    }
+
     // ── Group chat filtering ─────────────────────────────
     // In groups, only respond when relevant — stay silent on casual human chat
     if (isGroup) {

@@ -1319,6 +1319,84 @@ export type Database = {
           },
         ]
       }
+      customer_telegram_groups: {
+        Row: {
+          activated_at: string | null
+          activation_code: string
+          created_at: string | null
+          created_by: string | null
+          customer_id: string | null
+          group_chat_id: string | null
+          group_name: string | null
+          id: string
+          status: string | null
+          updated_at: string | null
+          welcome_sent_at: string | null
+        }
+        Insert: {
+          activated_at?: string | null
+          activation_code: string
+          created_at?: string | null
+          created_by?: string | null
+          customer_id?: string | null
+          group_chat_id?: string | null
+          group_name?: string | null
+          id?: string
+          status?: string | null
+          updated_at?: string | null
+          welcome_sent_at?: string | null
+        }
+        Update: {
+          activated_at?: string | null
+          activation_code?: string
+          created_at?: string | null
+          created_by?: string | null
+          customer_id?: string | null
+          group_chat_id?: string | null
+          group_name?: string | null
+          id?: string
+          status?: string | null
+          updated_at?: string | null
+          welcome_sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_telegram_groups_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_telegram_groups_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_telegram_groups_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_outstanding_balances"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "customer_telegram_groups_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "distribution_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_telegram_groups_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_customer_segments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           address: string
