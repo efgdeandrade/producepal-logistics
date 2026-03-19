@@ -213,11 +213,11 @@ export default function RDPortal() {
       </div>
 
       <Tabs defaultValue="opportunities">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="opportunities"><Lightbulb className="h-4 w-4 mr-2" />Pipeline</TabsTrigger>
-          <TabsTrigger value="signals"><Radio className="h-4 w-4 mr-2" />Signals{newSignals > 0 && <Badge variant="destructive" className="ml-1 h-5 px-1.5">{newSignals}</Badge>}</TabsTrigger>
-          <TabsTrigger value="customers"><Users className="h-4 w-4 mr-2" />Requests</TabsTrigger>
-          <TabsTrigger value="kayden"><Brain className="h-4 w-4 mr-2" />Kayden</TabsTrigger>
+        <TabsList className="w-full overflow-x-auto flex">
+          <TabsTrigger value="opportunities"><Lightbulb className="h-4 w-4 mr-1" />Pipeline</TabsTrigger>
+          <TabsTrigger value="signals"><Radio className="h-4 w-4 mr-1" />Signals{newSignals > 0 && <Badge variant="destructive" className="ml-1 h-5 px-1.5">{newSignals}</Badge>}</TabsTrigger>
+          <TabsTrigger value="customers"><Users className="h-4 w-4 mr-1" />Requests</TabsTrigger>
+          <TabsTrigger value="kayden"><Brain className="h-4 w-4 mr-1" />Kayden</TabsTrigger>
         </TabsList>
 
         {/* ═══ OPPORTUNITIES PIPELINE ═══ */}
