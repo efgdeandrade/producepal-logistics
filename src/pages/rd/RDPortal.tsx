@@ -202,26 +202,19 @@ export default function RDPortal() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 safe-area-top">
-        <div className="flex h-14 items-center px-4 gap-3">
-          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigate('/select-portal')}>
+      <div className="portal-header">
+        <div className="flex items-center gap-2 pt-1">
+          <button onClick={() => navigate('/select-portal')} className="p-1 -ml-1 rounded-md hover:bg-muted">
             <ChevronLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-              <Lightbulb className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="font-semibold">R&D</span>
+          </button>
+          <div>
+            <h1 className="text-xl font-semibold leading-tight">R&D</h1>
+            <p className="text-xs text-muted-foreground">Market opportunities, innovation pipeline & Kayden AI</p>
           </div>
-          <div className="flex-1" />
         </div>
-      </header>
+      </div>
 
       <div className="flex-1 p-4 space-y-4">
-      <div className="flex-shrink-0">
-        <h1 className="text-xl md:text-3xl font-bold tracking-tight">R&D</h1>
-        <p className="text-sm text-muted-foreground">Market opportunities, innovation pipeline & Kayden AI</p>
-      </div>
 
       <Tabs defaultValue="opportunities">
         <div className="overflow-x-auto -mx-4 px-4 scrollbar-hide">
@@ -268,7 +261,50 @@ export default function RDPortal() {
             </Sheet>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 overflow-x-auto">
+          {/* Mobile view - vertical stages */}
+          <div className="block md:hidden space-y-3">
+            {pipelineStatuses.map(status => (
+              <div key={status} className="border rounded-lg overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 bg-muted/30">
+                  <span className="font-medium capitalize text-sm">{status}</span>
+                  <span className="text-xs bg-background border rounded-full px-2 py-0.5">
+                    {(opportunities || []).filter(o => o.status === status).length}
+                  </span>
+                </div>
+                {(opportunities || []).filter(o => o.status === status).length === 0 ? (
+                  <div className="px-4 py-3 text-xs text-muted-foreground">No opportunities</div>
+                ) : (
+                  <div className="divide-y">
+                    {(opportunities || []).filter(o => o.status === status).map(opp => (
+                      <div key={opp.id} className="px-4 py-3">
+                        <p className="font-medium text-sm">{opp.title}</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          <Badge variant="outline" className="text-xs">{(opp.category || '').replace(/_/g, ' ')}</Badge>
+                          <Badge variant={priorityColor(opp.priority)} className="text-xs">{opp.priority}</Badge>
+                        </div>
+                        {opp.potential_revenue_xcg && <p className="text-xs text-muted-foreground mt-1">XCG {Number(opp.potential_revenue_xcg).toLocaleString()}</p>}
+                        <div className="flex gap-1 mt-2">
+                          {status !== 'implemented' && status !== 'rejected' && (
+                            <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => advanceOpp(opp.id, status)}>
+                              <ArrowRight className="h-3 w-3 mr-1" />Next
+                            </Button>
+                          )}
+                          {status !== 'rejected' && status !== 'implemented' && (
+                            <Button size="sm" variant="ghost" className="h-6 text-xs text-destructive" onClick={() => rejectOpp(opp.id)}>
+                              <X className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop view - horizontal kanban */}
+          <div className="hidden md:grid grid-cols-3 lg:grid-cols-6 gap-3">
             {pipelineStatuses.map(status => (
               <div key={status} className="space-y-2">
                 <div className="flex items-center justify-between">
