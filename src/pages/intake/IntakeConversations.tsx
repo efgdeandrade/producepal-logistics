@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { MessageSquare, Send, ChevronDown, ChevronUp, Mic, Image as ImageIcon, User, RefreshCw } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { MessageSquare, Send, ChevronDown, ChevronUp, Mic, Image as ImageIcon, User, RefreshCw, ChevronLeft } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 type Conversation = any;
