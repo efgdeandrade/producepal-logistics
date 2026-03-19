@@ -210,29 +210,29 @@ export default function HRDashboard() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">HR Dashboard</h1>
-          <p className="text-muted-foreground">Employee management & attendance overview</p>
+          <h1 className="text-xl md:text-3xl font-bold tracking-tight">HR Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Employee management & attendance overview</p>
         </div>
-        <div className="flex gap-2">
-          <Button asChild>
-            <Link to="/hr/employees">
-              <UserPlus className="h-4 w-4 mr-2" />
-              Add Employee
-            </Link>
-          </Button>
-        </div>
+        <Button asChild size="sm">
+          <Link to="/hr/employees">
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add Employee
+          </Link>
+        </Button>
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="leave">Leave Requests</TabsTrigger>
-          <TabsTrigger value="payroll">Payroll</TabsTrigger>
-          <TabsTrigger value="rosa">Rosa Insights</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-4 px-4 scrollbar-hide">
+          <TabsList className="inline-flex w-max min-w-full">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="leave">Leave Requests</TabsTrigger>
+            <TabsTrigger value="payroll">Payroll</TabsTrigger>
+            <TabsTrigger value="rosa">Rosa Insights</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* ══════ TAB: Overview ══════ */}
         <TabsContent value="overview" className="space-y-6">
