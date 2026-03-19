@@ -481,7 +481,15 @@ export default function IntakeConversations() {
       </div>
 
       {/* RIGHT PANEL */}
-      <div className="flex-1 flex flex-col bg-intake-bg">
+      <div className={`${isMobile && mobileView !== 'thread' ? 'hidden' : 'flex'} flex-1 flex-col bg-intake-bg md:flex`}>
+        {isMobile && mobileView === 'thread' && (
+          <button
+            className="flex items-center gap-1 text-sm text-muted-foreground p-3 border-b hover:text-foreground"
+            onClick={() => setMobileView('list')}
+          >
+            <ChevronLeft className="h-4 w-4" /> Back to conversations
+          </button>
+        )}
         {!selected ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
