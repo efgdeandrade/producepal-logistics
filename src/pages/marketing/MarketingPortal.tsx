@@ -182,7 +182,7 @@ export default function MarketingPortal() {
           Back
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Marketing</h1>
+          <h1 className="text-xl md:text-3xl font-bold tracking-tight">Marketing</h1>
           <p className="text-muted-foreground">Customer segments, product trends, and outreach</p>
         </div>
       </div>
