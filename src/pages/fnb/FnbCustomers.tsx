@@ -135,6 +135,7 @@ export default function FnbCustomers() {
   const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
   const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
   const [pendingLocation, setPendingLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [settingUpGroup, setSettingUpGroup] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
