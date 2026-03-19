@@ -1006,6 +1006,49 @@ export default function FnbCustomers() {
                       rows={2}
                     />
                   </div>
+
+                  {/* Telegram Group Status (read-only in edit mode) */}
+                  {editingCustomer && (
+                    <div className="space-y-2 pt-4 border-t">
+                      <Label>Telegram Group</Label>
+                      {editingCustomer.telegram_chat_id ? (
+                        <div className="flex items-center justify-between p-3 rounded-md bg-muted">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <div>
+                              <p className="text-sm font-medium">Group active</p>
+                              <p className="text-xs text-muted-foreground">{editingCustomer.telegram_chat_id}</p>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDeactivateGroup(editingCustomer.id)}
+                          >
+                            Deactivate
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="p-3 rounded-md bg-muted">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleSetupTelegramGroup(editingCustomer as FnbCustomer)}
+                            disabled={settingUpGroup === editingCustomer.id}
+                          >
+                            {settingUpGroup === editingCustomer.id ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <Send className="h-4 w-4 mr-2" />
+                            )}
+                            {settingUpGroup === editingCustomer.id ? 'Sending instructions...' : 'Setup Telegram Group'}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </form>
               </ScrollArea>
               <div className="flex justify-end gap-2 pt-4 border-t flex-shrink-0">
