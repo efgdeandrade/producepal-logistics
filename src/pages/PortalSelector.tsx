@@ -106,6 +106,14 @@ const portals: PortalOption[] = [
     path: '/rd',
     color: 'bg-amber-600',
   },
+  {
+    id: 'market-research',
+    title: 'Market Research',
+    description: 'Competitor pricing, seasonal trends, import intelligence, Amir AI insights',
+    icon: TrendingUp,
+    path: '/market-research',
+    color: 'bg-teal-600',
+  },
 ];
 
 const adminOptions: PortalOption[] = [
