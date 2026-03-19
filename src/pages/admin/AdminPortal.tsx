@@ -299,41 +299,43 @@ export default function AdminPortal() {
           <Card>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
-              <Table>
-                  <TableRow>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Priority</TableHead>
-                    <TableHead>Due Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(tasks || []).map(t => (
-                    <TableRow key={t.id}>
-                      <TableCell className="font-medium">{t.title}</TableCell>
-                      <TableCell><Badge variant="outline">{t.category}</Badge></TableCell>
-                      <TableCell><Badge variant={priorityColor(t.priority)}>{t.priority}</Badge></TableCell>
-                      <TableCell className={t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed' ? 'text-destructive font-medium' : ''}>
-                        {t.due_date ? format(new Date(t.due_date), 'MMM d, yyyy') : '—'}
-                      </TableCell>
-                      <TableCell><Badge variant="outline">{t.status}</Badge></TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          {t.status !== 'completed' && (
-                            <Button size="icon" variant="ghost" onClick={() => completeTask(t.id)}><Check className="h-4 w-4 text-green-600" /></Button>
-                          )}
-                          <Button size="icon" variant="ghost" onClick={() => deleteTask(t.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                        </div>
-                      </TableCell>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Priority</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
-                  ))}
-                  {!tasks?.length && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No tasks yet</TableCell></TableRow>}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {(tasks || []).map(t => (
+                      <TableRow key={t.id}>
+                        <TableCell className="font-medium">{t.title}</TableCell>
+                        <TableCell><Badge variant="outline">{t.category}</Badge></TableCell>
+                        <TableCell><Badge variant={priorityColor(t.priority)}>{t.priority}</Badge></TableCell>
+                        <TableCell className={t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed' ? 'text-destructive font-medium' : ''}>
+                          {t.due_date ? format(new Date(t.due_date), 'MMM d, yyyy') : '—'}
+                        </TableCell>
+                        <TableCell><Badge variant="outline">{t.status}</Badge></TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            {t.status !== 'completed' && (
+                              <Button size="icon" variant="ghost" onClick={() => completeTask(t.id)}><Check className="h-4 w-4 text-green-600" /></Button>
+                            )}
+                            <Button size="icon" variant="ghost" onClick={() => deleteTask(t.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {!tasks?.length && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No tasks yet</TableCell></TableRow>}
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ═══ DOCUMENTS TAB ═══ */}
