@@ -19,7 +19,8 @@ import {
   Megaphone,
   ClipboardList,
   Lightbulb,
-  Inbox
+  Inbox,
+  TrendingUp,
 } from 'lucide-react';
 import { useState } from 'react';
 

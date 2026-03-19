@@ -511,6 +511,7 @@ serve(async (req) => {
     if (officer === 'axel' || officer === 'all') await runAxel(supabase, key);
     if (officer === 'kayden' || officer === 'all') await runKayden(supabase, key);
     if (officer === 'zya' || officer === 'all') await runZya(supabase, key);
+    if (officer === 'amir' || officer === 'all') await runAmir(supabase, key);
     if (officer === 'oracle' || officer === 'all') await runOracle(supabase, key);
 
     return new Response(JSON.stringify({ success: true, officer }), {
