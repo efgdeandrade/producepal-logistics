@@ -482,5 +482,7 @@ export default function RDPortal() {
         </TabsContent>
       </Tabs>
     </div>
+    </div>
+    </div>
   );
 }

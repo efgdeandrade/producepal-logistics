@@ -500,5 +500,7 @@ export default function MarketingPortal() {
         </DialogContent>
       </Dialog>
     </div>
+    </div>
+    </div>
   );
 }
