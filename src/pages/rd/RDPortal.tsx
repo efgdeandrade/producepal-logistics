@@ -202,26 +202,19 @@ export default function RDPortal() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 safe-area-top">
-        <div className="flex h-14 items-center px-4 gap-3">
-          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigate('/select-portal')}>
+      <div className="portal-header">
+        <div className="flex items-center gap-2 pt-1">
+          <button onClick={() => navigate('/select-portal')} className="p-1 -ml-1 rounded-md hover:bg-muted">
             <ChevronLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-              <Lightbulb className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="font-semibold">R&D</span>
+          </button>
+          <div>
+            <h1 className="text-xl font-semibold leading-tight">R&D</h1>
+            <p className="text-xs text-muted-foreground">Market opportunities, innovation pipeline & Kayden AI</p>
           </div>
-          <div className="flex-1" />
         </div>
-      </header>
+      </div>
 
       <div className="flex-1 p-4 space-y-4">
-      <div className="flex-shrink-0">
-        <h1 className="text-xl md:text-3xl font-bold tracking-tight">R&D</h1>
-        <p className="text-sm text-muted-foreground">Market opportunities, innovation pipeline & Kayden AI</p>
-      </div>
 
       <Tabs defaultValue="opportunities">
         <div className="overflow-x-auto -mx-4 px-4 scrollbar-hide">
