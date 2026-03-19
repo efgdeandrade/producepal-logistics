@@ -1187,6 +1187,29 @@ export default function FnbCustomers() {
                         </div>
                       </TableCell>
                       <TableCell>
+                        {customer.telegram_chat_id ? (
+                          <Badge variant="secondary" className="text-xs">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Group active
+                          </Badge>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => handleSetupTelegramGroup(customer)}
+                            disabled={settingUpGroup === customer.id}
+                          >
+                            {settingUpGroup === customer.id ? (
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            ) : (
+                              <Send className="h-3 w-3 mr-1" />
+                            )}
+                            Setup Group
+                          </Button>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         <div className="flex flex-col gap-0.5">
                           {customer.major_zone_id && majorZoneMap.get(customer.major_zone_id) && (
                             <Badge variant="outline" className="text-xs w-fit">
