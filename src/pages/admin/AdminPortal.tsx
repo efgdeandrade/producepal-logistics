@@ -264,7 +264,7 @@ export default function AdminPortal() {
 
         {/* ═══ TASKS TAB ═══ */}
         <TabsContent value="tasks" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
             <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Open</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{openTasks}</div></CardContent></Card>
             <Card className={overdueTasks > 0 ? 'border-destructive' : ''}><CardHeader className="pb-2"><CardTitle className="text-sm">Overdue</CardTitle></CardHeader><CardContent><div className={`text-2xl font-bold ${overdueTasks > 0 ? 'text-destructive' : ''}`}>{overdueTasks}</div></CardContent></Card>
             <Card><CardHeader className="pb-2"><CardTitle className="text-sm">In Progress</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{inProgressTasks}</div></CardContent></Card>
