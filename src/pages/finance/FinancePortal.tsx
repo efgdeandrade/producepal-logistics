@@ -180,7 +180,7 @@ export default function FinancePortal() {
 
         {/* TAB 1 — Overview */}
         <TabsContent value="overview" className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
             {[
               { label: 'Revenue This Month', value: `XCG ${monthRevenue.toFixed(2)}`, icon: DollarSign },
               { label: 'Outstanding Balance', value: `XCG ${totalOutstanding.toFixed(2)}`, icon: AlertTriangle },
