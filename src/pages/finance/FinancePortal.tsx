@@ -311,7 +311,7 @@ export default function FinancePortal() {
           ) : (
             <Card>
               <div className="overflow-x-auto">
-                <TableHeader>
+              <Table>
                   <TableRow>
                     <TableHead>Invoice #</TableHead>
                     <TableHead>Customer</TableHead>
