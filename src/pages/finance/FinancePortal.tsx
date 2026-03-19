@@ -262,43 +262,44 @@ export default function FinancePortal() {
           ) : (
             <Card>
               <div className="overflow-x-auto">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Zone</TableHead>
-                    <TableHead>Terms</TableHead>
-                    <TableHead>Unpaid Orders</TableHead>
-                    <TableHead>Outstanding XCG</TableHead>
-                    <TableHead>Last Order</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredBalances?.map((b: any) => (
-                    <TableRow key={b.customer_id}>
-                      <TableCell className="font-medium">{b.customer_name}</TableCell>
-                      <TableCell><Badge variant="outline">{b.customer_type}</Badge></TableCell>
-                      <TableCell>{b.zone || '—'}</TableCell>
-                      <TableCell>{b.payment_terms || '—'}</TableCell>
-                      <TableCell>{b.unpaid_orders}</TableCell>
-                      <TableCell className={outstandingColor(Number(b.outstanding_xcg))}>{Number(b.outstanding_xcg).toFixed(2)}</TableCell>
-                      <TableCell>{b.last_order_date ? format(new Date(b.last_order_date), 'MMM d') : '—'}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button size="sm" variant="default" className="h-7 text-xs" onClick={() => setPayDialog(b)}>Mark Paid</Button>
-                          <Button size="sm" variant="outline" className="h-7 text-xs" asChild>
-                            <a href={`https://wa.me/?text=${encodeURIComponent(`Hi ${b.customer_name}, this is a friendly reminder about your outstanding balance of XCG ${Number(b.outstanding_xcg).toFixed(2)} with FUIK. Please arrange payment at your earliest convenience. Thank you!`)}`} target="_blank" rel="noopener">Remind</a>
-                          </Button>
-                        </div>
-                      </TableCell>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Zone</TableHead>
+                      <TableHead>Terms</TableHead>
+                      <TableHead>Unpaid Orders</TableHead>
+                      <TableHead>Outstanding XCG</TableHead>
+                      <TableHead>Last Order</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
-                  ))}
-                  {(!filteredBalances || filteredBalances.length === 0) && (
-                    <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No outstanding balances</TableCell></TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredBalances?.map((b: any) => (
+                      <TableRow key={b.customer_id}>
+                        <TableCell className="font-medium">{b.customer_name}</TableCell>
+                        <TableCell><Badge variant="outline">{b.customer_type}</Badge></TableCell>
+                        <TableCell>{b.zone || '—'}</TableCell>
+                        <TableCell>{b.payment_terms || '—'}</TableCell>
+                        <TableCell>{b.unpaid_orders}</TableCell>
+                        <TableCell className={outstandingColor(Number(b.outstanding_xcg))}>{Number(b.outstanding_xcg).toFixed(2)}</TableCell>
+                        <TableCell>{b.last_order_date ? format(new Date(b.last_order_date), 'MMM d') : '—'}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="default" className="h-7 text-xs" onClick={() => setPayDialog(b)}>Mark Paid</Button>
+                            <Button size="sm" variant="outline" className="h-7 text-xs" asChild>
+                              <a href={`https://wa.me/?text=${encodeURIComponent(`Hi ${b.customer_name}, this is a friendly reminder about your outstanding balance of XCG ${Number(b.outstanding_xcg).toFixed(2)} with FUIK. Please arrange payment at your earliest convenience. Thank you!`)}`} target="_blank" rel="noopener">Remind</a>
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {(!filteredBalances || filteredBalances.length === 0) && (
+                      <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No outstanding balances</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             </Card>
           )}
