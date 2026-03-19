@@ -499,8 +499,7 @@ export default function MarketingPortal() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-    </div>
+      </div>
     </div>
   );
 }

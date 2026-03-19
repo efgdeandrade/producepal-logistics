@@ -452,8 +452,7 @@ export default function FinancePortal() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-    </div>
+      </div>
     </div>
   );
 }
