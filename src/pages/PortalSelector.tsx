@@ -227,7 +227,7 @@ export default function PortalSelector() {
                     <div className={`p-2.5 rounded-lg ${portal.color} text-white`}>
                       <portal.icon className="h-6 w-6" />
                     </div>
-                    <CardTitle className="text-xl group-hover:text-primary transition-colors">
+                    <CardTitle className="text-xl">
                       {portal.title}
                     </CardTitle>
                   </div>
