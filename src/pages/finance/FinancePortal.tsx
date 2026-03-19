@@ -301,6 +301,7 @@ export default function FinancePortal() {
               </Table>
               </div>
             </Card>
+          )}
         </TabsContent>
 
         {/* TAB 3 — Invoices */}
