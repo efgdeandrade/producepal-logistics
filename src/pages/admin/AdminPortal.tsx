@@ -467,6 +467,7 @@ export default function AdminPortal() {
           <Card>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Shipment #</TableHead>
