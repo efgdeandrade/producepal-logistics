@@ -261,7 +261,7 @@ export default function PortalSelector() {
                           <option.icon className="h-5 w-5" />
                         </div>
                         <div>
-                          <CardTitle className="text-base group-hover:text-primary transition-colors">
+                          <CardTitle className="text-base">
                             {option.title}
                           </CardTitle>
                           <CardDescription className="text-xs">
