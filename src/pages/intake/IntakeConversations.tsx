@@ -342,7 +342,7 @@ export default function IntakeConversations() {
   return (
     <div className="flex h-full">
       {/* LEFT PANEL */}
-      <div className="w-[340px] flex-shrink-0 border-r border-border flex flex-col bg-intake-surface">
+      <div className={`${isMobile && mobileView !== 'list' ? 'hidden' : 'flex'} ${isMobile ? 'w-full' : 'w-[340px]'} flex-shrink-0 border-r border-border flex-col bg-intake-surface md:flex`}>
         {/* Header */}
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between mb-3">
