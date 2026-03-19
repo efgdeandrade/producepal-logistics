@@ -39,7 +39,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Progress } from '@/components/ui/progress';
 import { ExportButton } from '@/components/reports/ExportButton';
 
 type CustomerType = "regular" | "supermarket" | "cod" | "credit";
