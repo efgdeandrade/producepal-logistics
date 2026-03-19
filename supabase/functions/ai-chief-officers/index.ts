@@ -393,6 +393,69 @@ ${shipments?.length ? `Active shipments: ${shipments.map((s: any) => `${s.shipme
 }
 
 // ═══════════════════════════════════════
+// AMIR — Market Research
+// ═══════════════════════════════════════
+async function runAmir(supabase: any, key: string): Promise<void> {
+  console.log('=== AMIR STARTING ===');
+  const { data: signals } = await supabase.from('rd_market_signals')
+    .select('signal_type, title, description, relevance_score')
+    .eq('status', 'new').order('relevance_score', { ascending: false }).limit(10);
+
+  const { data: orderItems } = await supabase.from('distribution_order_items')
+    .select('product_name_raw, created_at')
+    .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+    .limit(300);
+
+  const productCounts: Record<string, number> = {};
+  (orderItems || []).forEach((i: any) => {
+    const n = (i.product_name_raw || '').toLowerCase();
+    productCounts[n] = (productCounts[n] || 0) + 1;
+  });
+  const topProducts = Object.entries(productCounts)
+    .sort(([,a],[,b]) => b-a).slice(0,8)
+    .map(([n,c]) => `${n}(${c} orders)`).join(', ');
+
+  const { data: shipments } = await supabase.from('import_shipments')
+    .select('supplier_name, total_cif_xcg, status, origin_country')
+    .gte('created_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString())
+    .limit(20);
+
+  const avgCIF = shipments?.length
+    ? (shipments.reduce((s: number, sh: any) => s + (sh.total_cif_xcg || 0), 0) / shipments.length).toFixed(2)
+    : '0';
+
+  const dataContext = `
+MARKET RESEARCH DATA — FUIK Curaçao:
+Top products last 30 days: ${topProducts}
+Active market signals: ${signals?.length || 0}
+${signals?.length ? `Signals: ${signals.map((s:any) => `${s.signal_type}: ${s.title}`).join(', ')}` : ''}
+Import shipments last 90 days: ${shipments?.length || 0}
+Avg CIF value per shipment: XCG ${avgCIF}
+Import origins: ${[...new Set((shipments||[]).map((s:any) => s.origin_country).filter(Boolean))].join(', ') || 'Colombia'}
+`;
+
+  const result = await callGPT(
+    `You are Amir, the AI Chief Market Research Officer for FUIK, a fresh produce distributor in Curaçao. You analyze market trends, competitor activity, seasonal demand, and import intelligence. Generate strategic market insights.`,
+    `Analyze and generate 2-3 actionable market research insights:\n${dataContext}\nReturn: {"suggestions":[{"title":string,"content":string,"priority":"low"|"medium"|"high"|"critical","reasoning":string}]}`,
+    key
+  );
+
+  console.log('Amir suggestions:', result.suggestions?.length || 0);
+  for (const s of (result.suggestions || [])) {
+    await supabase.from('ai_suggestions').insert({
+      department: 'market_research', suggestion_type: 'market_analysis',
+      title: s.title, content: s.content, reasoning: s.reasoning,
+      priority: s.priority || 'medium', status: 'pending',
+    });
+  }
+  await supabase.from('ai_chief_officers').update({
+    last_run_at: new Date().toISOString(),
+    last_suggestion_at: new Date().toISOString(),
+    status: 'active',
+  }).eq('department', 'market_research');
+}
+
+// ═══════════════════════════════════════
 // ORACLE — Oversight
 // ═══════════════════════════════════════
 async function runOracle(supabase: any, key: string): Promise<void> {
