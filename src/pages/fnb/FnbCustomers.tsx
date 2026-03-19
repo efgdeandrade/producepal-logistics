@@ -387,6 +387,23 @@ export default function FnbCustomers() {
     },
   });
 
+  // Fetch Telegram group stats
+  const { data: telegramGroups } = useQuery({
+    queryKey: ['customer-telegram-groups'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('customer_telegram_groups')
+        .select('customer_id, status, group_chat_id, group_name, activated_at')
+        .eq('status', 'activated');
+      if (error) throw error;
+      return (data || []) as { customer_id: string; status: string; group_chat_id: string; group_name: string; activated_at: string }[];
+    },
+  });
+
+  const telegramGroupMap = new Map(telegramGroups?.map(g => [g.customer_id, g]) || []);
+  const customersWithTelegram = customers?.filter(c => c.telegram_chat_id) || [];
+  const customersWithoutTelegram = customers?.filter(c => !c.telegram_chat_id) || [];
+
   // Create zone name lookup for display
   const majorZoneMap = new Map(majorZones?.map(z => [z.id, z.name]) || []);
   const subZoneNames = subZones?.map(z => z.name) || [];
