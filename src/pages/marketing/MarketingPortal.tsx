@@ -224,6 +224,7 @@ export default function MarketingPortal() {
             <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
           ) : (
             <Card>
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
