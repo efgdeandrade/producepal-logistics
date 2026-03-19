@@ -423,9 +423,9 @@ export default function FnbInvoiceDetail() {
             <Receipt className="h-4 w-4 mr-1" />
             80mm Receipt
           </Button>
-          <Button variant="outline" size="sm" onClick={handleQBSync} disabled={qbSyncing}>
-            {qbSyncing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />}
-            QuickBooks
+          <Button variant="outline" size="sm" onClick={handleSyncToQB} disabled={syncToQuickBooks.isPending}>
+            {syncToQuickBooks.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+            Sync to QuickBooks
           </Button>
           <Badge className={cn('gap-1 text-sm ml-2', config.color)}>
             {config.label}
