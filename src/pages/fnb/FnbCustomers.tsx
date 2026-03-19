@@ -1094,6 +1094,26 @@ export default function FnbCustomers() {
           </Card>
         )}
 
+        {/* Telegram Groups Overview */}
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Send className="h-5 w-5 text-primary" />
+                <span className="font-semibold">Telegram Groups</span>
+              </div>
+              <Badge variant="outline">
+                {customersWithTelegram.length} of {customers?.length || 0} customers on Telegram
+              </Badge>
+            </div>
+            <Progress value={customers?.length ? (customersWithTelegram.length / customers.length) * 100 : 0} className="h-2" />
+            <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1"><CheckCircle className="h-3 w-3 text-green-600" /> {customersWithTelegram.length} active</span>
+              <span className="flex items-center gap-1"><XCircle className="h-3 w-3 text-muted-foreground" /> {customersWithoutTelegram.length} not set up</span>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <div className="flex flex-col md:flex-row gap-4">
