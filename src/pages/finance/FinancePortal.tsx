@@ -261,7 +261,7 @@ export default function FinancePortal() {
             <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
           ) : (
             <Card>
-              <Table>
+              <div className="overflow-x-auto">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Customer</TableHead>
