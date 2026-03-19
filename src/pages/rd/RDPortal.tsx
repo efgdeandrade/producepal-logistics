@@ -328,6 +328,7 @@ export default function RDPortal() {
           <Card>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Type</TableHead>
