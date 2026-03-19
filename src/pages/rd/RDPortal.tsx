@@ -207,7 +207,7 @@ export default function RDPortal() {
           <ChevronLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">R&D</h1>
+          <h1 className="text-xl md:text-3xl font-bold tracking-tight">R&D</h1>
           <p className="text-muted-foreground">Market opportunities, innovation pipeline & Kayden AI</p>
         </div>
       </div>
