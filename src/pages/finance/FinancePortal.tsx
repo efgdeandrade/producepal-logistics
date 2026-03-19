@@ -312,30 +312,32 @@ export default function FinancePortal() {
           ) : (
             <Card>
               <div className="overflow-x-auto">
-              <Table>
-                  <TableRow>
-                    <TableHead>Invoice #</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Total XCG</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {invoices?.map((inv: any) => (
-                    <TableRow key={inv.id}>
-                      <TableCell className="font-medium">{inv.invoice_number || inv.id.slice(0, 8)}</TableCell>
-                      <TableCell>{inv.customer_name || '—'}</TableCell>
-                      <TableCell>{inv.created_at ? format(new Date(inv.created_at), 'MMM d, yyyy') : '—'}</TableCell>
-                      <TableCell><Badge variant="outline">{inv.status || 'draft'}</Badge></TableCell>
-                      <TableCell>{Number(inv.total_xcg || inv.total || 0).toFixed(2)}</TableCell>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Invoice #</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Total XCG</TableHead>
                     </TableRow>
-                  ))}
-                  {(!invoices || invoices.length === 0) && (
-                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No invoices found</TableCell></TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {invoices?.map((inv: any) => (
+                      <TableRow key={inv.id}>
+                        <TableCell className="font-medium">{inv.invoice_number || inv.id.slice(0, 8)}</TableCell>
+                        <TableCell>{inv.customer_name || '—'}</TableCell>
+                        <TableCell>{inv.created_at ? format(new Date(inv.created_at), 'MMM d, yyyy') : '—'}</TableCell>
+                        <TableCell><Badge variant="outline">{inv.status || 'draft'}</Badge></TableCell>
+                        <TableCell>{Number(inv.total_xcg || inv.total || 0).toFixed(2)}</TableCell>
+                      </TableRow>
+                    ))}
+                    {(!invoices || invoices.length === 0) && (
+                      <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No invoices found</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </Card>
           )}
         </TabsContent>
