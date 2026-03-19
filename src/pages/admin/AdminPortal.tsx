@@ -376,7 +376,7 @@ export default function AdminPortal() {
 
           <Card>
             <CardContent className="p-0">
-              <Table>
+              <div className="overflow-x-auto">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Supplier</TableHead>
