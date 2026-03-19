@@ -255,11 +255,11 @@ export default function AdminPortal() {
       </div>
 
       <Tabs defaultValue="tasks">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="tasks"><ClipboardList className="h-4 w-4 mr-2" />Tasks</TabsTrigger>
-          <TabsTrigger value="documents"><FileText className="h-4 w-4 mr-2" />Documents</TabsTrigger>
-          <TabsTrigger value="shipments"><Truck className="h-4 w-4 mr-2" />Shipments</TabsTrigger>
-          <TabsTrigger value="axel"><Brain className="h-4 w-4 mr-2" />Axel</TabsTrigger>
+        <TabsList className="w-full overflow-x-auto flex">
+          <TabsTrigger value="tasks"><ClipboardList className="h-4 w-4 mr-1" />Tasks</TabsTrigger>
+          <TabsTrigger value="documents"><FileText className="h-4 w-4 mr-1" />Docs</TabsTrigger>
+          <TabsTrigger value="shipments"><Truck className="h-4 w-4 mr-1" />Ships</TabsTrigger>
+          <TabsTrigger value="axel"><Brain className="h-4 w-4 mr-1" />Axel</TabsTrigger>
         </TabsList>
 
         {/* ═══ TASKS TAB ═══ */}
