@@ -188,3 +188,6 @@ verify_jwt = false
 
 [functions.anomaly-detection]
 verify_jwt = false
+
+[functions.setup-telegram-group]
+verify_jwt = false
