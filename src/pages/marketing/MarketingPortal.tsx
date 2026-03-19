@@ -255,6 +255,7 @@ export default function MarketingPortal() {
                   )}
                 </TableBody>
               </Table>
+              </div>
             </Card>
           )}
         </TabsContent>
