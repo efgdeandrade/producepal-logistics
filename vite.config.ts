@@ -53,7 +53,7 @@ export default defineConfig(({ mode }) => ({
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',
-        start_url: '/fnb/driver-mobile',
+        start_url: '/',
         icons: [
           {
             src: '/icons/icon-48.png',
