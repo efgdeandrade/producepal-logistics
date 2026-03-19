@@ -365,14 +365,7 @@ export default function FnbInvoiceDetail() {
     }
   };
 
-  // Enhancement 4: QuickBooks mock sync
-  const handleQBSync = () => {
-    setQbSyncing(true);
-    setTimeout(() => {
-      setQbSyncing(false);
-      toast.success('QuickBooks sync queued. Full sync will be wired in a later session.');
-    }, 1500);
-  };
+  // QuickBooks sync removed — use handleSyncToQB instead
 
   if (isLoading) {
     return (
