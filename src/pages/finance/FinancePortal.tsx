@@ -11,11 +11,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
-import { DollarSign, AlertTriangle, ShoppingCart, CreditCard, Check, X, Loader2, ChevronDown, ChevronUp, Zap, Brain, ChevronLeft } from 'lucide-react';
-import { format, subWeeks, startOfWeek } from 'date-fns';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { DollarSign, AlertTriangle, ShoppingCart, CreditCard, Check, X, Loader2, ChevronDown, ChevronUp, Zap, Brain, ChevronLeft, RefreshCw, CheckCircle, Clock, AlertCircle, Minus, Download } from 'lucide-react';
+import { format, subWeeks, startOfWeek, formatDistanceToNow } from 'date-fns';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
 export default function FinancePortal() {
   const { user } = useAuth();
@@ -28,6 +28,8 @@ export default function FinancePortal() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [runningAce, setRunningAce] = useState(false);
   const [expandedSuggestion, setExpandedSuggestion] = useState<string | null>(null);
+  const [syncingPayments, setSyncingPayments] = useState(false);
+  const [syncingInvoice, setSyncingInvoice] = useState<string | null>(null);
 
   // Revenue summary
   const { data: revenue, isLoading: revLoading } = useQuery({
@@ -48,11 +50,25 @@ export default function FinancePortal() {
   });
 
   // Invoices
-  const { data: invoices, isLoading: invLoading } = useQuery({
+  const { data: invoices, isLoading: invLoading, refetch: refetchInvoices } = useQuery({
     queryKey: ['finance-invoices'],
     queryFn: async () => {
-      const { data } = await supabase.from('distribution_invoices').select('*').order('created_at', { ascending: false }).limit(50);
+      const { data } = await supabase.from('distribution_invoices')
+        .select('*, distribution_customers(name)')
+        .order('created_at', { ascending: false }).limit(50);
       return data || [];
+    },
+  });
+
+  // QB token status
+  const { data: qbToken } = useQuery({
+    queryKey: ['qb-token-status'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('quickbooks_tokens')
+        .select('realm_id, expires_at, updated_at, is_sandbox')
+        .single();
+      return data;
     },
   });
 
@@ -118,6 +134,14 @@ export default function FinancePortal() {
       .eq('customer_id', payDialog.customer_id)
       .in('status', ['confirmed', 'delivered'])
       .or('payment_status.is.null,payment_status.neq.paid');
+
+    // Also update linked invoices - mark sync status
+    if (!error) {
+      await supabase.from('distribution_invoices')
+        .update({ quickbooks_sync_status: 'pending' } as any)
+        .eq('customer_id', payDialog.customer_id);
+    }
+
     setPaying(false);
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -125,6 +149,42 @@ export default function FinancePortal() {
       toast({ title: 'Marked as paid' });
       setPayDialog(null);
       refetchBalances();
+      refetchInvoices();
+    }
+  };
+
+  const handleSyncInvoice = async (invoiceId: string) => {
+    setSyncingInvoice(invoiceId);
+    try {
+      const { data, error } = await supabase.functions.invoke('quickbooks-invoice-sync', {
+        body: { invoice_id: invoiceId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: 'Synced to QuickBooks', description: data?.quickbooks_invoice_number || '' });
+      refetchInvoices();
+    } catch (e: any) {
+      toast({ title: 'Sync failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setSyncingInvoice(null);
+    }
+  };
+
+  const handleSyncPayments = async () => {
+    setSyncingPayments(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('quickbooks-payment-sync');
+      if (error) throw error;
+      toast({
+        title: 'Payment sync complete',
+        description: `Checked ${data?.checked || 0} invoices, updated ${data?.updated || 0} payment statuses`,
+      });
+      refetchInvoices();
+      refetchBalances();
+    } catch (e: any) {
+      toast({ title: 'Payment sync failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setSyncingPayments(false);
     }
   };
 
@@ -155,6 +215,59 @@ export default function FinancePortal() {
     if (val > 500) return 'text-destructive font-semibold';
     if (val > 100) return 'text-warning font-semibold';
     return '';
+  };
+
+  const qbSyncStatusBadge = (inv: any) => {
+    const status = inv.quickbooks_sync_status;
+    if (status === 'synced') return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 gap-1"><CheckCircle className="h-3 w-3" />Synced</Badge>;
+    if (status === 'failed') return (
+      <Tooltip>
+        <TooltipTrigger>
+          <Badge className="bg-destructive/10 text-destructive gap-1"><AlertCircle className="h-3 w-3" />Failed</Badge>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-xs"><p className="text-xs">{inv.quickbooks_sync_error || 'Unknown error'}</p></TooltipContent>
+      </Tooltip>
+    );
+    if (status === 'mock') return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300 gap-1"><AlertTriangle className="h-3 w-3" />Mock</Badge>;
+    if (status === 'pending') return <Badge variant="secondary" className="gap-1"><Clock className="h-3 w-3" />Pending</Badge>;
+    return <span className="text-muted-foreground"><Minus className="h-4 w-4" /></span>;
+  };
+
+  // QB connection banner
+  const qbBanner = () => {
+    if (!qbToken) {
+      return (
+        <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/50 mb-4">
+          <div className="flex items-center gap-2">
+            <Minus className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">QuickBooks not connected</span>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => navigate('/admin/integrations/quickbooks')}>Connect QuickBooks</Button>
+        </div>
+      );
+    }
+    const isExpired = qbToken.expires_at && new Date(qbToken.expires_at) < new Date();
+    if (isExpired) {
+      return (
+        <div className="flex items-center justify-between p-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 mb-4">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <span className="text-sm text-amber-800 dark:text-amber-300">QuickBooks token expired — reconnect to resume syncing</span>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => navigate('/admin/integrations/quickbooks')}>Reconnect QuickBooks</Button>
+        </div>
+      );
+    }
+    return (
+      <div className="flex items-center justify-between p-3 rounded-lg border border-green-300 bg-green-50 dark:bg-green-950/20 mb-4">
+        <div className="flex items-center gap-2">
+          <CheckCircle className="h-4 w-4 text-green-600" />
+          <span className="text-sm text-green-800 dark:text-green-300">
+            QuickBooks connected{qbToken.is_sandbox ? ' (sandbox)' : ''} — last synced {qbToken.updated_at ? formatDistanceToNow(new Date(qbToken.updated_at), { addSuffix: true }) : 'never'}
+          </span>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -213,8 +326,8 @@ export default function FinancePortal() {
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                     <XAxis dataKey="week" className="text-xs fill-muted-foreground" />
                     <YAxis className="text-xs fill-muted-foreground" />
-                    <Tooltip />
-                    <Bar dataKey="revenue" fill="hsl(186, 90%, 45%)" radius={[4, 4, 0, 0]} />
+                    <RechartsTooltip />
+                    <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -227,11 +340,11 @@ export default function FinancePortal() {
                   <PieChart>
                     <Pie data={pieData} cx="50%" cy="50%" labelLine={false} outerRadius={100} dataKey="value"
                       label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                      <Cell fill="hsl(186, 90%, 45%)" />
-                      <Cell fill="hsl(188, 86%, 53%)" />
+                      <Cell fill="hsl(var(--primary))" />
+                      <Cell fill="hsl(var(--muted-foreground))" />
                     </Pie>
                     <Legend />
-                    <Tooltip />
+                    <RechartsTooltip />
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -312,6 +425,18 @@ export default function FinancePortal() {
 
         {/* TAB 3 — Invoices */}
         <TabsContent value="invoices" className="space-y-4">
+          {qbBanner()}
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSyncPayments}
+              disabled={syncingPayments}
+            >
+              {syncingPayments ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />}
+              {syncingPayments ? 'Syncing...' : 'Sync Payments from QB'}
+            </Button>
+          </div>
           {invLoading ? (
             <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
           ) : (
@@ -324,21 +449,36 @@ export default function FinancePortal() {
                       <TableHead>Customer</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>QB Sync</TableHead>
                       <TableHead>Total XCG</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {invoices?.map((inv: any) => (
                       <TableRow key={inv.id}>
-                        <TableCell className="font-medium">{inv.invoice_number || inv.id.slice(0, 8)}</TableCell>
-                        <TableCell>{inv.customer_name || '—'}</TableCell>
+                        <TableCell className="font-medium">{inv.fuik_invoice_number || inv.invoice_number || inv.id.slice(0, 8)}</TableCell>
+                        <TableCell>{inv.distribution_customers?.name || inv.customer_name || '—'}</TableCell>
                         <TableCell>{inv.created_at ? format(new Date(inv.created_at), 'MMM d, yyyy') : '—'}</TableCell>
                         <TableCell><Badge variant="outline">{inv.status || 'draft'}</Badge></TableCell>
+                        <TableCell>{qbSyncStatusBadge(inv)}</TableCell>
                         <TableCell>{Number(inv.total_xcg || inv.total || 0).toFixed(2)}</TableCell>
+                        <TableCell>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            onClick={() => handleSyncInvoice(inv.id)}
+                            disabled={syncingInvoice === inv.id || inv.quickbooks_sync_status === 'synced'}
+                          >
+                            {syncingInvoice === inv.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                            Sync
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                     {(!invoices || invoices.length === 0) && (
-                      <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No invoices found</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No invoices found</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>

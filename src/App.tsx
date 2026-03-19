@@ -139,6 +139,7 @@ import MarketingPortal from "./pages/marketing/MarketingPortal";
 // Administration & R&D Portals
 import AdminPortalPage from "./pages/admin/AdminPortal";
 import RDPortal from "./pages/rd/RDPortal";
+import AmirPortal from "./pages/market-research/AmirPortal";
 
 const queryClient = new QueryClient();
 
@@ -315,6 +316,15 @@ const App = () => (
                     <ProtectedRoute>
                       <PasswordChangeRequired>
                         <RDPortal />
+                      </PasswordChangeRequired>
+                    </ProtectedRoute>
+                  } />
+
+                  {/* ========== MARKET RESEARCH PORTAL ========== */}
+                  <Route path="/market-research" element={
+                    <ProtectedRoute>
+                      <PasswordChangeRequired>
+                        <AmirPortal />
                       </PasswordChangeRequired>
                     </ProtectedRoute>
                   } />

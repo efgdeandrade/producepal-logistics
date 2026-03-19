@@ -229,6 +229,83 @@ function TrainingSettingsTab({ generalSettings, updateGeneralSetting, saveGenera
   );
 }
 
+function ProactiveOutreachTab({ generalSettings, updateGeneralSetting, saveGeneral }: {
+  generalSettings: Record<string, string>;
+  updateGeneralSetting: (key: string, value: string) => void;
+  saveGeneral: () => Promise<void>;
+}) {
+  const { toast } = useToast();
+  const [running, setRunning] = useState(false);
+  const [lastRun, setLastRun] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchLastRun = async () => {
+      const { data } = await supabase
+        .from('anomaly_log')
+        .select('triggered_at')
+        .eq('anomaly_type', 'proactive_outreach')
+        .order('triggered_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (data?.triggered_at) setLastRun(new Date(data.triggered_at).toLocaleString());
+    };
+    fetchLastRun();
+  }, []);
+
+  const runNow = async () => {
+    setRunning(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('anomaly-detection');
+      if (error) throw error;
+      toast({ title: 'Outreach complete', description: `Contacted ${data?.contacted || 0} of ${data?.candidates || 0} inactive customers` });
+      const { data: latest } = await supabase.from('anomaly_log').select('triggered_at').eq('anomaly_type', 'proactive_outreach').order('triggered_at', { ascending: false }).limit(1).maybeSingle();
+      if (latest?.triggered_at) setLastRun(new Date(latest.triggered_at).toLocaleString());
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <div className="max-w-lg space-y-4 p-4 border rounded-lg bg-intake-surface">
+      <div className="flex items-center justify-between">
+        <Label className="text-base font-medium">Enable Proactive Outreach</Label>
+        <Switch
+          checked={generalSettings.anomaly_enabled !== 'false'}
+          onCheckedChange={(v) => updateGeneralSetting('anomaly_enabled', v ? 'true' : 'false')}
+        />
+      </div>
+      <div>
+        <Label>Days Threshold (3–30)</Label>
+        <Input
+          type="number" min={3} max={30}
+          value={generalSettings.anomaly_days_threshold || '7'}
+          onChange={(e) => updateGeneralSetting('anomaly_days_threshold', e.target.value)}
+        />
+        <p className="text-xs text-intake-text-muted mt-1">Contact customers inactive for this many days</p>
+      </div>
+      <div>
+        <Label>Max Contacts Per Run (1–20)</Label>
+        <Input
+          type="number" min={1} max={20}
+          value={generalSettings.anomaly_max_per_run || '10'}
+          onChange={(e) => updateGeneralSetting('anomaly_max_per_run', e.target.value)}
+        />
+      </div>
+      <div className="flex gap-2 pt-2">
+        <Button className="bg-intake-brand hover:bg-intake-accent text-white" onClick={saveGeneral}>Save Settings</Button>
+        <Button variant="outline" onClick={runNow} disabled={running}>
+          {running ? 'Running...' : 'Run Now'}
+        </Button>
+      </div>
+      <div className="pt-2 border-t">
+        <p className="text-xs text-intake-text-muted">Last run: {lastRun || 'Never'}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function IntakeSettings() {
   const { user, hasRole } = useAuth();
   const { toast } = useToast();
@@ -349,6 +426,7 @@ export default function IntakeSettings() {
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
           <TabsTrigger value="training">Training</TabsTrigger>
+          <TabsTrigger value="outreach">Outreach</TabsTrigger>
         </TabsList>
 
         {/* Telegram Tab */}
@@ -516,6 +594,11 @@ export default function IntakeSettings() {
         {/* Training Tab */}
         <TabsContent value="training" className="space-y-4">
           <TrainingSettingsTab generalSettings={generalSettings} updateGeneralSetting={updateGeneralSetting} saveGeneral={saveGeneral} />
+        </TabsContent>
+
+        {/* Proactive Outreach Tab */}
+        <TabsContent value="outreach" className="space-y-4">
+          <ProactiveOutreachTab generalSettings={generalSettings} updateGeneralSetting={updateGeneralSetting} saveGeneral={saveGeneral} />
         </TabsContent>
       </Tabs>
     </div>

@@ -19,7 +19,8 @@ import {
   Megaphone,
   ClipboardList,
   Lightbulb,
-  Inbox
+  Inbox,
+  TrendingUp,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -105,6 +106,14 @@ const portals: PortalOption[] = [
     icon: Lightbulb,
     path: '/rd',
     color: 'bg-amber-600',
+  },
+  {
+    id: 'market-research',
+    title: 'Market Research',
+    description: 'Competitor pricing, seasonal trends, import intelligence, Amir AI insights',
+    icon: TrendingUp,
+    path: '/market-research',
+    color: 'bg-teal-600',
   },
 ];
 
