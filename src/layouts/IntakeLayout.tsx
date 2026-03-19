@@ -24,7 +24,7 @@ export function IntakeLayout({ children }: { children: ReactNode }) {
   if (isMobile) {
     return (
       <div className="flex flex-col h-screen overflow-hidden bg-background"
-        style={{ paddingTop: 'env(safe-area-inset-top)', paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}
+        style={{ paddingTop: 'env(safe-area-inset-top)', paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)', paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         {/* Push notification banner */}
         {permission === 'default' && (

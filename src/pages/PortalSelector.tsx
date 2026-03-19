@@ -155,7 +155,7 @@ export default function PortalSelector() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
       {/* Header */}
-      <header className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50 safe-area-top">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img 
@@ -227,7 +227,7 @@ export default function PortalSelector() {
                     <div className={`p-2.5 rounded-lg ${portal.color} text-white`}>
                       <portal.icon className="h-6 w-6" />
                     </div>
-                    <CardTitle className="text-xl group-hover:text-primary transition-colors">
+                    <CardTitle className="text-xl">
                       {portal.title}
                     </CardTitle>
                   </div>
@@ -261,7 +261,7 @@ export default function PortalSelector() {
                           <option.icon className="h-5 w-5" />
                         </div>
                         <div>
-                          <CardTitle className="text-base group-hover:text-primary transition-colors">
+                          <CardTitle className="text-base">
                             {option.title}
                           </CardTitle>
                           <CardDescription className="text-xs">
