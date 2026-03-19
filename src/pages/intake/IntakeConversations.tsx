@@ -164,6 +164,7 @@ export default function IntakeConversations() {
   const selectConversation = async (id: string) => {
     setSelectedId(id);
     fetchMessages(id);
+    if (isMobile) setMobileView('thread');
     // Fetch linked order if exists
     const conv = conversations.find(c => c.id === id);
     if (conv?.order_id) {
