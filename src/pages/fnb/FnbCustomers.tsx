@@ -58,6 +58,7 @@ interface FnbCustomer {
   latitude?: number | null;
   longitude?: number | null;
   pricing_tier_id?: string | null;
+  telegram_chat_id?: string | null;
 }
 
 interface MajorZone {
