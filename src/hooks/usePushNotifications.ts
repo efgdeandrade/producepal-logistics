@@ -16,15 +16,13 @@ const DEFAULT_SETTINGS: PushNotificationSettings = {
 
 const SETTINGS_KEY = 'dre-push-settings';
 
-// VAPID public key — set via VITE_VAPID_PUBLIC_KEY env var
-const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || '';
-
 export function usePushNotifications() {
   const [isSupported, setIsSupported] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [subscription, setSubscription] = useState<PushSubscription | null>(null);
   const [settings, setSettings] = useState<PushNotificationSettings>(DEFAULT_SETTINGS);
   const [isLoading, setIsLoading] = useState(false);
+  const [vapidPublicKey, setVapidPublicKey] = useState<string | null>(null);
 
   // Check if push notifications are supported
   useEffect(() => {
@@ -44,6 +42,25 @@ export function usePushNotifications() {
         console.error('Failed to parse push settings:', e);
       }
     }
+  }, []);
+
+  // Fetch VAPID public key from edge function
+  useEffect(() => {
+    const fetchVapidKey = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('get-vapid-public-key');
+        if (error) {
+          console.error('Failed to fetch VAPID key:', error);
+          return;
+        }
+        if (data?.publicKey) {
+          setVapidPublicKey(data.publicKey);
+        }
+      } catch (e) {
+        console.error('Failed to fetch VAPID key:', e);
+      }
+    };
+    fetchVapidKey();
   }, []);
 
   // Check existing subscription on mount
@@ -80,8 +97,9 @@ export function usePushNotifications() {
       return false;
     }
 
-    if (!VAPID_PUBLIC_KEY) {
+    if (!vapidPublicKey) {
       toast.error('Push notifications are not configured yet');
+      console.error('VAPID public key not available');
       return false;
     }
 
@@ -97,7 +115,7 @@ export function usePushNotifications() {
         try {
           const sub = await registration.pushManager.subscribe({
             userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY).buffer as ArrayBuffer,
+            applicationServerKey: urlBase64ToUint8Array(vapidPublicKey).buffer as ArrayBuffer,
           });
 
           setSubscription(sub);
@@ -139,7 +157,7 @@ export function usePushNotifications() {
     } finally {
       setIsLoading(false);
     }
-  }, [isSupported]);
+  }, [isSupported, vapidPublicKey]);
 
   // Unsubscribe
   const unsubscribe = useCallback(async () => {
