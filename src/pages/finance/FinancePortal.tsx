@@ -299,8 +299,8 @@ export default function FinancePortal() {
                   )}
                 </TableBody>
               </Table>
+              </div>
             </Card>
-          )}
         </TabsContent>
 
         {/* TAB 3 — Invoices */}
