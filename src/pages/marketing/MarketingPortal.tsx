@@ -188,11 +188,11 @@ export default function MarketingPortal() {
       </div>
 
       <Tabs defaultValue="segments" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="segments">Customer Segments</TabsTrigger>
-          <TabsTrigger value="products">Top Products</TabsTrigger>
+        <TabsList className="w-full overflow-x-auto flex">
+          <TabsTrigger value="segments">Segments</TabsTrigger>
+          <TabsTrigger value="products">Products</TabsTrigger>
           <TabsTrigger value="broadcast">Broadcast</TabsTrigger>
-          <TabsTrigger value="maya">Maya Insights</TabsTrigger>
+          <TabsTrigger value="maya">Maya</TabsTrigger>
         </TabsList>
 
         {/* TAB 1 — Segments */}
