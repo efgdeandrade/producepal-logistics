@@ -487,6 +487,7 @@ export default function FnbCustomers() {
     }
   };
 
+  const resetForm = () => {
     setFormData(emptyCustomer);
     setEditingCustomer(null);
     setDetectedZoneInfo(null);
