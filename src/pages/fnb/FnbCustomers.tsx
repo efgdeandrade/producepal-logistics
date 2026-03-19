@@ -454,7 +454,39 @@ export default function FnbCustomers() {
     },
   });
 
-  const resetForm = () => {
+  const handleSetupTelegramGroup = async (customer: FnbCustomer) => {
+    try {
+      setSettingUpGroup(customer.id);
+      const { data, error } = await supabase.functions.invoke('setup-telegram-group', {
+        body: { customer_id: customer.id },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success(`📱 Instructions sent! Code: ${data.activation_code}`);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to setup Telegram group');
+    } finally {
+      setSettingUpGroup(null);
+    }
+  };
+
+  const handleDeactivateGroup = async (customerId: string) => {
+    if (!confirm('Deactivate this Telegram group? The customer will no longer receive orders via this group.')) return;
+    try {
+      await supabase.from('distribution_customers').update({ telegram_chat_id: null } as any).eq('id', customerId);
+      await supabase.from('customer_telegram_groups').update({ status: 'deactivated' } as any)
+        .eq('customer_id', customerId)
+        .eq('status', 'activated');
+      queryClient.invalidateQueries({ queryKey: ['fnb-customers'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-telegram-groups'] });
+      toast.success('Telegram group deactivated');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to deactivate');
+    }
+  };
+
     setFormData(emptyCustomer);
     setEditingCustomer(null);
     setDetectedZoneInfo(null);
