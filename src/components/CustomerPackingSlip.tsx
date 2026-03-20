@@ -135,14 +135,20 @@ export const CustomerPackingSlip = ({ order, orderItems, format }: Props) => {
             <tbody>
               {items.map((item) => {
                 const product = getProductInfo(item.product_code);
-                const units = product ? item.quantity * product.pack_size : 0;
+                const totalQuantity = (item.quantity ?? 0) + (item.stock_quantity ?? 0);
+                const units = product ? totalQuantity * product.pack_size : 0;
                 return (
                   <tr key={item.id} className="border-b-2 border-black">
                     <td className={`${textSize} py-2`}>
                       <div className="font-bold">{item.product_code}</div>
                       {product && <div className="text-black font-bold">{product.name}</div>}
+                      {(item.stock_quantity ?? 0) > 0 && (
+                        <span className="text-xs text-gray-600 ml-1">
+                          ({item.stock_quantity} from stock)
+                        </span>
+                      )}
                     </td>
-                    <td className={`${textSize} text-right py-2 font-bold`}>{item.quantity}</td>
+                    <td className={`${textSize} text-right py-2 font-bold`}>{totalQuantity}</td>
                     <td className={`${textSize} text-right py-2 font-bold`}>{units}</td>
                   </tr>
                 );
