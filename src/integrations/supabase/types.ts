@@ -2969,6 +2969,7 @@ export type Database = {
           invoice_id: string | null
           is_late_order: boolean | null
           is_pickup: boolean | null
+          items_count: number | null
           language_used: string | null
           late_order_decided_at: string | null
           late_order_decided_by: string | null
@@ -3034,6 +3035,7 @@ export type Database = {
           invoice_id?: string | null
           is_late_order?: boolean | null
           is_pickup?: boolean | null
+          items_count?: number | null
           language_used?: string | null
           late_order_decided_at?: string | null
           late_order_decided_by?: string | null
@@ -3099,6 +3101,7 @@ export type Database = {
           invoice_id?: string | null
           is_late_order?: boolean | null
           is_pickup?: boolean | null
+          items_count?: number | null
           language_used?: string | null
           late_order_decided_at?: string | null
           late_order_decided_by?: string | null

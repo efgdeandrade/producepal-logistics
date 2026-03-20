@@ -1,0 +1,1 @@
+ALTER TABLE distribution_orders ADD COLUMN IF NOT EXISTS items_count integer DEFAULT 0;
