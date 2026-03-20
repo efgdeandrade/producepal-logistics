@@ -622,17 +622,12 @@ export async function executeFunctionCall(
           }).catch(() => {});
         }
 
-        // Count what was ACTUALLY inserted — don't trust draft length
-        const { count: actualItemCount } = await supabase
-          .from('distribution_order_items')
-          .select('*', { count: 'exact', head: true })
-          .eq('order_id', order.id);
-
+        // Update order with item count and total — use validItems.length directly
         await supabase.from('distribution_orders')
-          .update({ total_xcg: totalXcg, items_count: actualItemCount || 0 })
+          .update({ total_xcg: totalXcg, items_count: validItems.length })
           .eq('id', order.id);
 
-        console.log('ORDER COMPLETE:', orderNumber, 'items:', actualItemCount, 'total:', totalXcg);
+        console.log('ORDER COMPLETE:', orderNumber, 'items saved:', validItems.length, 'total:', totalXcg);
 
         await supabase.from('dre_conversations')
           .update({ order_id: order.id })
