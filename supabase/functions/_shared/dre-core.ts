@@ -948,7 +948,7 @@ export async function runDreAgent(
               })),
             ],
             temperature: 0.7,
-            max_tokens: 200,
+            max_tokens: 500,
           }),
         });
         const followUpData = await followUpResp.json();
