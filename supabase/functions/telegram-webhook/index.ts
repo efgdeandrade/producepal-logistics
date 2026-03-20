@@ -350,6 +350,7 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
     }
 
     // ── Find or create conversation ──────────────────────
+    console.log('CHECKPOINT 6: find/create conversation for customer', customer.name);
     let { data: convo } = await supabase
       .from('dre_conversations')
       .select('id, control_status, agent_state, language_detected')
