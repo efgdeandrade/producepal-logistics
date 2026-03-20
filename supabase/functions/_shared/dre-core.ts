@@ -625,17 +625,19 @@ export async function executeFunctionCall(
             console.log('ITEM SAVED:', item.product_name, item.qty, item.unit);
           }
 
-          // Log match for training
-          await supabase.from('distribution_ai_match_logs').insert({
-            raw_text: item.product_name,
-            detected_language: language,
-            matched_product_id: item.product_id,
-            confidence: item.product_id ? 'high' : 'low',
-            needs_review: !item.product_id,
-            source_channel: ctx.channel,
-            conversation_id: conversationId,
-            match_source: item.product_id ? 'v4_function_call' : 'no_match',
-          }).catch(() => {});
+          // Log match for training (fire-and-forget, ignore errors)
+          try {
+            await supabase.from('distribution_ai_match_logs').insert({
+              raw_text: item.product_name,
+              detected_language: language,
+              matched_product_id: item.product_id,
+              confidence: item.product_id ? 'high' : 'low',
+              needs_review: !item.product_id,
+              source_channel: ctx.channel,
+              conversation_id: conversationId,
+              match_source: item.product_id ? 'v4_function_call' : 'no_match',
+            });
+          } catch (_) { /* ignore */ }
         }
 
         // Update order with item count and total — use validItems.length directly
