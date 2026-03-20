@@ -1,0 +1,1 @@
+ALTER TABLE distribution_order_items ADD COLUMN IF NOT EXISTS product_name_raw text;

@@ -2736,6 +2736,7 @@ export type Database = {
           picked_unit: string | null
           picker_name: string | null
           product_id: string | null
+          product_name_raw: string | null
           quantity: number
           short_quantity: number | null
           short_reason: string | null
@@ -2766,6 +2767,7 @@ export type Database = {
           picked_unit?: string | null
           picker_name?: string | null
           product_id?: string | null
+          product_name_raw?: string | null
           quantity: number
           short_quantity?: number | null
           short_reason?: string | null
@@ -2796,6 +2798,7 @@ export type Database = {
           picked_unit?: string | null
           picker_name?: string | null
           product_id?: string | null
+          product_name_raw?: string | null
           quantity?: number
           short_quantity?: number | null
           short_reason?: string | null

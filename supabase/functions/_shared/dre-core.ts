@@ -178,9 +178,9 @@ export const DRE_FUNCTIONS = [
           items: {
             type: 'object',
             properties: {
-              product_name: { type: 'string', description: 'Product name — translate to English if in another language. E.g. pampuna→pumpkin, wortel→carrot, apelsin→orange, aarbei/fresa/strawberry→strawberry' },
+              product_name: { type: 'string', description: 'Product name — translate to English if in another language. E.g. pampuna→pumpkin, wortel→carrot, apelsin→orange, patia→watermelon, lamunchi→lime, aarbei/fresa/strawberry→strawberry, piscado→fish, poleishi→chicken' },
               qty: { type: 'number', description: 'Quantity. Null if not specified.' },
-              unit: { type: 'string', description: 'Unit: kg, case, bag, piece, bunch. Papiamentu: kaha=case, bolsa=bag, saku=bag, kilo=kg, misa=head, pida=piece. Null if not specified.' },
+              unit: { type: 'string', description: 'Unit: kg, case, bag, piece, bunch. Papiamentu mappings: kaha=case, bolsa=bag, saku=bag, kilo=kg, misa=head, pida=piece, stuks=piece. Null if not specified.' },
             },
             required: ['product_name'],
           },
@@ -287,7 +287,23 @@ Status: ${pendingOrder.status}
     papiamentu: `PRIMARY LANGUAGE: Curaçao Papiamentu (NOT Aruban).
 Natural phrases: "Ta bon 👌", "Mi ta registrá esaki", "Kiko mas?", "Tur kos?", "Danki, ayo!"
 Time greeting: ${curacaoTime.includes('morning') ? 'Bon dia' : curacaoTime.includes('afternoon') ? 'Bon tardi' : 'Bon nochi'} — use ONLY on first message of a new session, never again.
-Keep it short. Max 2 sentences for casual replies. One question per message.`,
+Keep it short. Max 2 sentences for casual replies. One question per message.
+
+IMPORTANT PAPIAMENTU VOCABULARY:
+- orde = pedido (order) — both correct, use orde in casual context
+- bolsa = saku = bag
+- pida = stuks = piece
+- kaha = case/box
+- tur kos = everything/that's all
+- konta = tell me/what's up (NOT an order item)
+- esey = that/that's it
+- awor = now
+- mas = more/also
+- sin = without
+- ku = with/and
+- patia = watermelon, pampuna = pumpkin, wortel = carrot
+- lamunchi = lime, apelsin = orange
+- fruta = fruit, berdura = vegetable`,
     english: `PRIMARY LANGUAGE: Casual English. Short sentences. Never say "Good morning" after first message.`,
     dutch: `PRIMARY LANGUAGE: Casual Dutch. Kort en vriendelijk. Niet te formeel.`,
     spanish: `PRIMARY LANGUAGE: Casual Spanish. Corto y amigable. Sin formalidades.`,
@@ -525,15 +541,23 @@ export async function executeFunctionCall(
           const lineTotal = (item.unit_price_xcg || 0) * (item.qty || 0);
           totalXcg += lineTotal;
 
-          await supabase.from('distribution_order_items').insert({
-            order_id: order.id,
-            product_id: item.product_id,
-            product_name_raw: item.product_name,
-            quantity: item.qty || 0,
-            order_unit: item.unit || 'kg',
-            unit_price_xcg: item.unit_price_xcg || 0,
-            total_xcg: lineTotal,
-          });
+          const { data: insertedItem, error: itemError } = await supabase
+            .from('distribution_order_items')
+            .insert({
+              order_id: order.id,
+              product_id: item.product_id,
+              product_name_raw: item.product_name,
+              quantity: item.qty || 0,
+              order_unit: item.unit || 'piece',
+              unit_price_xcg: item.unit_price_xcg || 0,
+              total_xcg: lineTotal,
+            });
+
+          if (itemError) {
+            console.error('ITEM INSERT ERROR:', JSON.stringify(itemError), 'item:', JSON.stringify(item));
+          } else {
+            console.log('ITEM INSERTED:', item.product_name, item.qty, item.unit);
+          }
 
           // Log match for training
           await supabase.from('distribution_ai_match_logs').insert({
@@ -579,14 +603,14 @@ export async function executeFunctionCall(
         // Clear draft
         orderDraft.items = [];
 
-        // IMMEDIATELY clear draft in database — don't wait for the main save
+        // NUCLEAR CLEAR — completely reset agent_state after confirmation
         await supabase.from('dre_conversations')
           .update({ 
-            agent_state: { order_draft: { items: [] } },
+            agent_state: { order_draft: { items: [] }, last_confirmed_order: orderNumber, cleared_at: new Date().toISOString() },
             order_id: order.id,
           })
           .eq('id', conversationId);
-        console.log('Draft cleared in DB immediately after order confirmation');
+        console.log('NUCLEAR CLEAR: agent_state reset after order', orderNumber);
 
         const confirmReplies: Record<string, string> = {
           papiamentu: `Perfekto! 🌿 Bo orde #${orderNumber} ta aden. E team di FUIK lo kontakta bo.`,
