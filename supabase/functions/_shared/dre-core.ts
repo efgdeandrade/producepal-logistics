@@ -378,6 +378,13 @@ CRITICAL: When customer orders multiple items in one message like "2 banana i 1 
 - NEVER merge items that have different units — "2 piece banana" and "1 bunch banana" are DIFFERENT line items
 - Use different product_names for different units of the same product
 
+WEIGHT AND PACK FORMATS:
+- "2x500gr strawberry" → 2 packs of 500g strawberry → {product_name:"strawberry 500g", qty:2, unit:"pack"}
+- "1000gr tomato" → {product_name:"tomato", qty:1000, unit:"g"}
+- "500gram" = "500gr" = "500g" — all the same
+- "2 kilo" = "2kg" — same
+- Always preserve the pack size in the product_name when customer specifies it
+
 PRODUCT CATALOG (use for matching):
 ${productCatalog}
 
