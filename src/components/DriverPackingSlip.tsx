@@ -121,6 +121,7 @@ export const DriverPackingSlip = ({
       .forEach(item => {
         const product = getProductInfo(item.product_code);
         const packSize = product?.pack_size || 1;
+        const totalQty = (item.quantity ?? 0) + ((item as any).stock_quantity ?? 0);
         
         if (!totals[item.product_code]) {
           totals[item.product_code] = {
@@ -130,8 +131,8 @@ export const DriverPackingSlip = ({
             units: 0
           };
         }
-        totals[item.product_code].cases += item.quantity;
-        totals[item.product_code].units += item.quantity * packSize;
+        totals[item.product_code].cases += totalQty;
+        totals[item.product_code].units += totalQty * packSize;
       });
     
     // Add Distribution order items (converted to Import equivalents)
