@@ -51,6 +51,7 @@ export const PackingSlipFromReceipts = ({
 
   const loadReceiptItems = async () => {
     setLoading(true);
+    console.log('PACKING SLIP DEBUG — savedReceipts count:', savedReceipts.length);
     try {
       const allItems: OrderItem[] = [];
       
