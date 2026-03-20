@@ -48,12 +48,15 @@ serve(async (req) => {
     const { data: order } = await supabase
       .from('distribution_orders')
       .select(`
-        id, order_number, source_channel, total_xcg, items_count,
+        id, order_number, source_channel, total_xcg, items_count, notes,
         distribution_customers(
           id, name, preferred_language,
           telegram_chat_id, whatsapp_phone
         ),
-        distribution_order_items(product_name_raw, quantity, order_unit)
+        distribution_order_items(
+          product_name_raw, quantity, order_unit,
+          distribution_products(name)
+        )
       `)
       .eq('id', order_id)
       .single();
@@ -91,8 +94,11 @@ serve(async (req) => {
 
     const items = (order.distribution_order_items as any[]) || [];
     const itemList = items.length > 0
-      ? items.slice(0, 5)
-          .map((i: any) => `• ${i.quantity} ${i.order_unit || ''} ${i.product_name_raw || 'item'}`.trim())
+      ? items.slice(0, 8)
+          .map((i: any) => {
+            const name = i.product_name_raw || i.distribution_products?.name || 'item';
+            return `• ${i.quantity} ${i.order_unit || ''} ${name}`.trim();
+          })
           .join('\n')
       : '• (items being prepared)';
 

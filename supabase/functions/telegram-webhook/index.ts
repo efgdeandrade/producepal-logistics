@@ -439,8 +439,28 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
       loadCustomerMemory(supabase, customer.id),
     ]);
 
-    const language = isUniversalConfirmation ? langResult : langResult;
-    console.log('Language resolved:', language, isUniversalConfirmation ? '(confirmation override)' : '(detected)');
+    // Normalize language codes
+    const normalizeLanguage = (lang: string): string => {
+      const map: Record<string, string> = {
+        'pap': 'papiamentu', 'papiamentu': 'papiamentu',
+        'en': 'english', 'english': 'english',
+        'nl': 'dutch', 'dutch': 'dutch',
+        'es': 'spanish', 'spanish': 'spanish',
+      };
+      return map[lang?.toLowerCase()] || 'papiamentu';
+    };
+
+    const customerPreferredLang = normalizeLanguage(customer?.preferred_language || 'papiamentu');
+    const detectedLanguage = normalizeLanguage(langResult);
+
+    // Use customer preference UNLESS message is clearly in English or Spanish
+    // Papiamentu customers often mix Dutch words — don't switch to Dutch
+    const OVERRIDE_LANGUAGES = ['english', 'spanish'];
+    const language = OVERRIDE_LANGUAGES.includes(detectedLanguage) && detectedLanguage !== customerPreferredLang
+      ? detectedLanguage
+      : customerPreferredLang;
+
+    console.log('Language resolved:', language, '(preferred:', customerPreferredLang, 'detected:', detectedLanguage, ')');
     const products = productsResult.data || [];
     const productAliases = aliasesResult.data || [];
     const contextWords = (dictResult.data || []).map((w: any) => `${w.word}=${w.meaning}`).join(', ');

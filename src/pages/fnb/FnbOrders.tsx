@@ -111,6 +111,7 @@ interface UnscheduledOrder {
     telegram_chat_id: string | null;
     whatsapp_phone: string | null;
   } | null;
+  distribution_order_items?: { id: string }[] | null;
 }
 
 interface OrderWithDetails {
@@ -608,7 +609,8 @@ export default function FnbOrders() {
         .select(`
           id, order_number, status, source_channel, created_at, total_xcg,
           customer_id, items_count,
-          distribution_customers(name, zone, telegram_chat_id, whatsapp_phone)
+          distribution_customers(name, zone, telegram_chat_id, whatsapp_phone),
+          distribution_order_items(id)
         `)
         .is('delivery_date', null)
         .in('source_channel', ['telegram', 'whatsapp'])
@@ -1381,8 +1383,8 @@ export default function FnbOrders() {
                               </div>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <span className="font-mono">{order.order_number}</span>
-                                {(order.items_count ?? 0) > 0 && (
-                                  <span>• {order.items_count} items</span>
+                                {((order.distribution_order_items?.length || order.items_count || 0) > 0) && (
+                                  <span>• {order.distribution_order_items?.length || order.items_count} items</span>
                                 )}
                               </div>
                             </CardContent>
@@ -1570,8 +1572,8 @@ export default function FnbOrders() {
                                 </div>
                                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                   <span className="font-mono">{order.order_number}</span>
-                                  {(order.items_count ?? 0) > 0 && (
-                                    <span>• {order.items_count} items</span>
+                                  {((order.distribution_order_items?.length || order.items_count || 0) > 0) && (
+                                    <span>• {order.distribution_order_items?.length || order.items_count} items</span>
                                   )}
                                 </div>
                                 {order.total_xcg && (
