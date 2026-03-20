@@ -493,6 +493,7 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
     // Get order draft from conversation state
     const agentState = convo.agent_state || {};
     const orderDraft: OrderDraft = agentState.order_draft || { items: [] };
+    console.log('LOADED draft:', JSON.stringify(orderDraft));
 
     // Reset draft on new session greeting
     if (isNewSession) {
