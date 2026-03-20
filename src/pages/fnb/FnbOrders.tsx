@@ -161,6 +161,12 @@ const getOrderSource = (order: OrderWithDetails): OrderSource => {
 
 // Source colors for visual differentiation
 const sourceColors: Record<OrderSource, { bg: string; border: string; text: string; icon: string }> = {
+  telegram: {
+    bg: 'bg-teal-50 dark:bg-teal-950',
+    border: 'border-teal-400',
+    text: 'text-teal-700 dark:text-teal-300',
+    icon: '✈️',
+  },
   email: { 
     bg: 'bg-blue-50 dark:bg-blue-950', 
     border: 'border-blue-400', 
@@ -188,6 +194,7 @@ const sourceColors: Record<OrderSource, { bg: string; border: string; text: stri
 };
 
 const sourceLabels: Record<OrderSource, string> = {
+  telegram: 'Telegram Order',
   email: 'Email Order',
   whatsapp: 'WhatsApp Order',
   standing: 'Standing Order',
