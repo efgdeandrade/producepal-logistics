@@ -332,6 +332,7 @@ export default function FnbOrders() {
   const [activeOrder, setActiveOrder] = useState<OrderWithDetails | null>(null);
   const [cancelOrderData, setCancelOrderData] = useState<{ id: string; orderNumber: string; status: string } | null>(null);
   const [unscheduledOrders, setUnscheduledOrders] = useState<UnscheduledOrder[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const [activeDropTarget, setActiveDropTarget] = useState<string | null>(null);
   
   // Mobile collapsible day sections - today expanded, others collapsed by default
