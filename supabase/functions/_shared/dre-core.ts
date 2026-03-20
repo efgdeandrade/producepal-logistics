@@ -579,6 +579,15 @@ export async function executeFunctionCall(
         // Clear draft
         orderDraft.items = [];
 
+        // IMMEDIATELY clear draft in database — don't wait for the main save
+        await supabase.from('dre_conversations')
+          .update({ 
+            agent_state: { order_draft: { items: [] } },
+            order_id: order.id,
+          })
+          .eq('id', conversationId);
+        console.log('Draft cleared in DB immediately after order confirmation');
+
         const confirmReplies: Record<string, string> = {
           papiamentu: `Perfekto! 🌿 Bo orde #${orderNumber} ta aden. E team di FUIK lo kontakta bo.`,
           english: `Perfect! 🌿 Order #${orderNumber} is in. The FUIK team will be in touch.`,

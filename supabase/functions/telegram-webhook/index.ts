@@ -428,9 +428,11 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
         .order('created_at', { ascending: false })
         .limit(20),
       supabase.from('distribution_orders')
-        .select('id, order_number, created_at, awaiting_customer_confirmation, distribution_order_items(product_name_raw, quantity, order_unit, product_id, unit_price_xcg)')
+        .select('id, order_number, created_at, status, awaiting_customer_confirmation, distribution_order_items(product_name_raw, quantity, order_unit, product_id, unit_price_xcg)')
         .eq('customer_id', customer.id)
-        .eq('awaiting_customer_confirmation', true)
+        .in('status', ['confirmed', 'draft', 'pending'])
+        .is('delivery_date', null)
+        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle(),
