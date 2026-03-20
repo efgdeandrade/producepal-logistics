@@ -178,9 +178,9 @@ export const DRE_FUNCTIONS = [
           items: {
             type: 'object',
             properties: {
-              product_name: { type: 'string', description: 'Product name — translate to English if in another language. E.g. pampuna→pumpkin, wortel→carrot, apelsin→orange, patia→watermelon, lamunchi→lime, aarbei/fresa/strawberry→strawberry, piscado→fish, poleishi→chicken' },
+              product_name: { type: 'string', description: 'Product name — translate to English if in another language. E.g. bakoba→banana, pampuna→pumpkin, wortel→carrot, apelsin→orange, patia→watermelon, lamunchi→lime, siboyo→onion, komkommer→cucumber, tomati→tomato, aarbei/fresa/strawberry→strawberry, piscado→fish, poleishi→chicken' },
               qty: { type: 'number', description: 'Quantity. Null if not specified.' },
-              unit: { type: 'string', description: 'Unit: kg, case, bag, piece, bunch. Papiamentu mappings: kaha=case, bolsa=bag, saku=bag, kilo=kg, misa=head, pida=piece, stuks=piece. Null if not specified.' },
+              unit: { type: 'string', description: 'Unit: kg, case, bag, piece, bunch. Papiamentu mappings: kaha=case, bolsa=bag, saku=bag, kilo=kg, misa=head, pida=piece, stuks=piece, kachu=bunch. Null if not specified.' },
             },
             required: ['product_name'],
           },
@@ -285,11 +285,21 @@ Status: ${pendingOrder.status}
 
   const languageGuide: Record<string, string> = {
     papiamentu: `PRIMARY LANGUAGE: Curaçao Papiamentu (NOT Aruban).
-Natural phrases: "Ta bon 👌", "Mi ta registrá esaki", "Kiko mas?", "Tur kos?", "Danki, ayo!"
+Natural phrases: "Ta bon 👌", "Mi ta registrá esaki", "Tur kos?", "Danki, ayo!"
 Time greeting: ${curacaoTime.includes('morning') ? 'Bon dia' : curacaoTime.includes('afternoon') ? 'Bon tardi' : 'Bon nochi'} — use ONLY on first message of a new session, never again.
 Keep it short. Max 2 sentences for casual replies. One question per message.
 
 When customer says "kumbai" or "ayo" — respond with a warm goodbye, nothing else. Do not ask about orders.
+
+FORBIDDEN PHRASES — NEVER use these:
+- "Kiko bo ke awe?" — too abrupt and disrespectful
+- "Kiko bo ke?" — too blunt
+- "Kiko bo ke pidi?" — sounds like a command
+Instead use warm alternatives:
+- "Kon mi por yuda bo?"
+- "Kiko mi por hasi pa bo awe?"
+- "Bo tin algu bo ke ordená?"
+- "Mi ta aki pa bo — kiko bo mester?"
 
 IMPORTANT PAPIAMENTU VOCABULARY:
 - orde = pedido (order) — both correct, use orde in casual context
@@ -299,18 +309,17 @@ IMPORTANT PAPIAMENTU VOCABULARY:
 - tur kos = everything/that's all
 - konta = tell me/what's up (NOT an order item)
 - esey = that/that's it
-- awor = now
-- mas = more/also
-- sin = without
-- ku = with/and
-- patia = watermelon, pampuna = pumpkin, wortel = carrot
-- lamunchi = lime, apelsin = orange
+- awor = now, mas = more/also, sin = without, ku = with/and
+- bakoba = banana (sold by PIECE or BUNCH — "kachu di bakoba" = bunch of bananas)
+- kachu = bunch/cluster
+- siboyo = onion, komkommer = cucumber, wortel = carrot, tomati = tomato
+- patia = watermelon, pampuna = pumpkin, lamunchi = lime, apelsin = orange
 - fruta = fruit, berdura = vegetable
-- kumbai = goodbye/see you later
-- ayo = bye/see you
+- kumbai = goodbye/see you later, ayo = bye
 - masha danki = thank you very much
-- kon ta = how are you
-- ta di bon = I'm fine/all good`,
+- kon ta = how are you, ta di bon = I'm fine/all good
+- When customer says "kachu di [product]" → unit = "bunch"
+- When customer says "2 banana" with no unit → default to "piece"`,
     english: `PRIMARY LANGUAGE: Casual English. Short sentences. Never say "Good morning" after first message.`,
     dutch: `PRIMARY LANGUAGE: Casual Dutch. Kort en vriendelijk. Niet te formeel.`,
     spanish: `PRIMARY LANGUAGE: Casual Spanish. Corto y amigable. Sin formalidades.`,
@@ -502,7 +511,7 @@ export async function executeFunctionCall(
         reply = buildOrderSummaryText(orderDraft, language);
       } else {
         const emptyReplies: Record<string, string> = {
-          papiamentu: 'Bo orde ta bashi awor. Kiko bo ke? 🌿',
+          papiamentu: 'Bo orde ta bashi awor. Kon mi por yuda bo? 🌿',
           english: 'Your order is empty now. What would you like? 🌿',
           dutch: 'Je bestelling is nu leeg. Wat wil je bestellen? 🌿',
           spanish: 'Tu pedido está vacío ahora. ¿Qué quieres? 🌿',
@@ -527,7 +536,7 @@ export async function executeFunctionCall(
     case 'show_order_summary': {
       if (orderDraft.items.length === 0) {
         const emptyReplies: Record<string, string> = {
-          papiamentu: 'Bo orde ta bashi. Kiko bo ke? 🌿',
+          papiamentu: 'Bo orde ta bashi. Kon mi por yuda bo? 🌿',
           english: 'Your order is empty. What would you like? 🌿',
           dutch: 'Je bestelling is leeg. Wat wil je? 🌿',
           spanish: 'Tu pedido está vacío. ¿Qué quieres? 🌿',
@@ -544,10 +553,10 @@ export async function executeFunctionCall(
       if (orderDraft.items.length === 0) {
         console.log('CONFIRM_ORDER: draft is EMPTY — cannot confirm. Agent state may have been reset.');
         const noItemsReplies: Record<string, string> = {
-          papiamentu: 'No tin item den bo orde ainda. Kiko bo ke? 🌿',
-          english: 'No items in your order yet. What would you like? 🌿',
-          dutch: 'Nog geen items in je bestelling. Wat wil je? 🌿',
-          spanish: 'No hay artículos en tu pedido. ¿Qué quieres? 🌿',
+          papiamentu: 'No tin item den bo orde ainda. Kon mi por yuda bo? 🌿',
+          english: 'No items in your order yet. What can I help you with? 🌿',
+          dutch: 'Nog geen items in je bestelling. Waarmee kan ik je helpen? 🌿',
+          spanish: 'No hay artículos en tu pedido. ¿En qué puedo ayudarte? 🌿',
         };
         reply = noItemsReplies[language] || noItemsReplies.english;
         break;
@@ -697,7 +706,7 @@ export async function executeFunctionCall(
         reply = buildOrderSummaryText(orderDraft, language);
       } else {
         const noOrderReplies: Record<string, string> = {
-          papiamentu: 'No tin orde pendiente. Kiko bo ke ordená? 🌿',
+          papiamentu: 'No tin orde pendiente. Kon mi por yuda bo? 🌿',
           english: 'No pending order found. What would you like to order? 🌿',
           dutch: 'Geen openstaande bestelling gevonden. Wat wil je bestellen? 🌿',
           spanish: 'No hay pedido pendiente. ¿Qué quieres pedir? 🌿',
