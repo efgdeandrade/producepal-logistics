@@ -263,6 +263,7 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
     }
 
     // ── Group chat filtering ──────────────────────────────
+    console.log('CHECKPOINT 2: group filtering, isGroup?', isGroup);
     if (isGroup) {
       const botUsername = 'FuikOrdersBot';
       const textLowerGroup = text.toLowerCase();
