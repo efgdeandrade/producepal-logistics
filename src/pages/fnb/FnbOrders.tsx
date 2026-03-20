@@ -94,7 +94,24 @@ import { CSS } from '@dnd-kit/utilities';
 const supabase = supabaseClient as any;
 
 type CustomerType = 'regular' | 'supermarket' | 'cod' | 'credit';
-type OrderSource = 'email' | 'whatsapp' | 'standing' | 'manual';
+type OrderSource = 'email' | 'whatsapp' | 'standing' | 'manual' | 'telegram';
+
+interface UnscheduledOrder {
+  id: string;
+  order_number: string;
+  status: string;
+  source_channel: string | null;
+  created_at: string;
+  total_xcg: number | null;
+  customer_id: string | null;
+  items_count: number | null;
+  distribution_customers: {
+    name: string;
+    zone: string | null;
+    telegram_chat_id: string | null;
+    whatsapp_phone: string | null;
+  } | null;
+}
 
 interface OrderWithDetails {
   id: string;
@@ -113,6 +130,7 @@ interface OrderWithDetails {
   notes: string | null;
   source_email_id: string | null;
   standing_order_template_id: string | null;
+  source_channel?: string | null;
   distribution_customers: {
     name: string;
     whatsapp_phone?: string;
@@ -134,14 +152,21 @@ interface OrderWithDetails {
 
 // Get order source based on order_number prefix or linked records
 const getOrderSource = (order: OrderWithDetails): OrderSource => {
+  if (order.source_channel === 'telegram' || order.order_number.startsWith('TG-')) return 'telegram';
   if (order.order_number.startsWith('EM-') || order.source_email_id) return 'email';
-  if (order.order_number.startsWith('WA-')) return 'whatsapp';
+  if (order.order_number.startsWith('WA-') || order.source_channel === 'whatsapp') return 'whatsapp';
   if (order.standing_order_template_id || order.notes?.startsWith('Auto-generated from standing order:')) return 'standing';
   return 'manual';
 };
 
 // Source colors for visual differentiation
 const sourceColors: Record<OrderSource, { bg: string; border: string; text: string; icon: string }> = {
+  telegram: {
+    bg: 'bg-teal-50 dark:bg-teal-950',
+    border: 'border-teal-400',
+    text: 'text-teal-700 dark:text-teal-300',
+    icon: '✈️',
+  },
   email: { 
     bg: 'bg-blue-50 dark:bg-blue-950', 
     border: 'border-blue-400', 
@@ -169,6 +194,7 @@ const sourceColors: Record<OrderSource, { bg: string; border: string; text: stri
 };
 
 const sourceLabels: Record<OrderSource, string> = {
+  telegram: 'Telegram Order',
   email: 'Email Order',
   whatsapp: 'WhatsApp Order',
   standing: 'Standing Order',
@@ -294,6 +320,79 @@ function DroppableDayColumn({
   );
 }
 
+// Droppable Unscheduled Column wrapper
+function DroppableUnscheduledColumn({ 
+  isOver,
+  children 
+}: { 
+  isOver: boolean;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef } = useDroppable({
+    id: 'unscheduled',
+    data: { type: 'unscheduled' },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        'h-full transition-colors rounded-lg',
+        isOver && 'bg-amber-100/50 dark:bg-amber-900/20 ring-2 ring-amber-400 ring-dashed'
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+// Sortable wrapper for unscheduled order cards
+function SortableUnscheduledCard({ 
+  order,
+  children 
+}: { 
+  order: UnscheduledOrder; 
+  children: React.ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: order.id,
+    data: { order, date: null },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'relative group',
+        isDragging && 'opacity-50 z-50'
+      )}
+    >
+      <div
+        {...listeners}
+        {...attributes}
+        className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 opacity-0 group-hover:opacity-100 
+                   cursor-grab active:cursor-grabbing p-1 rounded bg-muted/80 transition-opacity z-10"
+      >
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+      </div>
+      {children}
+    </div>
+  );
+}
+
 export default function FnbOrders() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -305,6 +404,7 @@ export default function FnbOrders() {
   const [quickAddOrder, setQuickAddOrder] = useState<{ id: string; orderNumber: string } | null>(null);
   const [activeOrder, setActiveOrder] = useState<OrderWithDetails | null>(null);
   const [cancelOrderData, setCancelOrderData] = useState<{ id: string; orderNumber: string; status: string } | null>(null);
+  const [unscheduledOrders, setUnscheduledOrders] = useState<UnscheduledOrder[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [activeDropTarget, setActiveDropTarget] = useState<string | null>(null);
   
@@ -401,21 +501,21 @@ export default function FnbOrders() {
 
   // Custom collision detection: prioritize day columns for cross-day drops
   const customCollisionDetection: CollisionDetection = (args) => {
-    // Get all collisions using pointer within
     const pointerCollisions = pointerWithin(args);
     
-    // Check if we're over a day column (date string format)
+    // Check if we're over a day column (date string format) or unscheduled
     const dayColumnCollisions = pointerCollisions.filter(
       collision => /^\d{4}-\d{2}-\d{2}$/.test(collision.id as string)
     );
     
-    // If we're over a day column that's different from the dragged item's day, prioritize it
-    if (dayColumnCollisions.length > 0 && args.active.data.current?.date) {
-      const activeDate = args.active.data.current.date;
+    // Prioritize day columns for cross-day or unscheduled→day drops
+    if (dayColumnCollisions.length > 0) {
+      const activeDate = args.active.data.current?.date;
       const differentDayCollision = dayColumnCollisions.find(c => c.id !== activeDate);
-      if (differentDayCollision) {
-        setActiveDropTarget(differentDayCollision.id as string);
-        return [differentDayCollision];
+      if (differentDayCollision || activeDate === null) {
+        const target = differentDayCollision || dayColumnCollisions[0];
+        setActiveDropTarget(target.id as string);
+        return [target];
       }
     }
     
@@ -478,6 +578,7 @@ export default function FnbOrders() {
           notes,
           source_email_id,
           standing_order_template_id,
+          source_channel,
           distribution_customers (name, whatsapp_phone, delivery_zone, customer_type),
           distribution_order_items (id, quantity, picked_quantity, short_quantity, unit_price_xcg, distribution_products (name, code))
         `)
@@ -497,6 +598,47 @@ export default function FnbOrders() {
       return data as (OrderWithDetails & { priority?: number })[];
     },
   });
+
+  // Fetch unscheduled orders (no delivery_date, from Dre channels)
+  const { data: unscheduledData } = useQuery({
+    queryKey: ['fnb-orders-unscheduled', statusFilter],
+    queryFn: async () => {
+      let query = supabase
+        .from('distribution_orders')
+        .select(`
+          id, order_number, status, source_channel, created_at, total_xcg,
+          customer_id, items_count,
+          distribution_customers(name, zone, telegram_chat_id, whatsapp_phone)
+        `)
+        .is('delivery_date', null)
+        .in('source_channel', ['telegram', 'whatsapp'])
+        .order('created_at', { ascending: false });
+
+      if (statusFilter !== 'all') {
+        query = query.eq('status', statusFilter);
+      } else {
+        query = query.in('status', ['confirmed', 'pending', 'draft']);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data as UnscheduledOrder[];
+    },
+  });
+
+  useEffect(() => {
+    setUnscheduledOrders(unscheduledData || []);
+  }, [unscheduledData]);
+
+  const notifyCustomerScheduled = async (orderId: string, deliveryDate: string) => {
+    try {
+      await supabase.functions.invoke('notify-order-scheduled', {
+        body: { order_id: orderId, delivery_date: deliveryDate },
+      });
+    } catch (e) {
+      console.error('Failed to notify customer:', e);
+    }
+  };
 
   const getOrdersForDay = (day: Date) => {
     let dayOrders = orders?.filter((order) => {
@@ -676,14 +818,47 @@ export default function FnbOrders() {
     if (!over || !active) return;
 
     const orderId = active.id as string;
-    const order = orders?.find(o => o.id === orderId);
-    if (!order) return;
-
+    
     // Check if dropping on a day column (date change) - over.id is a date string
     const isDateColumn = typeof over.id === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(over.id);
     
+    // Check if the dragged order came from unscheduled
+    const isFromUnscheduled = unscheduledOrders.some(o => o.id === orderId);
+
     if (isDateColumn) {
       const newDate = over.id as string;
+
+      if (isFromUnscheduled) {
+        // Schedule an unscheduled order
+        setUnscheduledOrders(prev => prev.filter(o => o.id !== orderId));
+
+        const { error } = await supabase
+          .from('distribution_orders')
+          .update({ delivery_date: newDate, status: 'confirmed' })
+          .eq('id', orderId);
+
+        if (!error) {
+          await supabase.from('distribution_picker_queue').upsert({
+            order_id: orderId,
+            status: 'pending',
+            priority: 1,
+            created_at: new Date().toISOString(),
+          }, { onConflict: 'order_id' });
+
+          notifyCustomerScheduled(orderId, newDate);
+          queryClient.invalidateQueries({ queryKey: ['fnb-orders-weekly'] });
+          queryClient.invalidateQueries({ queryKey: ['fnb-orders-unscheduled'] });
+          toast.success(`Order scheduled for ${format(parseISO(newDate), 'EEEE, MMM d')}`);
+        } else {
+          toast.error('Failed to schedule order');
+          queryClient.invalidateQueries({ queryKey: ['fnb-orders-unscheduled'] });
+        }
+        return;
+      }
+
+      const order = orders?.find(o => o.id === orderId);
+      if (!order) return;
+      
       // Check if date actually changed
       if (order.delivery_date === newDate) return;
 
@@ -707,9 +882,9 @@ export default function FnbOrders() {
       return;
     }
 
-    // Check if dropping on another order (reorder within day)
+    const order = orders?.find(o => o.id === orderId);
     const overOrder = orders?.find(o => o.id === over.id);
-    if (overOrder && order.delivery_date === overOrder.delivery_date) {
+    if (order && overOrder && order.delivery_date === overOrder.delivery_date) {
       const dayOrders = getOrdersForDay(parseDateCuracao(order.delivery_date!));
       const oldIndex = dayOrders.findIndex(o => o.id === orderId);
       const newIndex = dayOrders.findIndex(o => o.id === over.id);
@@ -1150,6 +1325,59 @@ export default function FnbOrders() {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
+            {/* Mobile: Unscheduled section first */}
+            {unscheduledOrders.length > 0 && (
+              <div className="md:hidden">
+                <Card className="border-l-4 border-l-amber-400 bg-amber-50/50 dark:bg-amber-950/20">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-amber-500 text-white text-xs font-bold">
+                          UNSCHEDULED
+                        </Badge>
+                        <span className="text-muted-foreground text-xs">Drag to a day to schedule</span>
+                      </div>
+                      <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300">
+                        {unscheduledOrders.length}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 pt-0">
+                    <SortableContext
+                      items={unscheduledOrders.map(o => o.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {unscheduledOrders.map((order) => (
+                        <SortableUnscheduledCard key={order.id} order={order}>
+                          <Card className="border-l-4 border-l-amber-400 hover:shadow-sm transition-shadow cursor-pointer"
+                                onClick={() => navigate(`/distribution/orders/edit/${order.id}`)}>
+                            <CardContent className="p-3 space-y-1.5">
+                              <div className="flex items-center justify-between">
+                                <span className="font-semibold text-sm truncate">{order.distribution_customers?.name || 'Unknown'}</span>
+                                <Badge variant="outline" className={cn('text-[10px] px-1.5',
+                                  order.source_channel === 'telegram' 
+                                    ? 'bg-teal-50 text-teal-700 border-teal-300 dark:bg-teal-950 dark:text-teal-300' 
+                                    : 'bg-green-50 text-green-700 border-green-300 dark:bg-green-950 dark:text-green-300'
+                                )}>
+                                  {order.source_channel === 'telegram' ? '✈️ Telegram' : '💬 WhatsApp'}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <span className="font-mono">{order.order_number}</span>
+                                {(order.items_count ?? 0) > 0 && (
+                                  <span>• {order.items_count} items</span>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </SortableUnscheduledCard>
+                      ))}
+                    </SortableContext>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
             {/* Mobile: Collapsible day sections */}
             <div className="md:hidden space-y-3">
               {weekDays.map((day) => {
@@ -1280,8 +1508,69 @@ export default function FnbOrders() {
               })}
             </div>
 
-            {/* Desktop: Original grid layout */}
-            <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Desktop: Grid layout with unscheduled column */}
+            <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {/* Unscheduled Column */}
+              {unscheduledOrders.length > 0 && (
+                <DroppableUnscheduledColumn isOver={false}>
+                  <Card className="min-h-[400px] border-l-4 border-l-amber-400 bg-amber-50/30 dark:bg-amber-950/10 h-full">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-amber-500 text-white text-xs font-bold">
+                            UNSCHEDULED
+                          </Badge>
+                        </div>
+                        <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300">
+                          {unscheduledOrders.length}
+                        </Badge>
+                      </CardTitle>
+                      <p className="text-xs text-muted-foreground mt-1">Drag to a day column to schedule</p>
+                    </CardHeader>
+                    <CardContent className={cn(
+                      "space-y-2 max-h-[500px]",
+                      isDragging ? "overflow-hidden" : "overflow-y-auto",
+                      "overscroll-contain"
+                    )}>
+                      <SortableContext
+                        items={unscheduledOrders.map(o => o.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {unscheduledOrders.map((order) => (
+                          <SortableUnscheduledCard key={order.id} order={order}>
+                            <Card className="border-l-4 border-l-amber-400 hover:shadow-sm transition-shadow cursor-pointer"
+                                  onClick={() => navigate(`/distribution/orders/edit/${order.id}`)}>
+                              <CardContent className="p-3 space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-semibold text-sm truncate">{order.distribution_customers?.name || 'Unknown'}</span>
+                                  <Badge variant="outline" className={cn('text-[10px] px-1.5',
+                                    order.source_channel === 'telegram' 
+                                      ? 'bg-teal-50 text-teal-700 border-teal-300 dark:bg-teal-950 dark:text-teal-300' 
+                                      : 'bg-green-50 text-green-700 border-green-300 dark:bg-green-950 dark:text-green-300'
+                                  )}>
+                                    {order.source_channel === 'telegram' ? '✈️ TG' : '💬 WA'}
+                                  </Badge>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <span className="font-mono">{order.order_number}</span>
+                                  {(order.items_count ?? 0) > 0 && (
+                                    <span>• {order.items_count} items</span>
+                                  )}
+                                </div>
+                                {order.total_xcg && (
+                                  <div className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                                    {order.total_xcg.toFixed(0)} XCG
+                                  </div>
+                                )}
+                              </CardContent>
+                            </Card>
+                          </SortableUnscheduledCard>
+                        ))}
+                      </SortableContext>
+                    </CardContent>
+                  </Card>
+                </DroppableUnscheduledColumn>
+              )}
               {weekDays.map((day) => {
                 const dayOrders = getOrdersForDay(day);
                 const stats = getDayStats(dayOrders);
