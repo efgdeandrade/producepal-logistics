@@ -122,6 +122,8 @@ export const PackingSlipFromReceipts = ({
 
   const hasReceipts = savedReceipts.length > 0 && receiptItems;
   const itemsToUse = hasReceipts ? receiptItems : orderItems;
+  console.log('PACKING SLIP DEBUG — hasReceipts:', hasReceipts, '| using:', hasReceipts ? 'receiptItems' : 'orderItems', '| count:', itemsToUse.length);
+  console.log('PACKING SLIP DEBUG — sample items stock_quantity:', itemsToUse.slice(0, 5).map(i => ({ code: i.product_code, qty: i.quantity, stock: i.stock_quantity })));
 
   return (
     <div>
