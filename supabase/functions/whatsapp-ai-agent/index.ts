@@ -318,6 +318,7 @@ Deno.serve(async (req) => {
       channel: 'whatsapp',
       chatId: externalChatId,
       isGroup: false,
+      lastCustomerMessage: message_text,
     };
 
     // ── Run Dre Agent ─────────────────────────────────────
