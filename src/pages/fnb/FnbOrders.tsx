@@ -745,14 +745,47 @@ export default function FnbOrders() {
     if (!over || !active) return;
 
     const orderId = active.id as string;
-    const order = orders?.find(o => o.id === orderId);
-    if (!order) return;
-
+    
     // Check if dropping on a day column (date change) - over.id is a date string
     const isDateColumn = typeof over.id === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(over.id);
     
+    // Check if the dragged order came from unscheduled
+    const isFromUnscheduled = unscheduledOrders.some(o => o.id === orderId);
+
     if (isDateColumn) {
       const newDate = over.id as string;
+
+      if (isFromUnscheduled) {
+        // Schedule an unscheduled order
+        setUnscheduledOrders(prev => prev.filter(o => o.id !== orderId));
+
+        const { error } = await supabase
+          .from('distribution_orders')
+          .update({ delivery_date: newDate, status: 'confirmed' })
+          .eq('id', orderId);
+
+        if (!error) {
+          await supabase.from('distribution_picker_queue').upsert({
+            order_id: orderId,
+            status: 'pending',
+            priority: 1,
+            created_at: new Date().toISOString(),
+          }, { onConflict: 'order_id' });
+
+          notifyCustomerScheduled(orderId, newDate);
+          queryClient.invalidateQueries({ queryKey: ['fnb-orders-weekly'] });
+          queryClient.invalidateQueries({ queryKey: ['fnb-orders-unscheduled'] });
+          toast.success(`Order scheduled for ${format(parseISO(newDate), 'EEEE, MMM d')}`);
+        } else {
+          toast.error('Failed to schedule order');
+          queryClient.invalidateQueries({ queryKey: ['fnb-orders-unscheduled'] });
+        }
+        return;
+      }
+
+      const order = orders?.find(o => o.id === orderId);
+      if (!order) return;
+      
       // Check if date actually changed
       if (order.delivery_date === newDate) return;
 
