@@ -390,6 +390,16 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
       return new Response('OK', { status: 200 });
     }
 
+    // ── Confirmation pre-check (before language detection) ──
+    const UNIVERSAL_CONFIRMATIONS = [
+      'si', 'si!', 'sí', 'sí!', 'yes', 'ja', 'ok', 'okay', 'oké',
+      'ta bon', 'tá bon', 'correct', 'klopt', 'confirmed',
+      'yep', 'yup', 'sure', 'go ahead', 'proceed', 'klaro', 'perfekto',
+    ];
+    const isUniversalConfirmation = UNIVERSAL_CONFIRMATIONS.some(c =>
+      text.toLowerCase().trim() === c
+    );
+
     // ── Load all context in parallel ─────────────────────
     console.log('CHECKPOINT 7: loading context in parallel');
     const [
@@ -402,7 +412,9 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
       pendingOrderResult,
       memoryResult,
     ] = await Promise.all([
-      detectLanguage(text, lovableKey),
+      isUniversalConfirmation
+        ? Promise.resolve(customer?.preferred_language || convo?.language_detected || 'papiamentu')
+        : detectLanguage(text, lovableKey),
       supabase.from('distribution_products')
         .select('id, code, name, name_pap, name_nl, name_es, price_xcg, unit, name_aliases')
         .eq('is_active', true),
@@ -434,7 +446,8 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
       loadCustomerMemory(supabase, customer.id),
     ]);
 
-    const language = langResult;
+    const language = isUniversalConfirmation ? langResult : langResult;
+    console.log('Language resolved:', language, isUniversalConfirmation ? '(confirmation override)' : '(detected)');
     const products = productsResult.data || [];
     const productAliases = aliasesResult.data || [];
     const contextWords = (dictResult.data || []).map((w: any) => `${w.word}=${w.meaning}`).join(', ');
