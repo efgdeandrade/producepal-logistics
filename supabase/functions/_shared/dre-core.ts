@@ -93,7 +93,17 @@ export async function detectLanguage(text: string, lovableKey: string): Promise<
         messages: [
           {
             role: 'system',
-            content: 'Detect the PRIMARY language of this message. Reply with ONLY one word: papiamentu, english, dutch, or spanish. Curaçao customers mix languages — choose the dominant one. Papiamentu indicators: mi ke, ta bon, kaha, bolsa, danki, bon dia, bon tardi, pampuna, wortel, tambe, otro kos, kiko, kuantu, kier.',
+            content: `Detect the PRIMARY language of this message for a Curaçao business context.
+Reply with ONLY one word: papiamentu, english, dutch, or spanish.
+
+CRITICAL RULES:
+- "si", "Si", "SI" alone = papiamentu (it means yes/confirmation in Curaçao, NOT Spanish)
+- "ja" alone = papiamentu or dutch (confirmation)
+- "ok", "okay", "yes", "no" = english
+- Mixed messages = use the dominant language
+- When in doubt = papiamentu (most common in Curaçao)
+
+Papiamentu indicators: mi ke, ta bon, kaha, bolsa, danki, bon dia, bon tardi, bontardi, bondia, pampuna, wortel, tambe, otro kos, kiko, kuantu, kier, lamunchi, apelsin, fruta, berdura, perfekto, klaro, tur kos.`,
           },
           { role: 'user', content: text },
         ],

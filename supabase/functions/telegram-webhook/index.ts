@@ -277,6 +277,14 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
         'price', 'precio', 'prijs', 'available', 'stock',
         'bon dia', 'bon tardi', 'bon nochi', 'hello', 'halo', 'hi ',
         'tambe', 'otro kos', 'adishonal', 'ta bon', 'si', 'yes', 'ja',
+        // No-space Papiamentu variations
+        'bontardi', 'bondia', 'bonnochi', 'bontarde', 'bontardin',
+        'mique', 'mike', 'mikier',
+        // Common Papiamentu words
+        'danki', 'porfavor', 'please', 'kuantu', 'kiko',
+        'lamunchi', 'apelsin', 'fruta', 'berdura',
+        // Confirmations
+        'oke', 'perfekto', 'klaro',
       ];
 
       const hasBusinessContent = BUSINESS_KEYWORDS.some(kw => textLowerGroup.includes(kw));
@@ -382,6 +390,16 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
       return new Response('OK', { status: 200 });
     }
 
+    // ── Confirmation pre-check (before language detection) ──
+    const UNIVERSAL_CONFIRMATIONS = [
+      'si', 'si!', 'sí', 'sí!', 'yes', 'ja', 'ok', 'okay', 'oké',
+      'ta bon', 'tá bon', 'correct', 'klopt', 'confirmed',
+      'yep', 'yup', 'sure', 'go ahead', 'proceed', 'klaro', 'perfekto',
+    ];
+    const isUniversalConfirmation = UNIVERSAL_CONFIRMATIONS.some(c =>
+      text.toLowerCase().trim() === c
+    );
+
     // ── Load all context in parallel ─────────────────────
     console.log('CHECKPOINT 7: loading context in parallel');
     const [
@@ -394,7 +412,9 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
       pendingOrderResult,
       memoryResult,
     ] = await Promise.all([
-      detectLanguage(text, lovableKey),
+      isUniversalConfirmation
+        ? Promise.resolve(customer?.preferred_language || convo?.language_detected || 'papiamentu')
+        : detectLanguage(text, lovableKey),
       supabase.from('distribution_products')
         .select('id, code, name, name_pap, name_nl, name_es, price_xcg, unit, name_aliases')
         .eq('is_active', true),
@@ -426,7 +446,8 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
       loadCustomerMemory(supabase, customer.id),
     ]);
 
-    const language = langResult;
+    const language = isUniversalConfirmation ? langResult : langResult;
+    console.log('Language resolved:', language, isUniversalConfirmation ? '(confirmation override)' : '(detected)');
     const products = productsResult.data || [];
     const productAliases = aliasesResult.data || [];
     const contextWords = (dictResult.data || []).map((w: any) => `${w.word}=${w.meaning}`).join(', ');
@@ -472,6 +493,7 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
     // Get order draft from conversation state
     const agentState = convo.agent_state || {};
     const orderDraft: OrderDraft = agentState.order_draft || { items: [] };
+    console.log('LOADED draft:', JSON.stringify(orderDraft));
 
     // Reset draft on new session greeting
     if (isNewSession) {
@@ -527,17 +549,22 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
       });
 
       // Log for training review
-      await supabase.from('distribution_ai_match_logs').insert({
-        raw_text: text,
-        detected_language: language,
-        dre_reply: reply,
-        needs_language_review: true,
-        source_channel: 'telegram',
-        conversation_id: convo.id,
-      }).catch(() => {});
+      try {
+        await supabase.from('distribution_ai_match_logs').insert({
+          raw_text: text,
+          detected_language: language,
+          dre_reply: reply,
+          needs_language_review: true,
+          source_channel: 'telegram',
+          conversation_id: convo.id,
+        });
+      } catch (_logErr) {
+        // Never crash on logging failure
+      }
     }
 
     // Save updated state
+    console.log('SAVING draft:', JSON.stringify(updatedDraft));
     await supabase.from('dre_conversations').update({
       agent_state: { order_draft: updatedDraft },
       language_detected: language,
