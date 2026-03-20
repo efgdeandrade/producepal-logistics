@@ -352,7 +352,7 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
     console.log('CHECKPOINT 6: find/create conversation for customer', customer.name);
     let { data: convo } = await supabase
       .from('dre_conversations')
-      .select('id, control_status, agent_state, language_detected')
+      .select('id, control_status, agent_state, language_detected, updated_at')
       .eq('external_chat_id', lookupId)
       .eq('channel', 'telegram')
       .order('created_at', { ascending: false })
