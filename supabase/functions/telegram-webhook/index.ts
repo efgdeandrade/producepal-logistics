@@ -265,6 +265,12 @@ async function detectLanguage(text: string): Promise<string> {
 
 async function parseOrderItems(text: string, language: string, contextWords: string): Promise<ParsedItem[]> {
   try {
+    // Normalize multi-line orders into a single parseable string
+    const normalizedText = text
+      .replace(/\n/g, ', ')
+      .replace(/\r/g, '')
+      .trim();
+
     const result = await callAI([
       {
         role: 'system',
@@ -290,7 +296,7 @@ Real Curaçao order examples:
 
 Context words: ${contextWords}`,
       },
-      { role: 'user', content: text },
+      { role: 'user', content: normalizedText },
     ], true);
 
     const parsed = extractJSON(result);
