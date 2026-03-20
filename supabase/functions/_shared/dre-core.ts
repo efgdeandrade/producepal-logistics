@@ -277,7 +277,7 @@ Items: ${(pendingOrder.distribution_order_items || pendingOrder.items || []).map
 Status: ${pendingOrder.status}
 
 → If customer starts a new conversation or greeting, mention this order ONCE naturally.
-  Example: "Bo tin un orde pendiente di anteriormente ku mango i wortel — bo ke kontinua ku dje of kuminsa nobo?"
+  Example: "Bo tin un pedido pendiente di anteriormente ku mango i wortel — bo ke kontinua ku dje of kuminsa nobo?"
 → If customer sends a completely new order, ask: want to add to existing order or start fresh?
 → If customer says "add" or "tambe" — call add_items (it will merge)
 → If customer says "new order" or "nobo" — call replace_pending_order first
@@ -311,6 +311,7 @@ IMPORTANT PAPIAMENTU VOCABULARY:
 - konta = tell me/what's up (NOT an order item)
 - esey = that/that's it
 - awor = now, mas = more/also, sin = without, ku = with/and
+- pedido = order (use this word, NOT "orde")
 - bakoba = banana (sold by PIECE or BUNCH — "kachu di bakoba" = bunch of bananas)
 - kachu = bunch/cluster
 - siboyo = onion, komkommer = cucumber, wortel = carrot, tomati = tomato
@@ -526,7 +527,7 @@ export async function executeFunctionCall(
         reply = buildOrderSummaryText(orderDraft, language);
       } else {
         const emptyReplies: Record<string, string> = {
-          papiamentu: 'Bo orde ta bashi awor. Kon mi por yuda bo? 🌿',
+          papiamentu: 'Bo pedido ta bashi awor. Kon mi por yuda bo? 🌿',
           english: 'Your order is empty now. What would you like? 🌿',
           dutch: 'Je bestelling is nu leeg. Wat wil je bestellen? 🌿',
           spanish: 'Tu pedido está vacío ahora. ¿Qué quieres? 🌿',
@@ -551,7 +552,7 @@ export async function executeFunctionCall(
     case 'show_order_summary': {
       if (orderDraft.items.length === 0) {
         const emptyReplies: Record<string, string> = {
-          papiamentu: 'Bo orde ta bashi. Kon mi por yuda bo? 🌿',
+          papiamentu: 'Bo pedido ta bashi. Kon mi por yuda bo? 🌿',
           english: 'Your order is empty. What would you like? 🌿',
           dutch: 'Je bestelling is leeg. Wat wil je? 🌿',
           spanish: 'Tu pedido está vacío. ¿Qué quieres? 🌿',
@@ -568,7 +569,7 @@ export async function executeFunctionCall(
       if (orderDraft.items.length === 0) {
         console.log('CONFIRM_ORDER: draft is EMPTY — cannot confirm. Agent state may have been reset.');
         const noItemsReplies: Record<string, string> = {
-          papiamentu: 'No tin item den bo orde ainda. Kon mi por yuda bo? 🌿',
+          papiamentu: 'No tin item den bo pedido ainda. Kon mi por yuda bo? 🌿',
           english: 'No items in your order yet. What can I help you with? 🌿',
           dutch: 'Nog geen items in je bestelling. Waarmee kan ik je helpen? 🌿',
           spanish: 'No hay artículos en tu pedido. ¿En qué puedo ayudarte? 🌿',
@@ -684,7 +685,7 @@ export async function executeFunctionCall(
         console.log('NUCLEAR CLEAR: agent_state reset after order', orderNumber);
 
         const confirmReplies: Record<string, string> = {
-          papiamentu: `Perfekto! 🌿 Bo orde #${orderNumber} ta aden. E team di FUIK lo kontakta bo.`,
+          papiamentu: `Perfekto! 🌿 Bo pedido #${orderNumber} ta aden. E team di FUIK lo kontakta bo.`,
           english: `Perfect! 🌿 Order #${orderNumber} is in. The FUIK team will be in touch.`,
           dutch: `Perfect! 🌿 Bestelling #${orderNumber} ontvangen. Het FUIK team neemt contact op.`,
           spanish: `¡Perfecto! 🌿 Pedido #${orderNumber} registrado. El equipo de FUIK te contactará.`,
@@ -697,7 +698,7 @@ export async function executeFunctionCall(
     case 'cancel_order': {
       orderDraft.items = [];
       const cancelReplies: Record<string, string> = {
-        papiamentu: 'Ta bon, mi a kansela bo orde. Tin algu otro mi por yuda bo ku? 🌿',
+        papiamentu: 'Ta bon, mi a kansela bo pedido. Tin algu otro mi por yuda bo ku? 🌿',
         english: 'Got it, order cancelled. Anything else I can help with? 🌿',
         dutch: 'Oké, bestelling geannuleerd. Kan ik je nog ergens mee helpen? 🌿',
         spanish: 'Entendido, pedido cancelado. ¿En qué más puedo ayudarte? 🌿',
@@ -719,7 +720,7 @@ export async function executeFunctionCall(
         reply = buildOrderSummaryText(orderDraft, language);
       } else {
         const noOrderReplies: Record<string, string> = {
-          papiamentu: 'No tin orde pendiente. Kon mi por yuda bo? 🌿',
+          papiamentu: 'No tin pedido pendiente. Kon mi por yuda bo? 🌿',
           english: 'No pending order found. What would you like to order? 🌿',
           dutch: 'Geen openstaande bestelling gevonden. Wat wil je bestellen? 🌿',
           spanish: 'No hay pedido pendiente. ¿Qué quieres pedir? 🌿',
@@ -737,7 +738,7 @@ export async function executeFunctionCall(
       }
       orderDraft.items = [];
       const replaceReplies: Record<string, string> = {
-        papiamentu: 'Ta bon, mi a kansela e orde anterior. Manda bo nobo orde. 🌿',
+        papiamentu: 'Ta bon, mi a kansela e pedido anterior. Manda bo nobo pedido. 🌿',
         english: 'Got it, previous order cancelled. Send your new order. 🌿',
         dutch: 'Oké, vorige bestelling geannuleerd. Stuur je nieuwe bestelling. 🌿',
         spanish: 'Entendido, pedido anterior cancelado. Envía tu nuevo pedido. 🌿',
