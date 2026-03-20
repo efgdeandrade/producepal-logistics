@@ -564,6 +564,7 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
     }
 
     // Save updated state
+    console.log('SAVING draft:', JSON.stringify(updatedDraft));
     await supabase.from('dre_conversations').update({
       agent_state: { order_draft: updatedDraft },
       language_detected: language,
