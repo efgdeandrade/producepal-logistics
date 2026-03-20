@@ -178,9 +178,9 @@ export const DRE_FUNCTIONS = [
           items: {
             type: 'object',
             properties: {
-              product_name: { type: 'string', description: 'Product name — translate to English if in another language. E.g. pampuna→pumpkin, wortel→carrot, apelsin→orange, aarbei/fresa/strawberry→strawberry' },
+              product_name: { type: 'string', description: 'Product name — translate to English if in another language. E.g. pampuna→pumpkin, wortel→carrot, apelsin→orange, patia→watermelon, lamunchi→lime, aarbei/fresa/strawberry→strawberry, piscado→fish, poleishi→chicken' },
               qty: { type: 'number', description: 'Quantity. Null if not specified.' },
-              unit: { type: 'string', description: 'Unit: kg, case, bag, piece, bunch. Papiamentu: kaha=case, bolsa=bag, saku=bag, kilo=kg, misa=head, pida=piece. Null if not specified.' },
+              unit: { type: 'string', description: 'Unit: kg, case, bag, piece, bunch. Papiamentu mappings: kaha=case, bolsa=bag, saku=bag, kilo=kg, misa=head, pida=piece, stuks=piece. Null if not specified.' },
             },
             required: ['product_name'],
           },
