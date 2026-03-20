@@ -509,23 +509,34 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
     const agentState = convo.agent_state || {};
     let orderDraft: OrderDraft = { items: [] };
 
-    // Check if last Dre message was an order confirmation — if so, draft is stale
+    // Check if last Dre message was an order confirmation — MUST match order number + confirmation phrase
     const lastDreMessage = allMessages.filter(m => m.role === 'dre').pop();
-    const lastMessageWasConfirmation = lastDreMessage?.content?.includes('ta konfirmá') ||
-      lastDreMessage?.content?.includes('ta aden') ||
-      lastDreMessage?.content?.includes('is confirmed') ||
-      lastDreMessage?.content?.includes('is in.') ||
-      lastDreMessage?.content?.includes('is bevestigd') ||
-      lastDreMessage?.content?.includes('está confirmado') ||
-      lastDreMessage?.content?.includes('ontvangen');
+    const lastMessageWasConfirmation = !!(
+      lastDreMessage?.content && (
+        // Must contain an order number pattern like TG-XXXXX or WA-XXXXX
+        /(?:TG|WA)-[A-Z0-9]+/.test(lastDreMessage.content) &&
+        // AND contain a confirmation phrase
+        (
+          lastDreMessage.content.includes('ta konfirmá') ||
+          lastDreMessage.content.includes('ta aden') ||
+          lastDreMessage.content.includes('is confirmed') ||
+          lastDreMessage.content.includes('is in.') ||
+          lastDreMessage.content.includes('is bevestigd') ||
+          lastDreMessage.content.includes('está confirmado')
+        )
+      )
+    );
+    console.log('lastMessageWasConfirmation:', lastMessageWasConfirmation,
+      'last msg preview:', lastDreMessage?.content?.substring(0, 80));
 
     const lastUpdated = convo.updated_at ? new Date(convo.updated_at).getTime() : 0;
     const minutesSinceUpdate = (Date.now() - lastUpdated) / (1000 * 60);
     const draftHasItems = (agentState.order_draft?.items?.length || 0) > 0;
     const draftIsRecent = minutesSinceUpdate < 30;
 
-    // Only restore draft if: recent AND has items AND last message was NOT a confirmation AND not new session AND not a confirmation word
-    if (draftIsRecent && draftHasItems && !lastMessageWasConfirmation && !isNewSession && !isUniversalConfirmation) {
+    // Restore draft if recent + has items + last message was NOT a confirmation + not new session
+    // NOTE: Do NOT block on isUniversalConfirmation — "Si" needs the draft to confirm it
+    if (draftIsRecent && draftHasItems && !lastMessageWasConfirmation && !isNewSession) {
       orderDraft = agentState.order_draft;
       console.log('RESTORED draft:', orderDraft.items.length, 'items');
     } else {
