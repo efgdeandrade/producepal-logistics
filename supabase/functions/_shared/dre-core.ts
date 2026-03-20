@@ -536,7 +536,7 @@ export async function executeFunctionCall(
     case 'show_order_summary': {
       if (orderDraft.items.length === 0) {
         const emptyReplies: Record<string, string> = {
-          papiamentu: 'Bo orde ta bashi. Kiko bo ke? 🌿',
+          papiamentu: 'Bo orde ta bashi. Kon mi por yuda bo? 🌿',
           english: 'Your order is empty. What would you like? 🌿',
           dutch: 'Je bestelling is leeg. Wat wil je? 🌿',
           spanish: 'Tu pedido está vacío. ¿Qué quieres? 🌿',
