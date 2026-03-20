@@ -579,14 +579,14 @@ export async function executeFunctionCall(
         // Clear draft
         orderDraft.items = [];
 
-        // IMMEDIATELY clear draft in database — don't wait for the main save
+        // NUCLEAR CLEAR — completely reset agent_state after confirmation
         await supabase.from('dre_conversations')
           .update({ 
-            agent_state: { order_draft: { items: [] } },
+            agent_state: { order_draft: { items: [] }, last_confirmed_order: orderNumber, cleared_at: new Date().toISOString() },
             order_id: order.id,
           })
           .eq('id', conversationId);
-        console.log('Draft cleared in DB immediately after order confirmation');
+        console.log('NUCLEAR CLEAR: agent_state reset after order', orderNumber);
 
         const confirmReplies: Record<string, string> = {
           papiamentu: `Perfekto! 🌿 Bo orde #${orderNumber} ta aden. E team di FUIK lo kontakta bo.`,
