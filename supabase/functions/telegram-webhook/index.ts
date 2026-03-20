@@ -383,6 +383,7 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
     }
 
     // ── Load all context in parallel ─────────────────────
+    console.log('CHECKPOINT 7: loading context in parallel');
     const [
       langResult,
       productsResult,
