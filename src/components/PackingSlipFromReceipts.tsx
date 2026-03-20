@@ -102,6 +102,10 @@ export const PackingSlipFromReceipts = ({
         }
       });
 
+      console.log('PACKING SLIP DEBUG — allItems:', JSON.stringify(allItems.slice(0, 5), null, 2));
+      console.log('PACKING SLIP DEBUG — stockQtyMap:', JSON.stringify(Array.from(stockQtyMap.entries()).slice(0, 10)));
+      console.log('PACKING SLIP DEBUG — originalOrderItems count:', originalOrderItems?.length);
+      console.log('PACKING SLIP DEBUG — orderId:', order.id);
       setReceiptItems(allItems);
     } catch (err) {
       console.error('Error loading receipt items for packing slips:', err);
