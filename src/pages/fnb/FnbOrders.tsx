@@ -1572,8 +1572,8 @@ export default function FnbOrders() {
                                 </div>
                                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                   <span className="font-mono">{order.order_number}</span>
-                                  {(order.items_count ?? 0) > 0 && (
-                                    <span>• {order.items_count} items</span>
+                                  {((order.distribution_order_items?.length || order.items_count || 0) > 0) && (
+                                    <span>• {order.distribution_order_items?.length || order.items_count} items</span>
                                   )}
                                 </div>
                                 {order.total_xcg && (

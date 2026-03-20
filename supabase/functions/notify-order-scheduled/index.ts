@@ -94,8 +94,11 @@ serve(async (req) => {
 
     const items = (order.distribution_order_items as any[]) || [];
     const itemList = items.length > 0
-      ? items.slice(0, 5)
-          .map((i: any) => `• ${i.quantity} ${i.order_unit || ''} ${i.product_name_raw || 'item'}`.trim())
+      ? items.slice(0, 8)
+          .map((i: any) => {
+            const name = i.product_name_raw || i.distribution_products?.name || 'item';
+            return `• ${i.quantity} ${i.order_unit || ''} ${name}`.trim();
+          })
           .join('\n')
       : '• (items being prepared)';
 
