@@ -501,21 +501,21 @@ export default function FnbOrders() {
 
   // Custom collision detection: prioritize day columns for cross-day drops
   const customCollisionDetection: CollisionDetection = (args) => {
-    // Get all collisions using pointer within
     const pointerCollisions = pointerWithin(args);
     
-    // Check if we're over a day column (date string format)
+    // Check if we're over a day column (date string format) or unscheduled
     const dayColumnCollisions = pointerCollisions.filter(
       collision => /^\d{4}-\d{2}-\d{2}$/.test(collision.id as string)
     );
     
-    // If we're over a day column that's different from the dragged item's day, prioritize it
-    if (dayColumnCollisions.length > 0 && args.active.data.current?.date) {
-      const activeDate = args.active.data.current.date;
+    // Prioritize day columns for cross-day or unscheduled→day drops
+    if (dayColumnCollisions.length > 0) {
+      const activeDate = args.active.data.current?.date;
       const differentDayCollision = dayColumnCollisions.find(c => c.id !== activeDate);
-      if (differentDayCollision) {
-        setActiveDropTarget(differentDayCollision.id as string);
-        return [differentDayCollision];
+      if (differentDayCollision || activeDate === null) {
+        const target = differentDayCollision || dayColumnCollisions[0];
+        setActiveDropTarget(target.id as string);
+        return [target];
       }
     }
     
