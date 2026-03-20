@@ -280,9 +280,12 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
       ];
 
       const hasBusinessContent = BUSINESS_KEYWORDS.some(kw => textLowerGroup.includes(kw));
+      console.log('CHECKPOINT 2b: group filter result:', JSON.stringify({ isMentioned, isReplyToBot, hasBusinessContent }));
       if (!isMentioned && !isReplyToBot && !hasBusinessContent) {
+        console.log('CHECKPOINT 2c: FILTERED OUT — no business content, returning');
         return new Response('OK', { status: 200 });
       }
+      console.log('CHECKPOINT 2d: passed group filter');
     }
 
     // ── Route Bolenga training responses ─────────────────
