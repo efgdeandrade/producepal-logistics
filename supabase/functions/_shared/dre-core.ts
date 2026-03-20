@@ -178,7 +178,7 @@ export const DRE_FUNCTIONS = [
           items: {
             type: 'object',
             properties: {
-              product_name: { type: 'string', description: 'Product name — translate to English if in another language. E.g. bakoba→banana, pampuna→pumpkin, wortel→carrot, apelsin→orange, patia→watermelon, lamunchi→lime, siboyo→onion, komkommer→cucumber, tomati→tomato, aarbei/fresa/strawberry→strawberry, piscado→fish, poleishi→chicken' },
+              product_name: { type: 'string', description: 'Product name — translate to English BUT keep distinct varieties separate. bakoba→banana, platano→plantain (NOT banana — plantain is different), pampuna→pumpkin, wortel→carrot, apelsin→orange, patia→watermelon, lamunchi→lime, siboyo→onion, komkommer→cucumber, tomati→tomato, aarbei/fresa/strawberry→strawberry, piscado→fish, poleishi→chicken. kachu di bakoba = bunch of bananas (product_name=banana, unit=bunch). Never merge different products even if related.' },
               qty: { type: 'number', description: 'Quantity. Null if not specified.' },
               unit: { type: 'string', description: 'Unit: kg, case, bag, piece, bunch. Papiamentu mappings: kaha=case, bolsa=bag, saku=bag, kilo=kg, misa=head, pida=piece, stuks=piece, kachu=bunch. Null if not specified.' },
             },
@@ -622,17 +622,12 @@ export async function executeFunctionCall(
           }).catch(() => {});
         }
 
-        // Count what was ACTUALLY inserted — don't trust draft length
-        const { count: actualItemCount } = await supabase
-          .from('distribution_order_items')
-          .select('*', { count: 'exact', head: true })
-          .eq('order_id', order.id);
-
+        // Update order with item count and total — use validItems.length directly
         await supabase.from('distribution_orders')
-          .update({ total_xcg: totalXcg, items_count: actualItemCount || 0 })
+          .update({ total_xcg: totalXcg, items_count: validItems.length })
           .eq('id', order.id);
 
-        console.log('ORDER COMPLETE:', orderNumber, 'items:', actualItemCount, 'total:', totalXcg);
+        console.log('ORDER COMPLETE:', orderNumber, 'items saved:', validItems.length, 'total:', totalXcg);
 
         await supabase.from('dre_conversations')
           .update({ order_id: order.id })

@@ -612,10 +612,19 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
       }
     }
 
+    // Safety: if reply is a confirmation message, force empty draft
+    const replyIsConfirmation = reply && (
+      (/(?:TG|WA)-[A-Z0-9]+/.test(reply)) &&
+      (reply.includes('ta aden') || reply.includes('ta konfirmá') ||
+       reply.includes('is confirmed') || reply.includes('is in.') ||
+       reply.includes('is bevestigd') || reply.includes('está confirmado'))
+    );
+    const finalDraft = replyIsConfirmation ? { items: [] } : updatedDraft;
+
     // Save updated state
-    console.log('SAVING draft:', JSON.stringify(updatedDraft));
+    console.log('SAVING draft:', finalDraft.items.length, 'items. wasConfirmation:', !!replyIsConfirmation);
     await supabase.from('dre_conversations').update({
-      agent_state: { order_draft: updatedDraft },
+      agent_state: { order_draft: finalDraft },
       language_detected: language,
       last_agent_state_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
