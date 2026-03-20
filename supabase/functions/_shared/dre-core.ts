@@ -684,7 +684,7 @@ export async function executeFunctionCall(
         console.log('NUCLEAR CLEAR: agent_state reset after order', orderNumber);
 
         const confirmReplies: Record<string, string> = {
-          papiamentu: `Perfekto! 🌿 Bo orde #${orderNumber} ta aden. E team di FUIK lo kontakta bo.`,
+          papiamentu: `Perfekto! 🌿 Bo pedido #${orderNumber} ta aden. E team di FUIK lo kontakta bo.`,
           english: `Perfect! 🌿 Order #${orderNumber} is in. The FUIK team will be in touch.`,
           dutch: `Perfect! 🌿 Bestelling #${orderNumber} ontvangen. Het FUIK team neemt contact op.`,
           spanish: `¡Perfecto! 🌿 Pedido #${orderNumber} registrado. El equipo de FUIK te contactará.`,
