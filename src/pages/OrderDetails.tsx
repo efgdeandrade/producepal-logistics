@@ -1820,7 +1820,7 @@ const OrderDetails = () => {
             {viewDialog === 'supplier' && order && (
               <SupplierOrderList 
                 order={order} 
-                orderItems={orderItems.filter(item => !item.is_from_stock)} 
+                orderItems={orderItems} 
                 format={printFormat}
                 selectedSuppliers={selectedSuppliers}
               />
@@ -1828,7 +1828,7 @@ const OrderDetails = () => {
             {viewDialog === 'roundup' && order && (
               <RoundupTable 
                 order={order} 
-                orderItems={orderItems.filter(item => !item.is_from_stock)} 
+                orderItems={orderItems} 
                 format={printFormat}
               />
             )}
