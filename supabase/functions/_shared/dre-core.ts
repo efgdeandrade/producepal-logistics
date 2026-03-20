@@ -526,7 +526,7 @@ export async function executeFunctionCall(
         reply = buildOrderSummaryText(orderDraft, language);
       } else {
         const emptyReplies: Record<string, string> = {
-          papiamentu: 'Bo orde ta bashi awor. Kon mi por yuda bo? 🌿',
+          papiamentu: 'Bo pedido ta bashi awor. Kon mi por yuda bo? 🌿',
           english: 'Your order is empty now. What would you like? 🌿',
           dutch: 'Je bestelling is nu leeg. Wat wil je bestellen? 🌿',
           spanish: 'Tu pedido está vacío ahora. ¿Qué quieres? 🌿',
