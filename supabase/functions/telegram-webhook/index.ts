@@ -179,7 +179,7 @@ serve(async (req) => {
     const isGroup = message.chat.type === 'group' || message.chat.type === 'supergroup';
     const senderName = message.from?.first_name || null;
 
-    console.log('Received:', { chatId, text: text.substring(0, 50), isGroup, chatType: message.chat.type });
+    console.log('Received:', JSON.stringify({ chatId, text: text.substring(0, 50), isGroup, chatType: message.chat.type }));
 
     if (!text && !message.voice && !message.audio) return new Response('OK', { status: 200 });
 
