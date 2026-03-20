@@ -320,6 +320,79 @@ function DroppableDayColumn({
   );
 }
 
+// Droppable Unscheduled Column wrapper
+function DroppableUnscheduledColumn({ 
+  isOver,
+  children 
+}: { 
+  isOver: boolean;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef } = useDroppable({
+    id: 'unscheduled',
+    data: { type: 'unscheduled' },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        'h-full transition-colors rounded-lg',
+        isOver && 'bg-amber-100/50 dark:bg-amber-900/20 ring-2 ring-amber-400 ring-dashed'
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+// Sortable wrapper for unscheduled order cards
+function SortableUnscheduledCard({ 
+  order,
+  children 
+}: { 
+  order: UnscheduledOrder; 
+  children: React.ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: order.id,
+    data: { order, date: null },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'relative group',
+        isDragging && 'opacity-50 z-50'
+      )}
+    >
+      <div
+        {...listeners}
+        {...attributes}
+        className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 opacity-0 group-hover:opacity-100 
+                   cursor-grab active:cursor-grabbing p-1 rounded bg-muted/80 transition-opacity z-10"
+      >
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+      </div>
+      {children}
+    </div>
+  );
+}
+
 export default function FnbOrders() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
