@@ -311,6 +311,7 @@ IMPORTANT PAPIAMENTU VOCABULARY:
 - konta = tell me/what's up (NOT an order item)
 - esey = that/that's it
 - awor = now, mas = more/also, sin = without, ku = with/and
+- pedido = order (use this word, NOT "orde")
 - bakoba = banana (sold by PIECE or BUNCH — "kachu di bakoba" = bunch of bananas)
 - kachu = bunch/cluster
 - siboyo = onion, komkommer = cucumber, wortel = carrot, tomati = tomato
