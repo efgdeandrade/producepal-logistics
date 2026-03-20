@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { CustomerPackingSlip } from '@/components/CustomerPackingSlip';
 import { Badge } from '@/components/ui/badge';
 import type { ReceiptVersion, ReceiptLineItem } from '@/hooks/useReceiptVersions';
@@ -53,18 +54,53 @@ export const PackingSlipFromReceipts = ({
     try {
       const allItems: OrderItem[] = [];
       
+      // Load original order_items to get stock_quantity for each customer+product
+      const { data: originalOrderItems } = await supabase
+        .from('order_items')
+        .select('customer_name, product_code, quantity, stock_quantity')
+        .eq('order_id', order.id);
+
+      // Build a lookup map: "CUSTOMER_NAME:PRODUCT_CODE" → stock_quantity
+      const stockQtyMap = new Map<string, number>();
+      (originalOrderItems || []).forEach((oi: any) => {
+        const key = `${oi.customer_name}:${oi.product_code}`;
+        stockQtyMap.set(key, oi.stock_quantity ?? 0);
+      });
+
       for (const receipt of savedReceipts) {
         const lineItems = await fetchReceiptLineItems(receipt.id);
-        lineItems.forEach((li, idx) => {
+        lineItems.forEach((li) => {
+          const key = `${receipt.customer_name}:${li.product_code}`;
+          const stockQty = stockQtyMap.get(key) ?? 0;
           allItems.push({
             id: `receipt-${li.id}`,
             customer_name: receipt.customer_name,
             product_code: li.product_code,
             quantity: li.quantity,
+            stock_quantity: stockQty,
           });
         });
       }
       
+      // Add stock-only items that have no receipt line item at all
+      (originalOrderItems || []).forEach((oi: any) => {
+        if ((oi.stock_quantity ?? 0) > 0 && (oi.quantity ?? 0) === 0) {
+          const alreadyIncluded = allItems.some(
+            item => item.customer_name === oi.customer_name &&
+                     item.product_code === oi.product_code
+          );
+          if (!alreadyIncluded) {
+            allItems.push({
+              id: `stock-${oi.customer_name}-${oi.product_code}`,
+              customer_name: oi.customer_name,
+              product_code: oi.product_code,
+              quantity: 0,
+              stock_quantity: oi.stock_quantity,
+            });
+          }
+        }
+      });
+
       setReceiptItems(allItems);
     } catch (err) {
       console.error('Error loading receipt items for packing slips:', err);
