@@ -632,9 +632,11 @@ export default function FnbOrders() {
 
   const notifyCustomerScheduled = async (orderId: string, deliveryDate: string) => {
     try {
-      await supabase.functions.invoke('notify-order-scheduled', {
+      console.log('Scheduling order', orderId, 'for date', deliveryDate);
+      const { data: notifyResult, error: notifyError } = await supabase.functions.invoke('notify-order-scheduled', {
         body: { order_id: orderId, delivery_date: deliveryDate },
       });
+      console.log('Notify result:', JSON.stringify(notifyResult), 'error:', notifyError);
     } catch (e) {
       console.error('Failed to notify customer:', e);
     }
