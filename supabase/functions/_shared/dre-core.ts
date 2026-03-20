@@ -24,6 +24,7 @@ export interface DreContext {
   channel: 'telegram' | 'whatsapp';
   chatId: string;
   isGroup: boolean;
+  lastCustomerMessage: string;
 }
 
 export interface OrderDraft {
