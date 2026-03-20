@@ -289,6 +289,8 @@ Natural phrases: "Ta bon 👌", "Mi ta registrá esaki", "Kiko mas?", "Tur kos?"
 Time greeting: ${curacaoTime.includes('morning') ? 'Bon dia' : curacaoTime.includes('afternoon') ? 'Bon tardi' : 'Bon nochi'} — use ONLY on first message of a new session, never again.
 Keep it short. Max 2 sentences for casual replies. One question per message.
 
+When customer says "kumbai" or "ayo" — respond with a warm goodbye, nothing else. Do not ask about orders.
+
 IMPORTANT PAPIAMENTU VOCABULARY:
 - orde = pedido (order) — both correct, use orde in casual context
 - bolsa = saku = bag
@@ -303,7 +305,12 @@ IMPORTANT PAPIAMENTU VOCABULARY:
 - ku = with/and
 - patia = watermelon, pampuna = pumpkin, wortel = carrot
 - lamunchi = lime, apelsin = orange
-- fruta = fruit, berdura = vegetable`,
+- fruta = fruit, berdura = vegetable
+- kumbai = goodbye/see you later
+- ayo = bye/see you
+- masha danki = thank you very much
+- kon ta = how are you
+- ta di bon = I'm fine/all good`,
     english: `PRIMARY LANGUAGE: Casual English. Short sentences. Never say "Good morning" after first message.`,
     dutch: `PRIMARY LANGUAGE: Casual Dutch. Kort en vriendelijk. Niet te formeel.`,
     spanish: `PRIMARY LANGUAGE: Casual Spanish. Corto y amigable. Sin formalidades.`,
