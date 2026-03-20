@@ -525,15 +525,23 @@ export async function executeFunctionCall(
           const lineTotal = (item.unit_price_xcg || 0) * (item.qty || 0);
           totalXcg += lineTotal;
 
-          await supabase.from('distribution_order_items').insert({
-            order_id: order.id,
-            product_id: item.product_id,
-            product_name_raw: item.product_name,
-            quantity: item.qty || 0,
-            order_unit: item.unit || 'kg',
-            unit_price_xcg: item.unit_price_xcg || 0,
-            total_xcg: lineTotal,
-          });
+          const { data: insertedItem, error: itemError } = await supabase
+            .from('distribution_order_items')
+            .insert({
+              order_id: order.id,
+              product_id: item.product_id,
+              product_name_raw: item.product_name,
+              quantity: item.qty || 0,
+              order_unit: item.unit || 'piece',
+              unit_price_xcg: item.unit_price_xcg || 0,
+              total_xcg: lineTotal,
+            });
+
+          if (itemError) {
+            console.error('ITEM INSERT ERROR:', JSON.stringify(itemError), 'item:', JSON.stringify(item));
+          } else {
+            console.log('ITEM INSERTED:', item.product_name, item.qty, item.unit);
+          }
 
           // Log match for training
           await supabase.from('distribution_ai_match_logs').insert({
