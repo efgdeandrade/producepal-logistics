@@ -547,8 +547,9 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
 
     return new Response('OK', { status: 200 });
 
-  } catch (err) {
-    console.error('telegram-webhook fatal error:', err);
+  } catch (err: any) {
+    console.error('telegram-webhook CRASH:', err?.message || String(err));
+    console.error('Stack:', err?.stack || 'no stack');
     return new Response('OK', { status: 200 });
   }
 });
