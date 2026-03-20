@@ -179,7 +179,7 @@ serve(async (req) => {
     const isGroup = message.chat.type === 'group' || message.chat.type === 'supergroup';
     const senderName = message.from?.first_name || null;
 
-    console.log('Received:', { chatId, text: text.substring(0, 50), isGroup, chatType: message.chat.type });
+    console.log('Received:', JSON.stringify({ chatId, text: text.substring(0, 50), isGroup, chatType: message.chat.type }));
 
     if (!text && !message.voice && !message.audio) return new Response('OK', { status: 200 });
 
@@ -193,6 +193,7 @@ serve(async (req) => {
     );
 
     // ── Activation code detection (before anything else) ──
+    console.log('CHECKPOINT 1: activation code check, text starts with FUIK-?', text.startsWith('FUIK-'));
     if (text.startsWith('FUIK-') && isGroup) {
       console.log('Activation code detected in group:', text, 'chat:', chatId);
 
@@ -262,6 +263,7 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
     }
 
     // ── Group chat filtering ──────────────────────────────
+    console.log('CHECKPOINT 2: group filtering, isGroup?', isGroup);
     if (isGroup) {
       const botUsername = 'FuikOrdersBot';
       const textLowerGroup = text.toLowerCase();
@@ -278,12 +280,16 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
       ];
 
       const hasBusinessContent = BUSINESS_KEYWORDS.some(kw => textLowerGroup.includes(kw));
+      console.log('CHECKPOINT 2b: group filter result:', JSON.stringify({ isMentioned, isReplyToBot, hasBusinessContent }));
       if (!isMentioned && !isReplyToBot && !hasBusinessContent) {
+        console.log('CHECKPOINT 2c: FILTERED OUT — no business content, returning');
         return new Response('OK', { status: 200 });
       }
+      console.log('CHECKPOINT 2d: passed group filter');
     }
 
     // ── Route Bolenga training responses ─────────────────
+    console.log('CHECKPOINT 3: bolenga check');
     const { data: bolengaSetting } = await supabase
       .from('app_settings').select('value').eq('key', 'bolenga_telegram_chat_id').maybeSingle();
 
@@ -307,13 +313,15 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
 
     // ── Identify customer ────────────────────────────────
     const lookupId = chatId;
+    console.log('CHECKPOINT 4: customer lookup for', lookupId);
 
-    const { data: customer } = await supabase
+    const { data: customer, error: customerError } = await supabase
       .from('distribution_customers')
       .select('id, name, preferred_language, telegram_chat_id, whatsapp_phone')
       .eq('telegram_chat_id', lookupId)
       .maybeSingle();
 
+    console.log('CHECKPOINT 5: customer found?', !!customer, customerError ? 'ERROR: ' + customerError.message : '');
     if (!customer) {
       console.log('UNRECOGNIZED CONTACT chat_id:', chatId);
 
@@ -342,6 +350,7 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
     }
 
     // ── Find or create conversation ──────────────────────
+    console.log('CHECKPOINT 6: find/create conversation for customer', customer.name);
     let { data: convo } = await supabase
       .from('dre_conversations')
       .select('id, control_status, agent_state, language_detected')
@@ -374,6 +383,7 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
     }
 
     // ── Load all context in parallel ─────────────────────
+    console.log('CHECKPOINT 7: loading context in parallel');
     const [
       langResult,
       productsResult,
@@ -501,9 +511,11 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
     };
 
     // ── Run Dre Agent ─────────────────────────────────────
+    console.log('CHECKPOINT 8: calling runDreAgent with', JSON.stringify({ language, itemsInDraft: orderDraft.items.length, isNewSession }));
     const { reply, orderDraft: updatedDraft } = await runDreAgent(
       text, ctx, orderDraft, openaiKey, lovableKey
     );
+    console.log('CHECKPOINT 9: agent replied, length:', reply?.length, 'draft items:', updatedDraft?.items?.length);
 
     // ── Send reply ────────────────────────────────────────
     if (reply) {
@@ -535,8 +547,9 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
 
     return new Response('OK', { status: 200 });
 
-  } catch (err) {
-    console.error('telegram-webhook fatal error:', err);
+  } catch (err: any) {
+    console.error('telegram-webhook CRASH:', err?.message || String(err));
+    console.error('Stack:', err?.stack || 'no stack');
     return new Response('OK', { status: 200 });
   }
 });
