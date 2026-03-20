@@ -51,6 +51,7 @@ export const PackingSlipFromReceipts = ({
 
   const loadReceiptItems = async () => {
     setLoading(true);
+    console.log('PACKING SLIP DEBUG — savedReceipts count:', savedReceipts.length);
     try {
       const allItems: OrderItem[] = [];
       
@@ -101,6 +102,10 @@ export const PackingSlipFromReceipts = ({
         }
       });
 
+      console.log('PACKING SLIP DEBUG — allItems:', JSON.stringify(allItems.slice(0, 5), null, 2));
+      console.log('PACKING SLIP DEBUG — stockQtyMap:', JSON.stringify(Array.from(stockQtyMap.entries()).slice(0, 10)));
+      console.log('PACKING SLIP DEBUG — originalOrderItems count:', originalOrderItems?.length);
+      console.log('PACKING SLIP DEBUG — orderId:', order.id);
       setReceiptItems(allItems);
     } catch (err) {
       console.error('Error loading receipt items for packing slips:', err);
@@ -117,6 +122,8 @@ export const PackingSlipFromReceipts = ({
 
   const hasReceipts = savedReceipts.length > 0 && receiptItems;
   const itemsToUse = hasReceipts ? receiptItems : orderItems;
+  console.log('PACKING SLIP DEBUG — hasReceipts:', hasReceipts, '| using:', hasReceipts ? 'receiptItems' : 'orderItems', '| count:', itemsToUse.length);
+  console.log('PACKING SLIP DEBUG — sample items stock_quantity:', itemsToUse.slice(0, 5).map(i => ({ code: i.product_code, qty: i.quantity, stock: i.stock_quantity })));
 
   return (
     <div>
