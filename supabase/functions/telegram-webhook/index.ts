@@ -289,6 +289,7 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
     }
 
     // ── Route Bolenga training responses ─────────────────
+    console.log('CHECKPOINT 3: bolenga check');
     const { data: bolengaSetting } = await supabase
       .from('app_settings').select('value').eq('key', 'bolenga_telegram_chat_id').maybeSingle();
 
