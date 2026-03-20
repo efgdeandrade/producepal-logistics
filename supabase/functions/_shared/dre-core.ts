@@ -386,8 +386,32 @@ ${isGroup ? 'You are in a GROUP chat. Respond to business messages and direct me
 // ═══════════════════════════════════════════════════
 
 export function buildOrderSummaryText(draft: OrderDraft, language: string): string {
-  const lines = draft.items.map(i =>
-    `• ${i.qty || '?'} ${i.unit || '?'} ${i.product_name}`
+  // Separate complete vs incomplete items
+  const completeItems = draft.items.filter(i => i.qty && i.unit);
+  const incompleteItems = draft.items.filter(i => !i.qty || !i.unit);
+
+  if (incompleteItems.length > 0) {
+    // Don't show summary yet — ask for missing info on first incomplete item
+    const missing = incompleteItems[0];
+    const clarify: Record<string, string> = {
+      papiamentu: !missing.qty
+        ? `Kuantu ${missing.product_name} bo ke? (p.e. 2 kaha, 5 kg, 1 bolsa)`
+        : `Bo ke ${missing.product_name} den kg, kaha, of bolsa?`,
+      english: !missing.qty
+        ? `How much ${missing.product_name}? (e.g. 2 cases, 5 kg, 1 bag)`
+        : `${missing.product_name} — by kg, case, or bag?`,
+      dutch: !missing.qty
+        ? `Hoeveel ${missing.product_name}? (bijv. 2 dozen, 5 kg)`
+        : `${missing.product_name} — per kg, doos, of zak?`,
+      spanish: !missing.qty
+        ? `¿Cuánto ${missing.product_name}? (ej. 2 cajas, 5 kg)`
+        : `${missing.product_name} — ¿en kg, cajas, o bolsas?`,
+    };
+    return clarify[language] || clarify.english;
+  }
+
+  const lines = completeItems.map(i =>
+    `• ${i.qty} ${i.unit} ${i.product_name}`
   ).join('\n');
 
   const templates: Record<string, string> = {
