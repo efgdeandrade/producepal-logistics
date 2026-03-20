@@ -193,6 +193,7 @@ serve(async (req) => {
     );
 
     // ── Activation code detection (before anything else) ──
+    console.log('CHECKPOINT 1: activation code check, text starts with FUIK-?', text.startsWith('FUIK-'));
     if (text.startsWith('FUIK-') && isGroup) {
       console.log('Activation code detected in group:', text, 'chat:', chatId);
 
