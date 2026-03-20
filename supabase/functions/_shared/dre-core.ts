@@ -178,7 +178,7 @@ export const DRE_FUNCTIONS = [
           items: {
             type: 'object',
             properties: {
-              product_name: { type: 'string', description: 'Product name — translate to English BUT keep distinct varieties separate. bakoba→banana, platano→plantain (NOT banana — plantain is different), pampuna→pumpkin, wortel→carrot, apelsin→orange, patia→watermelon, lamunchi→lime, siboyo→onion, komkommer→cucumber, tomati→tomato, aarbei/fresa/strawberry→strawberry, piscado→fish, poleishi→chicken. kachu di bakoba = bunch of bananas (product_name=banana, unit=bunch). Never merge different products even if related.' },
+              product_name: { type: 'string', description: 'Product name — translate to English BUT keep distinct varieties separate. bakoba→banana, platano→plantain (NOT banana — plantain is different), pampuna→pumpkin, wortel→carrot, apelsin→orange, patia→watermelon, lamunchi→lime, siboyo→onion, komkommer→cucumber, tomati→tomato, aarbei/fresa/strawberry→strawberry, piscado→fish, poleishi→chicken. kachu di bakoba = bunch of bananas (product_name="banana bunch", unit=bunch). When same product ordered in different units (e.g. 2 loose bananas AND 1 bunch of bananas), use different product_names: "banana" for loose and "banana bunch" for bunches. Never merge items with different units.' },
               qty: { type: 'number', description: 'Quantity. Null if not specified.' },
               unit: { type: 'string', description: 'Unit: kg, case, bag, piece, bunch. Papiamentu mappings: kaha=case, bolsa=bag, saku=bag, kilo=kg, misa=head, pida=piece, stuks=piece, kachu=bunch. Null if not specified.' },
             },
@@ -369,6 +369,13 @@ HOW TO HANDLE ORDERS:
 5. When customer wants to add more (tambe, plus, also, otro kos) → call add_items with new items
 6. When customer wants to change something → call update_item or remove_item
 7. ALWAYS call add_items even for informal orders like "mi ke mango ku wortel"
+
+CRITICAL: When customer orders multiple items in one message like "2 banana i 1 kachu bakoba":
+- "2 banana" = {product_name: "banana", qty: 2, unit: "piece"}
+- "1 kachu bakoba" = {product_name: "banana bunch", qty: 1, unit: "bunch"}
+- Call add_items ONCE with BOTH as separate items in the array
+- NEVER merge items that have different units — "2 piece banana" and "1 bunch banana" are DIFFERENT line items
+- Use different product_names for different units of the same product
 
 PRODUCT CATALOG (use for matching):
 ${productCatalog}
