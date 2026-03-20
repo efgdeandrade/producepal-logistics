@@ -81,9 +81,11 @@ serve(async (req) => {
     });
 
     const items = (order.distribution_order_items as any[]) || [];
-    const itemList = items.slice(0, 5)
-      .map((i: any) => `• ${i.quantity} ${i.order_unit || ''} ${i.product_name_raw}`.trim())
-      .join('\n');
+    const itemList = items.length > 0
+      ? items.slice(0, 5)
+          .map((i: any) => `• ${i.quantity} ${i.order_unit || ''} ${i.product_name_raw || 'item'}`.trim())
+          .join('\n')
+      : '• (items being prepared)';
 
     const messages: Record<string, string> = {
       papiamentu: `✅ Bo orde #${order.order_number} ta konfirmá!\n\n${itemList}\n\n📅 Entrega: <b>${dayName}, ${dateFormatted}</b>\n\nE team di FUIK lo kontakta bo. Danki! 🌿`,

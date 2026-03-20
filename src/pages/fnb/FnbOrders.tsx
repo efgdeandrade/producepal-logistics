@@ -847,7 +847,7 @@ export default function FnbOrders() {
             created_at: new Date().toISOString(),
           }, { onConflict: 'order_id' });
 
-          notifyCustomerScheduled(orderId, newDate);
+          await notifyCustomerScheduled(orderId, newDate);
           queryClient.invalidateQueries({ queryKey: ['fnb-orders-weekly'] });
           queryClient.invalidateQueries({ queryKey: ['fnb-orders-unscheduled'] });
           toast.success(`Order scheduled for ${format(parseISO(newDate), 'EEEE, MMM d')}`);

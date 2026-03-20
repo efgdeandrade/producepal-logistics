@@ -487,8 +487,17 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
 
     // Get order draft from conversation state
     const agentState = convo.agent_state || {};
-    const orderDraft: OrderDraft = agentState.order_draft || { items: [] };
+    let orderDraft: OrderDraft = agentState.order_draft || { items: [] };
     console.log('LOADED draft:', JSON.stringify(orderDraft));
+
+    // Safety: if draft items exist but last action was a confirmation, clear the stale draft
+    if (orderDraft.items.length > 0 && agentState.last_confirmed_order && !isUniversalConfirmation) {
+      console.log('SAFETY CLEAR: found stale items after confirmed order', agentState.last_confirmed_order, '- clearing draft');
+      orderDraft = { items: [] };
+      await supabase.from('dre_conversations')
+        .update({ agent_state: { order_draft: { items: [] } } })
+        .eq('id', convo.id);
+    }
 
     // Reset draft on new session greeting — but NEVER on confirmations
     if (isNewSession) {

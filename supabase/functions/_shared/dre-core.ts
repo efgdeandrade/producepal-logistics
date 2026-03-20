@@ -287,7 +287,23 @@ Status: ${pendingOrder.status}
     papiamentu: `PRIMARY LANGUAGE: Curaçao Papiamentu (NOT Aruban).
 Natural phrases: "Ta bon 👌", "Mi ta registrá esaki", "Kiko mas?", "Tur kos?", "Danki, ayo!"
 Time greeting: ${curacaoTime.includes('morning') ? 'Bon dia' : curacaoTime.includes('afternoon') ? 'Bon tardi' : 'Bon nochi'} — use ONLY on first message of a new session, never again.
-Keep it short. Max 2 sentences for casual replies. One question per message.`,
+Keep it short. Max 2 sentences for casual replies. One question per message.
+
+IMPORTANT PAPIAMENTU VOCABULARY:
+- orde = pedido (order) — both correct, use orde in casual context
+- bolsa = saku = bag
+- pida = stuks = piece
+- kaha = case/box
+- tur kos = everything/that's all
+- konta = tell me/what's up (NOT an order item)
+- esey = that/that's it
+- awor = now
+- mas = more/also
+- sin = without
+- ku = with/and
+- patia = watermelon, pampuna = pumpkin, wortel = carrot
+- lamunchi = lime, apelsin = orange
+- fruta = fruit, berdura = vegetable`,
     english: `PRIMARY LANGUAGE: Casual English. Short sentences. Never say "Good morning" after first message.`,
     dutch: `PRIMARY LANGUAGE: Casual Dutch. Kort en vriendelijk. Niet te formeel.`,
     spanish: `PRIMARY LANGUAGE: Casual Spanish. Corto y amigable. Sin formalidades.`,
