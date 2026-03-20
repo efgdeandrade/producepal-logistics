@@ -1363,25 +1363,60 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
       }
     }
 
-    // ── PHASE: idle — new message ────────────────────────
+    // ── PHASE: idle or collecting — new message ────────────────────────
     else {
       // Try to parse as order first
       const items = await parseOrderItems(text, detectedLanguage, contextString);
 
       if (items.length > 0) {
-        state.pending_items = items;
-        state.clarification_index = 0;
+        // If we have existing pending items (from "add more" flow), merge instead of replace
+        if (state.phase === 'collecting' && state.pending_items.length > 0) {
+          const existingNames = state.pending_items.map((i: ParsedItem) =>
+            i.product_name.toLowerCase()
+          );
 
-        // Check for missing qty or unit
-        const missingIndex = items.findIndex(i => !i.qty || !i.unit);
-        if (missingIndex >= 0) {
-          state.phase = 'clarifying';
-          state.clarification_index = missingIndex;
-          reply = buildClarificationQuestion(items[missingIndex], detectedLanguage);
+          const trulyNewItems = items.filter((ni: ParsedItem) =>
+            !existingNames.includes(ni.product_name.toLowerCase())
+          );
+
+          // Update existing items if new message provides updated qty/unit
+          for (const ni of items) {
+            const existingIdx = state.pending_items.findIndex(
+              (ei: ParsedItem) => ei.product_name.toLowerCase() === ni.product_name.toLowerCase()
+            );
+            if (existingIdx >= 0) {
+              if (ni.qty !== null) state.pending_items[existingIdx].qty = ni.qty;
+              if (ni.unit !== null) state.pending_items[existingIdx].unit = ni.unit;
+            }
+          }
+
+          const updatedItems = [...state.pending_items, ...trulyNewItems];
+          state.pending_items = updatedItems;
+          state.clarification_index = 0;
+
+          const missingIndex = updatedItems.findIndex((i: ParsedItem) => !i.qty || !i.unit);
+          if (missingIndex >= 0) {
+            state.phase = 'clarifying';
+            state.clarification_index = missingIndex;
+            reply = buildClarificationQuestion(updatedItems[missingIndex], detectedLanguage);
+          } else {
+            state.phase = 'confirming';
+            reply = buildOrderSummary(updatedItems, detectedLanguage);
+          }
         } else {
-          // All complete — show summary
-          state.phase = 'confirming';
-          reply = buildOrderSummary(items, detectedLanguage);
+          // Fresh order
+          state.pending_items = items;
+          state.clarification_index = 0;
+
+          const missingIndex = items.findIndex(i => !i.qty || !i.unit);
+          if (missingIndex >= 0) {
+            state.phase = 'clarifying';
+            state.clarification_index = missingIndex;
+            reply = buildClarificationQuestion(items[missingIndex], detectedLanguage);
+          } else {
+            state.phase = 'confirming';
+            reply = buildOrderSummary(items, detectedLanguage);
+          }
         }
       } else {
         // Not an order — generate conversational reply
