@@ -318,6 +318,7 @@ Deno.serve(async (req) => {
       channel: 'whatsapp',
       chatId: externalChatId,
       isGroup: false,
+      lastCustomerMessage: message_text,
     };
 
     // ── Run Dre Agent ─────────────────────────────────────
@@ -362,8 +363,19 @@ Deno.serve(async (req) => {
     const langMap: Record<string, string> = { pap: 'papiamentu', en: 'english', nl: 'dutch', es: 'spanish' };
     const dreLang = langMap[language] || (['papiamentu', 'english', 'dutch', 'spanish'].includes(language) ? language : null);
 
+    // Safety: if confirmation just sent, force empty draft
+    const replyIsConfirmation = !!(reply && (
+      /(?:TG|WA)-[A-Z0-9]+/.test(reply) &&
+      (reply.includes('ta konfirmá') || reply.includes('ta aden') ||
+       reply.includes('is confirmed') || reply.includes('is in.') ||
+       reply.includes('is bevestigd') || reply.includes('está confirmado'))
+    ));
+
+    const finalDraft = replyIsConfirmation ? { items: [] } : updatedDraft;
+    console.log('WA SAVED draft:', finalDraft.items.length, 'items. wasConfirmation:', replyIsConfirmation);
+
     await supabase.from('dre_conversations').update({
-      agent_state: { order_draft: updatedDraft },
+      agent_state: { order_draft: finalDraft },
       language_detected: dreLang,
       updated_at: new Date().toISOString(),
     }).eq('id', convo.id);

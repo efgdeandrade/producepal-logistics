@@ -579,6 +579,7 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
       conversationHistory, products, productAliases,
       trainingPhrases, contextWords, curacaoTime,
       channel: 'telegram', chatId, isGroup,
+      lastCustomerMessage: text,
     };
 
     // ── Run Dre Agent ─────────────────────────────────────

@@ -24,6 +24,7 @@ export interface DreContext {
   channel: 'telegram' | 'whatsapp';
   chatId: string;
   isGroup: boolean;
+  lastCustomerMessage: string;
 }
 
 export interface OrderDraft {
@@ -169,7 +170,7 @@ export function matchProduct(
 export const DRE_FUNCTIONS = [
   {
     name: 'add_items',
-    description: 'Add one or more products to the current order draft. Use when customer mentions products they want to order. Always extract product name, quantity, and unit from the message.',
+    description: 'Add one or more products to the current order draft. Use when customer mentions products they want to order. Always extract product name, quantity, and unit from the message. Weight formats: "2x500gr" = qty:2, unit:piece (500g each — note in product_name), "1000gram" = qty:1000, unit:g, "500gr" = qty:500, unit:g, "2kg" = qty:2, unit:kg. For packaged items like "2x500gr strawberry" → product_name:"strawberry 500g", qty:2, unit:"pack".',
     parameters: {
       type: 'object',
       properties: {
@@ -180,7 +181,7 @@ export const DRE_FUNCTIONS = [
             properties: {
               product_name: { type: 'string', description: 'Product name — translate to English BUT keep distinct varieties separate. bakoba→banana, platano→plantain (NOT banana — plantain is different), pampuna→pumpkin, wortel→carrot, apelsin→orange, patia→watermelon, lamunchi→lime, siboyo→onion, komkommer→cucumber, tomati→tomato, aarbei/fresa/strawberry→strawberry, piscado→fish, poleishi→chicken. kachu di bakoba = bunch of bananas (product_name="banana bunch", unit=bunch). When same product ordered in different units (e.g. 2 loose bananas AND 1 bunch of bananas), use different product_names: "banana" for loose and "banana bunch" for bunches. Never merge items with different units.' },
               qty: { type: 'number', description: 'Quantity. Null if not specified.' },
-              unit: { type: 'string', description: 'Unit: kg, case, bag, piece, bunch. Papiamentu mappings: kaha=case, bolsa=bag, saku=bag, kilo=kg, misa=head, pida=piece, stuks=piece, kachu=bunch. Null if not specified.' },
+              unit: { type: 'string', description: 'Unit: kg, case, bag, piece, bunch, pack, g. Papiamentu mappings: kaha=case, bolsa=bag, saku=bag, kilo=kg, misa=head, pida=piece, stuks=piece, kachu=bunch. Null if not specified.' },
             },
             required: ['product_name'],
           },
@@ -376,6 +377,13 @@ CRITICAL: When customer orders multiple items in one message like "2 banana i 1 
 - Call add_items ONCE with BOTH as separate items in the array
 - NEVER merge items that have different units — "2 piece banana" and "1 bunch banana" are DIFFERENT line items
 - Use different product_names for different units of the same product
+
+WEIGHT AND PACK FORMATS:
+- "2x500gr strawberry" → 2 packs of 500g strawberry → {product_name:"strawberry 500g", qty:2, unit:"pack"}
+- "1000gr tomato" → {product_name:"tomato", qty:1000, unit:"g"}
+- "500gram" = "500gr" = "500g" — all the same
+- "2 kilo" = "2kg" — same
+- Always preserve the pack size in the product_name when customer specifies it
 
 PRODUCT CATALOG (use for matching):
 ${productCatalog}
@@ -579,6 +587,7 @@ export async function executeFunctionCall(
         awaiting_customer_confirmation: false,
         confirmed_by_customer_at: new Date().toISOString(),
         agent_state_snapshot: { version: 'v4', draft: orderDraft },
+        notes: ctx.lastCustomerMessage ? `Customer message: ${ctx.lastCustomerMessage.substring(0, 500)}` : null,
       }).select().single();
 
       if (order) {
@@ -861,7 +870,7 @@ export async function runDreAgent(
         tools: DRE_FUNCTIONS.map(f => ({ type: 'function', function: f })),
         tool_choice: 'auto',
         temperature: 0.7,
-        max_tokens: 500,
+        max_tokens: 2000,
       }),
     });
 
@@ -947,7 +956,7 @@ export async function runDreAgent(
               })),
             ],
             temperature: 0.7,
-            max_tokens: 200,
+            max_tokens: 500,
           }),
         });
         const followUpData = await followUpResp.json();
