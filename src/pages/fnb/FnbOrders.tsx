@@ -609,7 +609,8 @@ export default function FnbOrders() {
         .select(`
           id, order_number, status, source_channel, created_at, total_xcg,
           customer_id, items_count,
-          distribution_customers(name, zone, telegram_chat_id, whatsapp_phone)
+          distribution_customers(name, zone, telegram_chat_id, whatsapp_phone),
+          distribution_order_items(id)
         `)
         .is('delivery_date', null)
         .in('source_channel', ['telegram', 'whatsapp'])
