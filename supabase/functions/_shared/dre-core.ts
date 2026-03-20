@@ -862,7 +862,7 @@ export async function runDreAgent(
         tools: DRE_FUNCTIONS.map(f => ({ type: 'function', function: f })),
         tool_choice: 'auto',
         temperature: 0.7,
-        max_tokens: 500,
+        max_tokens: 2000,
       }),
     });
 
