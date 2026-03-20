@@ -3,7 +3,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
-  detectLanguage, runDreAgent, sanitizeReply, loadCustomerMemory,
+  detectLanguage, runDreAgent, sanitizeReply, loadCustomerMemory, executeFunctionCall,
   type DreContext, type OrderDraft,
 } from '../_shared/dre-core.ts';
 
