@@ -386,8 +386,32 @@ ${isGroup ? 'You are in a GROUP chat. Respond to business messages and direct me
 // ═══════════════════════════════════════════════════
 
 export function buildOrderSummaryText(draft: OrderDraft, language: string): string {
-  const lines = draft.items.map(i =>
-    `• ${i.qty || '?'} ${i.unit || '?'} ${i.product_name}`
+  // Separate complete vs incomplete items
+  const completeItems = draft.items.filter(i => i.qty && i.unit);
+  const incompleteItems = draft.items.filter(i => !i.qty || !i.unit);
+
+  if (incompleteItems.length > 0) {
+    // Don't show summary yet — ask for missing info on first incomplete item
+    const missing = incompleteItems[0];
+    const clarify: Record<string, string> = {
+      papiamentu: !missing.qty
+        ? `Kuantu ${missing.product_name} bo ke? (p.e. 2 kaha, 5 kg, 1 bolsa)`
+        : `Bo ke ${missing.product_name} den kg, kaha, of bolsa?`,
+      english: !missing.qty
+        ? `How much ${missing.product_name}? (e.g. 2 cases, 5 kg, 1 bag)`
+        : `${missing.product_name} — by kg, case, or bag?`,
+      dutch: !missing.qty
+        ? `Hoeveel ${missing.product_name}? (bijv. 2 dozen, 5 kg)`
+        : `${missing.product_name} — per kg, doos, of zak?`,
+      spanish: !missing.qty
+        ? `¿Cuánto ${missing.product_name}? (ej. 2 cajas, 5 kg)`
+        : `${missing.product_name} — ¿en kg, cajas, o bolsas?`,
+    };
+    return clarify[language] || clarify.english;
+  }
+
+  const lines = completeItems.map(i =>
+    `• ${i.qty} ${i.unit} ${i.product_name}`
   ).join('\n');
 
   const templates: Record<string, string> = {
@@ -542,28 +566,38 @@ export async function executeFunctionCall(
       }).select().single();
 
       if (order) {
+        // Validate and sanitize items before inserting — prevent NOT NULL violations
+        const validItems = orderDraft.items.map(item => ({
+          ...item,
+          qty: item.qty ?? 1, // Default to 1 if somehow null
+          unit: item.unit ?? 'piece',
+          unit_price_xcg: item.unit_price_xcg ?? 0,
+        }));
+
+        console.log('CONFIRM_ORDER: inserting', validItems.length, 'validated items:', JSON.stringify(validItems));
+
         let totalXcg = 0;
 
-        for (const item of orderDraft.items) {
-          const lineTotal = (item.unit_price_xcg || 0) * (item.qty || 0);
+        for (const item of validItems) {
+          const lineTotal = (item.unit_price_xcg || 0) * (item.qty || 1);
           totalXcg += lineTotal;
 
-          const { data: insertedItem, error: itemError } = await supabase
+          const { error: itemError } = await supabase
             .from('distribution_order_items')
             .insert({
               order_id: order.id,
               product_id: item.product_id,
               product_name_raw: item.product_name,
-              quantity: item.qty || 0,
-              order_unit: item.unit || 'piece',
-              unit_price_xcg: item.unit_price_xcg || 0,
+              quantity: item.qty,
+              order_unit: item.unit,
+              unit_price_xcg: item.unit_price_xcg,
               total_xcg: lineTotal,
             });
 
           if (itemError) {
-            console.error('ITEM INSERT ERROR:', JSON.stringify(itemError), 'item:', JSON.stringify(item));
+            console.error('ITEM INSERT FAILED:', JSON.stringify(itemError), 'item:', JSON.stringify(item));
           } else {
-            console.log('ITEM INSERTED:', item.product_name, item.qty, item.unit);
+            console.log('ITEM SAVED:', item.product_name, item.qty, item.unit);
           }
 
           // Log match for training
@@ -579,9 +613,17 @@ export async function executeFunctionCall(
           }).catch(() => {});
         }
 
+        // Count what was ACTUALLY inserted — don't trust draft length
+        const { count: actualItemCount } = await supabase
+          .from('distribution_order_items')
+          .select('*', { count: 'exact', head: true })
+          .eq('order_id', order.id);
+
         await supabase.from('distribution_orders')
-          .update({ total_xcg: totalXcg, items_count: orderDraft.items.length })
+          .update({ total_xcg: totalXcg, items_count: actualItemCount || 0 })
           .eq('id', order.id);
+
+        console.log('ORDER COMPLETE:', orderNumber, 'items:', actualItemCount, 'total:', totalXcg);
 
         await supabase.from('dre_conversations')
           .update({ order_id: order.id })
