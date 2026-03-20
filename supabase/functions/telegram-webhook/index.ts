@@ -471,7 +471,9 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
     const hoursSinceLastMsg = lastCustomerMsg?.created_at
       ? (Date.now() - new Date(lastCustomerMsg.created_at).getTime()) / (1000 * 60 * 60)
       : 999;
-    const isNewSession = hoursSinceLastMsg > 4 || isGreeting;
+    // NEVER reset draft on confirmation words — they should confirm the existing draft
+    const isNewSession = (hoursSinceLastMsg > 4 || isGreeting) && !isUniversalConfirmation;
+    console.log('Session check:', JSON.stringify({ hoursSinceLastMsg: hoursSinceLastMsg.toFixed(1), isGreeting, isUniversalConfirmation, isNewSession }));
 
     let conversationHistory: Array<{ role: string; content: string }>;
     if (isNewSession) {
@@ -495,8 +497,9 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
     const orderDraft: OrderDraft = agentState.order_draft || { items: [] };
     console.log('LOADED draft:', JSON.stringify(orderDraft));
 
-    // Reset draft on new session greeting
+    // Reset draft on new session greeting — but NEVER on confirmations
     if (isNewSession) {
+      console.log('NEW SESSION: clearing draft');
       orderDraft.items = [];
     }
 

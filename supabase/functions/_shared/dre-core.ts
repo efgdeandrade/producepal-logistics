@@ -490,7 +490,9 @@ export async function executeFunctionCall(
     }
 
     case 'confirm_order': {
+      console.log('CONFIRM_ORDER called, draft items:', JSON.stringify(orderDraft.items));
       if (orderDraft.items.length === 0) {
+        console.log('CONFIRM_ORDER: draft is EMPTY — cannot confirm. Agent state may have been reset.');
         const noItemsReplies: Record<string, string> = {
           papiamentu: 'No tin item den bo orde ainda. Kiko bo ke? 🌿',
           english: 'No items in your order yet. What would you like? 🌿',
