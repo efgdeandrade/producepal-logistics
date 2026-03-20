@@ -370,6 +370,13 @@ HOW TO HANDLE ORDERS:
 6. When customer wants to change something → call update_item or remove_item
 7. ALWAYS call add_items even for informal orders like "mi ke mango ku wortel"
 
+CRITICAL: When customer orders multiple items in one message like "2 banana i 1 kachu bakoba":
+- "2 banana" = {product_name: "banana", qty: 2, unit: "piece"}
+- "1 kachu bakoba" = {product_name: "banana bunch", qty: 1, unit: "bunch"}
+- Call add_items ONCE with BOTH as separate items in the array
+- NEVER merge items that have different units — "2 piece banana" and "1 bunch banana" are DIFFERENT line items
+- Use different product_names for different units of the same product
+
 PRODUCT CATALOG (use for matching):
 ${productCatalog}
 
