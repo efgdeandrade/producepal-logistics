@@ -277,6 +277,14 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
         'price', 'precio', 'prijs', 'available', 'stock',
         'bon dia', 'bon tardi', 'bon nochi', 'hello', 'halo', 'hi ',
         'tambe', 'otro kos', 'adishonal', 'ta bon', 'si', 'yes', 'ja',
+        // No-space Papiamentu variations
+        'bontardi', 'bondia', 'bonnochi', 'bontarde', 'bontardin',
+        'mique', 'mike', 'mikier',
+        // Common Papiamentu words
+        'danki', 'porfavor', 'please', 'kuantu', 'kiko',
+        'lamunchi', 'apelsin', 'fruta', 'berdura',
+        // Confirmations
+        'oke', 'perfekto', 'klaro',
       ];
 
       const hasBusinessContent = BUSINESS_KEYWORDS.some(kw => textLowerGroup.includes(kw));
