@@ -269,15 +269,18 @@ export const DRE_FUNCTIONS = [
 export function buildDreSystemPrompt(ctx: DreContext): string {
   const { customer, language, customerMemory, pendingOrder, trainingPhrases, contextWords, curacaoTime, isGroup } = ctx;
 
-  // Build current order draft context
-  const currentDraft = ctx.pendingOrder;
   const pendingOrderSection = pendingOrder ? `
-PENDING UNCONFIRMED ORDER (from previous conversation):
-Order #${pendingOrder.order_number} — created ${new Date(pendingOrder.created_at).toLocaleDateString()}
-Items: ${(pendingOrder.items || []).map((i: any) => `${i.quantity} ${i.order_unit} ${i.product_name_raw}`).join(', ')}
-→ If customer starts a new order, call replace_pending_order first then add_items.
-→ If customer says "continue" or seems to reference old order, call continue_pending_order.
-→ Mention it ONCE naturally if relevant — never assume they still want it.
+RECENT UNSCHEDULED ORDER (created ${Math.floor((Date.now() - new Date(pendingOrder.created_at).getTime()) / 60000)} minutes ago):
+Order #${pendingOrder.order_number}
+Items: ${(pendingOrder.distribution_order_items || pendingOrder.items || []).map((i: any) => `${i.quantity} ${i.order_unit} ${i.product_name_raw}`).join(', ')}
+Status: ${pendingOrder.status}
+
+→ If customer starts a new conversation or greeting, mention this order ONCE naturally.
+  Example: "Bo tin un orde pendiente di anteriormente ku mango i wortel — bo ke kontinua ku dje of kuminsa nobo?"
+→ If customer sends a completely new order, ask: want to add to existing order or start fresh?
+→ If customer says "add" or "tambe" — call add_items (it will merge)
+→ If customer says "new order" or "nobo" — call replace_pending_order first
+→ If customer confirms — call continue_pending_order then confirm_order
 ` : 'NO PENDING ORDERS.';
 
   const languageGuide: Record<string, string> = {
