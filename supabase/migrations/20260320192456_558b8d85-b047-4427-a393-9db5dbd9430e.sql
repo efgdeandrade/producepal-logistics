@@ -1,0 +1,1 @@
+UPDATE dre_conversations SET agent_state = '{"order_draft": {"items": []}}'::jsonb WHERE channel = 'telegram';
