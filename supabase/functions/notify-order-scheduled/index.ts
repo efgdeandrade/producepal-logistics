@@ -48,12 +48,15 @@ serve(async (req) => {
     const { data: order } = await supabase
       .from('distribution_orders')
       .select(`
-        id, order_number, source_channel, total_xcg, items_count,
+        id, order_number, source_channel, total_xcg, items_count, notes,
         distribution_customers(
           id, name, preferred_language,
           telegram_chat_id, whatsapp_phone
         ),
-        distribution_order_items(product_name_raw, quantity, order_unit)
+        distribution_order_items(
+          product_name_raw, quantity, order_unit,
+          distribution_products(name)
+        )
       `)
       .eq('id', order_id)
       .single();
