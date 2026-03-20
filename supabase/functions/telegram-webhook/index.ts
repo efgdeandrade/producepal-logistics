@@ -549,14 +549,18 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
       });
 
       // Log for training review
-      await supabase.from('distribution_ai_match_logs').insert({
-        raw_text: text,
-        detected_language: language,
-        dre_reply: reply,
-        needs_language_review: true,
-        source_channel: 'telegram',
-        conversation_id: convo.id,
-      }).catch(() => {});
+      try {
+        await supabase.from('distribution_ai_match_logs').insert({
+          raw_text: text,
+          detected_language: language,
+          dre_reply: reply,
+          needs_language_review: true,
+          source_channel: 'telegram',
+          conversation_id: convo.id,
+        });
+      } catch (_logErr) {
+        // Never crash on logging failure
+      }
     }
 
     // Save updated state
