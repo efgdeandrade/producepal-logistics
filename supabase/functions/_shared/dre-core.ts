@@ -580,6 +580,7 @@ export async function executeFunctionCall(
         awaiting_customer_confirmation: false,
         confirmed_by_customer_at: new Date().toISOString(),
         agent_state_snapshot: { version: 'v4', draft: orderDraft },
+        notes: ctx.lastCustomerMessage ? `Customer message: ${ctx.lastCustomerMessage.substring(0, 500)}` : null,
       }).select().single();
 
       if (order) {
