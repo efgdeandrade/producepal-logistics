@@ -814,6 +814,35 @@ export async function runDreAgent(
         if (result.shouldEscalate) shouldEscalate = true;
       }
 
+      // Generate natural varied confirmation if confirm_order succeeded
+      const lastToolCall = choice.message.tool_calls[choice.message.tool_calls.length - 1];
+      if (lastToolCall?.function?.name === 'confirm_order' && finalReply && !finalReply.includes('No items') && !finalReply.includes('No tin item')) {
+        try {
+          const orderNum = finalReply.match(/#[\w-]+/)?.[0] || '';
+          const naturalClose = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: 'gpt-4o',
+              messages: [{
+                role: 'system',
+                content: `You are Dre, a warm Curaçao fresh produce salesperson. Generate a SHORT, natural, varied order confirmation in ${ctx.language}. Include order number ${orderNum}. Sound like a real person texting — not a template. Max 2 sentences. NEVER mention delivery dates/times/schedules. Use 1 emoji max. Vary phrasing every time.`,
+              }, {
+                role: 'user',
+                content: 'Generate confirmation now.',
+              }],
+              temperature: 0.95,
+              max_tokens: 80,
+            }),
+          });
+          const naturalData = await naturalClose.json();
+          const naturalReply = naturalData.choices?.[0]?.message?.content?.trim();
+          if (naturalReply) finalReply = sanitizeReply(naturalReply, ctx.language);
+        } catch (e) {
+          console.error('Natural confirmation generation failed, using template:', e);
+        }
+      }
+
       // If function call produced no reply, get GPT to generate one
       if (!finalReply) {
         const followUpResp = await fetch('https://api.openai.com/v1/chat/completions', {
