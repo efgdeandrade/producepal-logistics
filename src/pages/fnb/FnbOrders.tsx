@@ -111,6 +111,7 @@ interface UnscheduledOrder {
     telegram_chat_id: string | null;
     whatsapp_phone: string | null;
   } | null;
+  distribution_order_items?: { id: string }[] | null;
 }
 
 interface OrderWithDetails {
