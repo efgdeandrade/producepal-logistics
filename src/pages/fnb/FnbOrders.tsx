@@ -1325,6 +1325,59 @@ export default function FnbOrders() {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
+            {/* Mobile: Unscheduled section first */}
+            {unscheduledOrders.length > 0 && (
+              <div className="md:hidden">
+                <Card className="border-l-4 border-l-amber-400 bg-amber-50/50 dark:bg-amber-950/20">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-amber-500 text-white text-xs font-bold">
+                          UNSCHEDULED
+                        </Badge>
+                        <span className="text-muted-foreground text-xs">Drag to a day to schedule</span>
+                      </div>
+                      <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300">
+                        {unscheduledOrders.length}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 pt-0">
+                    <SortableContext
+                      items={unscheduledOrders.map(o => o.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {unscheduledOrders.map((order) => (
+                        <SortableUnscheduledCard key={order.id} order={order}>
+                          <Card className="border-l-4 border-l-amber-400 hover:shadow-sm transition-shadow cursor-pointer"
+                                onClick={() => navigate(`/distribution/orders/edit/${order.id}`)}>
+                            <CardContent className="p-3 space-y-1.5">
+                              <div className="flex items-center justify-between">
+                                <span className="font-semibold text-sm truncate">{order.distribution_customers?.name || 'Unknown'}</span>
+                                <Badge variant="outline" className={cn('text-[10px] px-1.5',
+                                  order.source_channel === 'telegram' 
+                                    ? 'bg-teal-50 text-teal-700 border-teal-300 dark:bg-teal-950 dark:text-teal-300' 
+                                    : 'bg-green-50 text-green-700 border-green-300 dark:bg-green-950 dark:text-green-300'
+                                )}>
+                                  {order.source_channel === 'telegram' ? '✈️ Telegram' : '💬 WhatsApp'}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <span className="font-mono">{order.order_number}</span>
+                                {(order.items_count ?? 0) > 0 && (
+                                  <span>• {order.items_count} items</span>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </SortableUnscheduledCard>
+                      ))}
+                    </SortableContext>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
             {/* Mobile: Collapsible day sections */}
             <div className="md:hidden space-y-3">
               {weekDays.map((day) => {
