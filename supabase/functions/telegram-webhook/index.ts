@@ -265,6 +265,12 @@ async function detectLanguage(text: string): Promise<string> {
 
 async function parseOrderItems(text: string, language: string, contextWords: string): Promise<ParsedItem[]> {
   try {
+    // Normalize multi-line orders into a single parseable string
+    const normalizedText = text
+      .replace(/\n/g, ', ')
+      .replace(/\r/g, '')
+      .trim();
+
     const result = await callAI([
       {
         role: 'system',
@@ -290,7 +296,7 @@ Real Curaçao order examples:
 
 Context words: ${contextWords}`,
       },
-      { role: 'user', content: text },
+      { role: 'user', content: normalizedText },
     ], true);
 
     const parsed = extractJSON(result);
@@ -1265,25 +1271,73 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
         reply = confirmReplies[detectedLanguage] || confirmReplies.english;
 
       } else {
-        // NOT a confirmation — maybe they changed the order
-        const newItems = await parseOrderItems(text, detectedLanguage, contextString);
-        if (newItems.length > 0) {
-          // They modified the order
-          state.pending_items = newItems;
-          state.clarification_index = 0;
+        // NOT a confirmation — check if they want to add more items
+        const ADD_MORE_PHRASES = [
+          'otro kos', 'otro cos', 'mas kos', 'mas cos', 'tambe', 'también',
+          'add', 'also', 'and also', 'plus', 'more', 'extra',
+          'ook', 'en ook', 'plus ook',
+          'también quiero', 'también necesito',
+          'i tambe', 'i mas', 'agrega', 'agregar',
+        ];
 
-          // Check for missing info
-          const missingIndex = newItems.findIndex(i => !i.qty || !i.unit);
-          if (missingIndex >= 0) {
-            state.phase = 'clarifying';
-            state.clarification_index = missingIndex;
-            reply = buildClarificationQuestion(newItems[missingIndex], detectedLanguage);
+        const wantsToAddMore = ADD_MORE_PHRASES.some(phrase =>
+          text.toLowerCase().includes(phrase)
+        );
+
+        if (wantsToAddMore) {
+          // Switch to collecting phase to accept new items that will be merged
+          state.phase = 'collecting';
+          const addMoreReplies: Record<string, string> = {
+            papiamentu: `Claro! Manda e otro kosnan bo ke agrega i mi ta kombiná tur kos. 🌿`,
+            english: `Sure! Send me the additional items and I'll add them to your order. 🌿`,
+            dutch: `Natuurlijk! Stuur de extra items en ik voeg ze toe aan je bestelling. 🌿`,
+            spanish: `¡Claro! Manda los artículos adicionales y los agrego a tu pedido. 🌿`,
+          };
+          reply = addMoreReplies[detectedLanguage] || addMoreReplies.english;
+        } else {
+          // Try to parse new items from the message
+          const newItems = await parseOrderItems(text, detectedLanguage, contextString);
+          if (newItems.length > 0) {
+            // MERGE new items with existing pending items instead of replacing
+            const existingNames = state.pending_items.map((i: ParsedItem) =>
+              i.product_name.toLowerCase()
+            );
+
+            const trulyNewItems = newItems.filter((ni: ParsedItem) =>
+              !existingNames.includes(ni.product_name.toLowerCase())
+            );
+
+            // For duplicates, update qty/unit if the new message provides them
+            for (const ni of newItems) {
+              const existingIdx = state.pending_items.findIndex(
+                (ei: ParsedItem) => ei.product_name.toLowerCase() === ni.product_name.toLowerCase()
+              );
+              if (existingIdx >= 0) {
+                // Update existing item with new qty/unit if provided
+                if (ni.qty !== null) state.pending_items[existingIdx].qty = ni.qty;
+                if (ni.unit !== null) state.pending_items[existingIdx].unit = ni.unit;
+              }
+            }
+
+            const updatedItems = [...state.pending_items, ...trulyNewItems];
+            state.pending_items = updatedItems;
+            state.clarification_index = 0;
+
+            // Check if any items need clarification
+            const missingIndex = updatedItems.findIndex((i: ParsedItem) => !i.qty || !i.unit);
+            if (missingIndex >= 0) {
+              state.phase = 'clarifying';
+              state.clarification_index = missingIndex;
+              reply = buildClarificationQuestion(updatedItems[missingIndex], detectedLanguage);
+            } else {
+              // Show combined order summary
+              state.phase = 'confirming';
+              reply = buildOrderSummary(updatedItems, detectedLanguage);
+            }
           } else {
+            // They said something else — re-show the summary
             reply = buildOrderSummary(state.pending_items, detectedLanguage);
           }
-        } else {
-          // They said something else — re-show the summary
-          reply = buildOrderSummary(state.pending_items, detectedLanguage);
         }
       }
     }
@@ -1309,25 +1363,60 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
       }
     }
 
-    // ── PHASE: idle — new message ────────────────────────
+    // ── PHASE: idle or collecting — new message ────────────────────────
     else {
       // Try to parse as order first
       const items = await parseOrderItems(text, detectedLanguage, contextString);
 
       if (items.length > 0) {
-        state.pending_items = items;
-        state.clarification_index = 0;
+        // If we have existing pending items (from "add more" flow), merge instead of replace
+        if (state.phase === 'collecting' && state.pending_items.length > 0) {
+          const existingNames = state.pending_items.map((i: ParsedItem) =>
+            i.product_name.toLowerCase()
+          );
 
-        // Check for missing qty or unit
-        const missingIndex = items.findIndex(i => !i.qty || !i.unit);
-        if (missingIndex >= 0) {
-          state.phase = 'clarifying';
-          state.clarification_index = missingIndex;
-          reply = buildClarificationQuestion(items[missingIndex], detectedLanguage);
+          const trulyNewItems = items.filter((ni: ParsedItem) =>
+            !existingNames.includes(ni.product_name.toLowerCase())
+          );
+
+          // Update existing items if new message provides updated qty/unit
+          for (const ni of items) {
+            const existingIdx = state.pending_items.findIndex(
+              (ei: ParsedItem) => ei.product_name.toLowerCase() === ni.product_name.toLowerCase()
+            );
+            if (existingIdx >= 0) {
+              if (ni.qty !== null) state.pending_items[existingIdx].qty = ni.qty;
+              if (ni.unit !== null) state.pending_items[existingIdx].unit = ni.unit;
+            }
+          }
+
+          const updatedItems = [...state.pending_items, ...trulyNewItems];
+          state.pending_items = updatedItems;
+          state.clarification_index = 0;
+
+          const missingIndex = updatedItems.findIndex((i: ParsedItem) => !i.qty || !i.unit);
+          if (missingIndex >= 0) {
+            state.phase = 'clarifying';
+            state.clarification_index = missingIndex;
+            reply = buildClarificationQuestion(updatedItems[missingIndex], detectedLanguage);
+          } else {
+            state.phase = 'confirming';
+            reply = buildOrderSummary(updatedItems, detectedLanguage);
+          }
         } else {
-          // All complete — show summary
-          state.phase = 'confirming';
-          reply = buildOrderSummary(items, detectedLanguage);
+          // Fresh order
+          state.pending_items = items;
+          state.clarification_index = 0;
+
+          const missingIndex = items.findIndex(i => !i.qty || !i.unit);
+          if (missingIndex >= 0) {
+            state.phase = 'clarifying';
+            state.clarification_index = missingIndex;
+            reply = buildClarificationQuestion(items[missingIndex], detectedLanguage);
+          } else {
+            state.phase = 'confirming';
+            reply = buildOrderSummary(items, detectedLanguage);
+          }
         }
       } else {
         // Not an order — generate conversational reply
