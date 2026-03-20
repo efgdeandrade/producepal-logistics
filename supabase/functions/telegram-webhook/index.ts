@@ -321,6 +321,7 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
       .eq('telegram_chat_id', lookupId)
       .maybeSingle();
 
+    console.log('CHECKPOINT 5: customer found?', !!customer, customerError ? 'ERROR: ' + customerError.message : '');
     if (!customer) {
       console.log('UNRECOGNIZED CONTACT chat_id:', chatId);
 
