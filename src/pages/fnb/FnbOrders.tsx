@@ -882,9 +882,9 @@ export default function FnbOrders() {
       return;
     }
 
-    // Check if dropping on another order (reorder within day)
+    const order = orders?.find(o => o.id === orderId);
     const overOrder = orders?.find(o => o.id === over.id);
-    if (overOrder && order.delivery_date === overOrder.delivery_date) {
+    if (order && overOrder && order.delivery_date === overOrder.delivery_date) {
       const dayOrders = getOrdersForDay(parseDateCuracao(order.delivery_date!));
       const oldIndex = dayOrders.findIndex(o => o.id === orderId);
       const newIndex = dayOrders.findIndex(o => o.id === over.id);
