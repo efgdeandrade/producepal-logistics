@@ -94,7 +94,24 @@ import { CSS } from '@dnd-kit/utilities';
 const supabase = supabaseClient as any;
 
 type CustomerType = 'regular' | 'supermarket' | 'cod' | 'credit';
-type OrderSource = 'email' | 'whatsapp' | 'standing' | 'manual';
+type OrderSource = 'email' | 'whatsapp' | 'standing' | 'manual' | 'telegram';
+
+interface UnscheduledOrder {
+  id: string;
+  order_number: string;
+  status: string;
+  source_channel: string | null;
+  created_at: string;
+  total_xcg: number | null;
+  customer_id: string | null;
+  items_count: number | null;
+  distribution_customers: {
+    name: string;
+    zone: string | null;
+    telegram_chat_id: string | null;
+    whatsapp_phone: string | null;
+  } | null;
+}
 
 interface OrderWithDetails {
   id: string;
@@ -113,6 +130,7 @@ interface OrderWithDetails {
   notes: string | null;
   source_email_id: string | null;
   standing_order_template_id: string | null;
+  source_channel?: string | null;
   distribution_customers: {
     name: string;
     whatsapp_phone?: string;
