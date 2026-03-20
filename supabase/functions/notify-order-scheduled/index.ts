@@ -71,7 +71,16 @@ serve(async (req) => {
       });
     }
 
-    const language = customer.preferred_language || 'papiamentu';
+    const normalizeLanguage = (lang: string): string => {
+      const map: Record<string, string> = {
+        'pap': 'papiamentu', 'papiamentu': 'papiamentu',
+        'en': 'english', 'english': 'english',
+        'nl': 'dutch', 'dutch': 'dutch',
+        'es': 'spanish', 'spanish': 'spanish',
+      };
+      return map[lang?.toLowerCase()] || 'papiamentu';
+    };
+    const language = normalizeLanguage(customer.preferred_language || 'papiamentu');
 
     const date = new Date(delivery_date);
     const dayOfWeek = date.getDay().toString();
