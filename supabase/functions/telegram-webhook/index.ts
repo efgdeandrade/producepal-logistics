@@ -582,7 +582,35 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
       lastCustomerMessage: text,
     };
 
-    // ── Run Dre Agent ─────────────────────────────────────
+    // SHORTCUT: If customer sent a confirmation word AND draft has items,
+    // skip GPT entirely and confirm directly
+    if (isUniversalConfirmation && orderDraft.items.length > 0) {
+      console.log('DIRECT CONFIRM: bypassing GPT, confirming', orderDraft.items.length, 'items');
+
+      const { executeFunctionCall } = await import('../_shared/dre-core.ts');
+      const result = await executeFunctionCall('confirm_order', {}, ctx, orderDraft);
+
+      const finalReply = result.reply;
+
+      if (finalReply) {
+        await sendTelegramMessage(chatId, finalReply, telegramToken);
+        await supabase.from('dre_messages').insert({
+          conversation_id: convo.id, role: 'dre',
+          content: finalReply, media_type: 'text', language_detected: language,
+        });
+      }
+
+      // Save empty draft
+      await supabase.from('dre_conversations').update({
+        agent_state: { order_draft: { items: [] } },
+        language_detected: language,
+        updated_at: new Date().toISOString(),
+      }).eq('id', convo.id);
+
+      return new Response('OK', { status: 200 });
+    }
+
+    // ── Run Dre Agent (full GPT-4o flow) ─────────────────
     console.log('CHECKPOINT 8: calling runDreAgent with', JSON.stringify({ language, itemsInDraft: orderDraft.items.length, isNewSession }));
     const { reply, orderDraft: updatedDraft } = await runDreAgent(
       text, ctx, orderDraft, openaiKey, lovableKey
