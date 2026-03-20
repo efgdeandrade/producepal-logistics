@@ -568,7 +568,7 @@ export async function executeFunctionCall(
       if (orderDraft.items.length === 0) {
         console.log('CONFIRM_ORDER: draft is EMPTY — cannot confirm. Agent state may have been reset.');
         const noItemsReplies: Record<string, string> = {
-          papiamentu: 'No tin item den bo orde ainda. Kon mi por yuda bo? 🌿',
+          papiamentu: 'No tin item den bo pedido ainda. Kon mi por yuda bo? 🌿',
           english: 'No items in your order yet. What can I help you with? 🌿',
           dutch: 'Nog geen items in je bestelling. Waarmee kan ik je helpen? 🌿',
           spanish: 'No hay artículos en tu pedido. ¿En qué puedo ayudarte? 🌿',
