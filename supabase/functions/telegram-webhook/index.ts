@@ -511,9 +511,11 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
     };
 
     // ── Run Dre Agent ─────────────────────────────────────
+    console.log('CHECKPOINT 8: calling runDreAgent with', JSON.stringify({ language, itemsInDraft: orderDraft.items.length, isNewSession }));
     const { reply, orderDraft: updatedDraft } = await runDreAgent(
       text, ctx, orderDraft, openaiKey, lovableKey
     );
+    console.log('CHECKPOINT 9: agent replied, length:', reply?.length, 'draft items:', updatedDraft?.items?.length);
 
     // ── Send reply ────────────────────────────────────────
     if (reply) {
