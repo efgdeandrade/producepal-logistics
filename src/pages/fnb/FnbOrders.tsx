@@ -152,8 +152,9 @@ interface OrderWithDetails {
 
 // Get order source based on order_number prefix or linked records
 const getOrderSource = (order: OrderWithDetails): OrderSource => {
+  if (order.source_channel === 'telegram' || order.order_number.startsWith('TG-')) return 'telegram';
   if (order.order_number.startsWith('EM-') || order.source_email_id) return 'email';
-  if (order.order_number.startsWith('WA-')) return 'whatsapp';
+  if (order.order_number.startsWith('WA-') || order.source_channel === 'whatsapp') return 'whatsapp';
   if (order.standing_order_template_id || order.notes?.startsWith('Auto-generated from standing order:')) return 'standing';
   return 'manual';
 };
