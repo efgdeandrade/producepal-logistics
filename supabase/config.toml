@@ -191,3 +191,6 @@ verify_jwt = false
 
 [functions.setup-telegram-group]
 verify_jwt = false
+
+[functions.notify-order-scheduled]
+verify_jwt = false

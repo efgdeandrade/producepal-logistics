@@ -1508,8 +1508,69 @@ export default function FnbOrders() {
               })}
             </div>
 
-            {/* Desktop: Original grid layout */}
-            <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Desktop: Grid layout with unscheduled column */}
+            <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {/* Unscheduled Column */}
+              {unscheduledOrders.length > 0 && (
+                <DroppableUnscheduledColumn isOver={false}>
+                  <Card className="min-h-[400px] border-l-4 border-l-amber-400 bg-amber-50/30 dark:bg-amber-950/10 h-full">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-amber-500 text-white text-xs font-bold">
+                            UNSCHEDULED
+                          </Badge>
+                        </div>
+                        <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300">
+                          {unscheduledOrders.length}
+                        </Badge>
+                      </CardTitle>
+                      <p className="text-xs text-muted-foreground mt-1">Drag to a day column to schedule</p>
+                    </CardHeader>
+                    <CardContent className={cn(
+                      "space-y-2 max-h-[500px]",
+                      isDragging ? "overflow-hidden" : "overflow-y-auto",
+                      "overscroll-contain"
+                    )}>
+                      <SortableContext
+                        items={unscheduledOrders.map(o => o.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {unscheduledOrders.map((order) => (
+                          <SortableUnscheduledCard key={order.id} order={order}>
+                            <Card className="border-l-4 border-l-amber-400 hover:shadow-sm transition-shadow cursor-pointer"
+                                  onClick={() => navigate(`/distribution/orders/edit/${order.id}`)}>
+                              <CardContent className="p-3 space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-semibold text-sm truncate">{order.distribution_customers?.name || 'Unknown'}</span>
+                                  <Badge variant="outline" className={cn('text-[10px] px-1.5',
+                                    order.source_channel === 'telegram' 
+                                      ? 'bg-teal-50 text-teal-700 border-teal-300 dark:bg-teal-950 dark:text-teal-300' 
+                                      : 'bg-green-50 text-green-700 border-green-300 dark:bg-green-950 dark:text-green-300'
+                                  )}>
+                                    {order.source_channel === 'telegram' ? '✈️ TG' : '💬 WA'}
+                                  </Badge>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <span className="font-mono">{order.order_number}</span>
+                                  {(order.items_count ?? 0) > 0 && (
+                                    <span>• {order.items_count} items</span>
+                                  )}
+                                </div>
+                                {order.total_xcg && (
+                                  <div className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                                    {order.total_xcg.toFixed(0)} XCG
+                                  </div>
+                                )}
+                              </CardContent>
+                            </Card>
+                          </SortableUnscheduledCard>
+                        ))}
+                      </SortableContext>
+                    </CardContent>
+                  </Card>
+                </DroppableUnscheduledColumn>
+              )}
               {weekDays.map((day) => {
                 const dayOrders = getOrdersForDay(day);
                 const stats = getDayStats(dayOrders);
