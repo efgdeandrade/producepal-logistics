@@ -44,6 +44,7 @@ serve(async (req) => {
 
   try {
     const { order_id, delivery_date } = await req.json();
+    console.log('notify-order-scheduled called with order_id:', order_id, 'delivery_date:', delivery_date);
 
     const { data: order } = await supabase
       .from('distribution_orders')

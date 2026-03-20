@@ -507,29 +507,35 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
 
     // Get order draft from conversation state — with staleness protection
     const agentState = convo.agent_state || {};
-    let orderDraft: OrderDraft = { items: [] }; // Always start fresh
+    let orderDraft: OrderDraft = { items: [] };
 
-    // Only restore draft if it was saved in the LAST 30 MINUTES
-    // This prevents stale items from previous sessions ever appearing
+    // Check if last Dre message was an order confirmation — if so, draft is stale
+    const lastDreMessage = allMessages.filter(m => m.role === 'dre').pop();
+    const lastMessageWasConfirmation = lastDreMessage?.content?.includes('ta konfirmá') ||
+      lastDreMessage?.content?.includes('ta aden') ||
+      lastDreMessage?.content?.includes('is confirmed') ||
+      lastDreMessage?.content?.includes('is in.') ||
+      lastDreMessage?.content?.includes('is bevestigd') ||
+      lastDreMessage?.content?.includes('está confirmado') ||
+      lastDreMessage?.content?.includes('ontvangen');
+
     const lastUpdated = convo.updated_at ? new Date(convo.updated_at).getTime() : 0;
     const minutesSinceUpdate = (Date.now() - lastUpdated) / (1000 * 60);
-    const hasFreshDraft = minutesSinceUpdate < 30 && 
-                          agentState.order_draft?.items?.length > 0 &&
-                          !agentState.last_confirmed_order;
+    const draftHasItems = (agentState.order_draft?.items?.length || 0) > 0;
+    const draftIsRecent = minutesSinceUpdate < 30;
 
-    if (hasFreshDraft && !isNewSession) {
+    // Only restore draft if: recent AND has items AND last message was NOT a confirmation AND not new session AND not a confirmation word
+    if (draftIsRecent && draftHasItems && !lastMessageWasConfirmation && !isNewSession && !isUniversalConfirmation) {
       orderDraft = agentState.order_draft;
-      console.log('RESTORED fresh draft:', JSON.stringify(orderDraft));
+      console.log('RESTORED draft:', orderDraft.items.length, 'items');
     } else {
-      console.log('FRESH START: no draft restored. Minutes since update:', minutesSinceUpdate.toFixed(1), 
-        'last_confirmed_order:', agentState.last_confirmed_order || 'none',
-        'isNewSession:', isNewSession);
-      // Clear stale state in DB too
-      if (agentState.order_draft?.items?.length > 0 || agentState.last_confirmed_order) {
+      if (draftHasItems) {
+        console.log('CLEARING stale draft. lastConfirmation:', lastMessageWasConfirmation, 'age:', minutesSinceUpdate.toFixed(0), 'min, isNewSession:', isNewSession);
         await supabase.from('dre_conversations')
           .update({ agent_state: { order_draft: { items: [] } } })
           .eq('id', convo.id);
       }
+      orderDraft = { items: [] };
     }
 
     // Curaçao time (UTC-4)
