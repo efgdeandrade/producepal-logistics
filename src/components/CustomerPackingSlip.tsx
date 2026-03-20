@@ -33,6 +33,7 @@ interface Product {
 }
 
 export const CustomerPackingSlip = ({ order, orderItems, format }: Props) => {
+  console.log('CustomerPackingSlip received orderItems:', JSON.stringify(orderItems.slice(0, 3).map(i => ({code: i.product_code, qty: i.quantity, stock: i.stock_quantity}))));
   const [products, setProducts] = useState<Product[]>([]);
 
   useEffect(() => {
