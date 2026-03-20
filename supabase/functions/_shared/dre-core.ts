@@ -737,7 +737,7 @@ export async function executeFunctionCall(
       }
       orderDraft.items = [];
       const replaceReplies: Record<string, string> = {
-        papiamentu: 'Ta bon, mi a kansela e orde anterior. Manda bo nobo orde. 🌿',
+        papiamentu: 'Ta bon, mi a kansela e pedido anterior. Manda bo nobo pedido. 🌿',
         english: 'Got it, previous order cancelled. Send your new order. 🌿',
         dutch: 'Oké, vorige bestelling geannuleerd. Stuur je nieuwe bestelling. 🌿',
         spanish: 'Entendido, pedido anterior cancelado. Envía tu nuevo pedido. 🌿',
