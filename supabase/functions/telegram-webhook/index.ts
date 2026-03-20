@@ -262,38 +262,29 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
       }
     }
 
-    // ── Group chat filtering ──────────────────────────────
+    // ── Group chat filtering (permissive — let GPT decide) ──
     console.log('CHECKPOINT 2: group filtering, isGroup?', isGroup);
     if (isGroup) {
       const botUsername = 'FuikOrdersBot';
-      const textLowerGroup = text.toLowerCase();
-      const isMentioned = textLowerGroup.includes(`@${botUsername.toLowerCase()}`);
+      const textLower = text.toLowerCase().trim();
+      const isMentioned = textLower.includes(`@${botUsername.toLowerCase()}`);
       const isReplyToBot = message.reply_to_message?.from?.username === botUsername;
 
-      const BUSINESS_KEYWORDS = [
-        'kaha', 'bolsa', 'saku', 'kilo', 'kg', 'mi ke', 'mi kier', 'order', 'orde',
-        'mango', 'pampuna', 'tomaat', 'wortel', 'papaja', 'fresa', 'patia',
-        'want', 'need', 'quiero', 'wil', 'bestelling',
-        'price', 'precio', 'prijs', 'available', 'stock',
-        'bon dia', 'bon tardi', 'bon nochi', 'hello', 'halo', 'hi ',
-        'tambe', 'otro kos', 'adishonal', 'ta bon', 'si', 'yes', 'ja',
-        // No-space Papiamentu variations
-        'bontardi', 'bondia', 'bonnochi', 'bontarde', 'bontardin',
-        'mique', 'mike', 'mikier',
-        // Common Papiamentu words
-        'danki', 'porfavor', 'please', 'kuantu', 'kiko',
-        'lamunchi', 'apelsin', 'fruta', 'berdura',
-        // Confirmations
-        'oke', 'perfekto', 'klaro',
+      // ONLY filter out very obvious casual single-word reactions
+      const IGNORE_PATTERNS = [
+        /^(ok|okay|oke|jaja|haha|lol|😂|👍|❤️|🙏|💪|🔥)$/i,
+        /^(gm|gn|good night|welterusten)$/i,
+        /^[\p{Emoji}]+$/u,  // pure emoji messages
       ];
 
-      const hasBusinessContent = BUSINESS_KEYWORDS.some(kw => textLowerGroup.includes(kw));
-      console.log('CHECKPOINT 2b: group filter result:', JSON.stringify({ isMentioned, isReplyToBot, hasBusinessContent }));
-      if (!isMentioned && !isReplyToBot && !hasBusinessContent) {
-        console.log('CHECKPOINT 2c: FILTERED OUT — no business content, returning');
+      const isObviouslyCasual = IGNORE_PATTERNS.some(p => p.test(textLower));
+      console.log('CHECKPOINT 2b: group filter:', JSON.stringify({ isMentioned, isReplyToBot, isObviouslyCasual }));
+
+      if (isObviouslyCasual && !isMentioned && !isReplyToBot) {
+        console.log('CHECKPOINT 2c: FILTERED OUT — obvious casual reaction');
         return new Response('OK', { status: 200 });
       }
-      console.log('CHECKPOINT 2d: passed group filter');
+      console.log('CHECKPOINT 2d: passed group filter — GPT will decide relevance');
     }
 
     // ── Route Bolenga training responses ─────────────────
@@ -437,9 +428,11 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
         .order('created_at', { ascending: false })
         .limit(20),
       supabase.from('distribution_orders')
-        .select('id, order_number, created_at, awaiting_customer_confirmation, distribution_order_items(product_name_raw, quantity, order_unit, product_id, unit_price_xcg)')
+        .select('id, order_number, created_at, status, awaiting_customer_confirmation, distribution_order_items(product_name_raw, quantity, order_unit, product_id, unit_price_xcg)')
         .eq('customer_id', customer.id)
-        .eq('awaiting_customer_confirmation', true)
+        .in('status', ['confirmed', 'draft', 'pending'])
+        .is('delivery_date', null)
+        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle(),
