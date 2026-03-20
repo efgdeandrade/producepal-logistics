@@ -697,7 +697,7 @@ export async function executeFunctionCall(
     case 'cancel_order': {
       orderDraft.items = [];
       const cancelReplies: Record<string, string> = {
-        papiamentu: 'Ta bon, mi a kansela bo orde. Tin algu otro mi por yuda bo ku? 🌿',
+        papiamentu: 'Ta bon, mi a kansela bo pedido. Tin algu otro mi por yuda bo ku? 🌿',
         english: 'Got it, order cancelled. Anything else I can help with? 🌿',
         dutch: 'Oké, bestelling geannuleerd. Kan ik je nog ergens mee helpen? 🌿',
         spanish: 'Entendido, pedido cancelado. ¿En qué más puedo ayudarte? 🌿',
