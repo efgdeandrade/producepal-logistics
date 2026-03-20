@@ -277,7 +277,7 @@ Items: ${(pendingOrder.distribution_order_items || pendingOrder.items || []).map
 Status: ${pendingOrder.status}
 
 → If customer starts a new conversation or greeting, mention this order ONCE naturally.
-  Example: "Bo tin un orde pendiente di anteriormente ku mango i wortel — bo ke kontinua ku dje of kuminsa nobo?"
+  Example: "Bo tin un pedido pendiente di anteriormente ku mango i wortel — bo ke kontinua ku dje of kuminsa nobo?"
 → If customer sends a completely new order, ask: want to add to existing order or start fresh?
 → If customer says "add" or "tambe" — call add_items (it will merge)
 → If customer says "new order" or "nobo" — call replace_pending_order first
