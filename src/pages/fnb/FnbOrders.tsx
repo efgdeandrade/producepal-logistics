@@ -505,6 +505,7 @@ export default function FnbOrders() {
           notes,
           source_email_id,
           standing_order_template_id,
+          source_channel,
           distribution_customers (name, whatsapp_phone, delivery_zone, customer_type),
           distribution_order_items (id, quantity, picked_quantity, short_quantity, unit_price_xcg, distribution_products (name, code))
         `)
@@ -524,6 +525,47 @@ export default function FnbOrders() {
       return data as (OrderWithDetails & { priority?: number })[];
     },
   });
+
+  // Fetch unscheduled orders (no delivery_date, from Dre channels)
+  const { data: unscheduledData } = useQuery({
+    queryKey: ['fnb-orders-unscheduled', statusFilter],
+    queryFn: async () => {
+      let query = supabase
+        .from('distribution_orders')
+        .select(`
+          id, order_number, status, source_channel, created_at, total_xcg,
+          customer_id, items_count,
+          distribution_customers(name, zone, telegram_chat_id, whatsapp_phone)
+        `)
+        .is('delivery_date', null)
+        .in('source_channel', ['telegram', 'whatsapp'])
+        .order('created_at', { ascending: false });
+
+      if (statusFilter !== 'all') {
+        query = query.eq('status', statusFilter);
+      } else {
+        query = query.in('status', ['confirmed', 'pending', 'draft']);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data as UnscheduledOrder[];
+    },
+  });
+
+  useEffect(() => {
+    setUnscheduledOrders(unscheduledData || []);
+  }, [unscheduledData]);
+
+  const notifyCustomerScheduled = async (orderId: string, deliveryDate: string) => {
+    try {
+      await supabase.functions.invoke('notify-order-scheduled', {
+        body: { order_id: orderId, delivery_date: deliveryDate },
+      });
+    } catch (e) {
+      console.error('Failed to notify customer:', e);
+    }
+  };
 
   const getOrdersForDay = (day: Date) => {
     let dayOrders = orders?.filter((order) => {
