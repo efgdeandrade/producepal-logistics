@@ -313,8 +313,9 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
 
     // ── Identify customer ────────────────────────────────
     const lookupId = chatId;
+    console.log('CHECKPOINT 4: customer lookup for', lookupId);
 
-    const { data: customer } = await supabase
+    const { data: customer, error: customerError } = await supabase
       .from('distribution_customers')
       .select('id, name, preferred_language, telegram_chat_id, whatsapp_phone')
       .eq('telegram_chat_id', lookupId)
