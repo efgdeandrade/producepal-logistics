@@ -587,20 +587,16 @@ Welkom in je FUIK bestelgroep, ${activationCustomer.name}! Ik ben Dre, je digita
     if (isUniversalConfirmation && orderDraft.items.length > 0) {
       console.log('DIRECT CONFIRM: bypassing GPT, confirming', orderDraft.items.length, 'items');
 
-      const { executeFunctionCall } = await import('../_shared/dre-core.ts');
       const result = await executeFunctionCall('confirm_order', {}, ctx, orderDraft);
 
-      const finalReply = result.reply;
-
-      if (finalReply) {
-        await sendTelegramMessage(chatId, finalReply, telegramToken);
+      if (result.reply) {
+        await sendTelegramMessage(chatId, result.reply, telegramToken);
         await supabase.from('dre_messages').insert({
           conversation_id: convo.id, role: 'dre',
-          content: finalReply, media_type: 'text', language_detected: language,
+          content: result.reply, media_type: 'text', language_detected: language,
         });
       }
 
-      // Save empty draft
       await supabase.from('dre_conversations').update({
         agent_state: { order_draft: { items: [] } },
         language_detected: language,
