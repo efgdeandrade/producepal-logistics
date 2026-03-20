@@ -630,6 +630,21 @@ export default function FnbOrders() {
     setUnscheduledOrders(unscheduledData || []);
   }, [unscheduledData]);
 
+  // Realtime subscription for new unscheduled orders
+  useEffect(() => {
+    const channel = supabaseClient
+      .channel('unscheduled-orders-realtime')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'distribution_orders',
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ['fnb-orders-unscheduled'] });
+      })
+      .subscribe();
+    return () => { supabaseClient.removeChannel(channel); };
+  }, [queryClient]);
+
   const notifyCustomerScheduled = async (orderId: string, deliveryDate: string) => {
     console.error('🔔 NOTIFY CALLED for order', orderId, 'date', deliveryDate);
     try {
