@@ -126,10 +126,10 @@ export const CustomerPackingSlip = ({ order, orderItems, format }: Props) => {
 
           <table className="w-full border-collapse">
             <thead>
-              <tr className="border-b-4 border-black">
-                <th className={`${textSize} text-left py-2 font-extrabold`}>Product</th>
-                <th className={`${textSize} text-right py-2 font-extrabold`}>Trays</th>
-                <th className={`${textSize} text-right py-2 font-extrabold`}>Units</th>
+              <tr className="border-b-2 border-black">
+                <th className="text-left py-2 font-bold">Product</th>
+                <th className="text-right py-2 font-bold">Trays</th>
+                <th className="text-right py-2 font-bold">Units</th>
               </tr>
             </thead>
             <tbody>
@@ -138,32 +138,32 @@ export const CustomerPackingSlip = ({ order, orderItems, format }: Props) => {
                 const totalQuantity = (item.quantity ?? 0) + (item.stock_quantity ?? 0);
                 const units = product ? totalQuantity * product.pack_size : 0;
                 return (
-                  <tr key={item.id} className="border-b-2 border-black">
-                    <td className={`${textSize} py-2`}>
-                      <div className="font-bold">{item.product_code}</div>
-                      {product && <div className="text-black font-bold">{product.name}</div>}
+                  <tr key={item.id} className="border-b border-gray-300">
+                    <td className="py-2">
+                      <div className="font-semibold">{item.product_code}</div>
+                      {product && <div className="text-sm text-gray-600">{product.name}</div>}
                       {(item.stock_quantity ?? 0) > 0 && (
-                        <span className="text-xs text-gray-600 ml-1">
+                        <div className="text-xs text-gray-500 italic">
                           ({item.stock_quantity} from stock)
-                        </span>
+                        </div>
                       )}
                     </td>
-                    <td className={`${textSize} text-right py-2 font-bold`}>{totalQuantity}</td>
-                    <td className={`${textSize} text-right py-2 font-bold`}>{units}</td>
+                    <td className="text-right py-2 font-semibold">{totalQuantity}</td>
+                    <td className="text-right py-2 font-semibold">{units}</td>
                   </tr>
                 );
               })}
             </tbody>
             <tfoot>
-              <tr className="border-t-4 border-black">
-                <td className={`${textSize} font-extrabold py-2`}>Total</td>
-                <td className={`${textSize} font-extrabold text-right py-2`}>
-                  {items.reduce((sum, item) => sum + item.quantity + (item.stock_quantity ?? 0), 0)}
+              <tr className="border-t-2 border-black font-bold">
+                <td className="py-2 font-bold">Total</td>
+                <td className="text-right py-2 font-bold">
+                  {items.reduce((sum, item) => sum + (item.quantity ?? 0) + (item.stock_quantity ?? 0), 0)}
                 </td>
-                <td className={`${textSize} font-extrabold text-right py-2`}>
+                <td className="text-right py-2 font-bold">
                   {items.reduce((sum, item) => {
                     const product = getProductInfo(item.product_code);
-                    const totalQty = item.quantity + (item.stock_quantity ?? 0);
+                    const totalQty = (item.quantity ?? 0) + (item.stock_quantity ?? 0);
                     return sum + (product ? totalQty * product.pack_size : 0);
                   }, 0)}
                 </td>
