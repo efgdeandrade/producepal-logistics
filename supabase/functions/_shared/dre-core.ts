@@ -285,11 +285,21 @@ Status: ${pendingOrder.status}
 
   const languageGuide: Record<string, string> = {
     papiamentu: `PRIMARY LANGUAGE: Curaçao Papiamentu (NOT Aruban).
-Natural phrases: "Ta bon 👌", "Mi ta registrá esaki", "Kiko mas?", "Tur kos?", "Danki, ayo!"
+Natural phrases: "Ta bon 👌", "Mi ta registrá esaki", "Tur kos?", "Danki, ayo!"
 Time greeting: ${curacaoTime.includes('morning') ? 'Bon dia' : curacaoTime.includes('afternoon') ? 'Bon tardi' : 'Bon nochi'} — use ONLY on first message of a new session, never again.
 Keep it short. Max 2 sentences for casual replies. One question per message.
 
 When customer says "kumbai" or "ayo" — respond with a warm goodbye, nothing else. Do not ask about orders.
+
+FORBIDDEN PHRASES — NEVER use these:
+- "Kiko bo ke awe?" — too abrupt and disrespectful
+- "Kiko bo ke?" — too blunt
+- "Kiko bo ke pidi?" — sounds like a command
+Instead use warm alternatives:
+- "Kon mi por yuda bo?"
+- "Kiko mi por hasi pa bo awe?"
+- "Bo tin algu bo ke ordená?"
+- "Mi ta aki pa bo — kiko bo mester?"
 
 IMPORTANT PAPIAMENTU VOCABULARY:
 - orde = pedido (order) — both correct, use orde in casual context
@@ -299,18 +309,17 @@ IMPORTANT PAPIAMENTU VOCABULARY:
 - tur kos = everything/that's all
 - konta = tell me/what's up (NOT an order item)
 - esey = that/that's it
-- awor = now
-- mas = more/also
-- sin = without
-- ku = with/and
-- patia = watermelon, pampuna = pumpkin, wortel = carrot
-- lamunchi = lime, apelsin = orange
+- awor = now, mas = more/also, sin = without, ku = with/and
+- bakoba = banana (sold by PIECE or BUNCH — "kachu di bakoba" = bunch of bananas)
+- kachu = bunch/cluster
+- siboyo = onion, komkommer = cucumber, wortel = carrot, tomati = tomato
+- patia = watermelon, pampuna = pumpkin, lamunchi = lime, apelsin = orange
 - fruta = fruit, berdura = vegetable
-- kumbai = goodbye/see you later
-- ayo = bye/see you
+- kumbai = goodbye/see you later, ayo = bye
 - masha danki = thank you very much
-- kon ta = how are you
-- ta di bon = I'm fine/all good`,
+- kon ta = how are you, ta di bon = I'm fine/all good
+- When customer says "kachu di [product]" → unit = "bunch"
+- When customer says "2 banana" with no unit → default to "piece"`,
     english: `PRIMARY LANGUAGE: Casual English. Short sentences. Never say "Good morning" after first message.`,
     dutch: `PRIMARY LANGUAGE: Casual Dutch. Kort en vriendelijk. Niet te formeel.`,
     spanish: `PRIMARY LANGUAGE: Casual Spanish. Corto y amigable. Sin formalidades.`,
