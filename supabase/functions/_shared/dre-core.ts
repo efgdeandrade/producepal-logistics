@@ -719,7 +719,7 @@ export async function executeFunctionCall(
         reply = buildOrderSummaryText(orderDraft, language);
       } else {
         const noOrderReplies: Record<string, string> = {
-          papiamentu: 'No tin orde pendiente. Kon mi por yuda bo? 🌿',
+          papiamentu: 'No tin pedido pendiente. Kon mi por yuda bo? 🌿',
           english: 'No pending order found. What would you like to order? 🌿',
           dutch: 'Geen openstaande bestelling gevonden. Wat wil je bestellen? 🌿',
           spanish: 'No hay pedido pendiente. ¿Qué quieres pedir? 🌿',
